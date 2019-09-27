@@ -45,8 +45,8 @@ endif()
 
 include_directories(${TCL_INCLUDE_PATH} ${TK_INCLUDE_PATH} ${TINYXML_INCLUDE_DIR})
 
-set(CXXSRCS sv3_XmlIOUtil.cxx)
-set(HDRS sv3_XmlIOUtil.h)
+set(CXXSRCS sv3_XmlIOUtil.cxx sv3_PyUtil.cxx)
+set(HDRS sv3_XmlIOUtil.h sv3_PyUtil.h)
 
 add_library(${lib} ${SV_LIBRARY_TYPE} ${CXXSRCS})
 
