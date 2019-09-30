@@ -133,9 +133,9 @@ Contour_set_contour_kernel(PyObject* self, PyObject *args)
     return Py_BuildValue("s", kernelName);
 }
 
-//-------------------
-// Contour_NewObject
-//-------------------
+//--------------------
+// Contour_new_object
+//--------------------
 //
 PyDoc_STRVAR(Contour_new_object_doc,
   "Contour_new_object(name, path)                                \n\ 
@@ -169,8 +169,6 @@ Contour_new_object(pyContour* self, PyObject* args)
         return nullptr;
     }
 
-    //PathElement *path;
-  
     // Get Path object.
     auto rd = gRepository->GetObject(pathName);
     if (rd == nullptr) {
@@ -182,7 +180,7 @@ Contour_new_object(pyContour* self, PyObject* args)
     // Check that the Path is a path.
     auto type = rd->GetType();
     if (type != PATH_T) {
-        auto msg = msgp + "The Path object '" + pathName + "' is not a Path."; 
+        auto msg = msgp + "'" + pathName + "' is not a Path object.";
         PyErr_SetString(PyRunTimeErr, msg.c_str()); 
         return nullptr;
     }
@@ -284,12 +282,23 @@ Contour_set_image(pyContour* self, PyObject* args)
 // Contour_get_object
 //--------------------
 //
+// [TODO:DaveP] This sets the 'geom' data member of the pyContour struct for
+// this object. Bad!
+//
+PyDoc_STRVAR(Contour_get_object_doc,
+  "Contour_get_object(name)  \n\ 
+                             \n\
+   Set the image data for a Contour object. \n\
+                                            \n\
+   Args:                                    \n\
+     name (str): The name of the Contour object. \n\
+");
+
 static PyObject* 
 Contour_get_object(pyContour* self, PyObject* args)
 {
-    char *objName=NULL;
+    char *objName = NULL;
     RepositoryDataT type;
-    cvRepositoryData *rd;
     Contour *contour;
 
     std::string functionName = Sv3PyUtilGetFunctionName(__func__);
@@ -300,46 +309,52 @@ Contour_get_object(pyContour* self, PyObject* args)
         return nullptr;
     }
     
-    // Retrieve source object:
-    rd = gRepository->GetObject( objName );
-    char r[2048];
-    if ( rd == NULL )
-    {
-      r[0] = '\0';
-      sprintf(r, "couldn't find object %s", objName);
-      PyErr_SetString(PyRunTimeErr,r);
-    
+    // Get the Contour object from the repository. 
+    auto rd = gRepository->GetObject(objName);
+    if (rd == nullptr) {
+        auto msg = msgp + "The Contour object '" + objName + "' is not in the repository."; 
+        PyErr_SetString(PyRunTimeErr, msg.c_str()); 
+        return nullptr;
     }
 
+    // Check its type.
     type = rd->GetType();
-
-    if ( type != CONTOUR_T )
-    {
-      r[0] = '\0';
-      sprintf(r, "%s not a contour object", objName);
-      PyErr_SetString(PyRunTimeErr,r);
-    
+    if (type != CONTOUR_T) {
+        auto msg = msgp + "'" + objName + "' is not a Contour object.";
+        PyErr_SetString(PyRunTimeErr, msg.c_str());
+        return nullptr;
     }
-  
-    contour = dynamic_cast<Contour*> (rd);
+
+    contour = dynamic_cast<Contour*>(rd);
     Py_INCREF(contour);
-    self->geom=contour;
+    self->geom = contour;
     Py_DECREF(contour);
     return Py_None;
 }
 
-// --------------------
-// Contour_SetControlPointsCmd
-// --------------------
-PyObject* Contour_SetControlPointsCmd( pyContour* self, PyObject* args)
-{
-    PyObject *ptList=NULL;
+//----------------------------
+// Contour_set_control_points 
+//----------------------------
+//
+PyDoc_STRVAR(Contour_set_control_points_doc,
+  "Contour_set_control_points(control_points)  \n\ 
+                             \n\
+   Set the control points for a Contour object. \n\
+                                            \n\
+   Args:                                    \n\
+     control_points (list[]): The list of control points to set for the Contour object. The number of control points needed depends on the Contour kernel set for this object.\n\
+");
 
-    if (!PyArg_ParseTuple(args,"O", &ptList))
-    {
-        PyErr_SetString(PyRunTimeErr, "Could not import one list and one optional list or double\
-            , center boundary and radius");
-        
+static PyObject* 
+Contour_set_control_points(pyContour* self, PyObject* args)
+{
+    PyObject *ptList = nullptr;
+    std::string functionName = Sv3PyUtilGetFunctionName(__func__);
+    std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+    std::string format = "O:" + functionName;
+
+    if (!PyArg_ParseTuple(args, format.c_str(), &ptList)) {
+        return nullptr;
     }
 
   // Do work of command:
@@ -667,7 +682,11 @@ static PyMethodDef pyContour_methods[] = {
      Contour_new_object_doc
    },
 
-  {"GetObject", (PyCFunction)Contour_GetObjectCmd,METH_VARARGS,NULL},
+  {"GetObject", 
+      (PyCFunction)Contour_get_object,
+      METH_VARARGS,
+      Contour_get_object_doc
+  },
 
   {"Create", (PyCFunction)Contour_CreateCmd,METH_NOARGS,NULL},
 
@@ -677,7 +696,11 @@ static PyMethodDef pyContour_methods[] = {
 
   {"Center", (PyCFunction)Contour_GetCenterPointCmd, METH_NOARGS,NULL},
 
-  {"SetCtrlPts", (PyCFunction)Contour_SetControlPointsCmd, METH_VARARGS, NULL},
+  {"set_control_points", 
+      (PyCFunction)Contour_set_control_points, 
+      METH_VARARGS, 
+      NULL
+  },
 
   {"SetCtrlPtsByRadius", (PyCFunction)Contour_SetControlPointsByRadiusCmd, METH_VARARGS, NULL},
 
@@ -708,8 +731,8 @@ static int pyContour_init(pyContour* self, PyObject* args)
 //
 static PyTypeObject pyContourType = {
   PyVarObject_HEAD_INIT(NULL, 0)
-  "pyContour.pyContour",             /* tp_name */
-  sizeof(pyContour),             /* tp_basicsize */
+  "pyContour.pyContour",     /* tp_name */
+  sizeof(pyContour),         /* tp_basicsize */
   0,                         /* tp_itemsize */
   0,                         /* tp_dealloc */
   0,                         /* tp_print */
