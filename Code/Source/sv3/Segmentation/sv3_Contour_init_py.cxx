@@ -717,9 +717,16 @@ static PyMethodDef pyContour_methods[] = {
   {NULL,NULL}
 };
 
+//----------------
+// pyContour_init
+//----------------
+// This is the __init__() method for the Contour class. 
+//
+// This function is used to initialize an object after it is created.
+//
 static int pyContour_init(pyContour* self, PyObject* args)
 {
-  fprintf(stdout,"pyContour initialized.\n");
+  fprintf(stdout, "Contour object type initialized.\n");
   return SV_OK;
 }
 
@@ -731,7 +738,7 @@ static int pyContour_init(pyContour* self, PyObject* args)
 //
 static PyTypeObject pyContourType = {
   PyVarObject_HEAD_INIT(NULL, 0)
-  "pyContour.pyContour",     /* tp_name */
+  "contour.Contour",         /* tp_name */
   sizeof(pyContour),         /* tp_basicsize */
   0,                         /* tp_itemsize */
   0,                         /* tp_dealloc */
@@ -749,16 +756,16 @@ static PyTypeObject pyContourType = {
   0,                         /* tp_getattro */
   0,                         /* tp_setattro */
   0,                         /* tp_as_buffer */
-  Py_TPFLAGS_DEFAULT |
-      Py_TPFLAGS_BASETYPE,   /* tp_flags */
-  "pyContour  objects",           /* tp_doc */
+  Py_TPFLAGS_DEFAULT |       /* tp_flags */
+  Py_TPFLAGS_BASETYPE,   
+  "Contour  objects",        /* tp_doc */
   0,                         /* tp_traverse */
   0,                         /* tp_clear */
   0,                         /* tp_richcompare */
   0,                         /* tp_weaklistoffset */
   0,                         /* tp_iter */
   0,                         /* tp_iternext */
-  pyContour_methods,             /* tp_methods */
+  pyContour_methods,         /* tp_methods */
   0,                         /* tp_members */
   0,                         /* tp_getset */
   0,                         /* tp_base */
@@ -766,9 +773,9 @@ static PyTypeObject pyContourType = {
   0,                         /* tp_descr_get */
   0,                         /* tp_descr_set */
   0,                         /* tp_dictoffset */
-  (initproc)pyContour_init,                            /* tp_init */
+  (initproc)pyContour_init,  /* tp_init */
   0,                         /* tp_alloc */
-  0,                  /* tp_new */
+  0,                         /* tp_new */
 };
 
 //-------------------
@@ -823,7 +830,7 @@ static PyMethodDef pyContourModule_methods[] =
 // Define the initialization function called by the Python 
 // interpreter when the module is loaded.
 
-static char* MODULE_NAME = "pyContour";
+static char* MODULE_NAME = "contour";
 
 PyDoc_STRVAR(Contour_doc,
   "Contour functions");
@@ -878,21 +885,18 @@ PyMODINIT_FUNC PyInit_pyContour()
   pyContourType.tp_new = PyType_GenericNew;
   pyContourFactoryRegistrarType.tp_new = PyType_GenericNew;
 
-  if (PyType_Ready(&pyContourType)<0)
-  {
+  if (PyType_Ready(&pyContourType)<0) {
     fprintf(stdout,"Error in pyContourType\n");
     return SV_PYTHON_ERROR;
   }
 
-  if (PyType_Ready(&pyContourFactoryRegistrarType)<0)
-  {
+  if (PyType_Ready(&pyContourFactoryRegistrarType)<0) {
     fprintf(stdout,"Error in pyContourFactoryRegistrarType\n");
     return SV_PYTHON_ERROR;
   }
   PyObject* pythonC;
   pythonC = PyModule_Create(&pyContourModule);
-  if(pythonC==NULL)
-  {
+  if(pythonC==NULL) {
     fprintf(stdout,"Error in initializing pyContour\n");
     return SV_PYTHON_ERROR;
   }
@@ -900,7 +904,9 @@ PyMODINIT_FUNC PyInit_pyContour()
   PyModule_AddObject(pythonC,"error",PyRunTimeErr);
   Py_INCREF(&pyContourType);
   Py_INCREF(&pyContourFactoryRegistrarType);
-  PyModule_AddObject(pythonC,"pyContour",(PyObject*)&pyContourType);
+
+  // Add the 'Contour' object.
+  PyModule_AddObject(pythonC,"Contour", (PyObject*)&pyContourType);
   PyModule_AddObject(pythonC, "pyContourFactoryRegistrar", (PyObject *)&pyContourFactoryRegistrarType);
   
   pyContourFactoryRegistrar* tmp = PyObject_New(pyContourFactoryRegistrar, &pyContourFactoryRegistrarType);
