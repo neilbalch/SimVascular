@@ -31,10 +31,11 @@
 
 // The functions defined here implement the SV Python API Contour Module. 
 //
-// The module name is 'pyContour' but is imported as 'Contour' so functions
-// are called as follows 
+// The module name is 'contour'. The module defines a 'Contour' class used
+// to store contour data. The 'Contour' class cannot be imported and must
+// be used prefixed by the module name. For example
 //
-//   Contour.Create(...)
+//     ctr = contour.Countour()
 //
 //
 #include "SimVascular.h"
@@ -74,7 +75,7 @@ PyObject* PyRunTimeErr;
 // it is defined so we need to define its prototype here.
 pyContour* createContourType();
 
-// Define a map between contour kernel type to enum.
+// Define a map between contour kernel name and enum type.
 static std::map<std::string,cKernelType> kernelNameTypeMap = 
 { 
     {"Circle", cKERNEL_CIRCLE},
@@ -140,10 +141,10 @@ Contour_set_contour_kernel(PyObject* self, PyObject *args)
 PyDoc_STRVAR(Contour_new_object_doc,
   "Contour_new_object(name, path)                                \n\ 
                                                                  \n\
-   Create a Contour object at a given position along an existing path. \n\
+   Create a contour at a given position along an existing path. \n\
                                                                  \n\
    Args:                                                         \n\
-     name (str): The name of the Contour object to create.       \n\
+     name (str): The name of the contour to create.       \n\
      path (str): The name of the Path object the contour is defined on. \n\
      index (int): The index into the path points array to position the contour. 0 <= Index <= N-1, N = number of path points.\n\
 ");
@@ -229,7 +230,7 @@ Contour_new_object(pyContour* self, PyObject* args)
 PyDoc_STRVAR(Contour_set_image_doc,
   "Contour_set_image(image)  \n\ 
                              \n\
-   Set the image data for a Contour object. \n\
+   Set the image data for a contour. \n\
                                             \n\
    Args:                                    \n\
      image (vtkImageData): A VTK image object.  \n\
@@ -287,9 +288,9 @@ Contour_set_image(pyContour* self, PyObject* args)
 //
 PyDoc_STRVAR(Contour_get_object_doc,
   "Contour_get_object(name)  \n\ 
-                             \n\
-   Set the image data for a Contour object. \n\
-                                            \n\
+   \n\
+   Set the image data for a contour. \n\
+   \n\
    Args:                                    \n\
      name (str): The name of the Contour object. \n\
 ");
@@ -337,197 +338,291 @@ Contour_get_object(pyContour* self, PyObject* args)
 //----------------------------
 //
 PyDoc_STRVAR(Contour_set_control_points_doc,
-  "Contour_set_control_points(control_points)  \n\ 
-                             \n\
-   Set the control points for a Contour object. \n\
-                                            \n\
+  "Contour.set_control_points(control_points)  \n\ 
+   \n\
+   Set the control points for a contour. \n\
+   \n\
    Args:                                    \n\
-     control_points (list[]): The list of control points to set for the Contour object. The number of control points needed depends on the Contour kernel set for this object.\n\
+     control_points (list[]): The list of control points to set for the contour. The number of control points needed depends on the Contour kernel set for this object.\n\
 ");
 
 static PyObject* 
 Contour_set_control_points(pyContour* self, PyObject* args)
 {
-    PyObject *ptList = nullptr;
+    PyObject *controlPoints = nullptr;
     std::string functionName = Sv3PyUtilGetFunctionName(__func__);
     std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
     std::string format = "O:" + functionName;
 
-    if (!PyArg_ParseTuple(args, format.c_str(), &ptList)) {
+    if (!PyArg_ParseTuple(args, format.c_str(), &controlPoints)) {
         return nullptr;
     }
 
-  // Do work of command:
-    int numPts = PyList_Size(ptList);
+    try {
+
+    // Check control points data.
+    //
+    if (!PyList_Check(controlPoints)) {
+        throw std::runtime_error("Control points argument is not a Python list.");
+    }
+
+    int numPts = PyList_Size(controlPoints);
+    for (int i = 0; i < numPts; i++) {
+        PyObject* pt = PyList_GetItem(controlPoints,i);
+        if ((PyList_Size(pt) != 3) || !PyList_Check(pt)) {
+            throw std::runtime_error("Control points argument data at " + std::to_string(i) + 
+              " in the list is not a 3D point (three float values).");
+        }
+        for (int j = 0; j < 3; j++) {
+            if (!PyFloat_Check(PyList_GetItem(pt,j))) { 
+                throw std::runtime_error("Control points argument data at " + std::to_string(i) + 
+                  " in the list is not a 3D point (three float values).");
+            }
+        }
+    }
     
-    if (Contour::gCurrentKernel==cKERNEL_CIRCLE)
-    {
-        if(numPts!=2)
-        {
-            PyErr_SetString(PyRunTimeErr, "Circle contour requires two points, center and boundary");
-            
-        }
-    }
-    else if (Contour::gCurrentKernel==cKERNEL_ELLIPSE)
-    {
-        if(numPts!=3)
-        {
-            PyErr_SetString(PyRunTimeErr, "Ellipse contour requires three points, center and two boudaries");
-            
-        }
-    }
-    else if (Contour::gCurrentKernel==cKERNEL_POLYGON)
-    {
-        if(numPts<3)
-        {
-            PyErr_SetString(PyRunTimeErr, "Polygon contour requires at least three points");
-            
-        }
+    // Check that the number of control is consistant 
+    // with the kernel type.
+    //
+    // [TODO:DaveP] The kernel should be set in the object.
+    //
+    if ((Contour::gCurrentKernel == cKERNEL_CIRCLE) && (numPts != 2)) {
+        throw std::runtime_error("Circle contour requires two points: a center and a point on its boundary.");
+
+    } else if ((Contour::gCurrentKernel == cKERNEL_ELLIPSE) && (numPts != 3)) {
+        throw std::runtime_error("Ellipse contour requires three points: a center and two points on its boundary.");
+
+    } else if ((Contour::gCurrentKernel == cKERNEL_POLYGON) && (numPts < 3)) {
+        throw std::runtime_error("Polygon contour requires at least three points");
     }        
     
     Contour* contour = self->geom;
-    if ( contour==NULL ) {
-        PyErr_SetString(PyRunTimeErr, "Contour object not created");
-        
+    if (contour == NULL ) {
+        throw std::runtime_error("Geometry has not been created for the contour.");
     }
     
+    // Copy control points to contour object.
     std::vector<std::array<double,3> > pts(numPts);
-    for (int i = 0; i<numPts; i++)
-    {
-        PyObject* tmpList = PyList_GetItem(ptList,i);
-        if(PyList_Size(tmpList)!=3)
-        {
-            PyErr_SetString(PyRunTimeErr, "The length of double list must be 3");
-            
-        }
-        for (int j = 0;j<3;j++)
-        {
+    for (int i = 0; i < numPts; i++) {
+        PyObject* tmpList = PyList_GetItem(controlPoints,i);
+        for (int j = 0; j < 3; j++) {
             pts[i][j] = PyFloat_AsDouble(PyList_GetItem(tmpList,j));
         }
     }
     contour->SetControlPoints(pts);
     return Py_None;
+
+   } catch (std::exception &e) {
+       auto msg = msgp + e.what();
+       PyErr_SetString(PyRunTimeErr, msg.c_str());
+       return nullptr;
+  }
+
 }
 
-PyObject* Contour_SetControlPointsByRadiusCmd(pyContour* self, PyObject* args)
+//--------------------------------------
+// Contour_set_control_points_by_radius
+//--------------------------------------
+//
+PyDoc_STRVAR(Contour_set_control_points_by_radius_doc,
+  "Contour.set_control_points_by_radius(control_points)  \n\ 
+   \n\
+   Set the control points for a Circle Contour with a center point and radius. \n\
+   \n\
+   Args: \n\
+     center ([x,y,z]): The list of three floats defining the center of the Circle Contour.   \n\ 
+     radius (float)): The radius of the Circle Contour.   \n\ 
+");
+
+static PyObject* 
+Contour_set_control_points_by_radius(pyContour* self, PyObject* args)
 {
     PyObject *center;
-    double radius = -1.;
-    if (Contour::gCurrentKernel==cKERNEL_CIRCLE)
-    {
-        if (!PyArg_ParseTuple(args,"Od", &center, &radius ))
-        {
-            PyErr_SetString(PyRunTimeErr, "Could not import one list and one double\
-            , center and radius");
-            
-        }
+    double radius = 0.0;
+    std::string functionName = Sv3PyUtilGetFunctionName(__func__);
+    std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+    std::string format = "Od:" + functionName;
+
+    if (Contour::gCurrentKernel != cKERNEL_CIRCLE) {
+        auto msg = msgp + "Contour kernel is not set to 'Circle'";
+        PyErr_SetString(PyRunTimeErr, msg.c_str());
+        return nullptr;
     }
-    else
-    {
-        PyErr_SetString(PyRunTimeErr, "Kernel method does not support this function");
-        
+
+    if (!PyArg_ParseTuple(args, format.c_str(), &center, &radius )) {
+        return nullptr;
     }
-  // Do work of command:
+
     double ctr[3];
-    if(PyList_Size(center)!=3)
-    {
-        PyErr_SetString(PyRunTimeErr, "The length of double list must be 3");
-        
+    if (PyList_Size(center) != 3) {
+        auto msg = msgp + "Center argument is not a 3D point (three float values).";
+        PyErr_SetString(PyRunTimeErr, msg.c_str());
+        return nullptr;
     }
-    for (int i = 0;i<PyList_Size(center);i++)
-    {
+
+    for (int i = 0; i < PyList_Size(center); i++) {
+        if (!PyFloat_Check(PyList_GetItem(center,i))) { 
+            auto msg = msgp + "Center argument is not a 3D point (three float values).";
+            PyErr_SetString(PyRunTimeErr, msg.c_str());
+            return nullptr;
+        }
         ctr[i] = PyFloat_AsDouble(PyList_GetItem(center,i));
     }
     
     Contour* contour = self->geom;
-    if ( contour==NULL ) {
-        PyErr_SetString(PyRunTimeErr, "Contour object not created");
-        
-    }
-    if (radius>0.)
-    {
-        contour->SetControlPointByRadius(radius,ctr);
-    }
-    else
-    {
-        PyErr_SetString(PyRunTimeErr, "Must provide either a point on the \
-            circle or a positive radius value");
-        
 
+    if (contour == NULL) {
+        auto msg = msgp + "No geometry has been created for the contour.";
+        PyErr_SetString(PyRunTimeErr, msg.c_str());
+        return nullptr;
     }
+
+    if (radius <= 0.0) {
+        auto msg = msgp + "Radius argument must be > 0.0.";
+        PyErr_SetString(PyRunTimeErr, msg.c_str());
+        return nullptr;
+    }
+
+    contour->SetControlPointByRadius(radius,ctr);
     return Py_None;
 }
 
+//----------------
+// Contour_create
+//----------------
+//
+PyDoc_STRVAR(Contour_create_doc,
+  "Contour_create()  \n\ 
+   \n\
+   Set the control points for the contour. \n\
+   \n\
+   Args:                                    \n\
+     None \n\
+");
 
-// --------------------
-// Contour_CreateCmd
-// --------------------
-PyObject* Contour_CreateCmd( pyContour* self, PyObject* args)
+static PyObject* 
+Contour_create(pyContour* self, PyObject* args)
 {
+    std::string functionName = Sv3PyUtilGetFunctionName(__func__);
+    std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+
     Contour* contour = self->geom;
-    if ( contour==NULL ) {
-        PyErr_SetString(PyRunTimeErr, "Contour object not created");
-        
+    if (contour == NULL) {
+        auto msg = msgp + "No geometry has been created for the Contour.";
+        PyErr_SetString(PyRunTimeErr, msg.c_str());
+        return nullptr;
     }
-    if (Contour::gCurrentKernel==cKERNEL_LEVELSET)
-    {
+
+    // Set default level set parameters.
+    if (Contour::gCurrentKernel == cKERNEL_LEVELSET) {
         sv3::levelSetContour::svLSParam paras;
         contour->SetLevelSetParas(&paras);
-        //std::cout<<"paras: "<<paras.radius<<std::endl;
     }
     
     contour->CreateContourPoints();
-    if(contour->GetContourPointNumber()==0)
-    {
+    if (contour->GetContourPointNumber()==0) {
         PyErr_SetString(PyRunTimeErr, "Error creating contour points");
-        
+        auto msg = msgp + "Error creating contour points.";
+        PyErr_SetString(PyRunTimeErr, msg.c_str());
+        return nullptr;
     }
     
     Py_INCREF(contour);
     self->geom=contour;
     Py_DECREF(contour);
     return Py_None;
-    
 }
 
-// --------------------
-// Contour_GetAreaCmd
-// --------------------
-PyObject* Contour_GetAreaCmd( pyContour* self, PyObject* args)
+//------------------
+// Contour_get_area
+//------------------
+//
+PyDoc_STRVAR(Contour_get_area_doc,
+  "Contour.area()  \n\ 
+   \n\
+   Get the area of the contour. \n\
+   \n\
+   Args:                                    \n\
+     None \n\
+   \n\
+   Returns: Area (float) of the contour. \n\
+");
+
+static PyObject* 
+Contour_get_area(pyContour* self, PyObject* args)
 {
+    std::string functionName = Sv3PyUtilGetFunctionName(__func__);
+    std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+
     Contour* contour = self->geom;
-    if ( contour==NULL ) {
-        PyErr_SetString(PyRunTimeErr, "Contour object not created");
+    if (contour == NULL) {
+        auto msg = msgp + "No geometry has been created for the contour.";
+        PyErr_SetString(PyRunTimeErr, msg.c_str());
+        return nullptr;
         
     }
     double area = contour->GetArea();
     return Py_BuildValue("d",area);    
 }
 
-// --------------------
-// Contour_GetPerimeterCmd
-// --------------------
-PyObject* Contour_GetPerimeterCmd( pyContour* self, PyObject* args)
+//-----------------------
+// Contour_get_perimeter
+//-----------------------
+//
+PyDoc_STRVAR(Contour_get_perimeter_doc,
+  "Contour.perimeter()  \n\ 
+   \n\
+   Get the length of the contour perimeter. \n\
+   \n\
+   Args:                                    \n\
+     None \n\
+   \n\
+   Returns: Length (float) of the contour perimeter. \n\
+");
+
+PyObject* Contour_get_perimeter(pyContour* self, PyObject* args)
 {
+    std::string functionName = Sv3PyUtilGetFunctionName(__func__);
+    std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+
     Contour* contour = self->geom;
-    if ( contour==NULL ) {
-        PyErr_SetString(PyRunTimeErr, "Contour object not created");
-        
+    if (contour == NULL) {
+        auto msg = msgp + "No geometry has been created for the Contour.";
+        PyErr_SetString(PyRunTimeErr, msg.c_str());
+        return nullptr;
     }
     double perimeter = contour->GetPerimeter();
     return Py_BuildValue("d",perimeter);    
 }
 
-// --------------------
-// Contour_GetPerimeterCmd
-// --------------------
-PyObject* Contour_GetCenterPointCmd( pyContour* self, PyObject* args)
+//--------------------
+// Contour_get_center
+//--------------------
+//
+// [TODO:DaveP] This should return a list of three floats.
+PyDoc_STRVAR(Contour_get_center_doc,
+  "Contour.center()  \n\ 
+   \n\
+   Get the center of the contour. \n\
+   \n\
+   Args:                                    \n\
+     None \n\
+   \n\
+   Returns: Center (string(x,y,z)) of the contour. \n\
+");
+
+PyObject* Contour_get_center(pyContour* self, PyObject* args)
 {
+    std::string functionName = Sv3PyUtilGetFunctionName(__func__);
+    std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+
     Contour* contour = self->geom;
-    if ( contour==NULL ) {
-        PyErr_SetString(PyRunTimeErr, "Contour object not created");
-        
+    if (contour == NULL ) {
+        auto msg = msgp + "No geometry has been created for the Contour.";
+        PyErr_SetString(PyRunTimeErr, msg.c_str());
+        return nullptr;
     }
+
     std::array<double,3> center = contour->GetCenterPoint();
     char output[1024];
     output[0] = '\0';
@@ -535,62 +630,89 @@ PyObject* Contour_GetCenterPointCmd( pyContour* self, PyObject* args)
     return Py_BuildValue("s",output);    
 }
 
-// ----------------------------
-// Contour_SetThresholdValueCmd
-// ----------------------------
-PyObject* Contour_SetThresholdValueCmd(pyContour* self, PyObject* args)
+//-----------------------------
+// Contour_set_threshold_value
+//-----------------------------
+//
+PyDoc_STRVAR(Contour_set_threshold_value_doc,
+  "Contour.set_threshold_value()  \n\ 
+   \n\
+   Set the threshold value for a Threshold Contour. \n\
+   \n\
+   Args: \n\
+     threshold (float): Threshold value. \n\
+");
+
+PyObject* Contour_set_threshold_value(pyContour* self, PyObject* args)
 {
-    double threshold = 0.;
-    if (!PyArg_ParseTuple(args,"d", &threshold))
-    {
-        PyErr_SetString(PyRunTimeErr, "Could not import double, threshold");
-        
+    double threshold = 0.0;
+    std::string functionName = Sv3PyUtilGetFunctionName(__func__);
+    std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+    std::string format = "d:" + functionName;
+
+    if (!PyArg_ParseTuple(args, format.c_str(), &threshold)) {
+        return nullptr;
     }
     
-    if (Contour::gCurrentKernel!=cKERNEL_THRESHOLD)
-    {
-        PyErr_SetString(PyRunTimeErr, "Contour type is not threshold");
-        
+    if (Contour::gCurrentKernel != cKERNEL_THRESHOLD) {
+        auto msg = msgp + "Contour kernel is not set to 'Threshold'";
+        PyErr_SetString(PyRunTimeErr, msg.c_str());
+        return nullptr;
     }
     
     Contour* contour = self->geom;
-    if ( contour==NULL ) {
-        PyErr_SetString(PyRunTimeErr, "Contour object not created");
-        
+    if (contour == NULL) {
+        auto msg = msgp + "No geometry has been created for the contour.";
+        PyErr_SetString(PyRunTimeErr, msg.c_str());
+        return nullptr;
     }
+
     contour->SetThresholdValue(threshold);
     return Py_None;
 }
     
-//-----------------------------
-// Contour_CreateSmoothContour
-//-----------------------------
+//-------------------------------
+// Contour_create_smooth_contour
+//-------------------------------
 //
-pyContour* Contour_CreateSmoothContour(pyContour* self, PyObject* args)
+PyDoc_STRVAR(Contour_create_smooth_contour_doc,
+  "Contour.create_smooth_contour()  \n\ 
+   \n\
+   Create a smoothed contour. \n\
+   \n\
+   Args:                                    \n\
+     num_modes (int): Number of Fourier modes.\n\
+     name (str): Name of the new smoothed contour. \n\
+");
+
+static pyContour* 
+Contour_create_smooth_contour(pyContour* self, PyObject* args)
 {
+    std::string functionName = Sv3PyUtilGetFunctionName(__func__);
+    std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+    std::string format = "is:" + functionName;
     int fourierNumber = 0;
     char* contourName;
-    if (!PyArg_ParseTuple(args,"is", &fourierNumber,&contourName))
-    {
-        PyErr_SetString(PyRunTimeErr, "Could not import int and one char, fourierNumber, contourName");
-        
+
+    if (!PyArg_ParseTuple(args, format.c_str(), &fourierNumber, &contourName)) {
+        return nullptr;
     }
     
     Contour* contour = self->geom;
-    if ( contour==NULL ) {
-        PyErr_SetString(PyRunTimeErr, "Contour object not created");
-        
+    if (contour == NULL) {
+        auto msg = msgp + "No geometry has been created for the Contour.";
+        PyErr_SetString(PyRunTimeErr, msg.c_str());
+        return nullptr;
     }
     
     Contour *newContour = sv3::Contour::DefaultInstantiateContourObject(Contour::gCurrentKernel, contour->GetPathPoint());
-    
     newContour= contour->CreateSmoothedContour(fourierNumber);
     
-    // Register the contour:
-    if ( !( gRepository->Register( contourName, newContour ) ) ) {
-        PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
+    if ( !( gRepository->Register(contourName, newContour))) {
+        auto msg = msgp + "Could not add the new contour into the repository."; 
+        PyErr_SetString(PyRunTimeErr, msg.c_str());
         delete newContour;
-        
+        return nullptr;
     }
         
     Py_INCREF(newContour);
@@ -601,44 +723,68 @@ pyContour* Contour_CreateSmoothContour(pyContour* self, PyObject* args)
     return pyNewCt;
 }
 
-//========================
-// Contour_GetPolyDataCmd
-//=========================
-PyObject* Contour_GetPolyDataCmd(pyContour* self, PyObject* args)
+//----------------------
+// Contour_get_polydata
+//----------------------
+//
+// [TODO:DaveP] This function name is confusing, does not get
+// anything: puts contour geometry into the Python repository.
+//
+//   Do we want to have an explicit operation for this
+//
+//       poly_data = contour.get_polydata()
+//       repository.add_polydata(poly_data)
+//
+PyDoc_STRVAR(Contour_get_polydata_doc,
+  "Contour.get_polydata()  \n\ 
+   \n\
+   Add the contour geometry to the Python repository. \n\
+   \n\
+   Args:                                    \n\
+     name (str): Name in the repository to store the geometry. \n\
+");
+
+static PyObject* 
+Contour_get_polydata(pyContour* self, PyObject* args)
 {
-    char* dstName=NULL;
-    if (!PyArg_ParseTuple(args,"s", &dstName))
-    {
-        PyErr_SetString(PyRunTimeErr, "Could not import char, dstName");
-        
+    std::string functionName = Sv3PyUtilGetFunctionName(__func__);
+    std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+    std::string format = "s:" + functionName;
+
+    char* dstName = NULL;
+    if (!PyArg_ParseTuple(args, format.c_str(), &dstName)) {
+        return nullptr;
     }
     
-    // Make sure the specified result object does not exist:
-    if ( gRepository->Exists( dstName ) ) {
-        PyErr_SetString(PyRunTimeErr, "object already exists");
-        
+    // Check that the repository object does not already exist.
+    if (gRepository->Exists(dstName)) {
+        auto msg = msgp + "The repository object '" + dstName + "' already exists."; 
+        PyErr_SetString(PyRunTimeErr, msg.c_str()); 
+        return nullptr;
     }
   
     Contour* geom = self->geom;
-    if ( geom==NULL ) {
-        PyErr_SetString(PyRunTimeErr, "Contour object not created");
-        
+    if (geom == NULL) {
+        auto msg = msgp + "The contour does not have geometry."; 
+        PyErr_SetString(PyRunTimeErr, msg.c_str()); 
+        return nullptr;
     }
+
+    // Get the VTK polydata.
     vtkSmartPointer<vtkPolyData> vtkpd = geom->CreateVtkPolyDataFromContour();
-    
     cvPolyData* pd = new cvPolyData(vtkpd);
     
-    if (pd==NULL)
-    {
-        PyErr_SetString(PyRunTimeErr, "Could not get polydata from object");
-        
+    if (pd == NULL) {
+        auto msg = msgp + "Could not get polydata for the contour.";
+        PyErr_SetString(PyRunTimeErr, msg.c_str()); 
+        return nullptr;
     }
     
-      // Register the result:
     if ( !( gRepository->Register( dstName, pd ) ) ) {
-      PyErr_SetString(PyRunTimeErr, "error registering obj in repository" );
-      delete pd;
-      
+        auto msg = msgp + "Could not add the polydata to the repository.";
+        PyErr_SetString(PyRunTimeErr, msg.c_str()); 
+        delete pd;
+        return nullptr;
     }
     
     return Py_None;
@@ -682,38 +828,71 @@ static PyMethodDef pyContour_methods[] = {
      Contour_new_object_doc
    },
 
-  {"GetObject", 
+  {"get_object", 
       (PyCFunction)Contour_get_object,
       METH_VARARGS,
       Contour_get_object_doc
   },
 
-  {"Create", (PyCFunction)Contour_CreateCmd,METH_NOARGS,NULL},
+  {"create", 
+      (PyCFunction)Contour_create,
+      METH_NOARGS,    
+     Contour_create_doc, 
+   },
 
-  {"Area", (PyCFunction)Contour_GetAreaCmd,METH_NOARGS,NULL},
+  {"area", 
+      (PyCFunction)Contour_get_area,
+      METH_NOARGS,
+      Contour_get_area_doc
+  },
 
-  {"Perimeter", (PyCFunction)Contour_GetPerimeterCmd,METH_NOARGS,NULL},
+  {"perimeter", 
+      (PyCFunction)Contour_get_perimeter,
+      METH_NOARGS,
+      Contour_get_perimeter_doc
+  },
 
-  {"Center", (PyCFunction)Contour_GetCenterPointCmd, METH_NOARGS,NULL},
+  {"center", (PyCFunction)Contour_get_center, 
+      METH_NOARGS,
+      Contour_get_center_doc
+  },
 
   {"set_control_points", 
       (PyCFunction)Contour_set_control_points, 
       METH_VARARGS, 
-      NULL
+      Contour_set_control_points_doc
   },
 
-  {"SetCtrlPtsByRadius", (PyCFunction)Contour_SetControlPointsByRadiusCmd, METH_VARARGS, NULL},
+  {"set_control_points_by_radius", 
+      (PyCFunction)Contour_set_control_points_by_radius, 
+      METH_VARARGS, 
+      Contour_set_control_points_by_radius_doc
+  },
 
-  {"SetThresholdValue", (PyCFunction)Contour_SetThresholdValueCmd, METH_VARARGS, NULL},
+  {"set_threshold_value", 
+      (PyCFunction)Contour_set_threshold_value, 
+      METH_VARARGS, 
+      Contour_set_threshold_value_doc
+  },
 
-  {"CreateSmoothCt", (PyCFunction)Contour_CreateSmoothContour, METH_VARARGS, NULL},
+  {"create_smooth_contour", 
+      (PyCFunction)Contour_create_smooth_contour, 
+      METH_VARARGS, 
+      Contour_create_smooth_contour_doc
+  },
 
   {"set_image", 
       (PyCFunction)Contour_set_image, 
       METH_VARARGS,
-      Contour_set_image_doc},
+      Contour_set_image_doc
+  },
 
-  {"GetPolyData", (PyCFunction)Contour_GetPolyDataCmd, METH_VARARGS,NULL},
+  {"get_polydata", 
+      (PyCFunction)Contour_get_polydata, 
+      METH_VARARGS,
+      Contour_get_polydata_doc
+  },
+
   {NULL,NULL}
 };
 
