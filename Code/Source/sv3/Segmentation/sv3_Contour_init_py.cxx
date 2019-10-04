@@ -139,11 +139,11 @@ Contour_set_contour_kernel(PyObject* self, PyObject *args)
 //--------------------
 //
 PyDoc_STRVAR(Contour_new_object_doc,
-  "Contour_new_object(name, path)                                \n\ 
-                                                                 \n\
+  "Contour_new_object(name, path) \n\ 
+   \n\
    Create a contour at a given position along an existing path. \n\
-                                                                 \n\
-   Args:                                                         \n\
+   \n\
+   Args: \n\
      name (str): The name of the contour to create.       \n\
      path (str): The name of the Path object the contour is defined on. \n\
      index (int): The index into the path points array to position the contour. 0 <= Index <= N-1, N = number of path points.\n\
@@ -229,10 +229,10 @@ Contour_new_object(pyContour* self, PyObject* args)
 //
 PyDoc_STRVAR(Contour_set_image_doc,
   "Contour_set_image(image)  \n\ 
-                             \n\
+   \n\
    Set the image data for a contour. \n\
-                                            \n\
-   Args:                                    \n\
+   \n\
+   Args: \n\
      image (vtkImageData): A VTK image object.  \n\
 ");
 
@@ -291,7 +291,7 @@ PyDoc_STRVAR(Contour_get_object_doc,
    \n\
    Set the image data for a contour. \n\
    \n\
-   Args:                                    \n\
+   Args: \n\
      name (str): The name of the Contour object. \n\
 ");
 
@@ -337,12 +337,15 @@ Contour_get_object(pyContour* self, PyObject* args)
 // Contour_set_control_points 
 //----------------------------
 //
+// [TODO:DaveP] I'm not sure we need this function, think it should be
+// defined for each Contour object type.
+//
 PyDoc_STRVAR(Contour_set_control_points_doc,
   "Contour.set_control_points(control_points)  \n\ 
    \n\
    Set the control points for a contour. \n\
    \n\
-   Args:                                    \n\
+   Args: \n\
      control_points (list[]): The list of control points to set for the contour. The number of control points needed depends on the Contour kernel set for this object.\n\
 ");
 
@@ -423,6 +426,9 @@ Contour_set_control_points(pyContour* self, PyObject* args)
 //--------------------------------------
 // Contour_set_control_points_by_radius
 //--------------------------------------
+//
+// [TODO:DaveP] I think this should be removed, have it only defined 
+// for the CircelContour type.
 //
 PyDoc_STRVAR(Contour_set_control_points_by_radius_doc,
   "Contour.set_control_points_by_radius(control_points)  \n\ 
@@ -520,7 +526,8 @@ Contour_create(pyContour* self, PyObject* args)
     }
     
     contour->CreateContourPoints();
-    if (contour->GetContourPointNumber()==0) {
+
+    if (contour->GetContourPointNumber() == 0) {
         PyErr_SetString(PyRunTimeErr, "Error creating contour points");
         auto msg = msgp + "Error creating contour points.";
         PyErr_SetString(PyRunTimeErr, msg.c_str());
@@ -528,7 +535,7 @@ Contour_create(pyContour* self, PyObject* args)
     }
     
     Py_INCREF(contour);
-    self->geom=contour;
+    self->geom = contour;
     Py_DECREF(contour);
     return Py_None;
 }
@@ -738,7 +745,7 @@ Contour_create_smooth_contour(pyContour* self, PyObject* args)
 PyDoc_STRVAR(Contour_get_polydata_doc,
   "Contour.get_polydata()  \n\ 
    \n\
-   Add the contour geometry to the Python repository. \n\
+   Add the contour geometry to the repository. \n\
    \n\
    Args:                                    \n\
      name (str): Name in the repository to store the geometry. \n\
@@ -905,7 +912,7 @@ static PyMethodDef pyContour_methods[] = {
 //
 static int pyContour_init(pyContour* self, PyObject* args)
 {
-  fprintf(stdout, "Contour object type initialized.\n");
+  //fprintf(stdout, "Contour object type initialized.\n");
   return SV_OK;
 }
 

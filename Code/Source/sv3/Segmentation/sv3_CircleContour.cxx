@@ -124,17 +124,17 @@ void circleContour::SetControlPoint(int index, std::array<double,3> point)
 
 }
 
+// SetControlPointByRadius
+
 void circleContour::SetControlPointByRadius(double radius, double* point)
 {
     double centerPt[3];
-    std::cout <<"Point coords: "<<point[0]<<" "<<point[1]<<" "<<point[2]<<std::endl;
     m_vtkPlaneGeometry->ProjectPoint(point, centerPt);
-    std::cout <<"centerPt coords: "<<centerPt[0]<<" "<<centerPt[1]<<" "<<centerPt[2]<<std::endl;
     std::array<double,3> dirVec;
-    if(m_ControlPoints.size()==0)
+
+    if (m_ControlPoints.size()==0) {
         m_ControlPoints.push_back(std::array<double,3>{centerPt[0],centerPt[1],centerPt[2]});
-    else
-    {
+    } else {
         for (int i=0; i<3; i++)
             dirVec[i]=centerPt[i]-GetControlPoint(0)[i];
         Shift(dirVec);

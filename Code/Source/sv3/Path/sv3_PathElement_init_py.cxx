@@ -34,6 +34,7 @@
 
 #include "sv3_PathElement.h"
 #include "sv3_PathElement_init_py.h"
+#include "sv3_PyUtil.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -238,23 +239,25 @@ PyMODINIT_FUNC PyInit_pyPath()
 // --------------------
 PyObject* sv4Path_NewObjectCmd( pyPath* self, PyObject* args)
 {
-    
   char* objName;
   char* methodName;
   int calcNum=100, splacing=0;
+
+  std::string functionName = Sv3PyUtilGetFunctionName(__func__);
+  std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+  std::string format = "s|sii:" + functionName;
   
-  if(!PyArg_ParseTuple(args,"s|sii",&objName,&methodName,&calcNum,&splacing))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one char or optional char and ints");
-    
+  if (!PyArg_ParseTuple(args, format.c_str(), &objName, &methodName, &calcNum, &splacing)) {
+      return nullptr;
   }
   
    // Do work of command:
 
   // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( objName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists.");
-    
+  if (gRepository->Exists(objName)) {
+      auto msg = msgp + "The Path object '" + objName + "' is already in the repository.";
+      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      return nullptr;
   }
 
   // Instantiate the new mesh:
@@ -264,6 +267,7 @@ PyObject* sv4Path_NewObjectCmd( pyPath* self, PyObject* args)
   if ( !( gRepository->Register( objName, geom ) ) ) {
     PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
     delete geom;
+    return nullptr;
     
   }
 
