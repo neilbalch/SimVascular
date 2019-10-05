@@ -33,11 +33,13 @@
 #define __SV3_PYUTIL_H__
 
 #include "SimVascular.h"
-
+#include "Python.h"
 #include <string>
 
 std::string Sv3PyUtilGetFunctionName(const char* functionName);
 
 std::string Sv3PyUtilGetMsgPrefix(const std::string& functionName);
+
+PyObject * Sv3PyUtilResetException(PyObject * PyRunTimeErr);
 
 #endif 

@@ -37,6 +37,11 @@
 //
 //     ctr = contour.Countour()
 //
+// A Python exception sv.contour.ContourException is defined for this module. 
+// The exception can be used in a Python 'try' statement with an 'except' clause 
+// like this
+//
+//    except sv.contour.ContourException:
 //
 #include "SimVascular.h"
 #include "SimVascular_python.h"
@@ -69,11 +74,11 @@ using sv3::Contour;
 using sv3::PathElement;
 
 // Exception type used by PyErr_SetString() to set the for the error indicator.
-PyObject* PyRunTimeErr;
+static PyObject * PyRunTimeErr;
 
 // createContourType() references pyContourType and is used before 
 // it is defined so we need to define its prototype here.
-pyContour* createContourType();
+pyContour * createContourType();
 
 // Define a map between contour kernel name and enum type.
 static std::map<std::string,cKernelType> kernelNameTypeMap = 
@@ -118,7 +123,7 @@ Contour_set_contour_kernel(PyObject* self, PyObject *args)
     std::string format = "s:" + functionName; 
 
     if (!PyArg_ParseTuple(args, format.c_str(), &kernelName)) {
-        return nullptr;
+        return Sv3PyUtilResetException(PyRunTimeErr);
     }
 
     try {
@@ -160,7 +165,7 @@ Contour_new_object(pyContour* self, PyObject* args)
     std::string format = "ssi:" + functionName;
 
     if (!PyArg_ParseTuple(args, format.c_str(), &contourName, &pathName, &index)) {
-        return nullptr;
+        return Sv3PyUtilResetException(PyRunTimeErr);
     }
   
     // Check that the new Contour object does not already exist.
@@ -250,7 +255,7 @@ Contour_set_image(pyContour* self, PyObject* args)
     std::string format = "O:" + functionName;
 
     if (!PyArg_ParseTuple(args, format.c_str(), &vtkName)) {
-        return nullptr;
+        return Sv3PyUtilResetException(PyRunTimeErr);
     }
   
     // Check the Contour object has data. 
@@ -307,7 +312,7 @@ Contour_get_object(pyContour* self, PyObject* args)
     std::string format = "s:" + functionName;
 
     if (!PyArg_ParseTuple(args, format.c_str(), &objName)) {
-        return nullptr;
+        return Sv3PyUtilResetException(PyRunTimeErr);
     }
     
     // Get the Contour object from the repository. 
@@ -337,6 +342,8 @@ Contour_get_object(pyContour* self, PyObject* args)
 // Contour_set_control_points 
 //----------------------------
 //
+// Use try-catch block for error handling.
+//
 // [TODO:DaveP] I'm not sure we need this function, think it should be
 // defined for each Contour object type.
 //
@@ -358,7 +365,7 @@ Contour_set_control_points(pyContour* self, PyObject* args)
     std::string format = "O:" + functionName;
 
     if (!PyArg_ParseTuple(args, format.c_str(), &controlPoints)) {
-        return nullptr;
+        return Sv3PyUtilResetException(PyRunTimeErr);
     }
 
     try {
@@ -456,7 +463,7 @@ Contour_set_control_points_by_radius(pyContour* self, PyObject* args)
     }
 
     if (!PyArg_ParseTuple(args, format.c_str(), &center, &radius )) {
-        return nullptr;
+        return Sv3PyUtilResetException(PyRunTimeErr);
     }
 
     double ctr[3];
@@ -658,7 +665,7 @@ PyObject* Contour_set_threshold_value(pyContour* self, PyObject* args)
     std::string format = "d:" + functionName;
 
     if (!PyArg_ParseTuple(args, format.c_str(), &threshold)) {
-        return nullptr;
+        return Sv3PyUtilResetException(PyRunTimeErr);
     }
     
     if (Contour::gCurrentKernel != cKERNEL_THRESHOLD) {
@@ -702,6 +709,7 @@ Contour_create_smooth_contour(pyContour* self, PyObject* args)
     char* contourName;
 
     if (!PyArg_ParseTuple(args, format.c_str(), &fourierNumber, &contourName)) {
+        Sv3PyUtilResetException(PyRunTimeErr);
         return nullptr;
     }
     
@@ -760,7 +768,7 @@ Contour_get_polydata(pyContour* self, PyObject* args)
 
     char* dstName = NULL;
     if (!PyArg_ParseTuple(args, format.c_str(), &dstName)) {
-        return nullptr;
+        return Sv3PyUtilResetException(PyRunTimeErr);
     }
     
     // Check that the repository object does not already exist.
@@ -1080,26 +1088,31 @@ PyMODINIT_FUNC PyInit_pyContour()
     fprintf(stdout,"Error in pyContourFactoryRegistrarType\n");
     return SV_PYTHON_ERROR;
   }
-  PyObject* pythonC;
-  pythonC = PyModule_Create(&pyContourModule);
-  if(pythonC==NULL) {
+  auto module = PyModule_Create(&pyContourModule);
+  if (module == NULL) {
     fprintf(stdout,"Error in initializing pyContour\n");
     return SV_PYTHON_ERROR;
   }
-  PyRunTimeErr = PyErr_NewException("pyContour.error",NULL,NULL);
-  PyModule_AddObject(pythonC,"error",PyRunTimeErr);
-  Py_INCREF(&pyContourType);
-  Py_INCREF(&pyContourFactoryRegistrarType);
+
+  // Add contour.ContourException exception.
+  //
+  // This defines a Python exception named sv.contour.ContourException.
+  // This can be used in a 'try' statement with an 'except' clause 'except sv.contour.ContourException:'
+  // 
+  PyRunTimeErr = PyErr_NewException("contour.ContourException", NULL, NULL);
+  PyModule_AddObject(module, "ContourException", PyRunTimeErr);
 
   // Add the 'Contour' object.
-  PyModule_AddObject(pythonC,"Contour", (PyObject*)&pyContourType);
-  PyModule_AddObject(pythonC, "pyContourFactoryRegistrar", (PyObject *)&pyContourFactoryRegistrarType);
-  
+  Py_INCREF(&pyContourType);
+  PyModule_AddObject(module, "Contour", (PyObject*)&pyContourType);
+
+  Py_INCREF(&pyContourFactoryRegistrarType);
+  PyModule_AddObject(module, "pyContourFactoryRegistrar", (PyObject *)&pyContourFactoryRegistrarType);
   pyContourFactoryRegistrar* tmp = PyObject_New(pyContourFactoryRegistrar, &pyContourFactoryRegistrarType);
   tmp->registrar = (cvFactoryRegistrar *)&Contour::gRegistrar;
   PySys_SetObject("ContourObjectRegistrar", (PyObject *)tmp);
 
-  return pythonC;
+  return module;
 }
 
 #endif
