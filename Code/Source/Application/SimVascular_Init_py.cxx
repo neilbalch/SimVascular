@@ -141,12 +141,12 @@ void SimVascular_pyInit()
 #if PYTHON_MAJOR_VERSION ==3
 void SimVascular_pyInit()
 {
-    printf("Loading Python Modules\n");
+    printf("Loading Python Modules ...\n");
     PyImport_AppendInittab("pyRepository",PyInit_pyRepository);
     PyImport_AppendInittab("pyMath",PyInit_pyMath);
     PyImport_AppendInittab("pyGeom",PyInit_pyGeom);
     PyImport_AppendInittab("pyImage",PyInit_pyImage);
-    PyImport_AppendInittab("pyPath",PyInit_pyPath);
+    PyImport_AppendInittab("path", PyInit_pyPath);
     PyImport_AppendInittab("contour", PyInit_pyContour);
     PyImport_AppendInittab("pyThresholdContour",PyInit_pyThresholdContour);
     PyImport_AppendInittab("pylevelSetContour",PyInit_pylevelSetContour);

@@ -82,5 +82,70 @@ PyObject * Sv3PyUtilResetException(PyObject * pyRunTimeErr)
     return nullptr;
 }
 
+//-------------------------
+// Sv3PyUtilCheckPointData
+//-------------------------
+// Check Python point data.
+//
+// The point data is a list [x,y,z] of three floats.
+//
+// If there is a problem with the data then the function returns false and
+// a string describing the problem.
+//
+bool Sv3PyUtilCheckPointData(PyObject *pointData, std::string& msg)
+{
+  if (!PyList_Check(pointData)) {
+      msg = "is not a Python list.";
+      return false;
+  }
 
+  if (PyList_Size(pointData) != 3) {
+    msg = "is not a 3D point (three float values).";
+    return false;
+  }
+
+  for (int i = 0; i < 3; i++) {
+    if (!PyFloat_Check(PyList_GetItem(pointData,i))) {
+      msg = "data at " + std::to_string(i) + " in the list is not a float.";
+      return false;
+      }
+  }
+
+  return true;
+}
+
+//-----------------------------
+// Sv3PyUtilCheckPointDataList
+//-----------------------------
+// Check a Python list of point data.
+//
+// The point data is a list of [x,y,z] (three floats).
+//
+// If there is a problem with the data then the function returns false and
+// a string describing the problem.
+//
+bool Sv3PyUtilCheckPointDataList(PyObject *pointData, std::string& msg)
+{
+  if (!PyList_Check(pointData)) {
+      msg = "is not a Python list.";
+      return false;
+  }
+
+  int numPts = PyList_Size(pointData);
+  for (int i = 0; i < numPts; i++) {
+      PyObject* pt = PyList_GetItem(pointData,i);
+      if ((PyList_Size(pt) != 3) || !PyList_Check(pt)) {
+          msg = "data at " + std::to_string(i) + " in the list is not a 3D point (three float values).";
+          return false;
+      }
+      for (int j = 0; j < 3; j++) {
+          if (!PyFloat_Check(PyList_GetItem(pt,j))) {
+              msg = "data at " + std::to_string(i) + " in the list is not a 3D point (three float values).";
+              return false;
+         }
+      }
+  }
+
+  return true;
+}
 

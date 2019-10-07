@@ -91,9 +91,9 @@ static std::map<std::string,cKernelType> kernelNameTypeMap =
     {"Threshold", cKERNEL_THRESHOLD}
 };
 
-//////////////////////////////////////////////////////////////////
-//        C o n t o u r  M o d u l e  F u n c t i o n s         //
-//////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////
+//          M o d u l e  F u n c t i o n s          //
+//////////////////////////////////////////////////////
 //
 // Python API functions. 
 
@@ -805,14 +805,10 @@ Contour_get_polydata(pyContour* self, PyObject* args)
     return Py_None;
 }
 
-//////////////////////////////////////////////////////////////////
-//       C o n t o u r   M o d u l e  D e f i n i t i o n       //
-//////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////
+//          M o d u l e  D e f i n i t i o n          //
+////////////////////////////////////////////////////////
 
-//----------------------------
-// Define API function names
-//----------------------------
-    
 #if PYTHON_MAJOR_VERSION == 2
 PyMODINIT_FUNC  initpyContour();
 #endif
@@ -1040,7 +1036,7 @@ PyDoc_STRVAR(Contour_doc,
 static int perInterpreterStateSize = -1;
 
 // Always initialize this to PyModuleDef_HEAD_INIT.
-PyModuleDef_Base m_base = PyModuleDef_HEAD_INIT;
+static PyModuleDef_Base m_base = PyModuleDef_HEAD_INIT;
 
 // Define the module definition struct which holds all information 
 // needed to create a module object. 

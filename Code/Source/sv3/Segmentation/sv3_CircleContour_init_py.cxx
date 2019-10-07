@@ -28,6 +28,9 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+// The functions defined here implement the SV Python API CircleContour Module. 
+//
 #include "SimVascular.h"
 #include "sv_misc_utils.h"
 #include "sv3_Contour.h"
@@ -48,77 +51,116 @@
 #ifdef GetObject
 #undef GetObject
 #endif
-// Prototypes:
-// -----------
-//
+
 using sv3::circleContour;
 
 circleContour* CreateCircleContour()
 {
-	return new circleContour();
+  return new circleContour();
 }
+
 // Globals:
 // --------
 
 #include "sv2_globals.h"
 
-// -----
-// Adapt
-// -----
 
-PyObject* circleContour_AvailableCmd(PyObject* self,PyObject* args);
+//////////////////////////////////////////////////////
+//          M o d u l e  F u n c t i o n s          //
+//////////////////////////////////////////////////////
+//
+// Python API functions. 
 
-PyObject* circleContour_RegistrarsListCmd(PyObject* self, PyObject* args);
-
-PyMethodDef circleContour_methods[] = {
-  {"Available", circleContour_AvailableCmd,METH_NOARGS,NULL},
-  {"Registrars", circleContour_RegistrarsListCmd,METH_NOARGS,NULL},
-  {NULL, NULL}
-};
-
-#if PYTHON_MAJOR_VERSION == 2
-PyMODINIT_FUNC
-initpyCircleContour()
+//-------------------------
+// circleContour_Available
+//-------------------------
+//
+static PyObject *  
+circleContour_AvailableCmd(PyObject* self, PyObject* args)
 {
-  printf("  %-12s %s\n","","circleContour Enabled");
+  return Py_BuildValue("s", "circleContour Available");
+}
 
-  // Associate the adapt registrar with the python interpreter so it can be
-  // retrieved by the DLLs.
+//---------------------------------
+// circleContour_RegistrarsListCmd
+//---------------------------------
+//
+static PyObject * 
+circleContour_RegistrarsListCmd(PyObject* self, PyObject* args)
+{
   PyObject* pyGlobal = PySys_GetObject("ContourObjectRegistrar");
   pyContourFactoryRegistrar* tmp = (pyContourFactoryRegistrar *) pyGlobal;
   cvFactoryRegistrar* contourObjectRegistrar =tmp->registrar;
-  
-  if (contourObjectRegistrar != NULL) {
-          // Register this particular factory method with the main app.
-          contourObjectRegistrar->SetFactoryMethodPtr( cKERNEL_CIRCLE,
-      (FactoryMethodPtr) &CreateCircleContour );
-  }
-  else {
-    return;
-  }
-  
-  tmp->registrar = contourObjectRegistrar;
-  PySys_SetObject("ContourObjectRegistrar",(PyObject*)tmp);
 
-  PyObject* pythonC;
-  pythonC = Py_InitModule("pyCircleContour", circleContour_methods);
-  if(pythonC==NULL)
-  {
-    fprintf(stdout,"Error in initializing pyCircleContour\n");
-    return;
+  char result[255];
+  PyObject* pyPtr = PyList_New(8);
+  sprintf(result, "Contour object registrar ptr -> %p\n", contourObjectRegistrar );
+  PyList_SetItem(pyPtr,0,PyBytes_FromFormat(result));
+
+  for (int i = 0; i < 7; i++) {
+      sprintf( result,"GetFactoryMethodPtr(%i) = %p\n", i, (contourObjectRegistrar->GetFactoryMethodPtr(i)));
+      fprintf(stdout,result);
+      PyList_SetItem(pyPtr,i+1,PyBytes_FromFormat(result));
   }
+  return pyPtr;
 }
 
-#endif 
+////////////////////////////////////////////////////////
+//          M o d u l e  D e f i n i t i o n          //
+////////////////////////////////////////////////////////
+
+PyMethodDef circleContour_methods[] = {
+
+  {"Available", 
+      circleContour_AvailableCmd,
+      METH_NOARGS,
+      NULL
+  },
+
+  {"Registrars", 
+      circleContour_RegistrarsListCmd,
+      METH_NOARGS,
+      NULL
+  },
+
+  {NULL, NULL}
+};
+
+//-----------------------
+// Initialize the module
+//-----------------------
+// Define the initialization function called by the Python 
+// interpreter when the module is loaded.
+
+static char* MODULE_NAME = "pyCircleContour";
+
+PyDoc_STRVAR(CircleContour_doc,
+  "CircleContour functions");
+
+//---------------------------------------------------------------------------
+//                           PYTHON_MAJOR_VERSION 3                         
+//---------------------------------------------------------------------------
+
 #if PYTHON_MAJOR_VERSION == 3
+
+// Size of per-interpreter state of the module.
+// Set to -1 if the module keeps state in global variables. 
+static int perInterpreterStateSize = -1;
+
+// Always initialize this to PyModuleDef_HEAD_INIT.
+static PyModuleDef_Base m_base = PyModuleDef_HEAD_INIT;
+
+// Define the module definition struct which holds all information 
+// needed to create a module object. 
+
 static struct PyModuleDef pyCircleContourModule = {
-   PyModuleDef_HEAD_INIT,
-   "pyCircleContour",   /* name of module */
-   "", /* module documentation, may be NULL */
-   -1,       /* size of per-interpreter state of the module,
-                or -1 if the module keeps state in global variables. */
+   m_base,
+   MODULE_NAME,  
+   CircleContour_doc, 
+   perInterpreterStateSize, 
    circleContour_methods
 };
+
 #endif
 
 #if PYTHON_MAJOR_VERSION == 3
@@ -133,12 +175,10 @@ PyInit_pyCircleContour()
   pyContourFactoryRegistrar* tmp = (pyContourFactoryRegistrar *) pyGlobal;
   cvFactoryRegistrar* contourObjectRegistrar =tmp->registrar;
   
+  // Register this particular factory method with the main app.
   if (contourObjectRegistrar != NULL) {
-          // Register this particular factory method with the main app.
-          contourObjectRegistrar->SetFactoryMethodPtr( cKERNEL_CIRCLE,
-      (FactoryMethodPtr) &CreateCircleContour );
-  }
-  else {
+      contourObjectRegistrar->SetFactoryMethodPtr( cKERNEL_CIRCLE, (FactoryMethodPtr) &CreateCircleContour );
+  } else {
     Py_RETURN_NONE;
   }
   
@@ -156,29 +196,41 @@ PyInit_pyCircleContour()
 }
 #endif
 
-PyObject*  circleContour_AvailableCmd(PyObject* self, PyObject* args)
-{
-  return Py_BuildValue("s","circleContour Available");
+//---------------------------------------------------------------------------
+//                           PYTHON_MAJOR_VERSION 2                         
+//---------------------------------------------------------------------------
 
-}
-
-PyObject* circleContour_RegistrarsListCmd(PyObject* self, PyObject* args)
+#if PYTHON_MAJOR_VERSION == 2
+PyMODINIT_FUNC
+initpyCircleContour()
 {
-    PyObject* pyGlobal = PySys_GetObject("ContourObjectRegistrar");
+  printf("  %-12s %s\n","","circleContour Enabled");
+
+  // Associate the adapt registrar with the python interpreter so it can be
+  // retrieved by the DLLs.
+  PyObject* pyGlobal = PySys_GetObject("ContourObjectRegistrar");
   pyContourFactoryRegistrar* tmp = (pyContourFactoryRegistrar *) pyGlobal;
   cvFactoryRegistrar* contourObjectRegistrar =tmp->registrar;
-
-  char result[255];
-  PyObject* pyPtr=PyList_New(8);
-  sprintf( result, "Contour object registrar ptr -> %p\n", contourObjectRegistrar );
-  PyList_SetItem(pyPtr,0,PyBytes_FromFormat(result));
-
-  for (int i = 0; i < 7; i++) {
-      sprintf( result,"GetFactoryMethodPtr(%i) = %p\n",
-      i, (contourObjectRegistrar->GetFactoryMethodPtr(i)));
-      fprintf(stdout,result);
-      PyList_SetItem(pyPtr,i+1,PyBytes_FromFormat(result));
+  
+  // Register this particular factory method with the main app.
+  if (contourObjectRegistrar != NULL) {
+      contourObjectRegistrar->SetFactoryMethodPtr( cKERNEL_CIRCLE, (FactoryMethodPtr) &CreateCircleContour );
   }
-  return pyPtr;
+  else {
+    return;
+  }
+  
+  tmp->registrar = contourObjectRegistrar;
+  PySys_SetObject("ContourObjectRegistrar",(PyObject*)tmp);
+
+  PyObject* pythonC;
+  pythonC = Py_InitModule("pyCircleContour", circleContour_methods);
+
+  if (pythonC == NULL) {
+    fprintf(stdout,"Error in initializing pyCircleContour\n");
+    return;
+  }
+
 }
+#endif 
 

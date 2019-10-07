@@ -42,4 +42,8 @@ std::string Sv3PyUtilGetMsgPrefix(const std::string& functionName);
 
 PyObject * Sv3PyUtilResetException(PyObject * PyRunTimeErr);
 
+bool Sv3PyUtilCheckPointData(PyObject* pointData, std::string& msg);
+
+bool Sv3PyUtilCheckPointDataList(PyObject* pointData, std::string& msg);
+
 #endif 
