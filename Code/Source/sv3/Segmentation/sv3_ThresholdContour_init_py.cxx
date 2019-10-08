@@ -57,7 +57,7 @@ using sv3::thresholdContour;
 
 thresholdContour* CreateThresholdContour()
 {
-	return new thresholdContour();
+  return new thresholdContour();
 }
 
 #include "sv2_globals.h"
@@ -73,7 +73,6 @@ static PyObject *
 thresholdContour_AvailableCmd(PyObject* self, PyObject* args)
 {
   return Py_BuildValue("s","thresholdContour Available");
-
 }
 
 static PyObject * 

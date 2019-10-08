@@ -183,7 +183,7 @@ PyInit_pyTetGenAdapt()
 
   // Associate the adapt registrar with the python interpreter so it can be
   // retrieved by the DLLs.
-  PyObject* pyGlobal = PySys_GetObject("AdaptObjectRegistrar");
+  PyObject* pyGlobal = PySys_GetObject("AdaptRegistrar");
   pyAdaptObjectRegistrar* tmp = (pyAdaptObjectRegistrar *) pyGlobal;
   cvFactoryRegistrar* adaptObjectRegistrar =tmp->registrar;
 

@@ -32,6 +32,40 @@
 #include "sv3_PyUtil.h"
 #include <string>
 
+Sv3PyUtilApiFunction::Sv3PyUtilApiFunction(const std::string& format, PyObject* pyError, const char* function)
+{
+  std::string functionName = Sv3PyUtilGetFunctionName(function);
+  this->msgp = Sv3PyUtilGetMsgPrefix(functionName);
+  this->formatString = format + ":" + functionName;
+  this->format = this->formatString.c_str();
+  this->pyError = pyError;
+}
+
+//--------
+// error
+//--------
+// Set the Python exception description.
+//
+void Sv3PyUtilApiFunction::error(std::string msg)
+{
+  auto emsg = this->msgp + msg;
+  PyErr_SetString(this->pyError, emsg.c_str());
+}
+
+//-----------
+// argsError
+//-----------
+// Set the Python exception for arguments errors.
+//
+// This function has a pointer return type just so 
+// a nullptr can be returned.
+//
+PyObject * 
+Sv3PyUtilApiFunction::argsError()
+{
+  return Sv3PyUtilResetException(this->pyError);
+}
+
 //--------------------------
 // Sv3PyUtilGetFunctionName
 //--------------------------
@@ -147,5 +181,28 @@ bool Sv3PyUtilCheckPointDataList(PyObject *pointData, std::string& msg)
   }
 
   return true;
+}
+
+//----------------------------
+// Sv3PyUtilSetupApiFunction
+//----------------------------
+// Setup an API function format and message prefix strings.
+//
+void Sv3PyUtilSetupApiFunction(const char* function, std::string& format, std::string& msg)
+{
+  std::string functionName = Sv3PyUtilGetFunctionName(function);
+  msg = Sv3PyUtilGetMsgPrefix(functionName);
+  format = format + ":" + functionName;
+}
+
+//----------------------
+// Sv3PyUtilSetErrorMsg
+//----------------------
+// Set the Python API exception message.
+//
+void Sv3PyUtilSetErrorMsg(PyObject* pyRunTimeErr, std::string& msgp, std::string msg)
+{
+    auto emsg = msgp + msg;
+    PyErr_SetString(pyRunTimeErr, emsg.c_str());
 }
 

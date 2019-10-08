@@ -148,7 +148,7 @@ void SimVascular_pyInit()
     PyImport_AppendInittab("pyImage",PyInit_pyImage);
     PyImport_AppendInittab("path", PyInit_pyPath);
     PyImport_AppendInittab("contour", PyInit_pyContour);
-    PyImport_AppendInittab("pyThresholdContour",PyInit_pyThresholdContour);
+    PyImport_AppendInittab("pyThresholdContour", PyInit_pyThresholdContour);
     PyImport_AppendInittab("pylevelSetContour",PyInit_pylevelSetContour);
     PyImport_AppendInittab("pyCircleContour",PyInit_pyCircleContour);
     PyImport_AppendInittab("pyPolygonContour",PyInit_pyPolygonContour);
@@ -166,12 +166,12 @@ void SimVascular_pyInit()
 #endif
 
 #ifdef SV_USE_TETGEN
-  PyImport_AppendInittab("pyMeshObject",PyInit_pyMeshObject);
+  PyImport_AppendInittab("mesh",PyInit_pyMeshObject);
   PyImport_AppendInittab("pyMeshTetgen",PyInit_pyMeshTetgen);
 #endif
 
 #ifdef SV_USE_MMG
-  PyImport_AppendInittab("pyMeshObject",PyInit_pyMeshObject);
+  PyImport_AppendInittab("mesh",PyInit_pyMeshObject);
   PyImport_AppendInittab("mesh_util",PyInit_pyMeshUtil);
 #endif
 

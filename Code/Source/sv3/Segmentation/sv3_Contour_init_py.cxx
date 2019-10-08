@@ -118,20 +118,18 @@ Contour_set_contour_kernel(PyObject* self, PyObject *args)
 {
     char *kernelName;
     cKernelType kernel;
-    std::string functionName = Sv3PyUtilGetFunctionName(__func__);
-    std::string msgp = Sv3PyUtilGetMsgPrefix(functionName); 
-    std::string format = "s:" + functionName; 
+    auto api = Sv3PyUtilApiFunction("s", PyRunTimeErr, __func__);
 
-    if (!PyArg_ParseTuple(args, format.c_str(), &kernelName)) {
-        return Sv3PyUtilResetException(PyRunTimeErr);
+    if (!PyArg_ParseTuple(args, api.format, &kernelName)) {
+        return api.argsError();
     }
 
     try {
         kernel = kernelNameTypeMap.at(std::string(kernelName));
     } catch (const std::out_of_range& except) {
-        auto msg = msgp + "Unknown kernel type '" + kernelName + "'."; 
-        msg += " Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold.";
-        PyErr_SetString(PyRunTimeErr, msg.c_str()); 
+        auto msg = "Unknown kernel type '" + std::string(kernelName) + "'." + 
+          " Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold.";
+        api.error(msg); 
         return nullptr;
     }
 
@@ -160,34 +158,29 @@ Contour_new_object(pyContour* self, PyObject* args)
     char *contourName = nullptr;
     char *pathName = nullptr;
     int index = 0;
-    std::string functionName = Sv3PyUtilGetFunctionName(__func__);
-    std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
-    std::string format = "ssi:" + functionName;
+    auto api = Sv3PyUtilApiFunction("ssi", PyRunTimeErr, __func__);
 
-    if (!PyArg_ParseTuple(args, format.c_str(), &contourName, &pathName, &index)) {
-        return Sv3PyUtilResetException(PyRunTimeErr);
+    if (!PyArg_ParseTuple(args, api.format, &contourName, &pathName, &index)) {
+        return api.argsError();
     }
   
     // Check that the new Contour object does not already exist.
     if (gRepository->Exists(contourName)) {
-        auto msg = msgp + "The Contour object '" + contourName + "' is already in the repository."; 
-        PyErr_SetString(PyRunTimeErr, msg.c_str()); 
+        api.error("The Contour object '" + std::string(contourName) + "' is already in the repository."); 
         return nullptr;
     }
 
     // Get Path object.
     auto rd = gRepository->GetObject(pathName);
     if (rd == nullptr) {
-        auto msg = msgp + "The Path object '" + pathName + "' is not in the repository."; 
-        PyErr_SetString(PyRunTimeErr, msg.c_str()); 
+        api.error("The Path object '" + std::string(pathName) + "' is not in the repository."); 
         return nullptr;
     }
     
     // Check that the Path is a path.
     auto type = rd->GetType();
     if (type != PATH_T) {
-        auto msg = msgp + "'" + pathName + "' is not a Path object.";
-        PyErr_SetString(PyRunTimeErr, msg.c_str()); 
+        api.error("'" + std::string(pathName) + "' is not a Path object.");
         return nullptr;
     }
     
@@ -195,12 +188,10 @@ Contour_new_object(pyContour* self, PyObject* args)
     int numPathPts = path->GetPathPointNumber();
 
     if (index >= numPathPts) {
-        auto msg = msgp + "Index is larger than the number of path points " + std::to_string(numPathPts) + "."; 
-        PyErr_SetString(PyRunTimeErr, msg.c_str()); 
+        api.error("Index is larger than the number of path points " + std::to_string(numPathPts) + "."); 
         return nullptr;
     } else if (index < 0) {
-        auto msg = msgp + "Index must be larger than 0."; 
-        PyErr_SetString(PyRunTimeErr, msg.c_str()); 
+        api.error("Index must be larger than 0."); 
         return nullptr;
     }
 
@@ -209,16 +200,14 @@ Contour_new_object(pyContour* self, PyObject* args)
     Contour *geom = sv3::Contour::DefaultInstantiateContourObject(Contour::gCurrentKernel, path->GetPathPoint(index));
     
     if (geom == NULL) {
-        auto msg = msgp + "Failed to create Contour object.";
-        PyErr_SetString(PyRunTimeErr, msg.c_str()); 
+        api.error("Failed to create Contour object.");
         return nullptr;
     }
 
     // Add contour to the repository.
     if (!gRepository->Register(contourName, geom)) {
         delete geom;
-        auto msg = msgp + "Error adding the Contour object '" + contourName + "' to the repository.";
-        PyErr_SetString(PyRunTimeErr, msg.c_str()); 
+        api.error("Error adding the Contour object '" + std::string(contourName) + "' to the repository.");
         return nullptr;
     }
     
@@ -244,33 +233,24 @@ PyDoc_STRVAR(Contour_set_image_doc,
 static PyObject* 
 Contour_set_image(pyContour* self, PyObject* args)
 {
-    char *pathName = nullptr;
-    vtkImageData *vtkObj;
-    int index = 0;
-    RepositoryDataT type;
-    cvRepositoryData *rd;
     PyObject *vtkName; 
-    std::string functionName = Sv3PyUtilGetFunctionName(__func__);
-    std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
-    std::string format = "O:" + functionName;
+    auto api = Sv3PyUtilApiFunction("O", PyRunTimeErr, __func__);
 
-    if (!PyArg_ParseTuple(args, format.c_str(), &vtkName)) {
-        return Sv3PyUtilResetException(PyRunTimeErr);
+    if (!PyArg_ParseTuple(args, api.format, &vtkName)) {
+        return api.argsError();
     }
   
     // Check the Contour object has data. 
     Contour* contour = self->geom;
     if (contour == nullptr) {
-        auto msg = msgp + "The Contour object does not have geometry."; 
-        PyErr_SetString(PyRunTimeErr, msg.c_str()); 
+        api.error("The Contour object does not have geometry."); 
         return nullptr;
     }
   
     // Look up the named vtk object:
-    vtkObj = (vtkImageData *)vtkPythonUtil::GetPointerFromObject(vtkName, "vtkImageData");
+    auto vtkObj = (vtkImageData *)vtkPythonUtil::GetPointerFromObject(vtkName, "vtkImageData");
     if (vtkObj == nullptr) {
-        auto msg = msgp + "The vtkImageData object does not exist."; 
-        PyErr_SetString(PyRunTimeErr, msg.c_str()); 
+        api.error("The vtkImageData object does not exist."); 
         return nullptr;
     }
 
@@ -304,34 +284,27 @@ static PyObject*
 Contour_get_object(pyContour* self, PyObject* args)
 {
     char *objName = NULL;
-    RepositoryDataT type;
-    Contour *contour;
+    auto api = Sv3PyUtilApiFunction("s", PyRunTimeErr, __func__);
 
-    std::string functionName = Sv3PyUtilGetFunctionName(__func__);
-    std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
-    std::string format = "s:" + functionName;
-
-    if (!PyArg_ParseTuple(args, format.c_str(), &objName)) {
-        return Sv3PyUtilResetException(PyRunTimeErr);
+    if (!PyArg_ParseTuple(args, api.format, &objName)) {
+        return api.argsError();
     }
     
     // Get the Contour object from the repository. 
     auto rd = gRepository->GetObject(objName);
     if (rd == nullptr) {
-        auto msg = msgp + "The Contour object '" + objName + "' is not in the repository."; 
-        PyErr_SetString(PyRunTimeErr, msg.c_str()); 
+        api.error("The Contour object '" + std::string(objName) + "' is not in the repository."); 
         return nullptr;
     }
 
     // Check its type.
-    type = rd->GetType();
+    auto type = rd->GetType();
     if (type != CONTOUR_T) {
-        auto msg = msgp + "'" + objName + "' is not a Contour object.";
-        PyErr_SetString(PyRunTimeErr, msg.c_str());
+        api.error("'" + std::string(objName) + "' is not a Contour object.");
         return nullptr;
     }
 
-    contour = dynamic_cast<Contour*>(rd);
+    auto contour = dynamic_cast<Contour*>(rd);
     Py_INCREF(contour);
     self->geom = contour;
     Py_DECREF(contour);
@@ -360,12 +333,10 @@ static PyObject*
 Contour_set_control_points(pyContour* self, PyObject* args)
 {
     PyObject *controlPoints = nullptr;
-    std::string functionName = Sv3PyUtilGetFunctionName(__func__);
-    std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
-    std::string format = "O:" + functionName;
+    auto api = Sv3PyUtilApiFunction("O", PyRunTimeErr, __func__);
 
-    if (!PyArg_ParseTuple(args, format.c_str(), &controlPoints)) {
-        return Sv3PyUtilResetException(PyRunTimeErr);
+    if (!PyArg_ParseTuple(args, api.format, &controlPoints)) {
+        return api.argsError();
     }
 
     try {
@@ -423,8 +394,7 @@ Contour_set_control_points(pyContour* self, PyObject* args)
     return Py_None;
 
    } catch (std::exception &e) {
-       auto msg = msgp + e.what();
-       PyErr_SetString(PyRunTimeErr, msg.c_str());
+       api.error(e.what());
        return nullptr;
   }
 
@@ -450,49 +420,41 @@ PyDoc_STRVAR(Contour_set_control_points_by_radius_doc,
 static PyObject* 
 Contour_set_control_points_by_radius(pyContour* self, PyObject* args)
 {
-    PyObject *center;
-    double radius = 0.0;
-    std::string functionName = Sv3PyUtilGetFunctionName(__func__);
-    std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
-    std::string format = "Od:" + functionName;
+    auto api = Sv3PyUtilApiFunction("Od", PyRunTimeErr, __func__);
 
     if (Contour::gCurrentKernel != cKERNEL_CIRCLE) {
-        auto msg = msgp + "Contour kernel is not set to 'Circle'";
-        PyErr_SetString(PyRunTimeErr, msg.c_str());
+        api.error("Contour kernel is not set to 'Circle'");
         return nullptr;
     }
 
-    if (!PyArg_ParseTuple(args, format.c_str(), &center, &radius )) {
-        return Sv3PyUtilResetException(PyRunTimeErr);
+    PyObject *center;
+    double radius = 0.0;
+    if (!PyArg_ParseTuple(args, api.format, &center, &radius )) {
+        return api.argsError();
     }
 
     double ctr[3];
     if (PyList_Size(center) != 3) {
-        auto msg = msgp + "Center argument is not a 3D point (three float values).";
-        PyErr_SetString(PyRunTimeErr, msg.c_str());
+        api.error("Center argument is not a 3D point (three float values).");
         return nullptr;
     }
 
     for (int i = 0; i < PyList_Size(center); i++) {
         if (!PyFloat_Check(PyList_GetItem(center,i))) { 
-            auto msg = msgp + "Center argument is not a 3D point (three float values).";
-            PyErr_SetString(PyRunTimeErr, msg.c_str());
+            api.error("Center argument is not a 3D point (three float values).");
             return nullptr;
         }
         ctr[i] = PyFloat_AsDouble(PyList_GetItem(center,i));
     }
     
-    Contour* contour = self->geom;
-
+    auto contour = self->geom;
     if (contour == NULL) {
-        auto msg = msgp + "No geometry has been created for the contour.";
-        PyErr_SetString(PyRunTimeErr, msg.c_str());
+        api.error("No geometry has been created for the contour.");
         return nullptr;
     }
 
     if (radius <= 0.0) {
-        auto msg = msgp + "Radius argument must be > 0.0.";
-        PyErr_SetString(PyRunTimeErr, msg.c_str());
+        api.error("Radius argument must be > 0.0.");
         return nullptr;
     }
 
@@ -516,13 +478,11 @@ PyDoc_STRVAR(Contour_create_doc,
 static PyObject* 
 Contour_create(pyContour* self, PyObject* args)
 {
-    std::string functionName = Sv3PyUtilGetFunctionName(__func__);
-    std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+    auto api = Sv3PyUtilApiFunction("", PyRunTimeErr, __func__);
 
-    Contour* contour = self->geom;
+    auto contour = self->geom;
     if (contour == NULL) {
-        auto msg = msgp + "No geometry has been created for the Contour.";
-        PyErr_SetString(PyRunTimeErr, msg.c_str());
+        api.error("No geometry has been created for the Contour.");
         return nullptr;
     }
 
@@ -535,9 +495,7 @@ Contour_create(pyContour* self, PyObject* args)
     contour->CreateContourPoints();
 
     if (contour->GetContourPointNumber() == 0) {
-        PyErr_SetString(PyRunTimeErr, "Error creating contour points");
-        auto msg = msgp + "Error creating contour points.";
-        PyErr_SetString(PyRunTimeErr, msg.c_str());
+        api.error("Error creating contour points.");
         return nullptr;
     }
     
@@ -565,13 +523,10 @@ PyDoc_STRVAR(Contour_get_area_doc,
 static PyObject* 
 Contour_get_area(pyContour* self, PyObject* args)
 {
-    std::string functionName = Sv3PyUtilGetFunctionName(__func__);
-    std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
-
-    Contour* contour = self->geom;
+    auto api = Sv3PyUtilApiFunction("", PyRunTimeErr, __func__);
+    auto contour = self->geom;
     if (contour == NULL) {
-        auto msg = msgp + "No geometry has been created for the contour.";
-        PyErr_SetString(PyRunTimeErr, msg.c_str());
+        api.error("No geometry has been created for the contour.");
         return nullptr;
         
     }
@@ -596,13 +551,10 @@ PyDoc_STRVAR(Contour_get_perimeter_doc,
 
 PyObject* Contour_get_perimeter(pyContour* self, PyObject* args)
 {
-    std::string functionName = Sv3PyUtilGetFunctionName(__func__);
-    std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
-
-    Contour* contour = self->geom;
+    auto api = Sv3PyUtilApiFunction("", PyRunTimeErr, __func__);
+    auto contour = self->geom;
     if (contour == NULL) {
-        auto msg = msgp + "No geometry has been created for the Contour.";
-        PyErr_SetString(PyRunTimeErr, msg.c_str());
+        api.error("No geometry has been created for the Contour.");
         return nullptr;
     }
     double perimeter = contour->GetPerimeter();
@@ -627,13 +579,10 @@ PyDoc_STRVAR(Contour_get_center_doc,
 
 PyObject* Contour_get_center(pyContour* self, PyObject* args)
 {
-    std::string functionName = Sv3PyUtilGetFunctionName(__func__);
-    std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
-
-    Contour* contour = self->geom;
+    auto api = Sv3PyUtilApiFunction("", PyRunTimeErr, __func__);
+    auto contour = self->geom;
     if (contour == NULL ) {
-        auto msg = msgp + "No geometry has been created for the Contour.";
-        PyErr_SetString(PyRunTimeErr, msg.c_str());
+        api.error("No geometry has been created for the Contour.");
         return nullptr;
     }
 
@@ -660,24 +609,20 @@ PyDoc_STRVAR(Contour_set_threshold_value_doc,
 PyObject* Contour_set_threshold_value(pyContour* self, PyObject* args)
 {
     double threshold = 0.0;
-    std::string functionName = Sv3PyUtilGetFunctionName(__func__);
-    std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
-    std::string format = "d:" + functionName;
+    auto api = Sv3PyUtilApiFunction("d", PyRunTimeErr, __func__);
 
-    if (!PyArg_ParseTuple(args, format.c_str(), &threshold)) {
-        return Sv3PyUtilResetException(PyRunTimeErr);
+    if (!PyArg_ParseTuple(args, api.format, &threshold)) {
+        return api.argsError();
     }
     
     if (Contour::gCurrentKernel != cKERNEL_THRESHOLD) {
-        auto msg = msgp + "Contour kernel is not set to 'Threshold'";
-        PyErr_SetString(PyRunTimeErr, msg.c_str());
+        api.error("Contour kernel is not set to 'Threshold'");
         return nullptr;
     }
     
     Contour* contour = self->geom;
     if (contour == NULL) {
-        auto msg = msgp + "No geometry has been created for the contour.";
-        PyErr_SetString(PyRunTimeErr, msg.c_str());
+        api.error("No geometry has been created for the contour.");
         return nullptr;
     }
 
@@ -702,21 +647,18 @@ PyDoc_STRVAR(Contour_create_smooth_contour_doc,
 static pyContour* 
 Contour_create_smooth_contour(pyContour* self, PyObject* args)
 {
-    std::string functionName = Sv3PyUtilGetFunctionName(__func__);
-    std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
-    std::string format = "is:" + functionName;
+    auto api = Sv3PyUtilApiFunction("is", PyRunTimeErr, __func__);
     int fourierNumber = 0;
     char* contourName;
 
-    if (!PyArg_ParseTuple(args, format.c_str(), &fourierNumber, &contourName)) {
-        Sv3PyUtilResetException(PyRunTimeErr);
+    if (!PyArg_ParseTuple(args, api.format, &fourierNumber, &contourName)) {
+        api.argsError();
         return nullptr;
     }
     
     Contour* contour = self->geom;
     if (contour == NULL) {
-        auto msg = msgp + "No geometry has been created for the Contour.";
-        PyErr_SetString(PyRunTimeErr, msg.c_str());
+        api.error("No geometry has been created for the Contour.");
         return nullptr;
     }
     
@@ -724,9 +666,8 @@ Contour_create_smooth_contour(pyContour* self, PyObject* args)
     newContour= contour->CreateSmoothedContour(fourierNumber);
     
     if ( !( gRepository->Register(contourName, newContour))) {
-        auto msg = msgp + "Could not add the new contour into the repository."; 
-        PyErr_SetString(PyRunTimeErr, msg.c_str());
         delete newContour;
+        api.error("Could not add the new contour into the repository."); 
         return nullptr;
     }
         
@@ -762,26 +703,21 @@ PyDoc_STRVAR(Contour_get_polydata_doc,
 static PyObject* 
 Contour_get_polydata(pyContour* self, PyObject* args)
 {
-    std::string functionName = Sv3PyUtilGetFunctionName(__func__);
-    std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
-    std::string format = "s:" + functionName;
-
+    auto api = Sv3PyUtilApiFunction("s", PyRunTimeErr, __func__);
     char* dstName = NULL;
-    if (!PyArg_ParseTuple(args, format.c_str(), &dstName)) {
-        return Sv3PyUtilResetException(PyRunTimeErr);
+    if (!PyArg_ParseTuple(args, api.format, &dstName)) {
+        return api.argsError();
     }
     
     // Check that the repository object does not already exist.
     if (gRepository->Exists(dstName)) {
-        auto msg = msgp + "The repository object '" + dstName + "' already exists."; 
-        PyErr_SetString(PyRunTimeErr, msg.c_str()); 
+        api.error("The repository object '" + std::string(dstName) + "' already exists."); 
         return nullptr;
     }
   
-    Contour* geom = self->geom;
+    auto geom = self->geom;
     if (geom == NULL) {
-        auto msg = msgp + "The contour does not have geometry."; 
-        PyErr_SetString(PyRunTimeErr, msg.c_str()); 
+        api.error("The contour does not have geometry."); 
         return nullptr;
     }
 
@@ -790,14 +726,12 @@ Contour_get_polydata(pyContour* self, PyObject* args)
     cvPolyData* pd = new cvPolyData(vtkpd);
     
     if (pd == NULL) {
-        auto msg = msgp + "Could not get polydata for the contour.";
-        PyErr_SetString(PyRunTimeErr, msg.c_str()); 
+        api.error("Could not get polydata for the contour.");
         return nullptr;
     }
     
     if ( !( gRepository->Register( dstName, pd ) ) ) {
-        auto msg = msgp + "Could not add the polydata to the repository.";
-        PyErr_SetString(PyRunTimeErr, msg.c_str()); 
+        api.error("Could not add the polydata to the repository.");
         delete pd;
         return nullptr;
     }

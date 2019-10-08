@@ -36,6 +36,18 @@
 #include "Python.h"
 #include <string>
 
+class Sv3PyUtilApiFunction
+{
+  public:
+      Sv3PyUtilApiFunction(const std::string& format, PyObject* pyRunTimeErr, const char* funcName);
+      void error(std::string msg);
+      PyObject * argsError();
+      std::string formatString; 
+      char* format; 
+      std::string msgp; 
+      PyObject* pyError; 
+};
+
 std::string Sv3PyUtilGetFunctionName(const char* functionName);
 
 std::string Sv3PyUtilGetMsgPrefix(const std::string& functionName);
@@ -45,5 +57,9 @@ PyObject * Sv3PyUtilResetException(PyObject * PyRunTimeErr);
 bool Sv3PyUtilCheckPointData(PyObject* pointData, std::string& msg);
 
 bool Sv3PyUtilCheckPointDataList(PyObject* pointData, std::string& msg);
+
+void Sv3PyUtilSetupApiFunction(const char* functionName, std::string& format, std::string& msg);
+
+void Sv3PyUtilSetErrorMsg(PyObject* pyRunTimeErr, std::string& msgp, std::string msg);
 
 #endif 
