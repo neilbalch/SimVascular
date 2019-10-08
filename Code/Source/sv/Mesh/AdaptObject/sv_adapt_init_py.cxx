@@ -29,6 +29,11 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+// The functions defined here implement the SV Python API mesh_adapt module. 
+//
+// The module name is 'mesh_adapt'. The module defines an 'Adapt' class used
+// to store mesh data. 
+//
 #include "SimVascular.h"
 #include "SimVascular_python.h"
 
@@ -42,22 +47,18 @@
 #include "sv_vtk_utils.h"
 #include "sv_PolyData.h"
 #include "sv_sys_geom.h"
+#include "vtkPythonUtil.h"
 
 #include "sv_FactoryRegistrar.h"
 
 #include "Python.h"
-// The following is needed for Windows
+// Needed for Windows
 #ifdef GetObject
 #undef GetObject
 #endif
 
-// Globals:
-// --------
-
 #include "sv2_globals.h"
 
-// Prototypes:
-// -----------
 typedef struct
 {
   PyObject_HEAD
@@ -70,309 +71,27 @@ static void pyAdaptObject_dealloc(pyAdaptObject* self)
   Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
-PyObject* cvAdapt_NewObjectCmd( pyAdaptObject* self, PyObject* args);
-
-// Adapt
-// -----
-PyObject* PyRunTimeErr;
-PyObject* Adapt_RegistrarsListCmd(PyObject* self, PyObject* args);
-#if PYTHON_MAJOR_VERSION == 2
-PyMODINIT_FUNC initpyMeshAdapt();
-#elif PYTHON_MAJOR_VERSION == 3
-PyMODINIT_FUNC PyInit_pyMeshAdapt();
-#endif
-static PyObject* cvAdapt_CreateInternalMeshObjectMtd( pyAdaptObject* self, PyObject* args);
-static PyObject* cvAdapt_LoadModelMtd( pyAdaptObject* self, PyObject* args);
-static PyObject* cvAdapt_LoadMeshMtd( pyAdaptObject* self, PyObject* args);
-static PyObject* cvAdapt_LoadSolutionFromFileMtd( pyAdaptObject* self, PyObject* args);
-static PyObject* cvAdapt_LoadYbarFromFileMtd( pyAdaptObject* self, PyObject* args);
-static PyObject* cvAdapt_LoadAvgSpeedFromFileMtd( pyAdaptObject* self, PyObject* args);
-static PyObject* cvAdapt_LoadHessianFromFileMtd( pyAdaptObject* self, PyObject* args);
-static PyObject* cvAdapt_ReadSolutionFromMeshMtd( pyAdaptObject* self, PyObject* args);
-static PyObject* cvAdapt_ReadYbarFromMeshMtd( pyAdaptObject* self, PyObject* args);
-static PyObject* cvAdapt_ReadAvgSpeedFromMeshMtd( pyAdaptObject* self, PyObject* args);
-static PyObject* cvAdapt_SetAdaptOptionsMtd( pyAdaptObject* self, PyObject* args);
-static PyObject* cvAdapt_CheckOptionsMtd( pyAdaptObject* self, PyObject* args);
-static PyObject* cvAdapt_SetMetricMtd( pyAdaptObject* self, PyObject* args);
-static PyObject* cvAdapt_SetupMeshMtd( pyAdaptObject* self, PyObject* args);
-static PyObject* cvAdapt_RunAdaptorMtd( pyAdaptObject* self, PyObject* args);
-static PyObject* cvAdapt_PrintStatsMtd( pyAdaptObject* self, PyObject* args);
-static PyObject* cvAdapt_GetAdaptedMeshMtd( pyAdaptObject* self, PyObject* args);
-static PyObject* cvAdapt_TransferSolutionMtd( pyAdaptObject* self, PyObject* args);
-static PyObject* cvAdapt_TransferRegionsMtd( pyAdaptObject* self, PyObject* args);
-static PyObject* cvAdapt_WriteAdaptedModelMtd( pyAdaptObject* self, PyObject* args);
-static PyObject* cvAdapt_WriteAdaptedMeshMtd( pyAdaptObject* self, PyObject* args);
-static PyObject* cvAdapt_WriteAdaptedSolutionMtd( pyAdaptObject* self, PyObject* args);
-
-// Helper functions
-// ----------------
-
 static void AdaptPrintMethods();
-
 void DeleteAdapt( pyAdaptObject* self );
 
+// Exception type used by PyErr_SetString() to set the for the error indicator.
+PyObject* PyRunTimeErr;
 
-// ----------
-// Adapt_Init
-// ----------
-int Adapt_pyInit()
-{
-#if PYTHON_MAJOR_VERSION == 2
-  initpyMeshAdapt();
-#elif PYTHON_MAJOR_VERSION == 3
-  PyInit_pyMeshAdapt();
-#endif
-  return SV_OK;
-}
-static int pyAdaptObject_init(pyAdaptObject* self, PyObject* args)
-{
-  fprintf(stdout,"pyAdaptObject initialized.\n");
-  return SV_OK;
-}
+//////////////////////////////////////////////////////
+//          M o d u l e  F u n c t i o n s          //
+//////////////////////////////////////////////////////
+//
+// Python API functions. 
 
-static PyMethodDef pyAdaptObject_methods[]={
-  {"NewObject",(PyCFunction)cvAdapt_NewObjectCmd,METH_VARARGS,NULL},
-  { "CreateInternalMeshObject",(PyCFunction)cvAdapt_CreateInternalMeshObjectMtd, METH_VARARGS,NULL},
-  { "LoadModel", (PyCFunction)cvAdapt_LoadModelMtd,METH_VARARGS,NULL},
-  { "LoadMesh",(PyCFunction)cvAdapt_LoadMeshMtd,METH_VARARGS,NULL},
-  { "LoadSolutionFromFile",
-    (PyCFunction)cvAdapt_LoadSolutionFromFileMtd,METH_VARARGS,NULL},
-  { "LoadYbarFromFile",
-    (PyCFunction)cvAdapt_LoadYbarFromFileMtd,METH_VARARGS,NULL},
-  { "LoadAvgSpeedFromFile",
-    (PyCFunction)cvAdapt_LoadAvgSpeedFromFileMtd,METH_VARARGS,NULL},
-  { "LoadHessianFromFile",
-    (PyCFunction)cvAdapt_LoadHessianFromFileMtd,METH_VARARGS,NULL},
-  { "ReadSolutionFromMesh",
-    (PyCFunction)cvAdapt_ReadSolutionFromMeshMtd,METH_VARARGS,NULL},
-  { "ReadYbarFromMesh",
-    (PyCFunction)cvAdapt_ReadYbarFromMeshMtd,METH_VARARGS,NULL},
-  { "ReadAvgSpeedFromMesh",
-    (PyCFunction)cvAdapt_ReadAvgSpeedFromMeshMtd,METH_VARARGS,NULL},
-  { "SetAdaptOptions",
-    (PyCFunction)cvAdapt_SetAdaptOptionsMtd,METH_VARARGS,NULL},
-  { "CheckOptions",
-    (PyCFunction)cvAdapt_CheckOptionsMtd,METH_VARARGS,NULL},
-  { "SetMetric",
-    (PyCFunction)cvAdapt_SetMetricMtd,METH_VARARGS,NULL},
-  { "SetupMesh",
-    (PyCFunction)cvAdapt_SetupMeshMtd,METH_VARARGS,NULL},
-  { "RunAdaptor",
-    (PyCFunction)cvAdapt_RunAdaptorMtd,METH_VARARGS,NULL},
-  { "PrintStats",
-    (PyCFunction)cvAdapt_PrintStatsMtd,METH_VARARGS,NULL},
-  { "GetAdaptedMesh",
-    (PyCFunction)cvAdapt_GetAdaptedMeshMtd,METH_VARARGS,NULL},
-  { "TransferSolution",
-    (PyCFunction)cvAdapt_TransferSolutionMtd,METH_VARARGS,NULL},
-  { "TransferRegions",
-    (PyCFunction)cvAdapt_TransferRegionsMtd,METH_VARARGS,NULL},
-  { "WriteAdaptedModel",
-    (PyCFunction)cvAdapt_WriteAdaptedModelMtd,METH_VARARGS,NULL},
-  { "WriteAdaptedMesh",
-    (PyCFunction)cvAdapt_WriteAdaptedMeshMtd,METH_VARARGS,NULL},
-  { "WriteAdaptedSolution",
-    (PyCFunction)cvAdapt_WriteAdaptedSolutionMtd,METH_VARARGS,NULL},
- {NULL}
-};
-
-static PyTypeObject pyAdaptObjectType = {
-  PyVarObject_HEAD_INIT(NULL, 0)
-  "pyMeshAdapt.pyAdaptObject",             /* tp_name */
-  sizeof(pyAdaptObject),             /* tp_basicsize */
-  0,                         /* tp_itemsize */
-  0,                         /* tp_dealloc */
-  0,                         /* tp_print */
-  0,                         /* tp_getattr */
-  0,                         /* tp_setattr */
-  0,                         /* tp_compare */
-  0,                         /* tp_repr */
-  0,                         /* tp_as_number */
-  0,                         /* tp_as_sequence */
-  0,                         /* tp_as_mapping */
-  0,                         /* tp_hash */
-  0,                         /* tp_call */
-  0,                         /* tp_str */
-  0,                         /* tp_getattro */
-  0,                         /* tp_setattro */
-  0,                         /* tp_as_buffer */
-  Py_TPFLAGS_DEFAULT |
-      Py_TPFLAGS_BASETYPE,   /* tp_flags */
-  "pyAdaptObject  objects",           /* tp_doc */
-  0,                         /* tp_traverse */
-  0,                         /* tp_clear */
-  0,                         /* tp_richcompare */
-  0,                         /* tp_weaklistoffset */
-  0,                         /* tp_iter */
-  0,                         /* tp_iternext */
-  pyAdaptObject_methods,             /* tp_methods */
-  0,                         /* tp_members */
-  0,                         /* tp_getset */
-  0,                         /* tp_base */
-  0,                         /* tp_dict */
-  0,                         /* tp_descr_get */
-  0,                         /* tp_descr_set */
-  0,                         /* tp_dictoffset */
-  (initproc)pyAdaptObject_init,                            /* tp_init */
-  0,                         /* tp_alloc */
-  0,                  /* tp_new */
-};
-static PyMethodDef pyAdaptMesh_methods[] = {
-  {"Registrars",Adapt_RegistrarsListCmd,METH_NOARGS,NULL},
-  {NULL, NULL}
-};
-
-static PyTypeObject pyAdaptObjectRegistrarType = {
-  PyVarObject_HEAD_INIT(NULL, 0)
-  "pyMeshAdapt.pyAdaptObjectRegistrar",             /* tp_name */
-  sizeof(pyAdaptObjectRegistrar),             /* tp_basicsize */
-  0,                         /* tp_itemsize */
-  0,                         /* tp_dealloc */
-  0,                         /* tp_print */
-  0,                         /* tp_getattr */
-  0,                         /* tp_setattr */
-  0,                         /* tp_compare */
-  0,                         /* tp_repr */
-  0,                         /* tp_as_number */
-  0,                         /* tp_as_sequence */
-  0,                         /* tp_as_mapping */
-  0,                         /* tp_hash */
-  0,                         /* tp_call */
-  0,                         /* tp_str */
-  0,                         /* tp_getattro */
-  0,                         /* tp_setattro */
-  0,                         /* tp_as_buffer */
-  Py_TPFLAGS_DEFAULT |
-      Py_TPFLAGS_BASETYPE,   /* tp_flags */
-  "pyAdaptObjectRegistrar wrapper  ",           /* tp_doc */
-};
-
-#if PYTHON_MAJOR_VERSION == 3
-static struct PyModuleDef pyAdaptMeshmodule = {
-   PyModuleDef_HEAD_INIT,
-   "pyAdaptMesh",   /* name of module */
-   "", /* module documentation, may be NULL */
-   -1,       /* size of per-interpreter state of the module,
-                or -1 if the module keeps state in global variables. */
-   pyAdaptMesh_methods
-};
-#endif
-
-#if PYTHON_MAJOR_VERSION == 2
-PyMODINIT_FUNC
-initpyMeshAdapt()
-{
-
-  // Associate the adapt object registrar with the python interpreter
-  if (gRepository==NULL)
-  {
-    gRepository= new cvRepository();
-    fprintf(stdout,"New gRepository created from cv_adapt_init\n");
-  }
-  // Initialize
-  cvAdaptObject::gCurrentKernel = KERNEL_INVALID;
-
-#ifdef USE_TETGEN_ADAPTOR
-  cvAdaptObject::gCurrentKernel = KERNEL_TETGEN;
-#endif
-
-  pyAdaptObjectType.tp_new=PyType_GenericNew;
-  pyAdaptObjectRegistrarType.tp_new = PyType_GenericNew;
-  if (PyType_Ready(&pyAdaptObjectType)<0)
-  {
-    fprintf(stdout,"Error in pyAdaptMeshType\n");
-    return;
-  }
-  if (PyType_Ready(&pyAdaptObjectRegistrarType)<0)
-  {
-    fprintf(stdout,"Error in pyAdaptObjectRegistrarType\n");
-    return;
-  }
-  PyObject* pythonC;
-  pythonC = Py_InitModule("pyMeshAdapt",pyAdaptMesh_methods);
-
-  if(pythonC==NULL)
-  {
-    fprintf(stdout,"Error in initializing pyMeshAdapt\n");
-    return;
-
-  }
-
-  PyRunTimeErr = PyErr_NewException("pyMeshAdapt.error",NULL,NULL);
-  PyModule_AddObject(pythonC,"error",PyRunTimeErr);
-  
-  Py_INCREF(&pyAdaptObjectType);
-  Py_INCREF(&pyAdaptObjectRegistrarType);
-  PyModule_AddObject(pythonC, "pyAdaptObjectRegistrar", (PyObject *)&pyAdaptObjectRegistrarType);
-  PyModule_AddObject(pythonC,"pyAdaptObject",(PyObject*)&pyAdaptObjectType);
-    
-  pyAdaptObjectRegistrar* tmp = PyObject_New(pyAdaptObjectRegistrar, &pyAdaptObjectRegistrarType);
-  tmp->registrar = (cvFactoryRegistrar *)&cvAdaptObject::gRegistrar;
-  PySys_SetObject("AdaptObjectRegistrar", (PyObject *)tmp);
-  return;
- }
-#endif
-
-#if PYTHON_MAJOR_VERSION == 3
-PyMODINIT_FUNC
-PyInit_pyMeshAdapt()
-{
-
-  // Associate the adapt object registrar with the python interpreter
-  if (gRepository==NULL)
-  {
-    gRepository= new cvRepository();
-    fprintf(stdout,"New gRepository created from cv_adapt_init\n");
-  }
-
-  // Initialize
-  cvAdaptObject::gCurrentKernel = KERNEL_INVALID;
-
-#ifdef USE_TETGEN_ADAPTOR
-  cvAdaptObject::gCurrentKernel = KERNEL_TETGEN;
-#endif
-
-  pyAdaptObjectType.tp_new=PyType_GenericNew;
-  pyAdaptObjectRegistrarType.tp_new = PyType_GenericNew;
-  if (PyType_Ready(&pyAdaptObjectType)<0)
-  {
-    fprintf(stdout,"Error in pyAdaptMeshType\n");
-    return SV_PYTHON_ERROR;
-  }
-  if (PyType_Ready(&pyAdaptObjectRegistrarType)<0)
-  {
-    fprintf(stdout,"Error in pyAdaptObjectRegistrarType\n");
-    return SV_PYTHON_ERROR;
-  }
-  PyObject* pythonC;
-
-  pythonC = PyModule_Create(&pyAdaptMeshmodule);
-
-  if(pythonC==NULL)
-  {
-    fprintf(stdout,"Error in initializing pyMeshAdapt\n");
-    return SV_PYTHON_ERROR;
-  }
-
-  PyRunTimeErr = PyErr_NewException("pyMeshAdapt.error",NULL,NULL);
-  PyModule_AddObject(pythonC,"error",PyRunTimeErr);
-  Py_INCREF(&pyAdaptObjectType);
-  Py_INCREF(&pyAdaptObjectRegistrarType);
-  PyModule_AddObject(pythonC, "pyAdaptObjectRegistrar", (PyObject *)&pyAdaptObjectRegistrarType);
-  PyModule_AddObject(pythonC,"pyAdaptObject",(PyObject*)&pyAdaptObjectType);
-  
-  pyAdaptObjectRegistrar* tmp = PyObject_New(pyAdaptObjectRegistrar, &pyAdaptObjectRegistrarType);
-  tmp->registrar = (cvFactoryRegistrar *)&cvAdaptObject::gRegistrar;
-  PySys_SetObject("AdaptObjectRegistrar", (PyObject *)tmp);
-  return pythonC;
-
- }
-#endif
+//-------------------------
+// Adapt_RegistrarsListCmd
+//-------------------------
 // This routine is used for debugging the registrar/factory system.
-PyObject* Adapt_RegistrarsListCmd( PyObject* self, PyObject* args)
+//
+static PyObject * 
+Adapt_RegistrarsListCmd( PyObject* self, PyObject* args)
 {
-  cvFactoryRegistrar *adaptObjectRegistrar =
-    (cvFactoryRegistrar *) PySys_GetObject( "AdaptObjectRegistrar");
+  cvFactoryRegistrar *adaptObjectRegistrar = (cvFactoryRegistrar *) PySys_GetObject( "AdaptObjectRegistrar");
 
   char result[255];
   sprintf( result, "Adapt object registrar ptr -> %p\n", adaptObjectRegistrar );
@@ -387,13 +106,8 @@ PyObject* Adapt_RegistrarsListCmd( PyObject* self, PyObject* args)
   return pyList;
 }
 
-// Now, since we're using the cvRepository mechanism (which is itself a
-// Tcl_HashTable), we can use the cvRepository's lookup mechanisms to
-// find those operands.  That is, we can call cvRepository's
-// GetObject(name) method to get back object pointers for use inside
-// Tcl object method functions.
-
-PyObject* cvAdapt_NewObjectCmd( pyAdaptObject* self, PyObject* args)
+static PyObject * 
+cvAdapt_NewObjectCmd( pyAdaptObject* self, PyObject* args)
 {
   char *resultName = NULL;
 
@@ -969,4 +683,377 @@ static PyObject* cvAdapt_WriteAdaptedSolutionMtd( pyAdaptObject* self, PyObject*
 
   return SV_PYTHON_OK;
 }
+
+////////////////////////////////////////////////////////
+//          M o d u l e  D e f i n i t i o n          //
+////////////////////////////////////////////////////////
+
+#if PYTHON_MAJOR_VERSION == 2
+PyMODINIT_FUNC initpyMeshAdapt();
+#elif PYTHON_MAJOR_VERSION == 3
+PyMODINIT_FUNC PyInit_pyMeshAdapt();
+#endif
+
+
+
+// ----------
+// Adapt_Init
+// ----------
+int Adapt_pyInit()
+{
+#if PYTHON_MAJOR_VERSION == 2
+  initpyMeshAdapt();
+#elif PYTHON_MAJOR_VERSION == 3
+  PyInit_pyMeshAdapt();
+#endif
+  return SV_OK;
+}
+
+//---------------------
+// pyAdaptObject_init
+//---------------------
+// This is the __init__() method for the Adapt class. 
+//
+// This function is used to initialize an object after it is created.
+//
+static int pyAdaptObject_init(pyAdaptObject* self, PyObject* args)
+{
+  fprintf(stdout, "Adapt object initialized.\n");
+  return SV_OK;
+}
+
+//----------------------------
+// Define API function names
+//----------------------------
+//
+static PyMethodDef pyAdaptObject_methods[] = {
+
+  { "CreateInternalMeshObject",
+      (PyCFunction)cvAdapt_CreateInternalMeshObjectMtd, 
+      METH_VARARGS,
+      NULL
+  },
+
+
+  {"NewObject",
+      (PyCFunction)cvAdapt_NewObjectCmd,
+      METH_VARARGS,
+      NULL
+  },
+
+  { "LoadModel", (PyCFunction)cvAdapt_LoadModelMtd,METH_VARARGS,NULL},
+
+  { "LoadMesh",(PyCFunction)cvAdapt_LoadMeshMtd,METH_VARARGS,NULL},
+
+  { "LoadSolutionFromFile",
+    (PyCFunction)cvAdapt_LoadSolutionFromFileMtd,METH_VARARGS,NULL},
+
+  { "LoadYbarFromFile",
+    (PyCFunction)cvAdapt_LoadYbarFromFileMtd,METH_VARARGS,NULL},
+
+  { "LoadAvgSpeedFromFile",
+    (PyCFunction)cvAdapt_LoadAvgSpeedFromFileMtd,METH_VARARGS,NULL},
+
+  { "LoadHessianFromFile",
+    (PyCFunction)cvAdapt_LoadHessianFromFileMtd,METH_VARARGS,NULL},
+
+  { "ReadSolutionFromMesh",
+    (PyCFunction)cvAdapt_ReadSolutionFromMeshMtd,METH_VARARGS,NULL},
+
+  { "ReadYbarFromMesh",
+    (PyCFunction)cvAdapt_ReadYbarFromMeshMtd,METH_VARARGS,NULL},
+
+  { "ReadAvgSpeedFromMesh",
+    (PyCFunction)cvAdapt_ReadAvgSpeedFromMeshMtd,METH_VARARGS,NULL},
+
+  { "SetAdaptOptions",
+    (PyCFunction)cvAdapt_SetAdaptOptionsMtd,METH_VARARGS,NULL},
+
+  { "CheckOptions",
+    (PyCFunction)cvAdapt_CheckOptionsMtd,METH_VARARGS,NULL},
+
+  { "SetMetric",
+    (PyCFunction)cvAdapt_SetMetricMtd,METH_VARARGS,NULL},
+
+  { "SetupMesh",
+    (PyCFunction)cvAdapt_SetupMeshMtd,METH_VARARGS,NULL},
+
+  { "RunAdaptor",
+    (PyCFunction)cvAdapt_RunAdaptorMtd,METH_VARARGS,NULL},
+
+  { "PrintStats",
+    (PyCFunction)cvAdapt_PrintStatsMtd,METH_VARARGS,NULL},
+
+  { "GetAdaptedMesh",
+    (PyCFunction)cvAdapt_GetAdaptedMeshMtd,METH_VARARGS,NULL},
+
+  { "TransferSolution",
+    (PyCFunction)cvAdapt_TransferSolutionMtd,METH_VARARGS,NULL},
+
+  { "TransferRegions",
+    (PyCFunction)cvAdapt_TransferRegionsMtd,METH_VARARGS,NULL},
+
+  { "WriteAdaptedModel",
+    (PyCFunction)cvAdapt_WriteAdaptedModelMtd,METH_VARARGS,NULL},
+
+  { "WriteAdaptedMesh",
+    (PyCFunction)cvAdapt_WriteAdaptedMeshMtd,METH_VARARGS,NULL},
+
+  { "WriteAdaptedSolution",
+    (PyCFunction)cvAdapt_WriteAdaptedSolutionMtd,METH_VARARGS,NULL},
+
+  {NULL}
+
+};
+
+//------------------------------------------
+// Define the pyAdaptObjectType type object
+//------------------------------------------
+// The type object stores a large number of values, mostly C function pointers, 
+// each of which implements a small part of the type’s functionality.
+//
+static PyTypeObject pyAdaptObjectType = {
+  PyVarObject_HEAD_INIT(NULL, 0)
+  "mesh_adapt.Adapt",        /* tp_name */
+  sizeof(pyAdaptObject),     /* tp_basicsize */
+  0,                         /* tp_itemsize */
+  0,                         /* tp_dealloc */
+  0,                         /* tp_print */
+  0,                         /* tp_getattr */
+  0,                         /* tp_setattr */
+  0,                         /* tp_compare */
+  0,                         /* tp_repr */
+  0,                         /* tp_as_number */
+  0,                         /* tp_as_sequence */
+  0,                         /* tp_as_mapping */
+  0,                         /* tp_hash */
+  0,                         /* tp_call */
+  0,                         /* tp_str */
+  0,                         /* tp_getattro */
+  0,                         /* tp_setattro */
+  0,                         /* tp_as_buffer */
+  Py_TPFLAGS_DEFAULT |
+      Py_TPFLAGS_BASETYPE,   /* tp_flags */
+  "Adapt objects",           /* tp_doc */
+  0,                         /* tp_traverse */
+  0,                         /* tp_clear */
+  0,                         /* tp_richcompare */
+  0,                         /* tp_weaklistoffset */
+  0,                         /* tp_iter */
+  0,                         /* tp_iternext */
+  pyAdaptObject_methods,             /* tp_methods */
+  0,                         /* tp_members */
+  0,                         /* tp_getset */
+  0,                         /* tp_base */
+  0,                         /* tp_dict */
+  0,                         /* tp_descr_get */
+  0,                         /* tp_descr_set */
+  0,                         /* tp_dictoffset */
+  (initproc)pyAdaptObject_init,                            /* tp_init */
+  0,                         /* tp_alloc */
+  0,                  /* tp_new */
+};
+
+static PyMethodDef pyAdaptMesh_methods[] = {
+  {"Registrars",
+      Adapt_RegistrarsListCmd,
+      METH_NOARGS,
+      NULL
+  },
+
+  {NULL, NULL}
+};
+
+//---------------------------------------------------
+// Define the pyAdaptObjectRegistrarType type object
+//---------------------------------------------------
+// The type object stores a large number of values, mostly C function pointers, 
+// each of which implements a small part of the type’s functionality.
+//
+static PyTypeObject pyAdaptObjectRegistrarType = {
+  PyVarObject_HEAD_INIT(NULL, 0)
+  "meshadapt.AdaptRegistrar",             /* tp_name */
+  sizeof(pyAdaptObjectRegistrar),             /* tp_basicsize */
+  0,                         /* tp_itemsize */
+  0,                         /* tp_dealloc */
+  0,                         /* tp_print */
+  0,                         /* tp_getattr */
+  0,                         /* tp_setattr */
+  0,                         /* tp_compare */
+  0,                         /* tp_repr */
+  0,                         /* tp_as_number */
+  0,                         /* tp_as_sequence */
+  0,                         /* tp_as_mapping */
+  0,                         /* tp_hash */
+  0,                         /* tp_call */
+  0,                         /* tp_str */
+  0,                         /* tp_getattro */
+  0,                         /* tp_setattro */
+  0,                         /* tp_as_buffer */
+  Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,   /* tp_flags */
+  "AdaptRegistrar wrapper  ",           /* tp_doc */
+};
+
+
+//-----------------------
+// Initialize the module
+//-----------------------
+// Define the initialization function called by the Python 
+// interpreter when the module is loaded.
+
+static char* MODULE_NAME = "adaptmesh";
+
+PyDoc_STRVAR(AdaptMesh_doc,
+  "adaptmesh functions");
+
+//---------------------------------------------------------------------------
+//                           PYTHON_MAJOR_VERSION 3                         
+//---------------------------------------------------------------------------
+
+#if PYTHON_MAJOR_VERSION == 3
+
+// Size of per-interpreter state of the module.
+// Set to -1 if the module keeps state in global variables. 
+static int perInterpreterStateSize = -1;
+
+// Always initialize this to PyModuleDef_HEAD_INIT.
+static PyModuleDef_Base m_base = PyModuleDef_HEAD_INIT;
+
+// Define the module definition struct which holds all information 
+// needed to create a module object. 
+//
+static struct PyModuleDef pyAdaptMeshmodule = {
+   m_base,
+   MODULE_NAME,  
+   AdaptMesh_doc, 
+   perInterpreterStateSize, 
+   pyAdaptMesh_methods
+};
+
+//--------------------
+// PyInit_pyMeshAdapt
+//--------------------
+// The initialization function called by the Python interpreter when the module is loaded.
+//
+// [TODO:Davep] The global 'gRepository' is created here, as it is in all other modules init
+//     function. Why is this not create in main()?
+//
+PyMODINIT_FUNC
+PyInit_pyMeshAdapt()
+{
+  // Associate the adapt object registrar with the python interpreter
+  if (gRepository==NULL) {
+    gRepository= new cvRepository();
+    fprintf(stdout,"New gRepository created from cv_adapt_init\n");
+  }
+
+  // Initialize
+  cvAdaptObject::gCurrentKernel = KERNEL_INVALID;
+
+#ifdef USE_TETGEN_ADAPTOR
+  cvAdaptObject::gCurrentKernel = KERNEL_TETGEN;
+#endif
+
+  // Create meshadapt module.
+  //
+  auto module = PyModule_Create(&pyAdaptMeshmodule);
+  if (module == NULL) {
+    fprintf(stdout,"Error in initializing pyMeshAdapt\n");
+    return SV_PYTHON_ERROR;
+  }
+
+  // Create AdaptMeshType.
+  //
+  pyAdaptObjectType.tp_new = PyType_GenericNew;
+  if (PyType_Ready(&pyAdaptObjectType) < 0) {
+    fprintf(stdout,"Error in pyAdaptMeshType\n");
+    return SV_PYTHON_ERROR;
+  }
+  Py_INCREF(&pyAdaptObjectType);
+  PyModule_AddObject(module, "Adapt", (PyObject*)&pyAdaptObjectType);
+
+  // Create AdaptRegistrar type.
+  //
+  pyAdaptObjectRegistrarType.tp_new = PyType_GenericNew;
+  if (PyType_Ready(&pyAdaptObjectRegistrarType) < 0) {
+    fprintf(stdout,"Error in pyAdaptObjectRegistrarType\n");
+    return SV_PYTHON_ERROR;
+  }
+  Py_INCREF(&pyAdaptObjectRegistrarType);
+  PyModule_AddObject(module, "AdaptRegistrar", (PyObject *)&pyAdaptObjectRegistrarType);
+
+  pyAdaptObjectRegistrar* tmp = PyObject_New(pyAdaptObjectRegistrar, &pyAdaptObjectRegistrarType);
+  tmp->registrar = (cvFactoryRegistrar *)&cvAdaptObject::gRegistrar;
+  PySys_SetObject("AdaptRegistrar", (PyObject *)tmp);
+
+  // Add meshadapt.MeshAdaptException exception.
+  //
+  PyRunTimeErr = PyErr_NewException("meshadapt.MeshAdaptException",NULL,NULL);
+  PyModule_AddObject(module,"MeshAdaptException", PyRunTimeErr);
+
+  return module;
+ }
+
+#endif
+
+
+//---------------------------------------------------------------------------
+//                           PYTHON_MAJOR_VERSION 3                         
+//---------------------------------------------------------------------------
+
+#if PYTHON_MAJOR_VERSION == 2
+
+PyMODINIT_FUNC
+initpyMeshAdapt()
+{
+
+  // Associate the adapt object registrar with the python interpreter
+  if (gRepository==NULL)
+  {
+    gRepository= new cvRepository();
+    fprintf(stdout,"New gRepository created from cv_adapt_init\n");
+  }
+  // Initialize
+  cvAdaptObject::gCurrentKernel = KERNEL_INVALID;
+
+#ifdef USE_TETGEN_ADAPTOR
+  cvAdaptObject::gCurrentKernel = KERNEL_TETGEN;
+#endif
+
+  pyAdaptObjectType.tp_new=PyType_GenericNew;
+  pyAdaptObjectRegistrarType.tp_new = PyType_GenericNew;
+  if (PyType_Ready(&pyAdaptObjectType)<0)
+  {
+    fprintf(stdout,"Error in pyAdaptMeshType\n");
+    return;
+  }
+  if (PyType_Ready(&pyAdaptObjectRegistrarType)<0)
+  {
+    fprintf(stdout,"Error in pyAdaptObjectRegistrarType\n");
+    return;
+  }
+  PyObject* pythonC;
+  pythonC = Py_InitModule("pyMeshAdapt",pyAdaptMesh_methods);
+
+  if(pythonC==NULL)
+  {
+    fprintf(stdout,"Error in initializing pyMeshAdapt\n");
+    return;
+
+  }
+
+  PyRunTimeErr = PyErr_NewException("pyMeshAdapt.error",NULL,NULL);
+  PyModule_AddObject(pythonC,"error",PyRunTimeErr);
+  
+  Py_INCREF(&pyAdaptObjectType);
+  Py_INCREF(&pyAdaptObjectRegistrarType);
+  PyModule_AddObject(pythonC, "pyAdaptObjectRegistrar", (PyObject *)&pyAdaptObjectRegistrarType);
+  PyModule_AddObject(pythonC,"pyAdaptObject",(PyObject*)&pyAdaptObjectType);
+    
+  pyAdaptObjectRegistrar* tmp = PyObject_New(pyAdaptObjectRegistrar, &pyAdaptObjectRegistrarType);
+  tmp->registrar = (cvFactoryRegistrar *)&cvAdaptObject::gRegistrar;
+  PySys_SetObject("AdaptObjectRegistrar", (PyObject *)tmp);
+  return;
+ }
+#endif
 

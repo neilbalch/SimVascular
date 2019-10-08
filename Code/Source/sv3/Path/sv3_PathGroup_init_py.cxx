@@ -28,6 +28,11 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+// The functions defined here implement the SV Python API Contour Module. 
+//
+// [TODO:DaveP] This module does not appear to be used, not referenced in sv package.
+//
 #include "SimVascular.h"
 #include "SimVascular_python.h"
 #include "Python.h"
@@ -43,202 +48,25 @@
 #include <iostream>
 #include "sv_Repository.h"
 #include "sv_RepositoryData.h"
+
 // The following is needed for Windows
 #ifdef GetObject
 #undef GetObject
 #endif
-// Globals:
-// --------
 
 #include "sv2_globals.h"
 using sv3::PathGroup;
 using sv3::PathElement;
+
 #if PYTHON_MAJOR_VERSION == 2
 PyMODINIT_FUNC initpyPathGroup();
 #elif PYTHON_MAJOR_VERSION == 3
 PyMODINIT_FUNC PyInit_pyPathGroup();
 #endif
-PyObject* PyRunTimeErrPg;
-PyObject* sv4PathGroup_NewObjectCmd( pyPathGroup* self, PyObject* args);
-PyObject* sv4PathGroup_GetObjectCmd( pyPathGroup* self, PyObject* args);
-PyObject* sv4PathGroup_SetPathCmd( pyPathGroup* self, PyObject* args);
-PyObject* sv4PathGroup_GetTimeSizeCmd( pyPathGroup* self, PyObject* args);
-PyObject* sv4PathGroup_GetPathCmd( pyPathGroup* self, PyObject* args);
-PyObject* sv4PathGroup_GetPathGroupIDCmd( pyPathGroup* self, PyObject* args);
-PyObject* sv4PathGroup_SetPathGroupIDCmd(pyPathGroup* self, PyObject* args);
-PyObject* sv4PathGroup_SetSpacingCmd(pyPathGroup* self, PyObject* args);
-PyObject* sv4PathGroup_GetSpacingCmd(pyPathGroup* self, PyObject* args);
-PyObject* sv4PathGroup_SetCalculationNumber(pyPathGroup* self, PyObject* args);
-PyObject* sv4PathGroup_GetCalculationNumber(pyPathGroup* self, PyObject* args);
-PyObject* sv4PathGroup_SetMethod(pyPathGroup* self, PyObject* args);
-PyObject* sv4PathGroup_GetMethod(pyPathGroup* self, PyObject* args);
 
+// Exception type used by PyErr_SetString() to set the for the error indicator.
+static PyObject * PyRunTimeErrPg;
 
-int PathGroup_pyInit()
-{
-#if PYTHON_MAJOR_VERSION == 2
-    initpyPathGroup();
-#elif PYTHON_MAJOR_VERSION == 3
-    PyInit_pyPathGroup();
-#endif
-  return SV_OK;
-}
-
-static PyMethodDef pyPathGroup_methods[]={
-  {"NewObject", (PyCFunction)sv4PathGroup_NewObjectCmd,METH_VARARGS,NULL},
-  {"GetObject", (PyCFunction)sv4PathGroup_GetObjectCmd,METH_VARARGS,NULL},
-  {"SetPath",(PyCFunction)sv4PathGroup_SetPathCmd,METH_VARARGS,NULL},
-  {"GetTimeSize",(PyCFunction)sv4PathGroup_GetTimeSizeCmd, METH_NOARGS,NULL},
-  {"GetPath",(PyCFunction)sv4PathGroup_GetPathCmd,METH_VARARGS,NULL},
-  {"GetPathGroupID",(PyCFunction)sv4PathGroup_GetPathGroupIDCmd,METH_VARARGS,NULL},
-  {"SetPathGroupID",(PyCFunction)sv4PathGroup_SetPathGroupIDCmd, METH_VARARGS,NULL},
-  {"SetSpacing",(PyCFunction)sv4PathGroup_SetSpacingCmd, METH_NOARGS,NULL},
-  {"GetSpacing",(PyCFunction)sv4PathGroup_GetSpacingCmd, METH_NOARGS, NULL},
-  {"SetCalculationNumber",(PyCFunction)sv4PathGroup_SetCalculationNumber, METH_NOARGS, NULL},
-  {"GetCalculationNumber",(PyCFunction)sv4PathGroup_GetCalculationNumber, METH_NOARGS, NULL},
-  {"SetMethod",(PyCFunction)sv4PathGroup_SetMethod, METH_NOARGS, NULL},
-  {"GetMethod",(PyCFunction)sv4PathGroup_GetMethod, METH_NOARGS, NULL},
-  {NULL,NULL}
-};
-
-static int pyPathGroup_init(pyPathGroup* self, PyObject* args)
-{
-  fprintf(stdout,"pyPathGroup initialized.\n");
-  return SV_OK;
-}
-
-static PyTypeObject pyPathGroupType = {
-  PyVarObject_HEAD_INIT(NULL, 0)
-  "pyPathGroup.pyPathGroup",             /* tp_name */
-  sizeof(pyPathGroup),             /* tp_basicsize */
-  0,                         /* tp_itemsize */
-  0,                         /* tp_dealloc */
-  0,                         /* tp_print */
-  0,                         /* tp_getattr */
-  0,                         /* tp_setattr */
-  0,                         /* tp_compare */
-  0,                         /* tp_repr */
-  0,                         /* tp_as_number */
-  0,                         /* tp_as_sequence */
-  0,                         /* tp_as_mapping */
-  0,                         /* tp_hash */
-  0,                         /* tp_call */
-  0,                         /* tp_str */
-  0,                         /* tp_getattro */
-  0,                         /* tp_setattro */
-  0,                         /* tp_as_buffer */
-  Py_TPFLAGS_DEFAULT |
-      Py_TPFLAGS_BASETYPE,   /* tp_flags */
-  "pyPathGroup  objects",           /* tp_doc */
-  0,                         /* tp_traverse */
-  0,                         /* tp_clear */
-  0,                         /* tp_richcompare */
-  0,                         /* tp_weaklistoffset */
-  0,                         /* tp_iter */
-  0,                         /* tp_iternext */
-  pyPathGroup_methods,             /* tp_methods */
-  0,                         /* tp_members */
-  0,                         /* tp_getset */
-  0,                         /* tp_base */
-  0,                         /* tp_dict */
-  0,                         /* tp_descr_get */
-  0,                         /* tp_descr_set */
-  0,                         /* tp_dictoffset */
-  (initproc)pyPathGroup_init,                            /* tp_init */
-  0,                         /* tp_alloc */
-  0,                  /* tp_new */
-};
-
-static PyMethodDef pyPathGroupModule_methods[] =
-{
-    {NULL,NULL}
-};
-
-#if PYTHON_MAJOR_VERSION == 3
-static struct PyModuleDef pyPathGroupModule = {
-   PyModuleDef_HEAD_INIT,
-   "pyPathGroup",   /* name of module */
-   "", /* module documentation, may be NULL */
-   -1,       /* size of per-interpreter state of the module,
-                or -1 if the module keeps state in global variables. */
-   pyPathGroupModule_methods
-};
-#endif
-
-//----------------
-//initpyPathGroup
-//----------------
-#if PYTHON_MAJOR_VERSION == 2
-PyMODINIT_FUNC initpyPathGroup()
-
-{
-  // Associate the mesh registrar with the python interpreter so it can be
-  // retrieved by the DLLs.
-  if (gRepository==NULL)
-  {
-    gRepository = new cvRepository();
-    fprintf(stdout,"New gRepository created from cv_mesh_init\n");
-  }
-
-  // Initialize
-  pyPathGroupType.tp_new=PyType_GenericNew;
-  if (PyType_Ready(&pyPathGroupType)<0)
-  {
-    fprintf(stdout,"Error in pyPathGroupType\n");
-    return;
-  }
-  PyObject* pythonC;
-  pythonC = Py_InitModule("pyPathGroup",pyPathGroupModule_methods);
-  if(pythonC==NULL)
-  {
-    fprintf(stdout,"Error in initializing pyPathGroup\n");
-    return;
-  }
-  PyRunTimeErrPg = PyErr_NewException("pyPathGroup.error",NULL,NULL);
-  PyModule_AddObject(pythonC,"error",PyRunTimeErrPg);
-  Py_INCREF(&pyPathGroupType);
-  PyModule_AddObject(pythonC,"pyPathGroup",(PyObject*)&pyPathGroupType);
-  return ;
-
-}
-#endif
-
-#if PYTHON_MAJOR_VERSION == 3
-//----------------
-//PyInit_pyPathGroup
-//----------------
-PyMODINIT_FUNC PyInit_pyPathGroup()
-
-{
-
-  if (gRepository==NULL)
-  {
-    gRepository = new cvRepository();
-    fprintf(stdout,"New gRepository created from sv3_PathGroup_init\n");
-  }
-
-  // Initialize
-  pyPathGroupType.tp_new=PyType_GenericNew;
-  if (PyType_Ready(&pyPathGroupType)<0)
-  {
-    fprintf(stdout,"Error in pyPathGroupType\n");
-    return SV_PYTHON_ERROR;
-  }
-  PyObject* pythonC;
-  pythonC = PyModule_Create(&pyPathGroupModule);
-  if(pythonC==NULL)
-  {
-    fprintf(stdout,"Error in initializing pyPathGroup\n");
-    return SV_PYTHON_ERROR;
-  }
-  PyRunTimeErrPg = PyErr_NewException("pyPathGroup.error",NULL,NULL);
-  PyModule_AddObject(pythonC,"error",PyRunTimeErrPg);
-  Py_INCREF(&pyPathGroupType);
-  PyModule_AddObject(pythonC,"pyPathGroup",(PyObject*)&pyPathGroupType);
-  return pythonC;
-
-}
-#endif
 
 // --------------------
 // sv4PathGroup_NewObjectCmd
@@ -573,4 +401,254 @@ PyObject* sv4PathGroup_GetCalculationNumber(pyPathGroup* self, PyObject* args)
     int number=self->geom->GetCalculationNumber();
     return Py_BuildValue("i",number);
 }
+
+////////////////////////////////////////////////////////
+//          M o d u l e  D e f i n i t i o n          //
+////////////////////////////////////////////////////////
+
+int PathGroup_pyInit()
+{
+#if PYTHON_MAJOR_VERSION == 2
+    initpyPathGroup();
+#elif PYTHON_MAJOR_VERSION == 3
+    PyInit_pyPathGroup();
+#endif
+  return SV_OK;
+}
+
+//----------------------------
+// Define API function names
+//----------------------------
+
+static PyMethodDef pyPathGroup_methods[]={
+
+  {"GetCalculationNumber",
+       (PyCFunction)sv4PathGroup_GetCalculationNumber, 
+       METH_NOARGS, NULL},
+
+  {"GetMethod",
+       (PyCFunction)sv4PathGroup_GetMethod, METH_NOARGS, NULL},
+
+  {"GetObject", 
+       (PyCFunction)sv4PathGroup_GetObjectCmd,METH_VARARGS,NULL},
+
+  {"GetPath",
+       (PyCFunction)sv4PathGroup_GetPathCmd,METH_VARARGS,NULL},
+
+  {"GetPathGroupID",
+       (PyCFunction)sv4PathGroup_GetPathGroupIDCmd,METH_VARARGS,NULL},
+
+  {"GetSpacing",
+       (PyCFunction)sv4PathGroup_GetSpacingCmd, METH_NOARGS, NULL},
+
+  {"GetTimeSize",
+       (PyCFunction)sv4PathGroup_GetTimeSizeCmd, METH_NOARGS,NULL},
+
+  {"NewObject", 
+       (PyCFunction)sv4PathGroup_NewObjectCmd,METH_VARARGS,NULL},
+
+  {"SetCalculationNumber",
+       (PyCFunction)sv4PathGroup_SetCalculationNumber, METH_NOARGS, NULL},
+
+  {"SetMethod",
+       (PyCFunction)sv4PathGroup_SetMethod, METH_NOARGS, NULL},
+
+  {"SetPath",
+       (PyCFunction)sv4PathGroup_SetPathCmd,METH_VARARGS,NULL},
+
+
+  {"SetPathGroupID",
+       (PyCFunction)sv4PathGroup_SetPathGroupIDCmd, METH_VARARGS,NULL},
+
+  {"SetSpacing",
+       (PyCFunction)sv4PathGroup_SetSpacingCmd, METH_NOARGS,NULL},
+
+
+  {NULL,NULL}
+};
+
+//------------------
+// pyPathGroup_init
+//------------------
+//
+// This is the __init__() method for the PathGroup class. 
+//
+// This function is used to initialize an object after it is created.
+//
+static int pyPathGroup_init(pyPathGroup* self, PyObject* args)
+{
+  fprintf(stdout,"pyPathGroup initialized.\n");
+  return SV_OK;
+}
+
+//----------------------------------------
+// Define the pyPathGroupType type object
+//----------------------------------------
+// The type object stores a large number of values, mostly C function pointers, 
+// each of which implements a small part of the type’s functionality.
+//
+static PyTypeObject pyPathGroupType = {
+  PyVarObject_HEAD_INIT(NULL, 0)
+  "pathgroup.PathGroup",             /* tp_name */
+  sizeof(pyPathGroup),             /* tp_basicsize */
+  0,                         /* tp_itemsize */
+  0,                         /* tp_dealloc */
+  0,                         /* tp_print */
+  0,                         /* tp_getattr */
+  0,                         /* tp_setattr */
+  0,                         /* tp_compare */
+  0,                         /* tp_repr */
+  0,                         /* tp_as_number */
+  0,                         /* tp_as_sequence */
+  0,                         /* tp_as_mapping */
+  0,                         /* tp_hash */
+  0,                         /* tp_call */
+  0,                         /* tp_str */
+  0,                         /* tp_getattro */
+  0,                         /* tp_setattro */
+  0,                         /* tp_as_buffer */
+  Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,   /* tp_flags */
+  "PathGroup  objects",           /* tp_doc */
+  0,                         /* tp_traverse */
+  0,                         /* tp_clear */
+  0,                         /* tp_richcompare */
+  0,                         /* tp_weaklistoffset */
+  0,                         /* tp_iter */
+  0,                         /* tp_iternext */
+  pyPathGroup_methods,             /* tp_methods */
+  0,                         /* tp_members */
+  0,                         /* tp_getset */
+  0,                         /* tp_base */
+  0,                         /* tp_dict */
+  0,                         /* tp_descr_get */
+  0,                         /* tp_descr_set */
+  0,                         /* tp_dictoffset */
+  (initproc)pyPathGroup_init,                            /* tp_init */
+  0,                         /* tp_alloc */
+  0,                  /* tp_new */
+};
+
+// Define methods operating on the PathGroup Module level.
+//
+static PyMethodDef pyPathGroupModule_methods[] =
+{
+    {NULL,NULL}
+};
+
+//-----------------------
+// Initialize the module
+//-----------------------
+// Define the initialization function called by the Python 
+// interpreter when the module is loaded.
+
+static char* MODULE_NAME = "pathgroup";
+
+PyDoc_STRVAR(pathgroup_doc,
+  "pathgroup functions");
+
+//---------------------------------------------------------------------------
+//                           PYTHON_MAJOR_VERSION 3                         
+//---------------------------------------------------------------------------
+
+#if PYTHON_MAJOR_VERSION == 3
+
+// Size of per-interpreter state of the module.
+// Set to -1 if the module keeps state in global variables. 
+static int perInterpreterStateSize = -1;
+
+// Always initialize this to PyModuleDef_HEAD_INIT.
+static PyModuleDef_Base m_base = PyModuleDef_HEAD_INIT;
+
+// Define the module definition struct which holds all information 
+// needed to create a module object. 
+static struct PyModuleDef pyPathGroupModule = {
+   m_base,
+   MODULE_NAME,
+   pathgroup_doc, 
+   perInterpreterStateSize,
+   pyPathGroupModule_methods
+};
+
+//--------------------
+// PyInit_pyPathGroup
+//--------------------
+// The initialization function called by the Python interpreter when the module is loaded.
+//
+// [TODO:Davep] The global 'gRepository' is created here, as it is in all other modules init
+//     function. Why is this not create in main()?
+//
+PyMODINIT_FUNC PyInit_pyPathGroup()
+{
+
+  if (gRepository==NULL) {
+    gRepository = new cvRepository();
+    fprintf(stdout,"New gRepository created from sv3_PathGroup_init\n");
+  }
+
+  // Create PathGoup type. 
+  //
+  pyPathGroupType.tp_new = PyType_GenericNew;
+  if (PyType_Ready(&pyPathGroupType) < 0) {
+    fprintf(stdout,"Error in pyPathGroupType\n");
+    return SV_PYTHON_ERROR;
+  }
+
+  auto module = PyModule_Create(&pyPathGroupModule);
+  if (module == NULL) {
+    fprintf(stdout,"Error in initializing pathgroup module.\n");
+    return SV_PYTHON_ERROR;
+  }
+
+  // Add pathgroup.PathGroupException exception.
+  //
+  // This defines a Python exception named sv.pathgroup.PathGroupException.
+  // This can be used in a 'try' statement with an 'except' clause 'except sv.pathgroup.PathGroupExceptions:'
+  // 
+  PyRunTimeErrPg = PyErr_NewException("pathgroup.PathGroupException", NULL, NULL);
+  PyModule_AddObject(module, "PathGroupException", PyRunTimeErrPg);
+  Py_INCREF(&pyPathGroupType);
+  PyModule_AddObject(module,"PathGroup",(PyObject*)&pyPathGroupType);
+  return module;
+}
+
+#endif
+
+//---------------------------------------------------------------------------
+//                           PYTHON_MAJOR_VERSION 2                         
+//---------------------------------------------------------------------------
+
+#if PYTHON_MAJOR_VERSION == 2
+PyMODINIT_FUNC initpyPathGroup()
+
+{
+  // Associate the mesh registrar with the python interpreter so it can be
+  // retrieved by the DLLs.
+  if (gRepository==NULL)
+  {
+    gRepository = new cvRepository();
+    fprintf(stdout,"New gRepository created from cv_mesh_init\n");
+  }
+
+  // Initialize
+  pyPathGroupType.tp_new=PyType_GenericNew;
+  if (PyType_Ready(&pyPathGroupType)<0)
+  {
+    fprintf(stdout,"Error in pyPathGroupType\n");
+    return;
+  }
+  PyObject* pythonC;
+  pythonC = Py_InitModule("pyPathGroup",pyPathGroupModule_methods);
+  if(pythonC==NULL)
+  {
+    fprintf(stdout,"Error in initializing pyPathGroup\n");
+    return;
+  }
+  PyRunTimeErrPg = PyErr_NewException("pyPathGroup.error",NULL,NULL);
+  PyModule_AddObject(pythonC,"error",PyRunTimeErrPg);
+  Py_INCREF(&pyPathGroupType);
+  PyModule_AddObject(pythonC,"pyPathGroup",(PyObject*)&pyPathGroupType);
+  return ;
+
+}
+#endif
 

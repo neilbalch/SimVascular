@@ -65,6 +65,7 @@ target_link_libraries(${lib}
   ${SV_LIB_THIRDPARTY_SOLVERIO_NAME}
 	${SV_LIB_GLOBALS_NAME}
 	${SV_LIB_UTILS_NAME}
+	${SV_LIB_COMMON_NAME}
   )
 
 # Set up for exports

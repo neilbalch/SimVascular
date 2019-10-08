@@ -51,7 +51,7 @@ endif()
 add_library(${lib} ${SV_LIBRARY_TYPE} ${CXXSRCS} sv_mmg_mesh_init.cxx)
 
 if(SV_USE_PYTHON)
-  target_link_libraries(${lib} ${PYTHON_LIBRARY})
+  target_link_libraries(${lib} ${PYTHON_LIBRARY} ${SV_LIB_COMMON_NAME})
 endif()
 
 target_link_libraries(${lib}

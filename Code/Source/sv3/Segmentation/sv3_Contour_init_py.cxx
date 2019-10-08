@@ -751,7 +751,7 @@ Contour_create_smooth_contour(pyContour* self, PyObject* args)
 //       repository.add_polydata(poly_data)
 //
 PyDoc_STRVAR(Contour_get_polydata_doc,
-  "Contour.get_polydata()  \n\ 
+  "Contour.get_polydata(name)  \n\ 
    \n\
    Add the contour geometry to the repository. \n\
    \n\

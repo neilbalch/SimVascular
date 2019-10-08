@@ -60,6 +60,7 @@ target_link_libraries(${lib}
 	${ZLIB_LIBRARY}
 	${SV_LIB_GLOBALS_NAME} ${SV_LIB_REPOSITORY_NAME}
 	${SV_LIB_SOLID_NAME}
+	${SV_LIB_COMMON_NAME}
   )
 
 # Set up for exports

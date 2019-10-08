@@ -29,14 +29,10 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/** @file sv_tetgen_mesh_init.cxx
- *  @brief Ipmlements functions to register TetGenMeshObject as a mesh type
- *
- *  @author Adam Updegrove
- *  @author updega2@gmail.com
- *  @author UC Berkeley
- *  @author shaddenlab.berkeley.edu
- */
+// The functions defined here implement the SV Python API pyMeshTetgen meshing module. 
+//
+// [TODO:DaveP] What is this used for?
+//
 
 #include "SimVascular.h"
 #include "SimVascular_python.h"
@@ -45,6 +41,7 @@
 #include "sv_TetGenMeshSystem.h"
 #include "sv_tetgenmesh_utils.h"
 #include "sv_arg.h"
+#include "vtkPythonUtil.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -52,41 +49,79 @@
 #include "sv_arg.h"
 #include "sv_misc_utils.h"
 #include "Python.h"
-// The following is needed for Windows
+// Needed for Windows
 #ifdef GetObject
 #undef GetObject
 #endif
 
-// Globals:
-// --------
-
 #include "sv2_globals.h"
 
-// Prototypes:
-// -----------
-PyObject* PyRunTimeErr;
-PyObject* TetGenMesh_AvailableCmd(PyObject* self, PyObject* args);
+// Exception type used by PyErr_SetString() to set the for the error indicator.
+static PyObject* PyRunTimeErr;
+
+//////////////////////////////////////////////////////
+//          M o d u l e  F u n c t i o n s          //
+//////////////////////////////////////////////////////
+//
+// Python API functions. 
+
+//-------------------------
+// TetGenMesh_AvailableCmd
+//-------------------------
+// 
+static PyObject * 
+TetGenMesh_AvailableCmd(PyObject* self, PyObject* args)
+{
+  return Py_BuildValue("s", "TetGen Mesh Module Available");
+}
+
+////////////////////////////////////////////////////////
+//          M o d u l e  D e f i n i t i o n          //
+////////////////////////////////////////////////////////
+
 #if PYTHON_MAJOR_VERSION == 2
 PyMODINIT_FUNC initpyMeshTetgen();
 #elif PYTHON_MAJOR_VERSION == 3
 PyMODINIT_FUNC PyInit_pyMeshTetgen();
 #endif
+
+//----------------------------
+// Define API function names
+//----------------------------
+
 PyMethodDef MeshTetgen_methods[]=
 {
-  {"Available",TetGenMesh_AvailableCmd,METH_NOARGS,NULL},
+  {"Available",
+      TetGenMesh_AvailableCmd,
+      METH_NOARGS,
+      NULL
+  },
+
   {NULL,NULL}
 };
+
+//-----------------------
+// Initialize the module
+//-----------------------
+// Define the initialization function called by the Python 
+// interpreter when the module is loaded.
+
+static char* MODULE_NAME = "pyMeshTetgen";
+
+PyDoc_STRVAR(TetgenMesh_doc,
+  "tetgenmesh functions");
 
 #if PYTHON_MAJOR_VERSION == 3
 static struct PyModuleDef pyMeshTetgenmodule = {
    PyModuleDef_HEAD_INIT,
-   "pyMeshTetgen",   /* name of module */
+   MODULE_NAME, 
    "", /* module documentation, may be NULL */
    -1,       /* size of per-interpreter state of the module,
                 or -1 if the module keeps state in global variables. */
    MeshTetgen_methods
 };
 #endif
+
 // ----------
 // Tetgenmesh_Init
 // ----------
@@ -227,10 +262,4 @@ PyInit_pyMeshTetgen(void)
   return pythonC;
 }
 #endif
-
-PyObject*  TetGenMesh_AvailableCmd(PyObject* self, PyObject* args)
-{
-  return Py_BuildValue("s","TetGen Mesh Module Available");
-}
-
 

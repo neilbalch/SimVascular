@@ -29,11 +29,27 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+// The functions defined here implement the SV Python API Contour Module. 
+//
+// The module name is 'contour'. The module defines a 'Contour' class used
+// to store contour data. The 'Contour' class cannot be imported and must
+// be used prefixed by the module name. For example
+//
+//     ctr = contour.Countour()
+//
+// A Python exception sv.contour.ContourException is defined for this module. 
+// The exception can be used in a Python 'try' statement with an 'except' clause 
+// like this
+//
+//    except sv.contour.ContourException:
+//
 #include "SimVascular.h"
 #include "SimVascular_python.h"
 #include "sv_MeshSystem.h"
 #include "sv_MeshObject.h"
 #include "sv_mesh_init_py.h"
+#include "vtkPythonUtil.h"
+#include "sv3_PyUtil.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -44,428 +60,27 @@
 #include "sv_VTK.h"
 #include "sv_misc_utils.h"
 #include "Python.h"
-// The following is needed for Windows
+
+// Needed for Windows.
 #ifdef GetObject
 #undef GetObject
 #endif
-#include <iostream>
-// Globals:
-// --------
 
+#include <iostream>
 #include "sv2_globals.h"
 
-// Prototypes:
-// -----------
 
-static void pyMeshObject_dealloc(pyMeshObject* self)
+// Exception type used by PyErr_SetString() to set the for the error indicator.
+static PyObject * PyRunTimeErr;
 
-{
-
-  Py_XDECREF(self->geom);
-  Py_TYPE(self)->tp_free((PyObject*)self);
-
-}
-#if PYTHON_MAJOR_VERSION == 2
-PyMODINIT_FUNC initpyMeshObject();
-#elif PYTHON_MAJOR_VERSION == 3
-PyMODINIT_FUNC PyInit_pyMeshObject();
-#endif
-PyObject* PyRunTimeErr;
-PyObject*  cvMesh_SetMeshKernelCmd( PyObject* self, PyObject* args);
-
-PyObject* cvMesh_NewObjectCmd( pyMeshObject* self, PyObject* args);
-PyObject* cvMesh_GetObjectCmd( pyMeshObject* self, PyObject* args);
-PyObject* cvMesh_ListMethodsCmd( PyObject* self, PyObject* args);
-PyObject* cvMesh_LogonCmd( PyObject* self, PyObject* args);
-PyObject* cvMesh_LogoffCmd( PyObject* self, PyObject* args);
-
-
-// Mesh methods
-// --------------------
-static PyObject* cvMesh_GetKernelMtd( pyMeshObject* self, PyObject* args);
-static PyObject* cvMesh_PrintMtd( pyMeshObject* self, PyObject* args);
-static PyObject* cvMesh_UpdateMtd( pyMeshObject* self, PyObject* args);
-static PyObject* cvMesh_WriteMetisAdjacencyMtd( pyMeshObject* self, PyObject* args);
-static PyObject* cvMesh_GetPolyDataMtd( pyMeshObject* self, PyObject* args);
-static PyObject* cvMesh_GetSolidMtd( pyMeshObject* self, PyObject* args);
-static PyObject* cvMesh_SetVtkPolyDataMtd( pyMeshObject* self, PyObject* args);
-static PyObject* cvMesh_GetUnstructuredGridMtd( pyMeshObject* self, PyObject* args);
-static PyObject* cvMesh_GetFacePolyDataMtd( pyMeshObject* self, PyObject* args);
-static PyObject* cvMesh_GetModelFaceInfoMtd( pyMeshObject* self, PyObject* args);
-static PyObject* cvMesh_GetBoundaryFacesMtd( pyMeshObject* self, PyObject* args);
-/*
-#ifdef SV_USE_MESHSIM_DISCRETE_MODEL
-static PyObject* cvMesh_LoadDiscreteModelMtd( pyMeshObject* self, PyObject* args);
-#endif
-*/
-
-static PyObject* cvMesh_LoadModelMtd( pyMeshObject* self, PyObject* args);
-static PyObject* cvMesh_LoadMeshMtd( pyMeshObject* self, PyObject* args);
-static PyObject* cvMesh_NewMeshMtd( pyMeshObject* self, PyObject* args);
-static PyObject* cvMesh_GenerateMeshMtd( pyMeshObject* self, PyObject* args);
-static PyObject* cvMesh_WriteMeshMtd( pyMeshObject* self, PyObject* args);
-static PyObject* cvMesh_WriteStatsMtd( pyMeshObject* self, PyObject* args);
-static PyObject* cvMesh_SetMeshOptionsMtd( pyMeshObject* self, PyObject* args);
-static PyObject* cvMesh_SetCylinderRefinementMtd( pyMeshObject* self, PyObject* args);
-static PyObject* cvMesh_SetSphereRefinementMtd( pyMeshObject* self, PyObject* args);
-static PyObject* cvMesh_SetBoundaryLayerMtd( pyMeshObject* self, PyObject* args);
-static PyObject* cvMesh_SetWallsMtd( pyMeshObject* self, PyObject* args);
-static PyObject* cvMesh_SetSolidKernelMtd( pyMeshObject* self, PyObject* args);
-static PyObject* cvMesh_SetSizeFunctionBasedMeshMtd( pyMeshObject* self, PyObject* args);
-static PyObject* cvMesh_AdaptMtd( pyMeshObject* self, PyObject* args);
-
-
-// Helper functions
-// ----------------
 
 static void MeshPrintMethods();
 
-
-// ----------
-// cvMesh_Init
-// ----------
-
-int Mesh_pyInit()
+static void 
+pyMeshObject_dealloc(pyMeshObject* self)
 {
-#if PYTHON_MAJOR_VERSION == 2
-  initpyMeshObject();
-#elif PYTHON_MAJOR_VERSION == 3
-  PyInit_pyMeshObject();
-#endif
-  return SV_OK;
-}
-static int pyMeshObject_init(pyMeshObject* self, PyObject* args)
-{
-  fprintf(stdout,"pyMeshObject initialized.\n");
-  return SV_OK;
-}
-
-//static PyMemberDef pyMeshObject_members[]={
-//{NULL}
-//};
-static PyMethodDef pyMeshObject_methods[]={
-  {"NewObject", (PyCFunction)cvMesh_NewObjectCmd,METH_VARARGS,NULL},
-  {"GetMesh", (PyCFunction)cvMesh_GetObjectCmd, METH_VARARGS, NULL},
-  { "LoadModel", (PyCFunction)cvMesh_LoadModelMtd,METH_VARARGS,NULL},
-  { "GetBoundaryFaces",(PyCFunction)cvMesh_GetBoundaryFacesMtd,METH_VARARGS,NULL},
-  { "LoadMesh", (PyCFunction)cvMesh_LoadMeshMtd,METH_VARARGS,NULL},
-  { "NewMesh", (PyCFunction)cvMesh_NewMeshMtd,METH_VARARGS,NULL},
-  { "SetMeshOptions", (PyCFunction)cvMesh_SetMeshOptionsMtd,METH_VARARGS,NULL},
-  { "SetCylinderRefinement", (PyCFunction)cvMesh_SetCylinderRefinementMtd,METH_VARARGS,NULL},
-  { "SetSphereRefinement",(PyCFunction)cvMesh_SetSphereRefinementMtd,METH_VARARGS,NULL},
-  { "SetSizeFunctionBasedMesh", (PyCFunction)cvMesh_SetSizeFunctionBasedMeshMtd,METH_VARARGS,NULL},
-  { "GenerateMesh", (PyCFunction)cvMesh_GenerateMeshMtd,METH_VARARGS,NULL},
-  { "SetBoundaryLayer", (PyCFunction)cvMesh_SetBoundaryLayerMtd,METH_VARARGS,NULL},
-  { "SetWalls", (PyCFunction)cvMesh_SetWallsMtd,METH_VARARGS,NULL},
-  { "SetSolidKernel", (PyCFunction)cvMesh_SetSolidKernelMtd,METH_VARARGS,NULL},
-  { "GetModelFaceInfo",(PyCFunction)cvMesh_GetModelFaceInfoMtd,METH_VARARGS,NULL},
-  // The method "Update" must be called before any of the other
-  // methods since it loads the mesh.  To avoid confusion, we
-  // call this method directly prior to any other.
- // { "Update" ) ) {
-    // ignore this call now, it is done implicitly (see above)
-    //if ( (PyCFunction)cvMesh_UpdateMtd,METH_VARARGS,NULL},
-  { "Print",(PyCFunction)cvMesh_PrintMtd,METH_VARARGS,NULL},
-  { "GetKernel", (PyCFunction)cvMesh_GetKernelMtd,METH_VARARGS,NULL},
-  { "WriteMetisAdjacency", (PyCFunction)cvMesh_WriteMetisAdjacencyMtd,METH_VARARGS,NULL},
-  { "GetPolyData", (PyCFunction)cvMesh_GetPolyDataMtd,METH_VARARGS,NULL},
-  { "GetSolid", (PyCFunction)cvMesh_GetSolidMtd,METH_VARARGS,NULL},
-  { "SetVtkPolyData",(PyCFunction)cvMesh_SetVtkPolyDataMtd,METH_VARARGS,NULL},
-  { "GetUnstructuredGrid", (PyCFunction)cvMesh_GetUnstructuredGridMtd,METH_VARARGS,NULL},
-  { "GetFacePolyData", (PyCFunction)cvMesh_GetFacePolyDataMtd,METH_VARARGS,NULL},
-  { "WriteMesh", (PyCFunction)cvMesh_WriteMeshMtd,METH_VARARGS,NULL},
-  { "WriteStats",(PyCFunction)cvMesh_WriteStatsMtd,METH_VARARGS,NULL},
-  { "Adapt",  (PyCFunction)cvMesh_AdaptMtd,METH_VARARGS,NULL},
-  {NULL,NULL}
-};
-
-static PyTypeObject pyMeshObjectType = {
-  PyVarObject_HEAD_INIT(NULL, 0)
-  "pyMeshObject.pyMeshObject",             /* tp_name */
-  sizeof(pyMeshObject),             /* tp_basicsize */
-  0,                         /* tp_itemsize */
-  0,                         /* tp_dealloc */
-  0,                         /* tp_print */
-  0,                         /* tp_getattr */
-  0,                         /* tp_setattr */
-  0,                         /* tp_compare */
-  0,                         /* tp_repr */
-  0,                         /* tp_as_number */
-  0,                         /* tp_as_sequence */
-  0,                         /* tp_as_mapping */
-  0,                         /* tp_hash */
-  0,                         /* tp_call */
-  0,                         /* tp_str */
-  0,                         /* tp_getattro */
-  0,                         /* tp_setattro */
-  0,                         /* tp_as_buffer */
-  Py_TPFLAGS_DEFAULT |
-      Py_TPFLAGS_BASETYPE,   /* tp_flags */
-  "pyMeshObject  objects",           /* tp_doc */
-  0,                         /* tp_traverse */
-  0,                         /* tp_clear */
-  0,                         /* tp_richcompare */
-  0,                         /* tp_weaklistoffset */
-  0,                         /* tp_iter */
-  0,                         /* tp_iternext */
-  pyMeshObject_methods,             /* tp_methods */
-  0,                         /* tp_members */
-  0,                         /* tp_getset */
-  0,                         /* tp_base */
-  0,                         /* tp_dict */
-  0,                         /* tp_descr_get */
-  0,                         /* tp_descr_set */
-  0,                         /* tp_dictoffset */
-  (initproc)pyMeshObject_init,                            /* tp_init */
-  0,                         /* tp_alloc */
-  0,                  /* tp_new */
-};
-static PyMethodDef pyMeshObjectModule_methods[] =
-{
-  //{"mesh_newObject", (PyCFunction)cvMesh_NewObjectCmd,METH_VARARGS,NULL},
-  {"ListMethods",(PyCFunction)cvMesh_ListMethodsCmd,METH_NOARGS,NULL},
-  {"SetKernel", (PyCFunction)cvMesh_SetMeshKernelCmd,METH_VARARGS,NULL},
-  {"Logon", (PyCFunction)cvMesh_LogonCmd,METH_VARARGS,NULL},
-  {"Logoff", (PyCFunction)cvMesh_LogoffCmd,METH_NOARGS,NULL},
-  {NULL, NULL}
-};
-
-#if PYTHON_MAJOR_VERSION == 3
-static struct PyModuleDef pyMeshObjectmodule = {
-   PyModuleDef_HEAD_INIT,
-   "pyMeshObject",   /* name of module */
-   "", /* module documentation, may be NULL */
-   -1,       /* size of per-interpreter state of the module,
-                or -1 if the module keeps state in global variables. */
-   pyMeshObjectModule_methods
-};
-#endif
-//----------------
-//initpyMeshObject
-//----------------
-#if PYTHON_MAJOR_VERSION == 2
-PyMODINIT_FUNC initpyMeshObject()
-
-{
-  // Associate the mesh registrar with the python interpreter so it can be
-  // retrieved by the DLLs.
-  if (gRepository==NULL)
-  {
-    gRepository = new cvRepository();
-    fprintf(stdout,"New gRepository created from cv_mesh_init\n");
-  }
-  int (*kernel)(cvMeshObject::KernelType, cvMeshSystem*)=(&cvMeshSystem::RegisterKernel);
-  if (Py_BuildValue("i",kernel)==nullptr)
-  {
-    fprintf(stdout,"Unable to create MeshSystemRegistrar\n");
-    return;
-
-  }
-  if(PySys_SetObject("MeshSystemRegistrar",Py_BuildValue("i",kernel))<0)
-  {
-    fprintf(stdout, "Unable to register MeshSystemRegistrar\n");
-    return;
-
-  }
-  // Initialize
-  cvMeshSystem::SetCurrentKernel( cvMeshObject::KERNEL_INVALID );
-
-  pyMeshObjectType.tp_new=PyType_GenericNew;
-  if (PyType_Ready(&pyMeshObjectType)<0)
-  {
-    fprintf(stdout,"Error in pyMeshObjectType\n");
-    return;
-
-  }
-  PyObject* pythonC;
-  pythonC = Py_InitModule("pyMeshObject",pyMeshObjectModule_methods);
-
-  if(pythonC==NULL)
-  {
-    fprintf(stdout,"Error in initializing pyMeshObject\n");
-    return;
-
-  }
-  PyRunTimeErr = PyErr_NewException("pyMeshObject.error",NULL,NULL);
-  PyModule_AddObject(pythonC,"error",PyRunTimeErr);
-  Py_INCREF(&pyMeshObjectType);
-  PyModule_AddObject(pythonC,"pyMeshObject",(PyObject*)&pyMeshObjectType);
-  return;
-
-}
-#endif
-
-#if PYTHON_MAJOR_VERSION == 3
-PyMODINIT_FUNC PyInit_pyMeshObject()
-
-{
-  // Associate the mesh registrar with the python interpreter so it can be
-  // retrieved by the DLLs.
-  if (gRepository==NULL)
-  {
-    gRepository = new cvRepository();
-    fprintf(stdout,"New gRepository created from cv_mesh_init\n");
-  }
-  int (*kernel)(cvMeshObject::KernelType, cvMeshSystem*)=(&cvMeshSystem::RegisterKernel);
-  if (Py_BuildValue("i",kernel)==nullptr)
-  {
-    fprintf(stdout,"Unable to create MeshSystemRegistrar\n");
-    return SV_PYTHON_ERROR;
-
-  }
-  if(PySys_SetObject("MeshSystemRegistrar",Py_BuildValue("i",kernel))<0)
-  {
-    fprintf(stdout, "Unable to register MeshSystemRegistrar\n");
-    return SV_PYTHON_ERROR;
-
-  }
-  // Initialize
-  cvMeshSystem::SetCurrentKernel( cvMeshObject::KERNEL_INVALID );
-
-  pyMeshObjectType.tp_new=PyType_GenericNew;
-  if (PyType_Ready(&pyMeshObjectType)<0)
-  {
-    fprintf(stdout,"Error in pyMeshObjectType\n");
-    return SV_PYTHON_ERROR;
-  }
-  PyObject* pythonC;
-
-  pythonC = PyModule_Create(&pyMeshObjectmodule);
-  if(pythonC==NULL)
-  {
-    fprintf(stdout,"Error in initializing pyMeshObject\n");
-    return SV_PYTHON_ERROR;
-  }
-  PyRunTimeErr = PyErr_NewException("pyMeshObject.error",NULL,NULL);
-  PyModule_AddObject(pythonC,"error",PyRunTimeErr);
-  Py_INCREF(&pyMeshObjectType);
-  PyModule_AddObject(pythonC,"pyMeshObject",(PyObject*)&pyMeshObjectType);
-
-  return pythonC;
-
-}
-#endif
-//-------------------
-//cvMesh_NewObjectCmd
-//-------------------
-
-PyObject* cvMesh_NewObjectCmd(pyMeshObject* self, PyObject* args)
-{
-  char *resultName;
-  char *meshFileName = NULL;
-  char *solidFileName = NULL;
-
-  if(!PyArg_ParseTuple(args,"s|ss",&resultName,&meshFileName,&solidFileName))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one char and two optional chars, resultname,meshFileName, solidFileName");
-    
-  }
-
-  // Do work of command:
-
-  // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( resultName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists.");
-    
-  }
-
-  // Instantiate the new mesh:
-  cvMeshObject *geom;
-  geom = cvMeshSystem::DefaultInstantiateMeshObject(meshFileName, solidFileName );
-  if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "geom is NULL."); 
-  }
-
-  // Register the solid:
-  if ( !( gRepository->Register( resultName, geom ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
-    delete geom;
-    
-  }
-
-  Py_INCREF(geom);
-  self->geom=geom;
-  Py_DECREF(geom);
-  return SV_PYTHON_OK;
-}
-
-// ----------------------
-// cvMesh_GetObjectCmd
-// ----------------------
-PyObject* cvMesh_GetObjectCmd( pyMeshObject* self, PyObject* args)
-{
-  char *objName=NULL;
-  RepositoryDataT type;
-  cvRepositoryData *rd;
-  cvMeshObject *geom;
-
-  if (!PyArg_ParseTuple(args,"s", &objName))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import 1 char: objName");
-    
-  }
-
-  // Do work of command:
-
-  // Retrieve source object:
-  rd = gRepository->GetObject( objName );
-  char r[2048];
-  if ( rd == NULL )
-  {
-    r[0] = '\0';
-    sprintf(r, "couldn't find object %s", objName);
-    PyErr_SetString(PyRunTimeErr,r);
-    
-  }
-
-  type = rd->GetType();
-
-  if ( type != MESH_T )
-  {
-    r[0] = '\0';
-    sprintf(r, "%s not a mesh object", objName);
-    PyErr_SetString(PyRunTimeErr,r);
-    
-  }
-  
-  geom = dynamic_cast<cvMeshObject*> (rd);
-  Py_INCREF(geom);
-  self->geom=geom;
-  Py_DECREF(geom);
-  return SV_PYTHON_OK; 
-  
-}
-    
-
-// ----------------------
-// cvMesh_ListMethodsCmd
-// ----------------------
-
-PyObject* cvMesh_ListMethodsCmd(PyObject* self, PyObject* args)
-{
-  MeshPrintMethods( );
-  return SV_PYTHON_OK;
-}
-
-PyObject* cvMesh_SetMeshKernelCmd(PyObject* self, PyObject* args)
-{
-
-  char *kernelName;
-  if(!PyArg_ParseTuple(args,"s",&kernelName))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one char, kernelname.");
-    
-  }
-
-  // Do work of command:
-  cvMeshObject::KernelType kernelType = cvMeshObject::GetKernelType( kernelName );
-
-  if ( kernelType != cvMeshObject::KERNEL_INVALID && cvMeshSystem::SetCurrentKernel(kernelType)==SV_OK ) {
-    return Py_BuildValue("s",kernelName);
-  } else {
-    PyErr_SetString(PyRunTimeErr, "Mesh kernel is not available");
-    
-  }
+  Py_XDECREF(self->geom);
+  Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
 // -------------
@@ -484,8 +99,8 @@ void DeleteMesh(pyMeshObject* self )
 // -------------
 // This is the deletion call-back for cvMeshObject object commands.
 
-void fakeDeleteMesh(pyMeshObject* self) {
-  ;
+void fakeDeleteMesh(pyMeshObject* self) 
+{
 }
 
 // ------------
@@ -536,231 +151,508 @@ static void MeshPrintMethods()
   return;
 }
 
-// ----------------
-// cvMesh_GetKernelMtd
-// ----------------
-
-static PyObject*  cvMesh_GetKernelMtd( pyMeshObject* self, PyObject* args)
+//---------------------
+// CheckMeshLoadUpdate
+//---------------------
+//
+static bool 
+CheckMeshLoadUpdate(cvMeshObject *geom, std::string& msg) 
 {
-  cvMeshObject *geom = self->geom;
-  cvMeshObject::KernelType kernelType;
+  if (geom == nullptr) {
+      msg = "The Mesh object does not have geometry.";
+      return false;
+  }
+
+  if (geom->GetMeshLoaded() == 0) {
+      if (geom->Update() == SV_ERROR) {
+          msg = "Error updating the mesh.";
+          return false;
+      }
+  }
+
+  return true;
+}
+
+//////////////////////////////////////////////////////
+//          M o d u l e  F u n c t i o n s          //
+//////////////////////////////////////////////////////
+//
+// Python API functions. 
+
+//-----------------
+// Mesh_new_object
+//-----------------
+//
+PyDoc_STRVAR(Mesh_new_object_doc,
+  "new_object(name, mesh_file_name, solid_file_name) \n\ 
+   \n\
+   Create a new mesh object. \n\
+   \n\
+   Args: \n\
+     name (str): Name of the new mesh object to store in the repository. \n\
+");
+
+static PyObject * 
+Mesh_new_object(pyMeshObject* self, PyObject* args)
+{
+  std::string functionName = Sv3PyUtilGetFunctionName(__func__);
+  std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+  std::string format = "s|ss:" + functionName;
+
+  char *resultName;
+  char *meshFileName = NULL;
+  char *solidFileName = NULL;
+
+  if (!PyArg_ParseTuple(args, format.c_str(), &resultName, &meshFileName, &solidFileName)) {
+    return Sv3PyUtilResetException(PyRunTimeErr);
+  }
+
+  // Check that the new Contour object does not already exist.
+  if (gRepository->Exists(resultName)) {
+      auto msg = msgp + "The Mesh object '" + resultName + "' is already in the repository.";
+      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      return nullptr;
+  }
+
+  // Create a new cvMeshObject object. 
+  auto geom = cvMeshSystem::DefaultInstantiateMeshObject(meshFileName, solidFileName );
+  if (geom == NULL) {
+      auto msg = msgp + "Failed to create Mesh object.";
+      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      return nullptr;
+  }
+
+  // Add mesh to the repository.
+  if (!gRepository->Register(resultName, geom)) {
+      delete geom;
+      auto msg = msgp + "Error adding the Mesh object '" + resultName + "' to the repository.";
+      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      return nullptr;
+  }
+
+  Py_INCREF(geom);
+  self->geom = geom;
+  Py_DECREF(geom);
+  return SV_PYTHON_OK;
+}
+
+//-----------------
+// Mesh_get_object
+//-----------------
+//
+// [TODO:DaveP] This sets the 'geom' data member of the pyContour struct for
+// this object. Bad!
+//
+PyDoc_STRVAR(Mesh_get_mesh_doc,
+  "Mesh_get_mesh(mesh)  \n\ 
+   \n\
+   Set the mesh geometry from a Mesh object stored in the repository. \n\
+   \n\
+   Args: \n\
+     mesh (str): The name of the Mesh object. \n\
+");
+
+static PyObject * 
+Mesh_get_mesh(pyMeshObject* self, PyObject* args)
+{
+  std::string functionName = Sv3PyUtilGetFunctionName(__func__);
+  std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+  std::string format = "s:" + functionName;
+
+  char *objName = NULL;
+  if (!PyArg_ParseTuple(args, format.c_str(), &objName)) {
+      return Sv3PyUtilResetException(PyRunTimeErr);
+  }
+   
+  // Get the Mesh object from the repository. 
+  auto rd = gRepository->GetObject(objName);
+  if (rd == NULL) {
+      auto msg = msgp + "The Mesh object '" + objName + "' is not in the repository.";
+      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      return nullptr;
+  }
+
+  // Check its type.
+  auto type = rd->GetType();
+  if (type != MESH_T) {
+      auto msg = msgp + "'" + objName + "' is not a Mesh object.";
+      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      return nullptr;
+  }
+  
+  auto geom = dynamic_cast<cvMeshObject*> (rd);
+  Py_INCREF(geom);
+  self->geom = geom;
+  Py_DECREF(geom);
+  return SV_PYTHON_OK; 
+}
+    
+//----------------------
+// Mesh_set_mesh_kernel
+//----------------------
+//
+// [TODO:DaveP] Mesh kernel is a bit obscure, why not mesh library, or API?
+//
+//     Maybe 'set_mesher' ?
+//           'set_meshing_interface()' ?
+//
+PyDoc_STRVAR(Mesh_set_kernel_doc,
+  "set_kernel(kernel)  \n\ 
+   \n\
+   Set the meshing kernel. \n\
+   \n\
+   Args: \n\
+     kernel (str): The name of the mesh kernel to set. Valid kernel names are: GMsh, MeshSim or TetGen. \n\
+");
+
+static PyObject * 
+Mesh_set_kernel(PyObject* self, PyObject* args)
+{
+  std::string functionName = Sv3PyUtilGetFunctionName(__func__);
+  std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+  std::string format = "s:" + functionName;
+
   char *kernelName;
-
-  if (geom->GetMeshLoaded() == 0)
-  {
-    if (geom->Update() == SV_ERROR)
-    {
-      PyErr_SetString(PyRunTimeErr,"error updating.");
-    }
-  }
-  kernelType = geom->GetMeshKernel();
-  std::cout<<kernelType<<std::endl;
-  kernelName = cvMeshObject::GetKernelName( kernelType );
-
-  if ( kernelType == SM_KT_INVALID ) {
-    fprintf(stderr,"Invalid kernel type\n");
-    PyErr_SetString(PyRunTimeErr, "Invalid kernel type");
-  } else {
-    return Py_BuildValue("s",kernelName);
-  }
-}
-
-// ----------------
-// cvMesh_PrintMtd
-// ----------------
-
-static PyObject* cvMesh_PrintMtd( pyMeshObject* self, PyObject* args)
-{
-  cvMeshObject *geom = self->geom;
-
-  if (geom->GetMeshLoaded() == 0)
-  {
-    if (geom->Update() == SV_ERROR)
-    {
-      PyErr_SetString(PyRunTimeErr,"error update.");
-    }
-  }
-  if (geom->pyPrint() == SV_OK) {
-    return SV_PYTHON_OK;
-  } else {
-    PyErr_SetString(PyRunTimeErr, "error print.");
+  if(!PyArg_ParseTuple(args, format.c_str(), &kernelName)) {
+      return Sv3PyUtilResetException(PyRunTimeErr);
   }
 
+  cvMeshObject::KernelType kernelType = cvMeshObject::GetKernelType(kernelName);
+  if (kernelType == cvMeshObject::KERNEL_INVALID) { 
+      auto msg = msgp + "Unknown mesh kernel type '" + kernelName + "'.";
+      msg += " Valid mesh kernel names are: GMsh, MeshSim or TetGen.";
+      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      return nullptr;
+  }
+
+  if (cvMeshSystem::SetCurrentKernel(kernelType) != SV_OK) {
+      auto msg = msgp + "Error setting the mesh kernel type to '" + kernelName + "'.";
+      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      return nullptr;
+  }
+
+  return Py_BuildValue("s", kernelName);
 }
 
 
-// -----------------
-// cvMesh_UpdateMtd
-// -----------------
+//-----------------
+// Mesh_get_kernel
+//-----------------
+//
+PyDoc_STRVAR(Mesh_get_kernel_doc,
+  "get_kernel()  \n\ 
+   \n\
+   Get the meshing kernel. \n\
+   \n\
+   Args: \n\
+       None \n\
+   Returns: The name (str) of the mesh kernel. \n\
+");
 
-static PyObject* cvMesh_UpdateMtd( pyMeshObject* self, PyObject* args)
+static PyObject *  
+Mesh_get_kernel(pyMeshObject* self, PyObject* args)
 {
-  cvMeshObject *geom = self->geom;
+  std::string functionName = Sv3PyUtilGetFunctionName(__func__);
+  std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
 
-  if (geom->Update() == SV_OK) {
-    return SV_PYTHON_OK;
-  } else {
-    PyErr_SetString(PyRunTimeErr,"error update.");
+  std::string emsg;
+  auto geom = self->geom;
+  if (!CheckMeshLoadUpdate(geom, emsg)) {
+      auto msg = msgp + emsg;
+      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      return nullptr;
   }
+
+  // Check the current mesh kernel.
+  auto kernelType = geom->GetMeshKernel();
+  if (kernelType == SM_KT_INVALID ) {
+      auto msg = msgp + "The mesh kernel is not set.";
+      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      return nullptr;
+  } 
+
+  auto kernelName = cvMeshObject::GetKernelName( kernelType );
+  return Py_BuildValue("s",kernelName);
 }
 
+//-------------
+// Mesh_print 
+//-------------
+//
+PyDoc_STRVAR(Mesh_print_doc,
+  "print()  \n\ 
+   \n\
+   Print ???  \n\
+   \n\
+");
 
-// ------------------------
-// cvMesh-SetSolidKernelMtd
-// ------------------------
-
-PyObject* cvMesh_SetSolidKernelMtd(pyMeshObject* self, PyObject* args)
+static PyObject * 
+Mesh_print(pyMeshObject* self, PyObject* args)
 {
+  std::string functionName = Sv3PyUtilGetFunctionName(__func__);
+  std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+
+  std::string emsg;
+  auto geom = self->geom;
+  if (!CheckMeshLoadUpdate(geom, emsg)) {
+      auto msg = msgp + emsg;
+      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      return nullptr;
+  }
+
+  if (geom->pyPrint() != SV_OK) {
+      auto msg = msgp + "Error printing the mesh.";
+      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      return nullptr;
+  }
+
+  return SV_PYTHON_OK;
+}
+
+//------------------
+// Mesh_update_docd
+//------------------
+//
+PyDoc_STRVAR(Mesh_update_doc,
+  "update()  \n\ 
+   \n\
+   Update the mesh. \n\
+   \n\
+");
+
+static PyObject * 
+Mesh_update(pyMeshObject* self, PyObject* args)
+{
+  std::string functionName = Sv3PyUtilGetFunctionName(__func__);
+  std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+
+  auto geom = self->geom;
+  if (geom == nullptr) {
+      auto msg = msgp + "The Mesh object does not have geometry.";
+      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      return nullptr;
+  }
+
+  if (geom->Update() != SV_OK) {
+      auto msg = msgp + "Error updating the mesh.";
+      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      return nullptr;
+  }
+
+  return SV_PYTHON_OK;
+}
+
+//-----------------------
+// Mesh_set_solid_kernel 
+//-----------------------
+//
+PyDoc_STRVAR(Mesh_set_solid_kernel_doc,
+  "set_solid_kernel(kernel)  \n\ 
+   \n\
+   Set the solid modeling kernel. \n\
+   \n\
+   Args: \n\
+     kernel (str): The name of the solid modeling kernel to set. Valid kernel names are: ??? \n\
+");
+
+static PyObject * 
+Mesh_set_solid_kernel(pyMeshObject* self, PyObject* args)
+{
+  std::string functionName = Sv3PyUtilGetFunctionName(__func__);
+  std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+  std::string format = "s:" + functionName;
+
   char *kernelName;
-  SolidModel_KernelT kernel;
-  cvMeshObject *geom = self->geom;
-  if(!PyArg_ParseTuple(args,"s",&kernelName))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one char, kernelName.");
-    
+  if (!PyArg_ParseTuple(args, format.c_str(), &kernelName)) {
+      return Sv3PyUtilResetException(PyRunTimeErr);
   }
-    // Do work of command:
-  kernel = SolidModel_KernelT_StrToEnum( kernelName );
-  if ( kernel != SM_KT_INVALID ) {
-    geom->SetSolidModelKernel(kernel);
-    return Py_BuildValue("s",kernelName);
-  } else {
-    PyErr_SetString(PyRunTimeErr,SolidModel_KernelT_EnumToStr( SM_KT_INVALID ));
-    
+
+  auto geom = self->geom;
+  if (geom == nullptr) {
+      auto msg = msgp + "The Mesh object does not have geometry.";
+      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      return nullptr;
   }
+
+  // Check for a current valid kernel.
+  auto kernel = SolidModel_KernelT_StrToEnum( kernelName );
+  if (kernel == SM_KT_INVALID) {
+      auto msg = msgp + "The mesh kernel is not set.";
+      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      return nullptr;
+  }
+
+  geom->SetSolidModelKernel(kernel);
+  return Py_BuildValue("s",kernelName);
 }
 
-// -------------------------------
-// cvMesh_WriteMetisAdjacencyMtd
-// -------------------------------
+// ---------------------------
+// Mesh_write_metis_adjacency
+// ---------------------------
+//
+PyDoc_STRVAR(Mesh_write_metis_adjacency_doc,
+  "write_metis_adjacency(file)  \n\ 
+   \n\
+   Set the solid modeling kernel. \n\
+   \n\
+   Args: \n\
+     file (str): The name of the file ??? \n\
+");
 
-static PyObject* cvMesh_WriteMetisAdjacencyMtd( pyMeshObject* self, PyObject* args)
+static PyObject * 
+Mesh_write_metis_adjacency(pyMeshObject* self, PyObject* args)
 {
-  cvMeshObject *geom = self->geom;
-  char *fn;
-  int status;
-  if(!PyArg_ParseTuple(args,"s",&fn))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one char, fn.");
-    
+  std::string functionName = Sv3PyUtilGetFunctionName(__func__);
+  std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+  std::string format = "s:" + functionName;
+
+  char *file_name;
+  if (!PyArg_ParseTuple(args, format.c_str(), &file_name)) {
+      return Sv3PyUtilResetException(PyRunTimeErr);
   }
 
-  if (geom->GetMeshLoaded() == 0)
-  {
-    if (geom->Update() == SV_ERROR)
-    {
-      PyErr_SetString(PyRunTimeErr, "error update.");
-    }
+  std::string emsg;
+  auto geom = self->geom;
+  if (!CheckMeshLoadUpdate(geom, emsg)) {
+      auto msg = msgp + emsg;
+      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      return nullptr;
   }
-  // Do work of command:
-  status = geom->WriteMetisAdjacency( fn );
 
-  if ( status != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "error writing object ");
-    
-  } else {
-    return SV_PYTHON_OK;
-  }
+  if (geom->WriteMetisAdjacency(file_name) != SV_OK) {
+      auto msg = msgp + "Error writing the mesh adjacency to the file '" + file_name + "'.";
+      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      return nullptr;
+  } 
+
+  return SV_PYTHON_OK;
 }
 
 // ----------------------
 // cvMesh_GetPolyDataMtd
 // ----------------------
 
-static PyObject* cvMesh_GetPolyDataMtd( pyMeshObject* self, PyObject* args)
+PyDoc_STRVAR(Mesh_get_polydata_doc,
+" Mesh.get_polydata(name)  \n\ 
+  \n\
+  Add the mesh geometry to the repository. \n\
+  \n\
+  Args:                                    \n\
+    name (str): Name in the repository to store the geometry. \n\
+");
+
+static PyObject * 
+Mesh_get_polydata(pyMeshObject* self, PyObject* args)
 {
-  cvMeshObject *geom = self->geom;
+  std::string functionName = Sv3PyUtilGetFunctionName(__func__);
+  std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+  std::string format = "s:" + functionName;
+
   char *resultName;
-  cvPolyData *pd;
-  if(!PyArg_ParseTuple(args,"s",&resultName))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one char, resultName");
-    
+  if (!PyArg_ParseTuple(args, format.c_str(), &resultName)) {
+      return Sv3PyUtilResetException(PyRunTimeErr);
   }
 
-  // Do work of command:
-
-  if (geom->GetMeshLoaded() == 0)
-  {
-    if (geom->Update() == SV_ERROR)
-    {
-        
-        PyErr_SetString(PyRunTimeErr, "error update.");
-    }
+  std::string emsg;
+  auto geom = self->geom;
+  if (!CheckMeshLoadUpdate(geom, emsg)) {
+      auto msg = msgp + emsg; 
+      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      return nullptr;
   }
-  // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( resultName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    
+
+  // Check that the repository object does not already exist.
+  if (gRepository->Exists(resultName)) {
+      auto msg = msgp + "The repository object '" + resultName + "' already exists.";
+      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      return nullptr;
   }
 
   // Get the cvPolyData:
-  pd = geom->GetPolyData();
-  if ( pd == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "error getting cvPolyData" );
+  auto pd = geom->GetPolyData();
+  if (pd == NULL) {
+      auto msg = msgp + "Could not get polydata for the mesh.";
+      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      return nullptr;
   }
 
   // Register the result:
-  if ( !( gRepository->Register( resultName, pd ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
-    delete pd;
-    
+  if (!gRepository->Register(resultName, pd)) {
+      delete pd;
+      auto msg = msgp + "Could not add the polydata to the repository.";
+      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      return nullptr;
   }
 
   return SV_PYTHON_OK;
 }
 
-// ----------------------
-// cvMesh_GetSolidMtd
-// ----------------------
+//----------------
+// Mesh_get_solid
+//----------------
+//
+PyDoc_STRVAR(Mesh_get_solid_doc,
+" Mesh.Mesh_get_solid(name)  \n\ 
+  \n\
+  Add the mesh solid model geometry to the repository. \n\
+  \n\
+  Args:                                    \n\
+    name (str): Name in the repository to store the solid model geometry. \n\
+");
 
-static PyObject* cvMesh_GetSolidMtd( pyMeshObject* self, PyObject* args)
+static PyObject * 
+Mesh_get_solid(pyMeshObject* self, PyObject* args)
 {
-  cvMeshObject *geom = self->geom;
+  std::string functionName = Sv3PyUtilGetFunctionName(__func__);
+  std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+  std::string format = "s:" + functionName;
+
   char *resultName;
-  cvPolyData *pd;
-  if(!PyArg_ParseTuple(args,"s",&resultName))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one char, resultName");
-    
+  if (!PyArg_ParseTuple(args, format.c_str(), &resultName)) {
+      return Sv3PyUtilResetException(PyRunTimeErr);
   }
 
-  // Do work of command:
-
-  if (geom->GetMeshLoaded() == 0)
-  {
-    if (geom->Update() == SV_ERROR)
-    {
-      PyErr_SetString(PyRunTimeErr, "error update.");
-    }
+  std::string emsg;
+  auto geom = self->geom;
+  if (!CheckMeshLoadUpdate(geom, emsg)) {
+      auto msg = msgp + emsg;
+      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      return nullptr;
   }
-  // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( resultName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists" );
-    
+
+  // Check that the repository object does not already exist.
+  if (gRepository->Exists(resultName)) {
+      auto msg = msgp + "The repository object '" + resultName + "' already exists.";
+      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      return nullptr;
   }
 
   // Get the cvPolyData:
-  pd = geom->GetSolid();
-  if ( pd == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "error getting cvPolyData");
+  auto pd = geom->GetSolid();
+  if (pd == NULL) {
+      auto msg = msgp + "Could not get polydata for the mesh solid model.";
+      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      return nullptr;
   }
 
   // Register the result:
-  if ( !( gRepository->Register( resultName, pd ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj ");
-    delete pd;
-    
+  if (!gRepository->Register(resultName, pd)) {
+      delete pd;
+      auto msg = msgp + "Could not add the polydata to the repository.";
+      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      return nullptr;
   }
 
   return SV_PYTHON_OK;
 }
 
-// ----------------------
+//----------------------
 // cvMesh_SetVtkPolyDataMtd
-// ----------------------
+//----------------------
+//
 
-static PyObject* cvMesh_SetVtkPolyDataMtd( pyMeshObject* self, PyObject* args)
+static PyObject * 
+cvMesh_SetVtkPolyDataMtd( pyMeshObject* self, PyObject* args)
 {
   cvMeshObject *geom = self->geom;
   char *objName;
@@ -1357,12 +1249,10 @@ static PyObject* cvMesh_SetWallsMtd( pyMeshObject* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
-
-
-// --------------------------
+//--------------------------
 // cvMesh_GetModelFaceInfoMtd
-// --------------------------
-
+//--------------------------
+//
 static PyObject* cvMesh_GetModelFaceInfoMtd( pyMeshObject* self, PyObject* args)
 {
   cvMeshObject *geom = self->geom;
@@ -1372,3 +1262,315 @@ static PyObject* cvMesh_GetModelFaceInfoMtd( pyMeshObject* self, PyObject* args)
 
   return Py_BuildValue("s",info);
 }
+
+////////////////////////////////////////////////////////
+//          M o d u l e  D e f i n i t i o n          //
+////////////////////////////////////////////////////////
+
+#if PYTHON_MAJOR_VERSION == 2
+PyMODINIT_FUNC initpyMeshObject();
+#elif PYTHON_MAJOR_VERSION == 3
+PyMODINIT_FUNC PyInit_pyMeshObject();
+#endif
+
+// ----------
+// cvMesh_Init
+// ----------
+
+int Mesh_pyInit()
+{
+#if PYTHON_MAJOR_VERSION == 2
+  initpyMeshObject();
+#elif PYTHON_MAJOR_VERSION == 3
+  PyInit_pyMeshObject();
+#endif
+  return SV_OK;
+}
+
+//-------------------
+// pyMeshObject_init
+//-------------------
+// This is the __init__() method for the Mesh class. 
+//
+// This function is used to initialize an object after it is created.
+//
+static int 
+pyMeshObject_init(pyMeshObject* self, PyObject* args)
+{
+  fprintf(stdout,"pyMeshObject initialized.\n");
+  return SV_OK;
+}
+
+//----------------------------
+// Define API function names
+//----------------------------
+
+static PyMethodDef pyMeshObject_methods[] = {
+
+  {"new_object", 
+      (PyCFunction)Mesh_new_object,
+      METH_VARARGS,
+      Mesh_new_object_doc
+  },
+
+  {"get_mesh", 
+      (PyCFunction)Mesh_get_mesh, 
+      METH_VARARGS, 
+      Mesh_get_mesh_doc
+  },
+
+  { "LoadModel", (PyCFunction)cvMesh_LoadModelMtd,METH_VARARGS,NULL},
+
+  { "GetBoundaryFaces",(PyCFunction)cvMesh_GetBoundaryFacesMtd,METH_VARARGS,NULL},
+
+  { "LoadMesh", (PyCFunction)cvMesh_LoadMeshMtd,METH_VARARGS,NULL},
+
+  { "NewMesh", (PyCFunction)cvMesh_NewMeshMtd,METH_VARARGS,NULL},
+
+  { "SetMeshOptions", (PyCFunction)cvMesh_SetMeshOptionsMtd,METH_VARARGS,NULL},
+
+  { "SetCylinderRefinement", (PyCFunction)cvMesh_SetCylinderRefinementMtd,METH_VARARGS,NULL},
+
+  { "SetSphereRefinement",(PyCFunction)cvMesh_SetSphereRefinementMtd,METH_VARARGS,NULL},
+
+  { "SetSizeFunctionBasedMesh", (PyCFunction)cvMesh_SetSizeFunctionBasedMeshMtd,METH_VARARGS,NULL},
+
+  { "GenerateMesh", (PyCFunction)cvMesh_GenerateMeshMtd,METH_VARARGS,NULL},
+
+  { "SetBoundaryLayer", (PyCFunction)cvMesh_SetBoundaryLayerMtd,METH_VARARGS,NULL},
+
+  { "SetWalls", (PyCFunction)cvMesh_SetWallsMtd,METH_VARARGS,NULL},
+
+  { "set_solid_kernel", 
+      (PyCFunction)Mesh_set_solid_kernel,
+      METH_VARARGS,
+      Mesh_set_solid_kernel_doc
+  },
+
+  { "GetModelFaceInfo",(PyCFunction)cvMesh_GetModelFaceInfoMtd,METH_VARARGS,NULL},
+
+  // The method "Update" must be called before any of the other
+  // methods since it loads the mesh.  To avoid confusion, we
+  // call this method directly prior to any other.
+ // { "Update" ) ) {
+    // ignore this call now, it is done implicitly (see above)
+    //if ( (PyCFunction)cvMesh_UpdateMtd,METH_VARARGS,NULL},
+
+  { "print",
+      (PyCFunction)Mesh_print,
+       METH_VARARGS,
+       Mesh_print_doc
+  },
+
+  { "get_kernel", 
+      (PyCFunction)Mesh_get_kernel,
+      METH_VARARGS,
+      Mesh_get_kernel_doc
+  },
+
+  { "write_metis_adjacency", 
+      (PyCFunction)Mesh_write_metis_adjacency,
+      METH_VARARGS,
+      Mesh_write_metis_adjacency_doc
+   },
+
+  { "get_polydata", 
+      (PyCFunction)Mesh_get_polydata,
+      METH_VARARGS,
+      Mesh_get_polydata_doc
+   },
+
+  { "get_solid", 
+      (PyCFunction)Mesh_get_solid,
+      METH_VARARGS,
+      Mesh_get_solid_doc
+  },
+
+  { "SetVtkPolyData",(PyCFunction)cvMesh_SetVtkPolyDataMtd,METH_VARARGS,NULL},
+
+  { "GetUnstructuredGrid", (PyCFunction)cvMesh_GetUnstructuredGridMtd,METH_VARARGS,NULL},
+
+  { "GetFacePolyData", (PyCFunction)cvMesh_GetFacePolyDataMtd,METH_VARARGS,NULL},
+
+  { "WriteMesh", (PyCFunction)cvMesh_WriteMeshMtd,METH_VARARGS,NULL},
+
+  { "WriteStats",(PyCFunction)cvMesh_WriteStatsMtd,METH_VARARGS,NULL},
+
+  { "Adapt",  (PyCFunction)cvMesh_AdaptMtd,METH_VARARGS,NULL},
+
+  {NULL,NULL}
+};
+
+static PyTypeObject pyMeshObjectType = {
+  PyVarObject_HEAD_INIT(NULL, 0)
+  "pyMeshObject.pyMeshObject",             /* tp_name */
+  sizeof(pyMeshObject),             /* tp_basicsize */
+  0,                         /* tp_itemsize */
+  0,                         /* tp_dealloc */
+  0,                         /* tp_print */
+  0,                         /* tp_getattr */
+  0,                         /* tp_setattr */
+  0,                         /* tp_compare */
+  0,                         /* tp_repr */
+  0,                         /* tp_as_number */
+  0,                         /* tp_as_sequence */
+  0,                         /* tp_as_mapping */
+  0,                         /* tp_hash */
+  0,                         /* tp_call */
+  0,                         /* tp_str */
+  0,                         /* tp_getattro */
+  0,                         /* tp_setattro */
+  0,                         /* tp_as_buffer */
+  Py_TPFLAGS_DEFAULT |
+      Py_TPFLAGS_BASETYPE,   /* tp_flags */
+  "pyMeshObject  objects",           /* tp_doc */
+  0,                         /* tp_traverse */
+  0,                         /* tp_clear */
+  0,                         /* tp_richcompare */
+  0,                         /* tp_weaklistoffset */
+  0,                         /* tp_iter */
+  0,                         /* tp_iternext */
+  pyMeshObject_methods,             /* tp_methods */
+  0,                         /* tp_members */
+  0,                         /* tp_getset */
+  0,                         /* tp_base */
+  0,                         /* tp_dict */
+  0,                         /* tp_descr_get */
+  0,                         /* tp_descr_set */
+  0,                         /* tp_dictoffset */
+  (initproc)pyMeshObject_init,                            /* tp_init */
+  0,                         /* tp_alloc */
+  0,                  /* tp_new */
+};
+static PyMethodDef pyMeshObjectModule_methods[] =
+{
+  //{"mesh_newObject", (PyCFunction)cvMesh_NewObjectCmd,METH_VARARGS,NULL},
+
+  {"set_kernel", 
+      (PyCFunction)Mesh_set_kernel,
+       METH_VARARGS,
+       Mesh_set_kernel_doc
+  },
+
+  {"Logon", (PyCFunction)cvMesh_LogonCmd,METH_VARARGS,NULL},
+
+  {"Logoff", (PyCFunction)cvMesh_LogoffCmd,METH_NOARGS,NULL},
+
+  {NULL, NULL}
+};
+
+#if PYTHON_MAJOR_VERSION == 3
+static struct PyModuleDef pyMeshObjectmodule = {
+   PyModuleDef_HEAD_INIT,
+   "pyMeshObject",   /* name of module */
+   "", /* module documentation, may be NULL */
+   -1,       /* size of per-interpreter state of the module,
+                or -1 if the module keeps state in global variables. */
+   pyMeshObjectModule_methods
+};
+#endif
+//----------------
+//initpyMeshObject
+//----------------
+#if PYTHON_MAJOR_VERSION == 2
+PyMODINIT_FUNC initpyMeshObject()
+
+{
+  // Associate the mesh registrar with the python interpreter so it can be
+  // retrieved by the DLLs.
+  if (gRepository==NULL)
+  {
+    gRepository = new cvRepository();
+    fprintf(stdout,"New gRepository created from cv_mesh_init\n");
+  }
+  int (*kernel)(cvMeshObject::KernelType, cvMeshSystem*)=(&cvMeshSystem::RegisterKernel);
+  if (Py_BuildValue("i",kernel)==nullptr)
+  {
+    fprintf(stdout,"Unable to create MeshSystemRegistrar\n");
+    return;
+
+  }
+  if(PySys_SetObject("MeshSystemRegistrar",Py_BuildValue("i",kernel))<0)
+  {
+    fprintf(stdout, "Unable to register MeshSystemRegistrar\n");
+    return;
+
+  }
+  // Initialize
+  cvMeshSystem::SetCurrentKernel( cvMeshObject::KERNEL_INVALID );
+
+  pyMeshObjectType.tp_new=PyType_GenericNew;
+  if (PyType_Ready(&pyMeshObjectType)<0)
+  {
+    fprintf(stdout,"Error in pyMeshObjectType\n");
+    return;
+
+  }
+  PyObject* pythonC;
+  pythonC = Py_InitModule("pyMeshObject",pyMeshObjectModule_methods);
+
+  if(pythonC==NULL)
+  {
+    fprintf(stdout,"Error in initializing pyMeshObject\n");
+    return;
+
+  }
+  PyRunTimeErr = PyErr_NewException("pyMeshObject.error",NULL,NULL);
+  PyModule_AddObject(pythonC,"error",PyRunTimeErr);
+  Py_INCREF(&pyMeshObjectType);
+  PyModule_AddObject(pythonC,"pyMeshObject",(PyObject*)&pyMeshObjectType);
+  return;
+
+}
+#endif
+
+#if PYTHON_MAJOR_VERSION == 3
+PyMODINIT_FUNC PyInit_pyMeshObject()
+
+{
+  // Associate the mesh registrar with the python interpreter so it can be
+  // retrieved by the DLLs.
+  if (gRepository==NULL)
+  {
+    gRepository = new cvRepository();
+    fprintf(stdout,"New gRepository created from cv_mesh_init\n");
+  }
+  int (*kernel)(cvMeshObject::KernelType, cvMeshSystem*)=(&cvMeshSystem::RegisterKernel);
+  if (Py_BuildValue("i",kernel)==nullptr)
+  {
+    fprintf(stdout,"Unable to create MeshSystemRegistrar\n");
+    return SV_PYTHON_ERROR;
+
+  }
+  if(PySys_SetObject("MeshSystemRegistrar",Py_BuildValue("i",kernel))<0)
+  {
+    fprintf(stdout, "Unable to register MeshSystemRegistrar\n");
+    return SV_PYTHON_ERROR;
+
+  }
+  // Initialize
+  cvMeshSystem::SetCurrentKernel( cvMeshObject::KERNEL_INVALID );
+
+  pyMeshObjectType.tp_new=PyType_GenericNew;
+  if (PyType_Ready(&pyMeshObjectType)<0)
+  {
+    fprintf(stdout,"Error in pyMeshObjectType\n");
+    return SV_PYTHON_ERROR;
+  }
+  PyObject* pythonC;
+
+  pythonC = PyModule_Create(&pyMeshObjectmodule);
+  if(pythonC==NULL)
+  {
+    fprintf(stdout,"Error in initializing pyMeshObject\n");
+    return SV_PYTHON_ERROR;
+  }
+  PyRunTimeErr = PyErr_NewException("pyMeshObject.error",NULL,NULL);
+  PyModule_AddObject(pythonC,"error",PyRunTimeErr);
+  Py_INCREF(&pyMeshObjectType);
+  PyModule_AddObject(pythonC,"pyMeshObject",(PyObject*)&pyMeshObjectType);
+
+  return pythonC;
+
+}
+#endif
