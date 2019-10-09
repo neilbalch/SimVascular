@@ -43,7 +43,7 @@ class Sv3PyUtilApiFunction
       void error(std::string msg);
       PyObject * argsError();
       std::string formatString; 
-      char* format; 
+      const char* format; 
       std::string msgp; 
       PyObject* pyError; 
 };

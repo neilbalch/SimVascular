@@ -29,6 +29,20 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+// The functions defined here implement the SV Python API 'solid' Module. 
+//
+// The module name is 'solid'. The module defines a 'SolidModel' class used
+// to store solid modeling data. The 'SolidModel' class cannot be imported and must
+// be used prefixed by the module name. For example
+//
+//     model = solid.SolidModel()
+//
+// A Python exception sv.solid.SolidModelException is defined for this module. 
+// The exception can be used in a Python 'try' statement with an 'except' clause 
+// like this
+//
+//    except sv.solid.SolidModelException: 
+//
 #include "SimVascular.h"
 #include "SimVascular_python.h"
 
@@ -46,13 +60,10 @@
 
 #include "sv_FactoryRegistrar.h"
 
-// The following is needed for Windows
+// Needed for Windows.
 #ifdef GetObject
 #undef GetObject
 #endif
-
-// Globals:
-// --------
 
 #include "sv2_globals.h"
 #include "Python.h"
@@ -67,23 +78,6 @@
 #include "sv_occt_init_py.h"
 #include "sv_polydatasolid_init_py.h"
 
-//Python intialization functions. Called from python interpreter
-#if PYTHON_MAJOR_VERSION == 2
-PyMODINIT_FUNC initpySolid(void);
-#elif PYTHON_MAJOR_VERSION == 3
-PyMODINIT_FUNC PyInit_pySolid(void);
-#endif
-int Solid_pyInit()
-{
-  //Py_Initialize();
-#if PYTHON_MAJOR_VERSION == 2
- initpySolid();
-#elif PYTHON_MAJOR_VERSION == 3
- PyInit_pySolid();
-#endif
-  return SV_OK;
-}
-
 typedef struct
 {
   PyObject_HEAD
@@ -95,538 +89,29 @@ static void pySolidModel_dealloc(pySolidModel* self)
   Py_XDECREF(self->geom);
   Py_TYPE(self)->tp_free((PyObject*)self);
 }
-// Prototypes:
-// -----------
-// Solid
-// -----
-PyObject* PyRunTimeErr;
-PyObject* Solid_RegistrarsListCmd( PyObject* self, PyObject* args);
-
-PyObject* Solid_GetModelCmd( pySolidModel* self, PyObject* args);
-
-PyObject* Solid_PolyCmd( pySolidModel* self, PyObject* args);
-
-PyObject* Solid_PolyPtsCmd( pySolidModel* self, PyObject* args);
-
-PyObject* Solid_CircleCmd( pySolidModel* self, PyObject* args);
-
-PyObject* Solid_EllipseCmd( pySolidModel* self, PyObject* args);
-
-PyObject* Solid_Box2dCmd( pySolidModel* self, PyObject* args);
-
-PyObject* Solid_Box3dCmd( pySolidModel* self, PyObject* args);
-
-PyObject* Solid_SphereCmd( pySolidModel* self, PyObject* args);
-
-PyObject* Solid_EllipsoidCmd( pySolidModel* self, PyObject* args);
-
-PyObject* Solid_CylinderCmd( pySolidModel* self, PyObject* args);
-
-PyObject* Solid_TruncatedConeCmd( pySolidModel* self, PyObject* args);
-
-PyObject* Solid_TorusCmd( pySolidModel* self, PyObject* args);
-
-PyObject* Solid_Poly3dSolidCmd( pySolidModel* self, PyObject* args);
-
-PyObject* Solid_Poly3dSurfaceCmd( pySolidModel* self, PyObject* args);
-
-PyObject* Solid_ExtrudeZCmd( pySolidModel* self, PyObject* args);
-
-PyObject* Solid_ExtrudeCmd( pySolidModel* self, PyObject* args);
-
-PyObject* Solid_MakeApproxCurveLoopCmd( pySolidModel* self, PyObject* args);
-
-PyObject* Solid_MakeInterpCurveLoopCmd( pySolidModel* self, PyObject* args);
-
-PyObject* Solid_MakeLoftedSurfCmd( pySolidModel* self, PyObject* args);
-
-PyObject* Solid_CapSurfToSolidCmd( pySolidModel* self, PyObject* args);
-
-PyObject* Solid_IntersectCmd( pySolidModel* self, PyObject* args);
-
-PyObject* Solid_UnionCmd( pySolidModel* self, PyObject* args);
-
-PyObject* Solid_SubtractCmd( pySolidModel* self, PyObject* args);
-
-PyObject* Solid_ReadNativeCmd( pySolidModel* self, PyObject* args);
-
-PyObject* Solid_CopyCmd( pySolidModel* self, PyObject* args);
-
-PyObject* Solid_ListMethodsCmd( pySolidModel* self, PyObject* args);
-
-PyObject* Solid_NewObjectCmd( pySolidModel* self, PyObject* args);
-
-PyObject* Solid_SetKernelCmd( PyObject* self, PyObject* args);
-
-PyObject* Solid_GetKernelCmd( PyObject* self, PyObject* args);
-
-//PyObject* Solid_PrintKernelInfoCmd( pySolidModel* self, PyObject* args);
-
-//#ifdef SV_USE_PYTHON
-//PyObject* Solid_InitPyModulesCmd( PyObject* self, PyObject* args);
-//#endif
-
-
-// Solid object methods
-// --------------------
-static PyObject* Solid_GetClassNameMtd(pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_FindExtentMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_FindCentroidMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_GetTopoDimMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_GetSpatialDimMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_ClassifyPtMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_DistanceMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_GetFaceNormalMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_TranslateMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_RotateMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_ScaleMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_ReflectMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_Apply4x4Mtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_PrintMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_CheckMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_WriteNativeMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_WriteVtkPolyDataMtd( pySolidModel* self,
-				      PyObject* args);
-
-static PyObject* Solid_WriteGeomSimMtd( pySolidModel* self,
-				      PyObject* args);
-
-static PyObject* Solid_GetFacePolyDataMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_GetPolyDataMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_SetVtkPolyDataMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_GetDiscontinuitiesMtd( pySolidModel* self,
-					PyObject* args);
-
-static pySolidModel* Solid_GetAxialIsoparametricCurveMtd( pySolidModel* self,
-						PyObject* args);
-
-static PyObject* Solid_GetKernelMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_GetFaceIdsMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_GetBoundaryFacesMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_GetRegionIdsMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_GetFaceAttrMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_SetFaceAttrMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_GetRegionAttrMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_SetRegionAttrMtd( pySolidModel* self, PyObject* args);
-
-  // Label-related methods
-  // ---------------------
-
-static PyObject* Solid_GetLabelKeysMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_GetLabelMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_SetLabelMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_ClearLabelMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_DeleteFacesMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_DeleteRegionMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_CreateEdgeBlendMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_CombineFacesMtd( pySolidModel* self, PyObject* args);
-
-static PyObject* Solid_RemeshFaceMtd( pySolidModel* self, PyObject* args);
-// Helper functions
-// ----------------
 
 static void PrintMethods();
 
+// Exception type used by PyErr_SetString() to set the for the error indicator.
+static PyObject * PyRunTimeErr;
 
-static int pySolidModel_init(pySolidModel* self, PyObject* args)
-{
-  fprintf(stdout,"pySolid Model tp_init called\n");
-  return SV_OK;
-}
+// createSolidModelType() references pySolidModelType and is used before 
+// it is defined so we need to define its prototype here.
+pySolidModel * createSolidModelType();
 
-//All functions listed and initiated as pySolid_methods declared here
-static PyMemberDef pySolidModel_members[]={
-{NULL}
-};
-// --------------------
-// pySolid_methods
-// --------------------
-static PyMethodDef pySolidModel_methods[]={
-  { "GetModel", (PyCFunction)Solid_GetModelCmd, METH_VARARGS, NULL},
-  { "Poly",(PyCFunction) Solid_PolyCmd,
-		     METH_VARARGS,NULL},
-  { "PolyPts", (PyCFunction)Solid_PolyPtsCmd,
-		     METH_VARARGS,NULL},
-  { "Circle", (PyCFunction)Solid_CircleCmd,
-		     METH_VARARGS,NULL},
-  { "Ellipse", (PyCFunction)Solid_EllipseCmd,
-		     METH_VARARGS,NULL},
-  { "Box2d", (PyCFunction)Solid_Box2dCmd,
-		     METH_VARARGS,NULL},
-  { "Box3d", (PyCFunction)Solid_Box3dCmd,
-		     METH_VARARGS,NULL},
-  { "Sphere", (PyCFunction)Solid_SphereCmd,
-		     METH_VARARGS,NULL},
-  { "Ellipsoid", (PyCFunction)Solid_EllipsoidCmd,
-		     METH_VARARGS,NULL},
-  { "Cylinder", (PyCFunction)Solid_CylinderCmd,
-		     METH_VARARGS,NULL},
-  { "TruncatedCone", (PyCFunction)Solid_TruncatedConeCmd,
-		     METH_VARARGS,NULL},
-  { "Torus", (PyCFunction)Solid_TorusCmd,
-		     METH_VARARGS,NULL},
-  { "Poly3dSolid", (PyCFunction)Solid_Poly3dSolidCmd,
-		     METH_VARARGS,NULL},
-  { "Poly3dSurface", (PyCFunction)Solid_Poly3dSurfaceCmd,
-		     METH_VARARGS,NULL},
-  { "ExtrudeZ", (PyCFunction)Solid_ExtrudeZCmd,
-		     METH_VARARGS,NULL},
-  { "Extrude", (PyCFunction)Solid_ExtrudeCmd,
-		     METH_VARARGS,NULL},
-  { "MakeApproxCurveLoop",
-		     (PyCFunction)Solid_MakeApproxCurveLoopCmd,
-		     METH_VARARGS,NULL},
-  { "MakeInterpCurveLoop",
-		     (PyCFunction)Solid_MakeInterpCurveLoopCmd,
-		     METH_VARARGS,NULL},
-  { "MakeLoftedSurf", (PyCFunction)Solid_MakeLoftedSurfCmd,
-		     METH_VARARGS,NULL},
-  { "CapSurfToSolid", (PyCFunction)Solid_CapSurfToSolidCmd,
-		     METH_VARARGS,NULL},
-  { "Intersect", (PyCFunction)Solid_IntersectCmd,
-		     METH_VARARGS,NULL},
-  { "Union", (PyCFunction)Solid_UnionCmd,
-		     METH_VARARGS,NULL},
-  { "Subtract", (PyCFunction)Solid_SubtractCmd,
-		     METH_VARARGS,NULL},
-  { "ReadNative", (PyCFunction)Solid_ReadNativeCmd,
-		     METH_VARARGS,NULL},
-  { "Copy", (PyCFunction)Solid_CopyCmd,
-		     METH_VARARGS,NULL},
-  { "Methods", (PyCFunction)Solid_ListMethodsCmd,
-		     METH_NOARGS,NULL},
-  { "NewObject", (PyCFunction)Solid_NewObjectCmd,
-		     METH_VARARGS,NULL},
-  { "GetClassName", (PyCFunction)Solid_GetClassNameMtd,
-		     METH_NOARGS,NULL},
-  { "FindExtent", (PyCFunction)Solid_FindExtentMtd,
-		     METH_VARARGS,NULL},
-  { "FindCentroid",(PyCFunction)Solid_FindCentroidMtd,
-		     METH_VARARGS,NULL},
-  { "GetTopoDim",(PyCFunction)Solid_GetTopoDimMtd,
-		     METH_VARARGS,NULL},
-  { "GetSpatialDim",(PyCFunction)Solid_GetSpatialDimMtd,
-		     METH_VARARGS,NULL},
-  { "ClassifyPt",(PyCFunction)Solid_ClassifyPtMtd,
-		     METH_VARARGS,NULL},
-  { "DeleteFaces",(PyCFunction)Solid_DeleteFacesMtd,
-		     METH_VARARGS,NULL},
-  { "DeleteRegion",(PyCFunction)Solid_DeleteRegionMtd,
-		     METH_VARARGS,NULL},
-  { "CreateEdgeBlend",(PyCFunction)Solid_CreateEdgeBlendMtd,
-		     METH_VARARGS,NULL},
-  { "CombineFaces",(PyCFunction)Solid_CombineFacesMtd,
-		     METH_VARARGS,NULL},
-  { "RemeshFace",(PyCFunction)Solid_RemeshFaceMtd,
-		     METH_VARARGS,NULL},
-  { "Distance",(PyCFunction)Solid_DistanceMtd,
-		     METH_VARARGS,NULL},
-  { "GetFaceNormal",(PyCFunction)Solid_GetFaceNormalMtd,
-		     METH_VARARGS,NULL},
-  { "Translate",(PyCFunction)Solid_TranslateMtd,
-		     METH_VARARGS,NULL},
-  { "Rotate",(PyCFunction)Solid_RotateMtd,
-		     METH_VARARGS,NULL},
-  { "Scale",(PyCFunction)Solid_ScaleMtd,
-		     METH_VARARGS,NULL},
-  { "Reflect",(PyCFunction)Solid_ReflectMtd,
-		     METH_VARARGS,NULL},
-  { "Apply4x4",(PyCFunction)Solid_Apply4x4Mtd,
-		     METH_VARARGS,NULL},
-  { "Print", (PyCFunction)Solid_PrintMtd,
-		     METH_VARARGS,NULL},
-  { "Check", (PyCFunction)Solid_CheckMtd,
-		     METH_VARARGS,NULL},
-  { "WriteNative",(PyCFunction)Solid_WriteNativeMtd,
-		     METH_VARARGS,NULL},
-  { "WriteVtkPolyData",(PyCFunction)Solid_WriteVtkPolyDataMtd,
-		     METH_VARARGS,NULL},
-  { "WriteGeomSim", (PyCFunction)Solid_WriteGeomSimMtd,
-		     METH_VARARGS,NULL},
-  { "GetFacePolyData",(PyCFunction)Solid_GetFacePolyDataMtd,
-		     METH_VARARGS,NULL},
-  { "GetPolyData",(PyCFunction)Solid_GetPolyDataMtd,
-		     METH_VARARGS,NULL},
-  { "SetVtkPolyData",(PyCFunction)Solid_SetVtkPolyDataMtd,
-		     METH_VARARGS,NULL},
-  { "GetDiscontinuities",(PyCFunction)Solid_GetDiscontinuitiesMtd,
-		     METH_VARARGS,NULL},
-  { "GetAxialIsoparametricCurve",(PyCFunction)Solid_GetAxialIsoparametricCurveMtd,
-		     METH_VARARGS,NULL},
-  { "GetKernel",(PyCFunction)Solid_GetKernelMtd,
-		     METH_VARARGS,NULL},
-  { "GetLabelKeys",(PyCFunction)Solid_GetLabelKeysMtd,
-		     METH_VARARGS,NULL},
-  { "GetLabel", (PyCFunction)Solid_GetLabelMtd,
-		     METH_VARARGS,NULL},
-  { "SetLabel",(PyCFunction)Solid_SetLabelMtd,
-		     METH_VARARGS,NULL},
-  { "ClearLabel", (PyCFunction)Solid_ClearLabelMtd,
-		     METH_VARARGS,NULL},
-  { "GetFaceIds", (PyCFunction)Solid_GetFaceIdsMtd,
-		     METH_NOARGS,NULL},
-  { "GetBoundaryFaces",(PyCFunction)Solid_GetBoundaryFacesMtd,
-		     METH_VARARGS,NULL},
-  { "GetRegionIds",(PyCFunction)Solid_GetRegionIdsMtd,
-		     METH_VARARGS,NULL},
-  { "GetFaceAttr",(PyCFunction)Solid_GetFaceAttrMtd,
-		     METH_VARARGS,NULL},
-  { "SetFaceAttr",(PyCFunction)Solid_SetFaceAttrMtd,
-		     METH_VARARGS,NULL},
-  { "GetRegionAttr",(PyCFunction)Solid_GetRegionAttrMtd,
-		     METH_VARARGS,NULL},
-  { "SetRegionAttr", (PyCFunction)Solid_SetRegionAttrMtd,
-		     METH_VARARGS,NULL},
-  {NULL,NULL}
-};
-static PyTypeObject pySolidModelType = {
-  PyVarObject_HEAD_INIT(NULL, 0)
-  "pySolid.pySolidModel",             /* tp_name */
-  sizeof(pySolidModel),             /* tp_basicsize */
-  0,                         /* tp_itemsize */
-  0,                         /* tp_dealloc */
-  0,                         /* tp_print */
-  0,                         /* tp_getattr */
-  0,                         /* tp_setattr */
-  0,                         /* tp_compare */
-  0,                         /* tp_repr */
-  0,                         /* tp_as_number */
-  0,                         /* tp_as_sequence */
-  0,                         /* tp_as_mapping */
-  0,                         /* tp_hash */
-  0,                         /* tp_call */
-  0,                         /* tp_str */
-  0,                         /* tp_getattro */
-  0,                         /* tp_setattro */
-  0,                         /* tp_as_buffer */
-  Py_TPFLAGS_DEFAULT |
-      Py_TPFLAGS_BASETYPE,   /* tp_flags */
-  "pySolidModel  objects",           /* tp_doc */
-  0,                         /* tp_traverse */
-  0,                         /* tp_clear */
-  0,                         /* tp_richcompare */
-  0,                         /* tp_weaklistoffset */
-  0,                         /* tp_iter */
-  0,                         /* tp_iternext */
-  pySolidModel_methods,             /* tp_methods */
-  0,                         /* tp_members */
-  0,                         /* tp_getset */
-  0,                         /* tp_base */
-  0,                         /* tp_dict */
-  0,                         /* tp_descr_get */
-  0,                         /* tp_descr_set */
-  0,                         /* tp_dictoffset */
-  (initproc)pySolidModel_init,                            /* tp_init */
-  0,                         /* tp_alloc */
-  0,                  /* tp_new */
-};
-static PyMethodDef pySolid_methods[] = {
-  {"Registrars", (PyCFunction)Solid_RegistrarsListCmd,METH_NOARGS,NULL},
-  { "SetKernel", (PyCFunction)Solid_SetKernelCmd,
-		     METH_VARARGS,NULL},
-  { "GetKernel", (PyCFunction)Solid_GetKernelCmd,
-		     METH_NOARGS,NULL},
-  {NULL, NULL}
-};
+//////////////////////////////////////////////////////
+//          M o d u l e  F u n c t i o n s          //
+//////////////////////////////////////////////////////
+//
+// Python API functions. 
 
-static PyTypeObject pycvFactoryRegistrarType = {
-  PyVarObject_HEAD_INIT(NULL, 0)
-  "pySolid.pycvFactoryRegistrar",             /* tp_name */
-  sizeof(pycvFactoryRegistrar),             /* tp_basicsize */
-  0,                         /* tp_itemsize */
-  0,                         /* tp_dealloc */
-  0,                         /* tp_print */
-  0,                         /* tp_getattr */
-  0,                         /* tp_setattr */
-  0,                         /* tp_compare */
-  0,                         /* tp_repr */
-  0,                         /* tp_as_number */
-  0,                         /* tp_as_sequence */
-  0,                         /* tp_as_mapping */
-  0,                         /* tp_hash */
-  0,                         /* tp_call */
-  0,                         /* tp_str */
-  0,                         /* tp_getattro */
-  0,                         /* tp_setattro */
-  0,                         /* tp_as_buffer */
-  Py_TPFLAGS_DEFAULT |
-      Py_TPFLAGS_BASETYPE,   /* tp_flags */
-  "cvFactoryRegistrar wrapper  ",           /* tp_doc */
-};
-
-#if PYTHON_MAJOR_VERSION == 3
-static struct PyModuleDef pySolidmodule = {
-   PyModuleDef_HEAD_INIT,
-   "pySolid",   /* name of module */
-   "", /* module documentation, may be NULL */
-   -1,       /* size of per-interpreter state of the module,
-                or -1 if the module keeps state in global variables. */
-   pySolid_methods
-};
-#endif
-
-#if PYTHON_MAJOR_VERSION == 2
-PyMODINIT_FUNC
-initpySolid(void)
-{
-    // Initialize-gRepository
-  if (gRepository ==NULL)
-  {
-    gRepository=new cvRepository();
-    fprintf(stdout,"New gRepository created from cv_solid_init\n");
-  }
-  //Initialize-gCurrentKernel
-  cvSolidModel::gCurrentKernel = SM_KT_INVALID;
-  #ifdef SV_USE_PARASOLID
-  cvSolidModel::gCurrentKernel = SM_KT_PARASOLID;
-  #endif
-
-  pySolidModelType.tp_new=PyType_GenericNew;
-  pycvFactoryRegistrarType.tp_new = PyType_GenericNew;
-  if (PyType_Ready(&pySolidModelType)<0)
-  {
-    fprintf(stdout,"Error in pySolidModelType");
-    return;
-  }
-  if (PyType_Ready(&pycvFactoryRegistrarType)<0)
-  {
-    fprintf(stdout,"Error in pySolidModelType");
-    return;
-  }
-  //Init our defined functions
-  PyObject *pythonC;
-  pythonC = Py_InitModule("pySolid", pySolid_methods);
-  if (pythonC==NULL)
-  {
-    fprintf(stdout,"Error in initializing pySolid");
-    return;
-  }
-
-  PyRunTimeErr=PyErr_NewException("pySolid.error",NULL,NULL);
-  PyModule_AddObject(pythonC, "error",PyRunTimeErr);
-  Py_INCREF(&pySolidModelType);
-  Py_INCREF(&pycvFactoryRegistrarType);
-  PyModule_AddObject(pythonC, "pySolidModel", (PyObject *)&pySolidModelType);
-  PyModule_AddObject(pythonC, "pyCvFactoryRegistrar", (PyObject *)&pycvFactoryRegistrarType);
-
-  pycvFactoryRegistrar* tmp = PyObject_New(pycvFactoryRegistrar, &pycvFactoryRegistrarType);
-  tmp->registrar = (cvFactoryRegistrar *)&cvSolidModel::gRegistrar;
-  PySys_SetObject("solidModelRegistrar", (PyObject *)tmp);
-
-
-}
-#endif
-
-#if PYTHON_MAJOR_VERSION == 3
-PyMODINIT_FUNC
-PyInit_pySolid(void)
-{
-    // Initialize-gRepository
-  if (gRepository ==NULL)
-  {
-    gRepository=new cvRepository();
-    fprintf(stdout,"New gRepository created from cv_solid_init\n");
-  }
-  //Initialize-gCurrentKernel
-  cvSolidModel::gCurrentKernel = SM_KT_INVALID;
-  #ifdef SV_USE_PARASOLID
-  cvSolidModel::gCurrentKernel = SM_KT_PARASOLID;
-  #endif
-
-  pySolidModelType.tp_new=PyType_GenericNew;
-  pycvFactoryRegistrarType.tp_new = PyType_GenericNew;
-  if (PyType_Ready(&pySolidModelType)<0)
-  {
-    fprintf(stdout,"Error in pySolidModelType");
-    return SV_PYTHON_ERROR;
-  }
-  if (PyType_Ready(&pycvFactoryRegistrarType)<0)
-  {
-    fprintf(stdout,"Error in pySolidModelType");
-    return SV_PYTHON_ERROR;
-  }
-  //Init our defined functions
-  PyObject *pythonC;
-  pythonC = PyModule_Create(&pySolidmodule);
-  if (pythonC==NULL)
-  {
-    fprintf(stdout,"Error in initializing pySolid");
-    return SV_PYTHON_ERROR;
-  }
-
-  PyRunTimeErr=PyErr_NewException("pySolid.error",NULL,NULL);
-  PyModule_AddObject(pythonC, "error",PyRunTimeErr);
-  Py_INCREF(&pySolidModelType);
-  Py_INCREF(&pycvFactoryRegistrarType);
-  PyModule_AddObject(pythonC, "pySolidModel", (PyObject *)&pySolidModelType);
-  PyModule_AddObject(pythonC, "pyCvFactoryRegistrar", (PyObject *)&pycvFactoryRegistrarType);
-
-  pycvFactoryRegistrar* tmp = PyObject_New(pycvFactoryRegistrar, &pycvFactoryRegistrarType);
-  tmp->registrar = (cvFactoryRegistrar *)&cvSolidModel::gRegistrar;
-  PySys_SetObject("solidModelRegistrar", (PyObject *)tmp);
-  return pythonC;
-
-}
-
-#endif
-/*#ifdef SV_USE_PYTHON
-//Must be called after the python interpreter is initiated and through
-//the tcl interprter. i.e. PyInterprter exec {tcl.eval("initPyMods")
-// --------------------
-// Solid_InitPyModules
-// --------------------
-PyObject* Solid_InitPyModulesCmd( PyObject* self, PyObject* args)
-{
-  //Import vtk
-  PyObject *vtkstring = PyString_FromString("vtk");
-  PyObject *vtkmodule = PyImport_Import(vtkstring);
-  PyModule_AddObject(PyImport_AddModule("__buildin__"), "vtk", vtkmodule);
-
-  //Init our defined functions
-  PyObject *pythonC;
-  pythonC = PyImport_ImportModule("pySolid");
-  Py_INCREF(pythonC);
-  PyModule_AddObject(PyImport_AddModule("__buildin__"), "pySolid", pythonC);
-
-  return SV_PYTHON_OK;
-}
-#endif*/
-
+//-------------------------
+// Solid_RegistrarsListCmd
+//-------------------------
+//
 // This routine is used for debugging the registrar/factory system.
-PyObject* Solid_RegistrarsListCmd(PyObject* self, PyObject* args)
+static PyObject * 
+Solid_RegistrarsListCmd(PyObject* self, PyObject* args)
 {
   cvFactoryRegistrar* pySolidModelRegistrar =(cvFactoryRegistrar *) PySys_GetObject("solidModelRegistrar");
   char result[255];
@@ -3375,7 +2860,8 @@ static pySolidModel* Solid_GetAxialIsoparametricCurveMtd( pySolidModel* self,
 
   Py_INCREF(curve);
   pySolidModel* newCurve;
-  newCurve = PyObject_New(pySolidModel, &pySolidModelType);
+  newCurve = createSolidModelType();
+  //newCurve = PyObject_New(pySolidModel, &pySolidModelType);
   newCurve->geom=curve;
   Py_DECREF(curve);
   return newCurve;
@@ -3872,3 +3358,448 @@ static PyObject* Solid_RemeshFaceMtd( pySolidModel* self, PyObject* args)
 
   return SV_PYTHON_OK;
 }
+
+////////////////////////////////////////////////////////
+//          M o d u l e  D e f i n i t i o n          //
+////////////////////////////////////////////////////////
+
+
+//All functions listed and initiated as pySolid_methods declared here
+/*
+static PyMemberDef pySolidModel_members[]={
+{NULL}
+};
+*/
+
+//-------------------------------------------------
+// Define API function names for SolidModel object
+//-------------------------------------------------
+
+static PyMethodDef pySolidModel_methods[] = {
+
+  { "GetModel", 
+      (PyCFunction)Solid_GetModelCmd, 
+      METH_VARARGS, 
+      NULL
+  },
+
+  { "Poly",(PyCFunction) Solid_PolyCmd,
+		     METH_VARARGS,NULL},
+  { "PolyPts", (PyCFunction)Solid_PolyPtsCmd,
+		     METH_VARARGS,NULL},
+  { "Circle", (PyCFunction)Solid_CircleCmd,
+		     METH_VARARGS,NULL},
+  { "Ellipse", (PyCFunction)Solid_EllipseCmd,
+		     METH_VARARGS,NULL},
+  { "Box2d", (PyCFunction)Solid_Box2dCmd,
+		     METH_VARARGS,NULL},
+  { "Box3d", (PyCFunction)Solid_Box3dCmd,
+		     METH_VARARGS,NULL},
+  { "Sphere", (PyCFunction)Solid_SphereCmd,
+		     METH_VARARGS,NULL},
+  { "Ellipsoid", (PyCFunction)Solid_EllipsoidCmd,
+		     METH_VARARGS,NULL},
+  { "Cylinder", (PyCFunction)Solid_CylinderCmd,
+		     METH_VARARGS,NULL},
+  { "TruncatedCone", (PyCFunction)Solid_TruncatedConeCmd,
+		     METH_VARARGS,NULL},
+  { "Torus", (PyCFunction)Solid_TorusCmd,
+		     METH_VARARGS,NULL},
+  { "Poly3dSolid", (PyCFunction)Solid_Poly3dSolidCmd,
+		     METH_VARARGS,NULL},
+  { "Poly3dSurface", (PyCFunction)Solid_Poly3dSurfaceCmd,
+		     METH_VARARGS,NULL},
+  { "ExtrudeZ", (PyCFunction)Solid_ExtrudeZCmd,
+		     METH_VARARGS,NULL},
+  { "Extrude", (PyCFunction)Solid_ExtrudeCmd,
+		     METH_VARARGS,NULL},
+  { "MakeApproxCurveLoop",
+		     (PyCFunction)Solid_MakeApproxCurveLoopCmd,
+		     METH_VARARGS,NULL},
+  { "MakeInterpCurveLoop",
+		     (PyCFunction)Solid_MakeInterpCurveLoopCmd,
+		     METH_VARARGS,NULL},
+  { "MakeLoftedSurf", (PyCFunction)Solid_MakeLoftedSurfCmd,
+		     METH_VARARGS,NULL},
+  { "CapSurfToSolid", (PyCFunction)Solid_CapSurfToSolidCmd,
+		     METH_VARARGS,NULL},
+  { "Intersect", (PyCFunction)Solid_IntersectCmd,
+		     METH_VARARGS,NULL},
+  { "Union", (PyCFunction)Solid_UnionCmd,
+		     METH_VARARGS,NULL},
+  { "Subtract", (PyCFunction)Solid_SubtractCmd,
+		     METH_VARARGS,NULL},
+  { "ReadNative", (PyCFunction)Solid_ReadNativeCmd,
+		     METH_VARARGS,NULL},
+  { "Copy", (PyCFunction)Solid_CopyCmd,
+		     METH_VARARGS,NULL},
+  { "Methods", (PyCFunction)Solid_ListMethodsCmd,
+		     METH_NOARGS,NULL},
+  { "NewObject", (PyCFunction)Solid_NewObjectCmd,
+		     METH_VARARGS,NULL},
+  { "GetClassName", (PyCFunction)Solid_GetClassNameMtd,
+		     METH_NOARGS,NULL},
+  { "FindExtent", (PyCFunction)Solid_FindExtentMtd,
+		     METH_VARARGS,NULL},
+  { "FindCentroid",(PyCFunction)Solid_FindCentroidMtd,
+		     METH_VARARGS,NULL},
+  { "GetTopoDim",(PyCFunction)Solid_GetTopoDimMtd,
+		     METH_VARARGS,NULL},
+  { "GetSpatialDim",(PyCFunction)Solid_GetSpatialDimMtd,
+		     METH_VARARGS,NULL},
+  { "ClassifyPt",(PyCFunction)Solid_ClassifyPtMtd,
+		     METH_VARARGS,NULL},
+  { "DeleteFaces",(PyCFunction)Solid_DeleteFacesMtd,
+		     METH_VARARGS,NULL},
+  { "DeleteRegion",(PyCFunction)Solid_DeleteRegionMtd,
+		     METH_VARARGS,NULL},
+  { "CreateEdgeBlend",(PyCFunction)Solid_CreateEdgeBlendMtd,
+		     METH_VARARGS,NULL},
+  { "CombineFaces",(PyCFunction)Solid_CombineFacesMtd,
+		     METH_VARARGS,NULL},
+  { "RemeshFace",(PyCFunction)Solid_RemeshFaceMtd,
+		     METH_VARARGS,NULL},
+  { "Distance",(PyCFunction)Solid_DistanceMtd,
+		     METH_VARARGS,NULL},
+  { "GetFaceNormal",(PyCFunction)Solid_GetFaceNormalMtd,
+		     METH_VARARGS,NULL},
+  { "Translate",(PyCFunction)Solid_TranslateMtd,
+		     METH_VARARGS,NULL},
+  { "Rotate",(PyCFunction)Solid_RotateMtd,
+		     METH_VARARGS,NULL},
+  { "Scale",(PyCFunction)Solid_ScaleMtd,
+		     METH_VARARGS,NULL},
+  { "Reflect",(PyCFunction)Solid_ReflectMtd,
+		     METH_VARARGS,NULL},
+  { "Apply4x4",(PyCFunction)Solid_Apply4x4Mtd,
+		     METH_VARARGS,NULL},
+  { "Print", (PyCFunction)Solid_PrintMtd,
+		     METH_VARARGS,NULL},
+  { "Check", (PyCFunction)Solid_CheckMtd,
+		     METH_VARARGS,NULL},
+  { "WriteNative",(PyCFunction)Solid_WriteNativeMtd,
+		     METH_VARARGS,NULL},
+  { "WriteVtkPolyData",(PyCFunction)Solid_WriteVtkPolyDataMtd,
+		     METH_VARARGS,NULL},
+  { "WriteGeomSim", (PyCFunction)Solid_WriteGeomSimMtd,
+		     METH_VARARGS,NULL},
+  { "GetFacePolyData",(PyCFunction)Solid_GetFacePolyDataMtd,
+		     METH_VARARGS,NULL},
+  { "GetPolyData",(PyCFunction)Solid_GetPolyDataMtd,
+		     METH_VARARGS,NULL},
+  { "SetVtkPolyData",(PyCFunction)Solid_SetVtkPolyDataMtd,
+		     METH_VARARGS,NULL},
+  { "GetDiscontinuities",(PyCFunction)Solid_GetDiscontinuitiesMtd,
+		     METH_VARARGS,NULL},
+  { "GetAxialIsoparametricCurve",(PyCFunction)Solid_GetAxialIsoparametricCurveMtd,
+		     METH_VARARGS,NULL},
+  { "GetKernel",(PyCFunction)Solid_GetKernelMtd,
+		     METH_VARARGS,NULL},
+  { "GetLabelKeys",(PyCFunction)Solid_GetLabelKeysMtd,
+		     METH_VARARGS,NULL},
+  { "GetLabel", (PyCFunction)Solid_GetLabelMtd,
+		     METH_VARARGS,NULL},
+  { "SetLabel",(PyCFunction)Solid_SetLabelMtd,
+		     METH_VARARGS,NULL},
+  { "ClearLabel", (PyCFunction)Solid_ClearLabelMtd,
+		     METH_VARARGS,NULL},
+  { "GetFaceIds", (PyCFunction)Solid_GetFaceIdsMtd,
+		     METH_NOARGS,NULL},
+  { "GetBoundaryFaces",(PyCFunction)Solid_GetBoundaryFacesMtd,
+		     METH_VARARGS,NULL},
+  { "GetRegionIds",(PyCFunction)Solid_GetRegionIdsMtd,
+		     METH_VARARGS,NULL},
+  { "GetFaceAttr",(PyCFunction)Solid_GetFaceAttrMtd,
+		     METH_VARARGS,NULL},
+  { "SetFaceAttr",(PyCFunction)Solid_SetFaceAttrMtd,
+		     METH_VARARGS,NULL},
+  { "GetRegionAttr",(PyCFunction)Solid_GetRegionAttrMtd,
+		     METH_VARARGS,NULL},
+  { "SetRegionAttr", (PyCFunction)Solid_SetRegionAttrMtd,
+		     METH_VARARGS,NULL},
+  {NULL,NULL}
+};
+
+//-------------------
+// pySolidModel_init
+//-------------------
+// This is the __init__() method for the SolidModel class. 
+//
+// This function is used to initialize an object after it is created.
+//
+static int 
+pySolidModel_init(pySolidModel* self, PyObject* args)
+{
+  fprintf(stdout,"pySolid Model tp_init called\n");
+  return SV_OK;
+}
+
+//------------------
+// pySolidModelType 
+//------------------
+// This is the definition of the SolidModel class.
+//
+// The type object stores a large number of values, mostly C function pointers, 
+// each of which implements a small part of the type’s functionality.
+//
+static PyTypeObject pySolidModelType = {
+  PyVarObject_HEAD_INIT(NULL, 0)
+  "solid.SolidModel",        /* tp_name */
+  sizeof(pySolidModel),      /* tp_basicsize */
+  0,                         /* tp_itemsize */
+  0,                         /* tp_dealloc */
+  0,                         /* tp_print */
+  0,                         /* tp_getattr */
+  0,                         /* tp_setattr */
+  0,                         /* tp_compare */
+  0,                         /* tp_repr */
+  0,                         /* tp_as_number */
+  0,                         /* tp_as_sequence */
+  0,                         /* tp_as_mapping */
+  0,                         /* tp_hash */
+  0,                         /* tp_call */
+  0,                         /* tp_str */
+  0,                         /* tp_getattro */
+  0,                         /* tp_setattro */
+  0,                         /* tp_as_buffer */
+  Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,   /* tp_flags */
+  "SolidModel  objects",           /* tp_doc */
+  0,                         /* tp_traverse */
+  0,                         /* tp_clear */
+  0,                         /* tp_richcompare */
+  0,                         /* tp_weaklistoffset */
+  0,                         /* tp_iter */
+  0,                         /* tp_iternext */
+  pySolidModel_methods,             /* tp_methods */
+  0,                         /* tp_members */
+  0,                         /* tp_getset */
+  0,                         /* tp_base */
+  0,                         /* tp_dict */
+  0,                         /* tp_descr_get */
+  0,                         /* tp_descr_set */
+  0,                         /* tp_dictoffset */
+  (initproc)pySolidModel_init,                            /* tp_init */
+  0,                         /* tp_alloc */
+  0,                  /* tp_new */
+};
+
+
+//----------------------
+// createSolidModelType 
+//----------------------
+pySolidModel * createSolidModelType()
+{
+  return PyObject_New(pySolidModel, &pySolidModelType);
+}
+
+
+//------------------
+// pySolid_methods
+//------------------
+// Methods for the 'solid' module.
+//
+static PyMethodDef pySolid_methods[] = {
+  {"Registrars", (PyCFunction)Solid_RegistrarsListCmd,METH_NOARGS,NULL},
+  { "SetKernel", (PyCFunction)Solid_SetKernelCmd,
+		     METH_VARARGS,NULL},
+  { "GetKernel", (PyCFunction)Solid_GetKernelCmd,
+		     METH_NOARGS,NULL},
+  {NULL, NULL}
+};
+
+static PyTypeObject pycvFactoryRegistrarType = {
+  PyVarObject_HEAD_INIT(NULL, 0)
+  "solid.pycvFactoryRegistrar",             /* tp_name */
+  sizeof(pycvFactoryRegistrar),             /* tp_basicsize */
+  0,                         /* tp_itemsize */
+  0,                         /* tp_dealloc */
+  0,                         /* tp_print */
+  0,                         /* tp_getattr */
+  0,                         /* tp_setattr */
+  0,                         /* tp_compare */
+  0,                         /* tp_repr */
+  0,                         /* tp_as_number */
+  0,                         /* tp_as_sequence */
+  0,                         /* tp_as_mapping */
+  0,                         /* tp_hash */
+  0,                         /* tp_call */
+  0,                         /* tp_str */
+  0,                         /* tp_getattro */
+  0,                         /* tp_setattro */
+  0,                         /* tp_as_buffer */
+  Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,   /* tp_flags */
+  "cvFactoryRegistrar wrapper  ",           /* tp_doc */
+};
+
+//-----------------------
+// Initialize the module
+//-----------------------
+// Define the initialization function called by the Python interpreter 
+// when the module is loaded.
+
+static char* MODULE_NAME = "solid";
+static char* SOLID_MODEL_CLASS_NAME = "SolidModel";
+static char* MODULE_EXCEPTION_NAME = "solid.SolidModelException";
+static char* SOLID_MODEL_EXCEPTION_NAME = "SolidModelException";
+
+PyDoc_STRVAR(Solid_module_doc, "solid module functions");
+
+//---------------------------------------------------------------------------
+//                           PYTHON_MAJOR_VERSION 3                         
+//---------------------------------------------------------------------------
+
+#if PYTHON_MAJOR_VERSION == 3
+
+PyMODINIT_FUNC PyInit_pySolid(void);
+
+int Solid_pyInit()
+{ 
+  PyInit_pySolid();
+  return SV_OK;
+}
+
+// Size of per-interpreter state of the module.
+// Set to -1 if the module keeps state in global variables. 
+static int perInterpreterStateSize = -1;
+
+// Always initialize this to PyModuleDef_HEAD_INIT.
+static PyModuleDef_Base m_base = PyModuleDef_HEAD_INIT;
+
+// Define the module definition struct which holds all information 
+// needed to create a module object. 
+
+static struct PyModuleDef pySolidmodule = {
+   m_base,
+   MODULE_NAME, 
+   Solid_module_doc, 
+   perInterpreterStateSize, 
+   pySolid_methods
+};
+
+//-----------------
+// PyInit_pySolid  
+//-----------------
+// The initialization function called by the Python interpreter 
+// when the 'solid' module is loaded.
+//
+PyMODINIT_FUNC
+PyInit_pySolid(void)
+{
+  if (gRepository == NULL) {
+      gRepository=new cvRepository();
+      fprintf(stdout,"New gRepository created from cv_solid_init\n");
+  }
+
+  // Set the default modeling kernel. 
+  cvSolidModel::gCurrentKernel = SM_KT_INVALID;
+  #ifdef SV_USE_PARASOLID
+  cvSolidModel::gCurrentKernel = SM_KT_PARASOLID;
+  #endif
+
+  // Create the SolidModeling class definition.
+  pySolidModelType.tp_new = PyType_GenericNew;
+  pycvFactoryRegistrarType.tp_new = PyType_GenericNew;
+  if (PyType_Ready(&pySolidModelType) < 0) {
+    fprintf(stdout,"Error in pySolidModelType");
+    return SV_PYTHON_ERROR;
+  }
+
+  if (PyType_Ready(&pycvFactoryRegistrarType) < 0) {
+    fprintf(stdout,"Error in pySolidModelType");
+    return SV_PYTHON_ERROR;
+  }
+
+  // Create the 'solid' module. 
+  auto module = PyModule_Create(&pySolidmodule);
+  if (module == NULL) {
+    fprintf(stdout,"Error in initializing pySolid");
+    return SV_PYTHON_ERROR;
+  }
+
+  // Add solid.SolidModelException exception.
+  //
+  PyRunTimeErr = PyErr_NewException(MODULE_EXCEPTION_NAME, NULL, NULL);
+  PyModule_AddObject(module, SOLID_MODEL_EXCEPTION_NAME, PyRunTimeErr);
+
+  // Add the 'SolidModel' class.
+  Py_INCREF(&pySolidModelType);
+  PyModule_AddObject(module, SOLID_MODEL_CLASS_NAME, (PyObject *)&pySolidModelType);
+
+  Py_INCREF(&pycvFactoryRegistrarType);
+  PyModule_AddObject(module, "pyCvFactoryRegistrar", (PyObject *)&pycvFactoryRegistrarType);
+
+  // [TODO:DaveP] What does this do?
+  pycvFactoryRegistrar* tmp = PyObject_New(pycvFactoryRegistrar, &pycvFactoryRegistrarType);
+  tmp->registrar = (cvFactoryRegistrar *)&cvSolidModel::gRegistrar;
+  PySys_SetObject("solidModelRegistrar", (PyObject *)tmp);
+
+  return module;
+}
+
+#endif
+
+
+//---------------------------------------------------------------------------
+//                           PYTHON_MAJOR_VERSION 2                         
+//---------------------------------------------------------------------------
+
+#if PYTHON_MAJOR_VERSION == 2
+
+PyMODINIT_FUNC initpySolid(void);
+int Solid_pyInit()
+{ 
+  initpySolid();
+  return SV_OK;
+}
+
+PyMODINIT_FUNC
+initpySolid(void)
+{
+    // Initialize-gRepository
+  if (gRepository ==NULL)
+  {
+    gRepository=new cvRepository();
+    fprintf(stdout,"New gRepository created from cv_solid_init\n");
+  }
+  //Initialize-gCurrentKernel
+  cvSolidModel::gCurrentKernel = SM_KT_INVALID;
+  #ifdef SV_USE_PARASOLID
+  cvSolidModel::gCurrentKernel = SM_KT_PARASOLID;
+  #endif
+
+  pySolidModelType.tp_new=PyType_GenericNew;
+  pycvFactoryRegistrarType.tp_new = PyType_GenericNew;
+  if (PyType_Ready(&pySolidModelType)<0)
+  {
+    fprintf(stdout,"Error in pySolidModelType");
+    return;
+  }
+  if (PyType_Ready(&pycvFactoryRegistrarType)<0)
+  {
+    fprintf(stdout,"Error in pySolidModelType");
+    return;
+  }
+  //Init our defined functions
+  PyObject *pythonC;
+  pythonC = Py_InitModule("pySolid", pySolid_methods);
+  if (pythonC==NULL)
+  {
+    fprintf(stdout,"Error in initializing pySolid");
+    return;
+  }
+
+  PyRunTimeErr=PyErr_NewException("pySolid.error",NULL,NULL);
+  PyModule_AddObject(pythonC, "error",PyRunTimeErr);
+  Py_INCREF(&pySolidModelType);
+  Py_INCREF(&pycvFactoryRegistrarType);
+  PyModule_AddObject(pythonC, "pySolidModel", (PyObject *)&pySolidModelType);
+  PyModule_AddObject(pythonC, "pyCvFactoryRegistrar", (PyObject *)&pycvFactoryRegistrarType);
+
+  pycvFactoryRegistrar* tmp = PyObject_New(pycvFactoryRegistrar, &pycvFactoryRegistrarType);
+  tmp->registrar = (cvFactoryRegistrar *)&cvSolidModel::gRegistrar;
+  PySys_SetObject("solidModelRegistrar", (PyObject *)tmp);
+
+
+}
+#endif
+
