@@ -50,7 +50,7 @@
 
 #include "sv3_PathElement.h"
 #include "sv3_PathElement_init_py.h"
-#include "sv3_PyUtil.h"
+#include "sv_PyUtils.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -114,14 +114,14 @@ sv4Path_new_object(pyPath* self, PyObject* args)
   //char* methodName;
   //int calcNum=100, splacing=0;
 
-  std::string functionName = Sv3PyUtilGetFunctionName(__func__);
-  std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+  std::string functionName = svPyUtilGetFunctionName(__func__);
+  std::string msgp = svPyUtilGetMsgPrefix(functionName);
   std::string format = "s:" + functionName;
   //std::string format = "s|sii:" + functionName;
   
   if (!PyArg_ParseTuple(args, format.c_str(), &objName)) {
   //if (!PyArg_ParseTuple(args, format.c_str(), &objName, &methodName, &calcNum, &splacing)) {
-      return Sv3PyUtilResetException(PyRunTimeErr);
+      return svPyUtilResetException(PyRunTimeErr);
   }
   
   // Check that the new Contour object does not already exist.
@@ -160,12 +160,12 @@ static PyObject *
 sv4Path_GetObjectCmd( pyPath* self, PyObject* args)
 {
   char *pathName = NULL;
-  std::string functionName = Sv3PyUtilGetFunctionName(__func__);
-  std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+  std::string functionName = svPyUtilGetFunctionName(__func__);
+  std::string msgp = svPyUtilGetMsgPrefix(functionName);
   std::string format = "s:" + functionName;
 
   if (!PyArg_ParseTuple(args, format.c_str(), &pathName)) {
-      return Sv3PyUtilResetException(PyRunTimeErr);
+      return svPyUtilResetException(PyRunTimeErr);
   }
 
   // Get path object from the repository. 
@@ -209,18 +209,18 @@ sv4Path_add_control_point(pyPath* self, PyObject* args)
 {
   PyObject* pointArg;
   int index = -1;
-  std::string functionName = Sv3PyUtilGetFunctionName(__func__);
-  std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+  std::string functionName = svPyUtilGetFunctionName(__func__);
+  std::string msgp = svPyUtilGetMsgPrefix(functionName);
   std::string format = "O|i:" + functionName;
 
   if (!PyArg_ParseTuple(args, format.c_str(), &pointArg, &index)) {
-      return Sv3PyUtilResetException(PyRunTimeErr);
+      return svPyUtilResetException(PyRunTimeErr);
   }
 
   // Check control point data.
   //
   std::string msg;
-  if (!Sv3PyUtilCheckPointData(pointArg, msg)) {
+  if (!svPyUtilCheckPointData(pointArg, msg)) {
       auto emsg = msgp + "Control point argument " + msg;
       PyErr_SetString(PyRunTimeErr, emsg.c_str());
       return nullptr;
@@ -294,13 +294,13 @@ PyDoc_STRVAR(sv4Path_remove_control_point_doc,
 static PyObject * 
 sv4Path_remove_control_point(pyPath* self, PyObject* args)
 {
-  std::string functionName = Sv3PyUtilGetFunctionName(__func__);
-  std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+  std::string functionName = svPyUtilGetFunctionName(__func__);
+  std::string msgp = svPyUtilGetMsgPrefix(functionName);
   std::string format = "O|i:" + functionName;
 
   int index;
   if (!PyArg_ParseTuple(args, format.c_str(), &index)) {
-      return Sv3PyUtilResetException(PyRunTimeErr);
+      return svPyUtilResetException(PyRunTimeErr);
   }
 
   auto path = self->geom;
@@ -345,12 +345,12 @@ sv4Path_replace_control_point(pyPath* self, PyObject* args)
 {
   PyObject* pointArg;
   int index;
-  std::string functionName = Sv3PyUtilGetFunctionName(__func__);
-  std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+  std::string functionName = svPyUtilGetFunctionName(__func__);
+  std::string msgp = svPyUtilGetMsgPrefix(functionName);
   std::string format = "iO:" + functionName;
 
   if (!PyArg_ParseTuple(args, format.c_str(), &index, &pointArg)) {
-    return Sv3PyUtilResetException(PyRunTimeErr);
+    return svPyUtilResetException(PyRunTimeErr);
   }
     
   auto path = self->geom;
@@ -361,7 +361,7 @@ sv4Path_replace_control_point(pyPath* self, PyObject* args)
   }
 
   std::string msg;
-  if (!Sv3PyUtilCheckPointData(pointArg, msg)) {
+  if (!svPyUtilCheckPointData(pointArg, msg)) {
       auto emsg = msgp + "Control point argument " + msg;
       PyErr_SetString(PyRunTimeErr, emsg.c_str());
       return nullptr;
@@ -413,13 +413,13 @@ PyDoc_STRVAR(sv4Path_smooth_doc,
 static PyObject * 
 sv4Path_smooth(pyPath* self, PyObject* args)
 {
-  std::string functionName = Sv3PyUtilGetFunctionName(__func__);
-  std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+  std::string functionName = svPyUtilGetFunctionName(__func__);
+  std::string msgp = svPyUtilGetMsgPrefix(functionName);
   std::string format = "iii:" + functionName;
 
   int sampleRate, numModes, controlPointsBased;
   if (!PyArg_ParseTuple(args, format.c_str(), &sampleRate, &numModes, &controlPointsBased)) {
-    return Sv3PyUtilResetException(PyRunTimeErr);
+    return svPyUtilResetException(PyRunTimeErr);
   }
     
   auto path = self->geom;
@@ -475,8 +475,8 @@ PyDoc_STRVAR(sv4Path_create_doc,
 static PyObject * 
 sv4Path_create(pyPath* self, PyObject* args)
 {
-    std::string functionName = Sv3PyUtilGetFunctionName(__func__);
-    std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+    std::string functionName = svPyUtilGetFunctionName(__func__);
+    std::string msgp = svPyUtilGetMsgPrefix(functionName);
     PathElement* path = self->geom; 
 
     if (path == NULL) {
@@ -521,8 +521,8 @@ PyDoc_STRVAR(sv4Path_get_num_curve_points_doc,
 static PyObject * 
 sv4Path_get_num_curve_points(pyPath* self, PyObject* args)
 {
-  std::string functionName = Sv3PyUtilGetFunctionName(__func__);
-  std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+  std::string functionName = svPyUtilGetFunctionName(__func__);
+  std::string msgp = svPyUtilGetMsgPrefix(functionName);
   PathElement* path = self->geom;
 
   if (path == NULL) {
@@ -551,8 +551,8 @@ PyDoc_STRVAR(sv4Path_get_curve_points_doc,
 static PyObject * 
 sv4Path_get_curve_points(pyPath* self, PyObject* args)
 {
-  std::string functionName = Sv3PyUtilGetFunctionName(__func__);
-  std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+  std::string functionName = svPyUtilGetFunctionName(__func__);
+  std::string msgp = svPyUtilGetMsgPrefix(functionName);
   PathElement* path = self->geom;
 
   if (path == NULL) {
@@ -602,8 +602,8 @@ PyDoc_STRVAR(sv4Path_get_control_points_doc,
 static PyObject * 
 sv4Path_get_control_points(pyPath* self, PyObject* args)
 {
-  std::string functionName = Sv3PyUtilGetFunctionName(__func__);
-  std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+  std::string functionName = svPyUtilGetFunctionName(__func__);
+  std::string msgp = svPyUtilGetMsgPrefix(functionName);
   PathElement* path = self->geom;
 
   if (path == NULL) {
@@ -653,14 +653,14 @@ PyDoc_STRVAR(sv4Path_get_polydata_doc,
 static PyObject*
 sv4Path_get_polydata(pyPath* self, PyObject* args)
 {
-    std::string functionName = Sv3PyUtilGetFunctionName(__func__);
-    std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+    std::string functionName = svPyUtilGetFunctionName(__func__);
+    std::string msgp = svPyUtilGetMsgPrefix(functionName);
     std::string format = "s:" + functionName;
     std::cout << "################## sv4Path_get_polydata ################" << std::endl;
 
     char* dstName = NULL;
     if (!PyArg_ParseTuple(args, format.c_str(), &dstName)) {
-        return Sv3PyUtilResetException(PyRunTimeErr);
+        return svPyUtilResetException(PyRunTimeErr);
     }
 
   auto path = self->geom;

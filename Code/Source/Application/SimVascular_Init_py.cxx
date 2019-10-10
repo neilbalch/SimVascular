@@ -153,7 +153,7 @@ void SimVascular_pyInit()
     PyImport_AppendInittab("pyCircleContour",PyInit_pyCircleContour);
     PyImport_AppendInittab("pyPolygonContour",PyInit_pyPolygonContour);
     PyImport_AppendInittab("pySplinePolygonContour",PyInit_pySplinePolygonContour);
-    PyImport_AppendInittab("pySolid",PyInit_pySolid);
+    PyImport_AppendInittab("solid", PyInit_pySolid);
     PyImport_AppendInittab("pySolidPolydata",PyInit_pySolidPolydata);
     //PyImport_AppendInittab("pyGUI",PyInit_pyGUI);
     

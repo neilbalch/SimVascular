@@ -40,7 +40,7 @@
 #include "sv_misc_utils.h"
 #include "sv_mmg_mesh_init.h"
 #include "sv_arg.h"
-#include "sv3_PyUtil.h"
+#include "sv_PyUtils.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -75,8 +75,8 @@ PyObject* PyRunTimeErr;
 static PyObject * 
 MMG_remesh(PyObject* self, PyObject* args)
 {
-  std::string functionName = Sv3PyUtilGetFunctionName(__func__);
-  std::string msgp = Sv3PyUtilGetMsgPrefix(functionName);
+  std::string functionName = svPyUtilGetFunctionName(__func__);
+  std::string msgp = svPyUtilGetMsgPrefix(functionName);
   std::string format = "ss|ddddd:" + functionName;
 
   char *srcName, *dstName;
@@ -87,7 +87,7 @@ MMG_remesh(PyObject* self, PyObject* args)
   double hausd = 0.01;
 
   if (!PyArg_ParseTuple(args, format.c_str(), &srcName, &dstName, &hmin, &hmax, &angle, &hgrad, &hausd)) {
-      return Sv3PyUtilResetException(PyRunTimeErr);
+      return svPyUtilResetException(PyRunTimeErr);
   }
 
   // Check that the source Polydata object is in the

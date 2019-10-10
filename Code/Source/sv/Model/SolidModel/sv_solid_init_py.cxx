@@ -57,8 +57,10 @@
 #include "sv_PolyData.h"
 #include "sv_PolyDataSolid.h"
 #include "sv_sys_geom.h"
+#include "sv_PyUtils.h"
 
 #include "sv_FactoryRegistrar.h"
+#include <map>
 
 // Needed for Windows.
 #ifdef GetObject
@@ -78,6 +80,16 @@
 #include "sv_occt_init_py.h"
 #include "sv_polydatasolid_init_py.h"
 
+// Define a map between solid model kernel name and enum type.
+static std::map<std::string,SolidModel_KernelT> kernelNameTypeMap =
+{
+    {"Discrete", SM_KT_DISCRETE},
+    {"MeshSimSolid", SM_KT_MESHSIMSOLID},
+    {"OpenCASCADE", SM_KT_OCCT},
+    {"Parasolid", SM_KT_PARASOLID},
+    {"PolyData", SM_KT_POLYDATA}
+};
+
 typedef struct
 {
   PyObject_HEAD
@@ -90,14 +102,33 @@ static void pySolidModel_dealloc(pySolidModel* self)
   Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
-static void PrintMethods();
-
 // Exception type used by PyErr_SetString() to set the for the error indicator.
 static PyObject * PyRunTimeErr;
 
 // createSolidModelType() references pySolidModelType and is used before 
 // it is defined so we need to define its prototype here.
 pySolidModel * createSolidModelType();
+
+//---------------
+// CheckGeometry
+//---------------
+// Check if the solid model object has geometry.
+//
+// This is really used to set the error message 
+// in a single place. 
+//
+static cvSolidModel *
+CheckGeometry(SvPyUtilApiFunction& api, pySolidModel *self)
+{
+  auto geom = self->geom;
+  if (geom == NULL) {
+      api.error("The solid model object does not have geometry.");
+      return nullptr;
+  }
+
+  return geom;
+}
+
 
 //////////////////////////////////////////////////////
 //          M o d u l e  F u n c t i o n s          //
@@ -108,10 +139,17 @@ pySolidModel * createSolidModelType();
 //-------------------------
 // Solid_RegistrarsListCmd
 //-------------------------
-//
 // This routine is used for debugging the registrar/factory system.
+//
+PyDoc_STRVAR(Solid_list_registrars_doc,
+" list_registrars()  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+");
+
 static PyObject * 
-Solid_RegistrarsListCmd(PyObject* self, PyObject* args)
+Solid_list_registrars(PyObject* self, PyObject* args)
 {
   cvFactoryRegistrar* pySolidModelRegistrar =(cvFactoryRegistrar *) PySys_GetObject("solidModelRegistrar");
   char result[255];
@@ -173,33 +211,32 @@ PyObject* Solid_GetModelCmd( pySolidModel* self, PyObject* args)
   return SV_PYTHON_OK; 
   
 }
+
 // ----------------
 // Solid_PolyPtsCmd
 // ----------------
+//
+PyDoc_STRVAR(Solid_polygon_points_doc,
+  "polygon_points(kernel)  \n\ 
+   \n\
+   Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// Previously (in shapesPkg.cxx) we had maintained a Tcl_HashTable of
-// all solid objects.  This table was used to look up other objects
-// for object methods which required not only the "this" object (whose
-// pointer is retured by the clientData mechanism), but also
-// additional operands which were named by their Tcl names.  These
-// objects were looked-up in the Tcl_HashTable by that name to
-// retrieve additional object pointers.
-
-// Now, since we're using the cvRepository mechanism (which is itself a
-// Tcl_HashTable), we can use the cvRepository's lookup mechanisms to
-// find those operands.  That is, we can call cvRepository's
-// GetObject(name) method to get back object pointers for use inside
-// Tcl object method functions.
-
-PyObject* Solid_PolyPtsCmd( pySolidModel* self, PyObject* args)
+static PyObject * 
+Solid_polygon_points(pySolidModel* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
+
   char *srcName;
   char *dstName;
   cvRepositoryData *pd;
   RepositoryDataT type;
   cvSolidModel *geom;
-  if(!PyArg_ParseTuple(args,"ss",&srcName,&dstName))
-  {
+
+  if (!PyArg_ParseTuple(args,"ss",&srcName,&dstName)) {
     PyErr_SetString(PyRunTimeErr,"Could not import two chars.");
     
   }
@@ -1885,25 +1922,13 @@ PyObject* Solid_SubtractCmd( pySolidModel* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
-
-// --------------------
-// Solid_ListMethodsCmd
-// --------------------
-
-PyObject* Solid_ListMethodsCmd( pySolidModel* self, PyObject* args)
-{
-  PrintMethods();
-  return SV_PYTHON_OK;
-}
-
-
 // ---------------
 // Solid_ObjectCmd
 // ---------------
 PyObject* Solid_ObjectCmd(pySolidModel* self,PyObject* args )
 {
   if (PyTuple_Size(args)== 0 ) {
-    PrintMethods();
+    //PrintMethods();
   }
   return SV_PYTHON_OK;
 }
@@ -1973,335 +1998,370 @@ PyObject* Solid_NewObjectCmd(pySolidModel* self,PyObject *args )
   return SV_PYTHON_OK;
 }
 
-// ------------------
-// Solid_SetKernelCmd
-// ------------------
+//------------------
+// Solid_set_kernel  
+//------------------
+//
+PyDoc_STRVAR(Solid_set_kernel_doc,
+" set_kernel(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args:                                    \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-PyObject* Solid_SetKernelCmd( PyObject* self, PyObject *args)
+static PyObject * 
+Solid_set_kernel(PyObject* self, PyObject *args)
 {
-char *kernelName;
-SolidModel_KernelT kernel;
-if(!PyArg_ParseTuple(args,"s",&kernelName))
-{
-  PyErr_SetString(PyRunTimeErr,"Could not import char kernelName");
-  
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  char *kernelArg;
+
+  if (!PyArg_ParseTuple(args, api.format, &kernelArg)) {
+      return api.argsError();
+  }
+
+  SolidModel_KernelT kernel;
+
+  try {
+        kernel = kernelNameTypeMap.at(std::string(kernelArg));
+  } catch (const std::out_of_range& except) {
+      auto msg = "Unknown solid modeling kernel '" + std::string(kernelArg) + "'." +
+        " Valid solid modeling kernel names are: Discrete, MeshSimSolid, OpenCASCADE, Parasolid or PolyData.";
+      api.error(msg);
+      return nullptr;
+  }
+
+  cvSolidModel::gCurrentKernel = kernel;
+  return Py_BuildValue("s", kernelArg);
 }
 
-// Do work of command:
-if (strcmp( kernelName, "Parasolid" )==0 ) {
-  kernel= SM_KT_PARASOLID;
-} else if (strcmp( kernelName, "Discrete" )==0 ) {
-  kernel= SM_KT_DISCRETE;
-} else if (strcmp( kernelName, "PolyData" )==0 ) {
-  kernel= SM_KT_POLYDATA;
-} else if (strcmp( kernelName, "OpenCASCADE")==0 ) {
-  kernel= SM_KT_OCCT;
-} else if (strcmp( kernelName, "MeshSimSolid" )==0 ) {
-  kernel= SM_KT_MESHSIMSOLID;
-} else {
-  kernel= SM_KT_INVALID;
-}
+//------------------
+// Solid_get_kernel 
+//------------------
+//
+PyDoc_STRVAR(Solid_get_kernel_doc,
+" get_kernel()  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args:                                    \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-if ( kernel != SM_KT_INVALID ) {
-cvSolidModel::gCurrentKernel = kernel;
-return Py_BuildValue("s",kernelName);
-} else {
-PyErr_SetString(PyRunTimeErr, "solid kernel is invalid");
-
-}
-}
-// ------------------
-// Solid_GetKernelCmd
-// ------------------
-
-PyObject* Solid_GetKernelCmd(PyObject* self, PyObject* args)
+static PyObject * 
+Solid_get_kernel(PyObject* self, PyObject* args)
 {
   char *kernelName;
-
-  kernelName = SolidModel_KernelT_EnumToStr( cvSolidModel::gCurrentKernel );
-
+  kernelName = SolidModel_KernelT_EnumToStr(cvSolidModel::gCurrentKernel);
   return Py_BuildValue("s",kernelName);
 }
 
-// ------------
-// PrintMethods
-// ------------
 
-static void PrintMethods( )
-{
-  PySys_WriteStdout( "Apply4x4\n");
-  PySys_WriteStdout( "Check\n");
-  PySys_WriteStdout( "ClassifyPt\n");
-  PySys_WriteStdout( "ClearLabel\n");
-  PySys_WriteStdout( "DeleteFaces\n");
-  PySys_WriteStdout( "DeleteRegion\n");
-  PySys_WriteStdout( "CreateEdgeBlend\n");
-  PySys_WriteStdout( "CombineFaces\n");
-  PySys_WriteStdout( "RemeshFace\n");
-  PySys_WriteStdout( "Distance\n");
-  PySys_WriteStdout( "FindCentroid\n");
-  PySys_WriteStdout( "FindExtent\n");
-  PySys_WriteStdout( "GetClassName\n");
-  PySys_WriteStdout( "GetDiscontinuities\n");
-  PySys_WriteStdout( "GetAxialIsoparametricCurve\n");
-  PySys_WriteStdout( "GetFaceAttr\n");
-  PySys_WriteStdout( "GetFaceIds\n");
-  PySys_WriteStdout( "GetBoundaryFaces\n");
-  PySys_WriteStdout( "GetFaceNormal\n");
-  PySys_WriteStdout( "GetFacePolyData\n");
-  PySys_WriteStdout( "GetKernel\n");
-  PySys_WriteStdout( "GetLabel\n");
-  PySys_WriteStdout( "GetLabelKeys\n");
-  PySys_WriteStdout( "GetPolyData\n");
-  PySys_WriteStdout( "SetVtkPolyData\n");
-  PySys_WriteStdout( "GetRegionIds\n");
-  PySys_WriteStdout( "GetSpatialDim\n");
-  PySys_WriteStdout( "GetTopoDim\n");
-  PySys_WriteStdout( "Print\n");
-  PySys_WriteStdout( "Reflect\n");
-  PySys_WriteStdout( "Rotate\n");
-  PySys_WriteStdout( "Scale\n");
-  PySys_WriteStdout( "SetFaceAttr\n");
-  PySys_WriteStdout( "SetLabel\n");
-  PySys_WriteStdout( "Translate\n");
-  PySys_WriteStdout( "WriteNative\n");
-  PySys_WriteStdout( "WriteVtkPolyData\n");
-  PySys_WriteStdout( "WriteGeomSim\n");
-  return;
-}
+/////////////////////////////////////////////////////////////////
+//          M o d u l e  C l a s s  F u n c t i o n s          //
+/////////////////////////////////////////////////////////////////
+//
+// Python API functions for the SolidModel class. 
 
+PyDoc_STRVAR(SolidModel_get_class_name_doc,
+" SolidModel_get_class_name()  \n\
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args:                                    \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-static PyObject* Solid_GetClassNameMtd(pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_get_class_name(pySolidModel* self, PyObject* args)
 {
   return Py_BuildValue("s","SolidModel");
 }
 
-// -------------------
-// Solid_FindExtentMtd
-// -------------------
+//------------------------
+// SolidModel_find_extent
+//------------------------
+//
+PyDoc_STRVAR(SolidModel_find_extent_doc,
+" find_extent()  \n\
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+");
 
-static PyObject*  Solid_FindExtentMtd( pySolidModel *self ,PyObject* args  )
+static PyObject * 
+SolidModel_find_extent(pySolidModel *self ,PyObject* args)
 {
-  int status;
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto geom =self->geom;
+
   double extent;
-  cvSolidModel *geom =(self->geom);
-  status = geom->FindExtent( &extent);
-  if ( status == SV_OK ) {
-    Py_BuildValue("d",extent);
-    return SV_PYTHON_OK;
-  } else {
-    PyErr_SetString( PyRunTimeErr, "FindExtent: error on object" );
-    
+  auto status = geom->FindExtent(&extent);
+
+  if (status != SV_OK) {
+      api.error("Error finding extent");
+      return nullptr;
   }
+
+  Py_BuildValue("d",extent);
+  return SV_PYTHON_OK;
 }
 
+//---------------------------
+// SolidModel_find_centroid
+//---------------------------
+PyDoc_STRVAR(SolidModel_find_centroid_doc,
+" find_centroid()  \n\
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+");
 
-// ---------------------
-// Solid_FindCentroidMtd
-// ---------------------
-
-static PyObject*  Solid_FindCentroidMtd( pySolidModel *self ,PyObject* args )
+static PyObject *  
+SolidModel_find_centroid(pySolidModel *self ,PyObject* args)
 {
-  int status;
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
   double centroid[3];
-  char tmp[CV_STRLEN];
   int tdim;
-  cvSolidModel *geom =(self->geom);
-  if ( geom->GetSpatialDim( &tdim ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "couldn't get spatial dim of object " );
-    
-  }
-  if ( ( tdim != 2 ) && ( tdim != 3 ) ) {
-    sprintf( tmp, "spatial dim %d  not supported", tdim );
-    PyErr_SetString(PyRunTimeErr,tmp);
-    
-  }
-  status = geom->FindCentroid( centroid );
-  PyObject* tmpPy=PyList_New(3);
-  if ( status == SV_OK ) {
 
-    PyList_SetItem(tmpPy,0,PyFloat_FromDouble(centroid[0]));
-    PyList_SetItem(tmpPy,1,PyFloat_FromDouble(centroid[1]));
-    if ( tdim == 3 ) {
-    PyList_SetItem(tmpPy,2,PyFloat_FromDouble(centroid[2]));
-    }
-    return tmpPy;
-  } else {
-    PyErr_SetString(PyRunTimeErr, "FindCentroid: error on object ");
-    
+  cvSolidModel *geom = self->geom;
+
+  if (geom->GetSpatialDim(&tdim) != SV_OK) {
+      api.error("Unable to get the spatial dimension of the solid model.");
+      return nullptr;
   }
+
+  if ((tdim != 2) && (tdim != 3)) {
+      api.error("The spatial dimension " + std::to_string(tdim) + " is not supported.");
+      return nullptr;
+  }
+
+  if (geom->FindCentroid(centroid) != SV_OK) {
+      api.error("Error finding centroid of the solid model.");
+      return nullptr;
+  }
+
+  PyObject* tmpPy = PyList_New(3);
+  PyList_SetItem(tmpPy,0,PyFloat_FromDouble(centroid[0]));
+  PyList_SetItem(tmpPy,1,PyFloat_FromDouble(centroid[1]));
+
+  if (tdim == 3) {
+      PyList_SetItem(tmpPy,2,PyFloat_FromDouble(centroid[2]));
+  }
+
+  return tmpPy;
 }
 
+//--------------------------------------
+// SolidModel_get_topological_dimension
+//--------------------------------------
+//
+PyDoc_STRVAR(SolidModel_get_topological_dimension_doc,
+" get_topological_dimension()  \n\
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args:                                    \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-// -------------------
-// Solid_GetTopoDimMtd
-// -------------------
-
-static PyObject*  Solid_GetTopoDimMtd( pySolidModel *self ,PyObject* args  )
+static PyObject *  
+SolidModel_get_topological_dimension( pySolidModel *self ,PyObject* args  )
 {
-  int status;
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto geom = self->geom;
   int tdim;
-  cvSolidModel *geom =(self->geom);
-  status = geom->GetTopoDim( &tdim );
-  if ( status == SV_OK ) {
-    return Py_BuildValue("d",tdim);
-  } else {
-    PyErr_SetString(PyRunTimeErr, "GetTopoDim: error on object ");
-    
-  }
-}
 
+  if (geom->GetTopoDim(&tdim) != SV_OK) {
+      api.error("Error getting the topological dimension of the solid model.");
+      return nullptr;
+  }
+
+  return Py_BuildValue("d",tdim);
+}
 
 // ----------------------
 // Solid_GetSpatialDimMtd
 // ----------------------
+PyDoc_STRVAR(SolidModel_get_spatial_dimension_doc,
+" get_spatial_dimension()  \n\
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+");
 
-static PyObject*  Solid_GetSpatialDimMtd( pySolidModel *self ,PyObject* args  )
+static PyObject *  
+SolidModel_get_spatial_dimension(pySolidModel *self ,PyObject* args)
 {
-  int status;
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto geom = self->geom;
   int sdim;
-  cvSolidModel *geom =(self->geom);
-  status = geom->GetSpatialDim( &sdim );
-  if ( status == SV_OK ) {
-    return Py_BuildValue("d",sdim);
-  } else {
-    PyErr_SetString(PyRunTimeErr,"GetSpatialDim: error on object ");
-    
-  }
-}
 
+  if (geom->GetSpatialDim(&sdim) != SV_OK) {
+      api.error("Error getting the spatial dimension of the solid model.");
+      return nullptr;
+  }
+
+  return Py_BuildValue("d",sdim);
+}
 
 // -------------------
 // Solid_ClassifyPtMtd
 // -------------------
+PyDoc_STRVAR(SolidModel_classify_point_doc,
+" classify_point(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-static PyObject*  Solid_ClassifyPtMtd( pySolidModel *self ,PyObject* args  )
+static PyObject *  
+SolidModel_classify_point(pySolidModel *self ,PyObject* args)
 {
-  double x, y, z;
+  auto api = SvPyUtilApiFunction("dd|di", PyRunTimeErr, __func__);
+  double x, y;
+  double z = std::numeric_limits<double>::infinity();
   int v = 0;
   int ans;
   int status;
   int tdim, sdim;
-  cvSolidModel *geom =(self->geom);
-  if(!PyArg_ParseTuple(args,"dd|di",&x,&y,&z,&v))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import two doubles, x, y, or double z or int v");
-    
+
+  if (!PyArg_ParseTuple(args, api.format,&x,&y,&z,&v)) {
+      return api.argsError();
   }
 
-  // Do work of command:
+  auto geom = self->geom;
+  geom->GetTopoDim(&tdim);
+  geom->GetSpatialDim(&sdim);
 
-  geom->GetTopoDim( &tdim );
-  geom->GetSpatialDim( &sdim );
-
-  if (z) {
-    status = geom->ClassifyPt( x, y, z, v, &ans );
-
+  if (!std::isinf(z)) {
+      status = geom->ClassifyPt(x, y, z, v, &ans);
   } else {
-    if ( ( tdim == 2 ) && ( sdim == 2 ) ) {
-      status = geom->ClassifyPt( x, y, v, &ans );
-    } else {
-      PyErr_SetString(PyRunTimeErr, "object must be of topological and spatial dimension 2" );
-      
-    }
+      if ((tdim == 2) && (sdim == 2)) {
+          status = geom->ClassifyPt( x, y, v, &ans);
+      } else {
+          api.error("the solid model must have a topological and spatial dimension of two.");
+          return nullptr;
+      }
   }
 
-  if ( status == SV_OK ) {
-    return Py_BuildValue("d",ans);
-  } else {
-    PyErr_SetString(PyRunTimeErr,"ClassifyPt: error on object " );
-    
+  if (status != SV_OK) {
+      api.error("Error classifying a point for the solid model.");
+      return nullptr;
   }
+
+  return Py_BuildValue("d",ans);
 }
-
 
 // -----------------
 // Solid_DistanceMtd
 // -----------------
+PyDoc_STRVAR(SolidModel_distance_doc,
+" distance(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-static PyObject*  Solid_DistanceMtd( pySolidModel *self ,PyObject* args  )
+static PyObject *  
+SolidModel_distance(pySolidModel *self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("Od", PyRunTimeErr, __func__);
   double pos[3];
   int npos;
   double upperLimit, dist;
   int sdim;
   int status;
   PyObject *posList;
-  cvSolidModel *geom =(self->geom);
-  if(!PyArg_ParseTuple(args,"Od",&posList,&upperLimit))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one list and one double");
-    
+
+  if (!PyArg_ParseTuple(args, api.format, &posList, &upperLimit)) {
+      return api.argsError();
   }
 
-  if (PyList_Size(posList)>3)
-  {
-    PyErr_SetString(PyRunTimeErr,"posList Dimension is greater than 3!");
-    
+  auto geom = self->geom;
+
+  if (PyList_Size(posList) > 3) {
+      api.error("The position argument is not between 1 and 3.");
+      return nullptr;
   }
+
   npos = PyList_Size(posList);
-  for(int i=0;i<npos;i++)
-  {
-    pos[i]=PyFloat_AsDouble(PyList_GetItem(posList,i));
+  for (int i=0;i<npos;i++) {
+      pos[i] = PyFloat_AsDouble(PyList_GetItem(posList,i));
   }
-  // Check validity of given pos:
-  status = geom->GetSpatialDim( &sdim );
-  if ( status != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr,"error retrieving spatial dim of obj " );
-    
+
+  // Check validity of given pos.
+  if (geom->GetSpatialDim(&sdim) != SV_OK ) {
+      api.error("Error getting the spatial dimension of the solid model.");
+      return nullptr;
   }
-  if ( ( sdim == 3 ) && ( npos != 3 ) ) {
-    PyErr_SetString(PyRunTimeErr, "objects in 3 spatial dims require a 3D position");
-    
-  } else if ( ( sdim == 2 ) && ( npos != 2 ) ) {
+
+  if ((sdim == 3) && (npos != 3)) {
+      api.error("The postion argument is not a 3D point. A 3D solid model requires a 3D point.");
+      return nullptr;
+  } else if ((sdim == 2) && (npos != 2)) {
      PyErr_SetString(PyRunTimeErr,"objects in 2 spatial dims require a 2D position");
-    
+      api.error("The postion argument is not a 2D point. A 2D solid model requires a 2D point.");
+      return nullptr;
   }
 
   status = geom->Distance( pos, upperLimit, &dist );
 
-  if ( status == SV_OK ) {
-    return Py_BuildValue("d",dist);
-  } else {
-    PyErr_SetString(PyRunTimeErr, "Distance: error on object ");
-    
+  if (geom->Distance( pos, upperLimit, &dist) != SV_OK) {
+      api.error("Error computing the distance to the solid model.");
+      return nullptr;
   }
+
+  return Py_BuildValue("d",dist);
 }
 
+//----------------------
+// SolidModel_translate 
+//----------------------
+//
+PyDoc_STRVAR(SolidModel_translate_doc,
+" translate(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-// ------------------
-// Solid_TranslateMtd
-// ------------------
-
-static PyObject*  Solid_TranslateMtd( pySolidModel *self ,PyObject* args  )
+static PyObject * 
+SolidModel_translate(pySolidModel *self ,PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("O", PyRunTimeErr, __func__);
   PyObject*  vecList;
   double vec[3];
   int nvec;
   int status;
-  cvSolidModel *geom =(self->geom);
-  if(PyArg_ParseTuple(args,"O",&vecList))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import list");
-    
+
+  if (!PyArg_ParseTuple(args, api.format, &vecList)) {
+      return api.argsError();
   }
 
-  if (PyList_Size(vecList)>3)
-  {
-    PyErr_SetString(PyRunTimeErr,"vecList Dimension is greater than 3!");
-    
+  if (PyList_Size(vecList) > 3) {
+      api.error("The translation vector argument is > 3.");
+      return nullptr;
   }
+
+  // [TODO:DaveP] do a better check here.
   nvec = PyList_Size(vecList);
-  for(int i=0;i<nvec;i++)
-  {
-    vec[i]=PyFloat_AsDouble(PyList_GetItem(vecList,i));
+  for(int i=0;i<nvec;i++) {
+    vec[i] = PyFloat_AsDouble(PyList_GetItem(vecList,i));
   }
 
-  status = geom->Translate( vec, nvec );
+  auto geom = self->geom;
 
-  if ( status != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "Translate: error on object " );
-    
+  if (geom->Translate(vec, nvec) != SV_OK) {
+      api.error("Error translating the solid model.");
+      return nullptr;
   }
 
   Py_INCREF(geom);
@@ -2315,452 +2375,532 @@ static PyObject*  Solid_TranslateMtd( pySolidModel *self ,PyObject* args  )
 // Solid_RotateMtd
 // ---------------
 
-static PyObject*  Solid_RotateMtd( pySolidModel *self ,PyObject* args  )
+PyDoc_STRVAR(SolidModel_rotate_doc,
+" rotate(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject *  
+SolidModel_rotate( pySolidModel *self ,PyObject* args  )
 {
+  auto api = SvPyUtilApiFunction("Od", PyRunTimeErr, __func__);
   PyObject*  axisList;
-  double axis[3];
-  int naxis;
   double rad;
-  int status;
-  cvSolidModel *geom =(self->geom);
-  if(!PyArg_ParseTuple(args,"Od",&axisList,&rad))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one list and one double");
-    
+
+  if (!PyArg_ParseTuple(args, api.format, &axisList, &rad)) {
+      return api.argsError();
   }
-  naxis = PyList_Size(axisList);
-  if (naxis>3)
-  {
-    PyErr_SetString(PyRunTimeErr,"posList Dimension is greater than 3!");
-    
+  auto naxis = PyList_Size(axisList);
+  if (naxis > 3) {
+      api.error("The rotation axis argument is > 3.");
+      return nullptr;
   }
 
-  for(int i=0;i<naxis;i++)
-  {
+  double axis[3];
+  for(int i=0;i<naxis;i++) {
     axis[i]=PyFloat_AsDouble(PyList_GetItem(axisList,i));
   }
-    status = geom->Rotate( axis, naxis, rad );
 
-  if ( status != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "Rotate: error on object ");
-    
+  auto geom = self->geom;
+
+  if (geom->Rotate(axis, naxis, rad) != SV_OK) {
+      api.error("Error rotating the solid model.");
+      return nullptr;
   }
 
   return SV_PYTHON_OK;
 }
 
 
-// --------------
-// Solid_ScaleMtd
-// --------------
+//------------------
+// SolidModel_scale
+//------------------
+//
+PyDoc_STRVAR(SolidModel_scale_doc,
+" scale(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-static PyObject*  Solid_ScaleMtd( pySolidModel *self ,PyObject* args  )
+static PyObject *  
+SolidModel_scale(pySolidModel *self ,PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("d", PyRunTimeErr, __func__);
   double factor;
-  int status;
-  cvSolidModel *geom =(self->geom);
-  if(!PyArg_ParseTuple(args,"d",&factor))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one double");
-    
+
+  if (!PyArg_ParseTuple(args, api.format, &factor)) {
+      return api.argsError();
   }
 
-    // Do work of command:
+  auto geom = self->geom;
 
-  status = geom->Scale( factor );
-
-  if ( status != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "Scale: error on object " );
-    
+  if (geom->Scale(factor) != SV_OK) {
+      api.error("Error scaling the solid model.");
+      return nullptr;
   }
 
   return SV_PYTHON_OK;
 }
 
-
-// ----------------
+//----------------
 // Solid_ReflectMtd
-// ----------------
+//----------------
+//
+PyDoc_STRVAR(SolidModel_reflect_doc,
+" reflect(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-static PyObject* Solid_ReflectMtd( pySolidModel *self ,PyObject* args  )
+static PyObject * 
+SolidModel_reflect(pySolidModel *self ,PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("OO", PyRunTimeErr, __func__);
   PyObject* posList;
   PyObject* nrmList;
-  double pos[3];
-  double nrm[3];
-  int npos=0;
-  int nnrm;
   int status;
-  cvSolidModel *geom =(self->geom);
-  if(!PyArg_ParseTuple(args,"OO",&posList,&nrmList))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import two lists");
-    
+
+  if (!PyArg_ParseTuple(args, api.format, &posList, &nrmList)) {
+      return api.argsError();
   }
 
-  if (PyList_Size(posList)>3||PyList_Size(nrmList)>3)
-  {
-    PyErr_SetString(PyRunTimeErr,"List Dimension is greater than 3!");
-    
+  // [TODO:DaveP] do more checking here.
+  //   Can posList be < 3?
+  //
+  if (PyList_Size(posList) > 3) {
+      api.error("The position argument is > 3.");
+      return nullptr;
   }
 
-  for(int i=0;i<PyList_Size(posList);i++)
-  {
+  if (PyList_Size(nrmList) > 3) {
+      api.error("The normal argument is > 3.");
+      return nullptr;
+  }
+
+  double pos[3];
+  for(int i=0;i<PyList_Size(posList);i++) {
     pos[i]=PyFloat_AsDouble(PyList_GetItem(posList,i));
   }
-  for(int i=0;i<PyList_Size(nrmList);i++)
-  {
+
+  double nrm[3];
+  for(int i=0;i<PyList_Size(nrmList);i++) {
     nrm[i]=PyFloat_AsDouble(PyList_GetItem(nrmList,i));
   }
 
-  // Do work of command:
+  auto geom = self->geom;
 
-  status = geom->Reflect( pos, nrm );
-
-  if ( status != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "Reflect: error on object ");
-    
+  if (geom->Reflect(pos, nrm) != SV_OK) {
+      api.error("Error reflecting the solid model.");
+      return nullptr;
   }
 
   return SV_PYTHON_OK;
 }
 
-
-// -----------------
+//-----------------
 // Solid_Apply4x4Mtd
-// -----------------
+//-----------------
+//
+PyDoc_STRVAR(SolidModel_apply4x4_doc,
+" apply4x4(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-static PyObject*  Solid_Apply4x4Mtd( pySolidModel *self ,PyObject* args  )
+static PyObject *  
+SolidModel_apply4x4(pySolidModel *self ,PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("O", PyRunTimeErr, __func__);
   PyObject* matList;
   PyObject* rowList;
+
+  if (!PyArg_ParseTuple(args, api.format, &matList)) {
+      return api.argsError();
+  }
+
+  if (PyList_Size(matList) != 4) {
+      api.error("The matrix argument is not a 4x4 matrix.");
+      return nullptr;
+  }
+
+  // Extract the 4x4 matrix.
+  //
   double mat[4][4];
-  int n, i;
-  int status;
-  cvSolidModel *geom =(self->geom);
-  if(!PyArg_ParseTuple(args,"O",&matList))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import matList");
-    
+  for (int i=0;i<PyList_Size(matList);i++) {
+      rowList = PyList_GetItem(matList,i);
+      if (PyList_Size(rowList) != 4) {
+          api.error("The matrix argument is not a 4x4 matrix.");
+          return nullptr;
+      }
+      for (int j=0;j<PyList_Size(rowList);j++) {
+          mat[i][j] = PyFloat_AsDouble(PyList_GetItem(rowList,j));
+      }
   }
 
-  if (PyList_Size(matList)!=4)
-  {
-    PyErr_SetString(PyRunTimeErr,"Matrix Row  Dimension is not  4!");
-    
-  }
-
-  for(int i=0;i<PyList_Size(matList);i++)
-  {
-    rowList=PyList_GetItem(matList,i);
-    if (PyList_Size(rowList)!=4)
-    {
-      PyErr_SetString(PyRunTimeErr,"Matrix Column Dimension is not  4!");
-      
-    }
-    for(int j=0;j<PyList_Size(rowList);j++)
-    mat[i][j]=PyFloat_AsDouble(PyList_GetItem(rowList,j));
-  }
-
-  // Do work of command:
-
-  status = geom->Apply4x4( mat );
-
-  if ( status != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "Apply4x4: error on object"  );
-    
+  auto geom = self->geom;
+  if (geom->Apply4x4(mat) != SV_OK) {
+      api.error("Error applyonig a 4x4 matrix to the solid model.");
+      return nullptr;
   }
 
   return SV_PYTHON_OK;
 }
 
+//------------------
+// SolidModel_print
+//------------------
+//
+PyDoc_STRVAR(SolidModel_print_doc,
+" print(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+");
 
-// --------------
-// Solid_PrintMtd
-// --------------
-
-static PyObject*  Solid_PrintMtd( pySolidModel *self ,PyObject* args  )
+static PyObject *  
+SolidModel_print(pySolidModel *self ,PyObject* args)
 {
-
-  // Do work of command:
-  cvSolidModel *geom =(self->geom);
+  auto geom = self->geom;
   geom->Print();
   return SV_PYTHON_OK;
 }
 
-
 // --------------
 // Solid_CheckMtd
 // --------------
+PyDoc_STRVAR(SolidModel_check_doc,
+" check()  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+");
 
-static PyObject*  Solid_CheckMtd( pySolidModel *self ,PyObject* args  )
+static PyObject *  
+SolidModel_check(pySolidModel *self ,PyObject* args)
 {
+  auto geom = self->geom;
   int nerr;
-
-  // Do work of command:
-  cvSolidModel *geom =(self->geom);
   geom->Check( &nerr );
   return Py_BuildValue("i",nerr);
 }
 
+//-------------------------
+// SolidModel_write_native
+//-------------------------
+//
+PyDoc_STRVAR(SolidModel_write_native_doc,
+" write_native(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-// --------------------
-// Solid_WriteNativeMtd
-// --------------------
-
-// $solid WriteNative -file foo.gm
-
-static PyObject* Solid_WriteNativeMtd( pySolidModel *self ,PyObject* args  )
+static PyObject * 
+SolidModel_write_native(pySolidModel *self ,PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("s|i", PyRunTimeErr, __func__);
   char *fn;
   int status;
   int file_version = 0;
-  cvSolidModel *geom =(self->geom);
-  if(!PyArg_ParseTuple(args,"s|i",&fn,&file_version))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import char filename or int fileversion");
-    
+
+  if (!PyArg_ParseTuple(args, api.format, &fn, &file_version)) {
+      return api.argsError();
   }
 
-  // Do work of command:
-  status = geom->WriteNative( file_version , fn );
-  if ( status != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "error writing object to file" );
-    
-  } else {
-
-    Py_INCREF(geom);
-    self->geom=geom;
-    Py_DECREF(geom);
-    return SV_PYTHON_OK;
-  }
-}
-
-
-// -------------------------
-// Solid_WriteVtkPolyDataMtd
-// -------------------------
-
-static PyObject*  Solid_WriteVtkPolyDataMtd( pySolidModel *self ,
-				     PyObject* args  )
-{
-  char *fn;
-  int status;
-  cvSolidModel *geom =(self->geom);
-  if(!PyArg_ParseTuple(args,"s",&fn))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import char filename");
-    
+  auto geom = self->geom;
+  if (geom->WriteNative(file_version, fn) != SV_OK) {
+      api.error("Error writing the solid model to the file '" + std::string(fn) + "' using version '" + std::to_string(file_version)+"'."); 
+      return nullptr;
   }
 
-    // Do work of command:
-  status = geom->WriteVtkPolyData( fn );
-  if ( status != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "error writing object to file" );
-    
-  } else {
-    return SV_PYTHON_OK;
-  }
-}
-
-
-// ---------------------
-// Solid_WriteGeomSimMtd
-// ---------------------
-
-static PyObject*  Solid_WriteGeomSimMtd( pySolidModel *self ,
-				     PyObject* args  )
-{
-  char *fn;
-  int status;
-  cvSolidModel *geom =(self->geom);
-  if(!PyArg_ParseTuple(args,"s",&fn))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import char filename");
-    
-  }
-   // Do work of command:
-  status = geom->WriteGeomSim( fn );
-  if ( status != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "error writing object to file");
-    
-  } else {
-    return SV_PYTHON_OK;
-  }
-}
-
-
-// --------------------
-// Solid_GetPolyDataMtd
-// --------------------
-
-static PyObject*  Solid_GetPolyDataMtd( pySolidModel *self ,PyObject* args  )
-{
-  char *resultName;
-  cvPolyData *pd;
-  double max_dist = -1.0;
-  int useMaxDist = 0;
-  if(!PyArg_ParseTuple(args,"s|d",&resultName,&max_dist))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import char resultName or int max_dist");
-    
-  }
-
-  // Do work of command:
-
-  if (max_dist > 0) {
-      useMaxDist = 1;
-  }
-
-  // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( resultName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    
-  }
-
-  cvSolidModel *geom =(self->geom);
-  if (geom==NULL)
-  {
-      PyErr_SetString(PyRunTimeErr, "Solid object it empty");
-      
-  }
-  // Get the cvPolyData:
-  pd = geom->GetPolyData(useMaxDist, max_dist);
-  //Py_DECREF(geom);
-  if ( pd == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "error getting cvPolyData" );
-    
-  }
-
-  // Register the result:
-  if ( !( gRepository->Register( resultName, pd ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository" );
-    delete pd;
-    
-  }
   Py_INCREF(geom);
   self->geom=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
 
-// ----------------------
-// Solid_SetVtkPolyDataMtd
-// ----------------------
+//-------------------------------
+// SolidModel_write_vtk_polydata
+//-------------------------------
+//
+PyDoc_STRVAR(SolidModel_write_vtk_polydata_doc,
+" write_vtk_polydata(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-static PyObject* Solid_SetVtkPolyDataMtd( pySolidModel* self, PyObject* args)
+static PyObject *  
+SolidModel_write_vtk_polydata(pySolidModel *self, PyObject* args)
 {
-  cvSolidModel *geom = (self->geom);
-  char *objName;
-  RepositoryDataT type;
-  cvRepositoryData *obj;
-  vtkPolyData *pd;
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  char *fn;
 
-  if(!PyArg_ParseTuple(args,"s",&objName))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one string");
+  if (!PyArg_ParseTuple(args, api.format, &fn)) {
+      return api.argsError();
+  }
+
+  auto geom = self->geom;
+  if (geom->WriteVtkPolyData(fn) != SV_OK) {
+      api.error("Error writing the solid model to the file '" + std::string(fn) + "'.");
+      return nullptr;
+  }
     
+  return SV_PYTHON_OK;
+}
+
+//---------------------------
+// SolidModel_write_geom_sim
+//---------------------------
+//
+PyDoc_STRVAR(SolidModel_write_geom_sim_doc,
+" write_geom_sim(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject *  
+SolidModel_write_geom_sim(pySolidModel *self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  char *fn;
+
+  if (!PyArg_ParseTuple(args, api.format, &fn)) {
+      return api.argsError();
   }
 
-
-  // Do work of command:
-  type = gRepository->GetType( objName );
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr, "object must be of type cvPolyData");
-    
-  }
-
-  obj = gRepository->GetObject( objName );
-  switch (type) {
-  case POLY_DATA_T:
-    pd = ((cvPolyData *)obj)->GetVtkPolyData();
-    break;
-  default:
-    PyErr_SetString(PyRunTimeErr, "error in SetVtkPolyData" );
-    
-    break;
-  }
-  // set the vtkPolyData:
-  if(!geom->SetVtkPolyDataObject(pd))
-  {
-    PyErr_SetString(PyRunTimeErr,"error set vtk polydata object.");
-  }
+  auto geom = self->geom;
+  if (geom->WriteGeomSim(fn) != SV_OK) {
+      api.error("Error writing the solid model to the file '" + std::string(fn) + "'.");
+      return nullptr;
+  } 
 
   return SV_PYTHON_OK;
 }
 
+//-------------------------
+// SolidModel_get_polydata
+//-------------------------
+//
+PyDoc_STRVAR(SolidModel_get_polydata_doc,
+" get_polydata(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-// Solid_GetFacePolyDataMtd
-// ------------------------
-
-static PyObject* Solid_GetFacePolyDataMtd( pySolidModel* self, PyObject* args)
+static PyObject *  
+SolidModel_get_polydata(pySolidModel *self, PyObject* args)
 {
-  cvSolidModel *geom = (self->geom);
+  auto api = SvPyUtilApiFunction("s|d", PyRunTimeErr, __func__);
   char *resultName;
-  cvPolyData *pd;
-  int faceid;
   double max_dist = -1.0;
-  int useMaxDist = 0;
 
-  if(!PyArg_ParseTuple(args,"si|d",&resultName,&faceid,&max_dist))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one string, one int and one double");
-    
+  if (!PyArg_ParseTuple(args, api.format, &resultName, &max_dist)) {
+      return api.argsError();
   }
 
-  // Do work of command:
+  auto geom = CheckGeometry(api, self);
+  if (geom == nullptr) {
+      return nullptr;
+  }
 
+  int useMaxDist = 0;
   if (max_dist > 0) {
       useMaxDist = 1;
   }
 
-  // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( resultName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    
+  // Check that the repository object does not already exist.
+  if (gRepository->Exists(resultName)) {
+      api.error("The repository object '" + std::string(resultName) + "' already exists.");
+      return nullptr;
   }
 
   // Get the cvPolyData:
-  pd = geom->GetFacePolyData(faceid,useMaxDist,max_dist);
-  if ( pd == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "error getting cvPolyData for ");
-    
+  auto pd = geom->GetPolyData(useMaxDist, max_dist);
+  if (pd == NULL) {
+      api.error("Could not get polydata for the solid model.");
+      return nullptr;
   }
 
   // Register the result:
-  if ( !( gRepository->Register( resultName, pd ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
-    delete pd;
-    
+  if (!gRepository->Register(resultName, pd)) {
+      delete pd;
+      api.error("Could not add the polydata to the repository.");
+      return nullptr;
+  }
+
+  Py_INCREF(geom);
+  self->geom=geom;
+  Py_DECREF(geom);
+  return SV_PYTHON_OK;
+}
+
+//----------------------
+// Solid_SetVtkPolyDataMtd
+//----------------------
+//
+PyDoc_STRVAR(SolidModel_set_vtk_polydata_doc,
+" set_vtk_polydata(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject * 
+SolidModel_set_vtk_polydata(pySolidModel* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  char *objName;
+
+  if (!PyArg_ParseTuple(args, api.format, &objName)) {
+      return api.argsError();
+  }
+
+  auto geom = CheckGeometry(api, self);
+  if (geom == nullptr) {
+      return nullptr;
+  }
+
+  auto obj = gRepository->GetObject(objName);
+  if (obj == nullptr) {
+      api.error("The solid model '"+std::string(objName)+"' is not in the repository.");
+      return nullptr;
+  }
+
+  // Do work of command:
+  auto type = gRepository->GetType( objName );
+  if (type != POLY_DATA_T) {
+      api.error("The solid model '" + std::string(objName)+"' is not of type polydata.");
+      return nullptr;
+  }
+
+  auto pd = ((cvPolyData *)obj)->GetVtkPolyData();
+  if (!geom->SetVtkPolyDataObject(pd)) {
+      api.error("Error setting vtk polydata.");
+      return nullptr;
   }
 
   return SV_PYTHON_OK;
 }
 
 
-// ----------------------
-// Solid_GetFaceNormalMtd
-// ----------------------
+//------------------------------
+// SolidModel_get_face_polydata
+//------------------------------
+//
+PyDoc_STRVAR(SolidModel_get_face_polydata_doc,
+" set_vtk_polydata(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-static PyObject* Solid_GetFaceNormalMtd( pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_get_face_polydata(pySolidModel* self, PyObject* args)
 {
-  cvSolidModel *geom = (self->geom);
+  auto api = SvPyUtilApiFunction("si|d", PyRunTimeErr, __func__);
+  char *resultName;
+  int faceid;
+  double max_dist = -1.0;
+
+  if(!PyArg_ParseTuple(args,api.format,&resultName,&faceid,&max_dist)) {
+      return api.argsError();
+  }
+
+  auto geom = CheckGeometry(api, self);
+  if (geom == nullptr) {
+      return nullptr;
+  }
+
+  int useMaxDist = 0;
+  if (max_dist > 0) {
+      useMaxDist = 1;
+  }
+
+  // Check that the new Contour object does not already exist.
+  if (gRepository->Exists(resultName)) {
+      api.error("The solid model '" + std::string(resultName) + "' is already in the repository.");
+      return nullptr;
+  }
+
+  // Get the cvPolyData:
+  auto pd = geom->GetFacePolyData(faceid,useMaxDist,max_dist);
+  if (pd == NULL) {
+      api.error("Error getting polydata for the solid model face ID '" + std::to_string(faceid) + "'.");
+      return nullptr;
+  }
+
+  // Register the result:
+  if (!gRepository->Register(resultName, pd)) {
+    delete pd;
+    api.error("Error adding the polydata '" + std::string(resultName) + "' to the repository.");
+    return nullptr;
+  }
+
+  return SV_PYTHON_OK;
+}
+
+//----------------------------
+// SolidModel_get_face_normal 
+//---------------------------
+//
+PyDoc_STRVAR(SolidModel_get_face_normal_doc,
+" get_face_normal(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject * 
+SolidModel_get_face_normal(pySolidModel* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("idd", PyRunTimeErr, __func__);
   int faceid;
   double u,v;
 
-  if(!PyArg_ParseTuple(args,"idd",&faceid,&u,&v))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one int and two doubles");
-    
+  if (!PyArg_ParseTuple(args,api.format,&faceid,&u,&v)) {
+      return api.argsError();
   }
 
-  // Do work of command:
+  auto geom = CheckGeometry(api, self);
+  if (geom == nullptr) {
+      return nullptr;
+  }
 
   double normal[3];
 
-  if ( geom->GetFaceNormal(faceid,u,v,normal) == SV_ERROR ) {
-    PyErr_SetString(PyRunTimeErr, "error getting Normal for face. ");
-    
+  if (geom->GetFaceNormal(faceid,u,v,normal) == SV_ERROR ) {
+      api.error("Error getting the face normal for the solid model face ID '" + std::to_string(faceid) + "'.");
+      return nullptr;
   }
 
   return Py_BuildValue("ddd",normal[0],normal[1],normal[2]);
@@ -2771,39 +2911,48 @@ static PyObject* Solid_GetFaceNormalMtd( pySolidModel* self, PyObject* args)
 // Solid_GetDiscontinuitiesMtd
 // ---------------------------
 
-static PyObject* Solid_GetDiscontinuitiesMtd( pySolidModel* self,
-					PyObject* args)
+PyDoc_STRVAR(SolidModel_get_discontinuities_doc,
+" get_discontinuities(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject * 
+SolidModel_get_discontinuities(pySolidModel* self, PyObject* args)
 {
-  cvSolidModel *geom = (self->geom);
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *resultName;
-  cvPolyData *pd;
 
-  if(!PyArg_ParseTuple(args,"s",&resultName))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one string");
-    
+  if(!PyArg_ParseTuple(args,api.format,&resultName)) {
+      return api.argsError();
   }
 
-  // Do work of command:
-
-  // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( resultName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    
+  auto geom = CheckGeometry(api, self);
+  if (geom == nullptr) {
+      return nullptr;
   }
 
-  // Get the cvPolyData:
-  pd = geom->GetDiscontinuities();
-  if ( pd == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "error getting discontinuities");
-    
+  // Check that the new Contour object does not already exist.
+  if (gRepository->Exists(resultName)) {
+      api.error("The solid model '" + std::string(resultName) + "' is already in the repository.");
+      return nullptr;
+  }
+
+  // Get the discontinuities as polydata.
+  auto pd = geom->GetDiscontinuities();
+  if (pd == NULL) {
+      api.error("Error getting discontinuities for the solid model.");
+      return nullptr;
   }
 
   // Register the result:
-  if ( !( gRepository->Register( resultName, pd ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
-    delete pd;
-    
+  if (!gRepository->Register(resultName, pd)) {
+      delete pd;
+      api.error("Error adding the discontinuities polydata '" + std::string(resultName) + "' to the repository.");
+      return nullptr;
   }
 
   return SV_PYTHON_OK;
@@ -2814,8 +2963,17 @@ static PyObject* Solid_GetDiscontinuitiesMtd( pySolidModel* self,
 // Solid_GetAxialIsoparametricCurveMtd
 // -----------------------------------
 
-static pySolidModel* Solid_GetAxialIsoparametricCurveMtd( pySolidModel* self,
-						PyObject* args)
+PyDoc_STRVAR(SolidModel_get_discontinuities_doc,
+" get_discontinuities(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static pySolidModel * 
+SolidModel_get_axial_isoparametric_curve(pySolidModel* self, PyObject* args)
 {
   cvSolidModel *geom = (self->geom);
   char *resultName;
@@ -2866,11 +3024,13 @@ static pySolidModel* Solid_GetAxialIsoparametricCurveMtd( pySolidModel* self,
   Py_DECREF(curve);
   return newCurve;
 }
-// ------------------
-// Solid_GetKernelMtd
-// ------------------
 
-static PyObject* Solid_GetKernelMtd( pySolidModel* self, PyObject* args)
+//-------------------------
+// SolidModel_GetKernel
+//-------------------------
+//
+static PyObject * 
+Solid_GetKernelMtd( pySolidModel* self, PyObject* args)
 {
   cvSolidModel *geom = (self->geom);
   SolidModel_KernelT kernelType;
@@ -3371,11 +3531,152 @@ static PyMemberDef pySolidModel_members[]={
 };
 */
 
-//-------------------------------------------------
-// Define API function names for SolidModel object
-//-------------------------------------------------
+//------------------------------------------------
+// Define API function names for SolidModel class 
+//------------------------------------------------
 
 static PyMethodDef pySolidModel_methods[] = {
+
+  { "Apply4x4",
+      (PyCFunction)SolidModel_apply4x4,
+      METH_VARARGS,
+      SolidModel_apply4x4_doc
+  },
+
+  { "check", 
+      (PyCFunction)SolidModel_check,
+      METH_VARARGS,
+      SolidModel_check_doc
+  },
+
+  { "classify_point",
+      (PyCFunction)SolidModel_classify_point,
+      METH_VARARGS,   
+      SolidModel_classify_point_doc
+  },
+
+  { "distance",
+      (PyCFunction)SolidModel_distance,
+      METH_VARARGS,
+      SolidModel_distance_doc
+   },
+
+  { "find_centroid",
+      (PyCFunction)SolidModel_find_centroid,
+      METH_VARARGS,
+      SolidModel_find_centroid_doc
+   },
+
+  { "find_extent", 
+      (PyCFunction)SolidModel_find_extent,
+      METH_VARARGS,
+      SolidModel_find_extent_doc
+   },
+
+  { "GetAxialIsoparametricCurve",
+      (PyCFunction)Solid_GetAxialIsoparametricCurveMtd,
+      METH_VARARGS,
+      NULL
+  },
+
+  { "get_class_name", 
+      (PyCFunction)SolidModel_get_class_name,
+      METH_NOARGS,
+      SolidModel_get_class_name_doc
+  },
+
+  { "get_discontinuities",
+      (PyCFunction)SolidModel_get_discontinuities,
+      METH_VARARGS,
+      SolidModel_get_discontinuities_doc
+  },
+
+  { "get_face_normal",
+      (PyCFunction)SolidModel_get_face_normal,
+      METH_VARARGS,     
+      SolidModel_get_face_normal_doc
+  },
+
+  { "get_face_polydata",
+      (PyCFunction)SolidModel_get_face_polydata,
+      METH_VARARGS,
+      SolidModel_get_face_polydata_doc
+  },
+
+  { "get_polydata",
+      (PyCFunction)SolidModel_get_polydata,
+      METH_VARARGS,
+      SolidModel_get_polydata_doc
+  },
+
+  { "get_spatial_dimension",
+      (PyCFunction)SolidModel_get_spatial_dimension,
+      METH_VARARGS,
+      SolidModel_get_spatial_dimension_doc
+  },
+
+  { "get_topological_dimension",
+      (PyCFunction)SolidModel_get_topological_dimension,
+      METH_VARARGS,     
+      SolidModel_get_topological_dimension_doc
+   },
+
+  { "print", 
+      (PyCFunction)SolidModel_print,
+      METH_VARARGS,
+      SolidModel_print_doc
+   },
+
+  { "reflect",
+      (PyCFunction)SolidModel_reflect,
+      METH_VARARGS,
+      SolidModel_reflect_doc
+  },
+
+  { "rotate",
+      (PyCFunction)SolidModel_rotate,
+      METH_VARARGS,
+      SolidModel_rotate_doc
+  },
+
+  { "scale",
+      (PyCFunction)SolidModel_scale,
+      METH_VARARGS,
+      SolidModel_scale_doc
+  },
+
+  { "set_vtk_polydata",
+      (PyCFunction)SolidModel_set_vtk_polydata,
+      METH_VARARGS,
+      SolidModel_set_vtk_polydata_doc
+  },
+
+  { "translate", 
+      (PyCFunction)SolidModel_translate,
+      METH_VARARGS,
+      SolidModel_translate_doc
+  },
+
+  { "write_geom_sim", 
+      (PyCFunction)SolidModel_write_geom_sim,
+      METH_VARARGS,
+      SolidModel_write_geom_sim_doc
+   },
+
+  { "write_native",
+      (PyCFunction)SolidModel_write_native,
+      METH_VARARGS,
+      SolidModel_write_native_doc
+   },
+
+  { "write_vtk_polydata",
+      (PyCFunction)SolidModel_write_vtk_polydata,
+      METH_VARARGS,
+      SolidModel_write_vtk_polydata_doc
+   },
+
+
+// ============================================== //
 
   { "GetModel", 
       (PyCFunction)Solid_GetModelCmd, 
@@ -3385,8 +3686,12 @@ static PyMethodDef pySolidModel_methods[] = {
 
   { "Poly",(PyCFunction) Solid_PolyCmd,
 		     METH_VARARGS,NULL},
-  { "PolyPts", (PyCFunction)Solid_PolyPtsCmd,
-		     METH_VARARGS,NULL},
+  { "polygon_points", 
+      (PyCFunction)Solid_polygon_points,
+      METH_VARARGS,
+      Solid_polygon_points_doc
+  },
+
   { "Circle", (PyCFunction)Solid_CircleCmd,
 		     METH_VARARGS,NULL},
   { "Ellipse", (PyCFunction)Solid_EllipseCmd,
@@ -3433,22 +3738,9 @@ static PyMethodDef pySolidModel_methods[] = {
 		     METH_VARARGS,NULL},
   { "Copy", (PyCFunction)Solid_CopyCmd,
 		     METH_VARARGS,NULL},
-  { "Methods", (PyCFunction)Solid_ListMethodsCmd,
-		     METH_NOARGS,NULL},
   { "NewObject", (PyCFunction)Solid_NewObjectCmd,
 		     METH_VARARGS,NULL},
-  { "GetClassName", (PyCFunction)Solid_GetClassNameMtd,
-		     METH_NOARGS,NULL},
-  { "FindExtent", (PyCFunction)Solid_FindExtentMtd,
-		     METH_VARARGS,NULL},
-  { "FindCentroid",(PyCFunction)Solid_FindCentroidMtd,
-		     METH_VARARGS,NULL},
-  { "GetTopoDim",(PyCFunction)Solid_GetTopoDimMtd,
-		     METH_VARARGS,NULL},
-  { "GetSpatialDim",(PyCFunction)Solid_GetSpatialDimMtd,
-		     METH_VARARGS,NULL},
-  { "ClassifyPt",(PyCFunction)Solid_ClassifyPtMtd,
-		     METH_VARARGS,NULL},
+
   { "DeleteFaces",(PyCFunction)Solid_DeleteFacesMtd,
 		     METH_VARARGS,NULL},
   { "DeleteRegion",(PyCFunction)Solid_DeleteRegionMtd,
@@ -3459,40 +3751,24 @@ static PyMethodDef pySolidModel_methods[] = {
 		     METH_VARARGS,NULL},
   { "RemeshFace",(PyCFunction)Solid_RemeshFaceMtd,
 		     METH_VARARGS,NULL},
-  { "Distance",(PyCFunction)Solid_DistanceMtd,
-		     METH_VARARGS,NULL},
-  { "GetFaceNormal",(PyCFunction)Solid_GetFaceNormalMtd,
-		     METH_VARARGS,NULL},
-  { "Translate",(PyCFunction)Solid_TranslateMtd,
-		     METH_VARARGS,NULL},
-  { "Rotate",(PyCFunction)Solid_RotateMtd,
-		     METH_VARARGS,NULL},
-  { "Scale",(PyCFunction)Solid_ScaleMtd,
-		     METH_VARARGS,NULL},
-  { "Reflect",(PyCFunction)Solid_ReflectMtd,
-		     METH_VARARGS,NULL},
-  { "Apply4x4",(PyCFunction)Solid_Apply4x4Mtd,
-		     METH_VARARGS,NULL},
-  { "Print", (PyCFunction)Solid_PrintMtd,
-		     METH_VARARGS,NULL},
-  { "Check", (PyCFunction)Solid_CheckMtd,
-		     METH_VARARGS,NULL},
-  { "WriteNative",(PyCFunction)Solid_WriteNativeMtd,
-		     METH_VARARGS,NULL},
-  { "WriteVtkPolyData",(PyCFunction)Solid_WriteVtkPolyDataMtd,
-		     METH_VARARGS,NULL},
-  { "WriteGeomSim", (PyCFunction)Solid_WriteGeomSimMtd,
-		     METH_VARARGS,NULL},
-  { "GetFacePolyData",(PyCFunction)Solid_GetFacePolyDataMtd,
-		     METH_VARARGS,NULL},
-  { "GetPolyData",(PyCFunction)Solid_GetPolyDataMtd,
-		     METH_VARARGS,NULL},
-  { "SetVtkPolyData",(PyCFunction)Solid_SetVtkPolyDataMtd,
-		     METH_VARARGS,NULL},
-  { "GetDiscontinuities",(PyCFunction)Solid_GetDiscontinuitiesMtd,
-		     METH_VARARGS,NULL},
-  { "GetAxialIsoparametricCurve",(PyCFunction)Solid_GetAxialIsoparametricCurveMtd,
-		     METH_VARARGS,NULL},
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   { "GetKernel",(PyCFunction)Solid_GetKernelMtd,
 		     METH_VARARGS,NULL},
   { "GetLabelKeys",(PyCFunction)Solid_GetLabelKeysMtd,
@@ -3599,11 +3875,25 @@ pySolidModel * createSolidModelType()
 // Methods for the 'solid' module.
 //
 static PyMethodDef pySolid_methods[] = {
-  {"Registrars", (PyCFunction)Solid_RegistrarsListCmd,METH_NOARGS,NULL},
-  { "SetKernel", (PyCFunction)Solid_SetKernelCmd,
-		     METH_VARARGS,NULL},
-  { "GetKernel", (PyCFunction)Solid_GetKernelCmd,
-		     METH_NOARGS,NULL},
+
+  {"list_registrars", 
+      (PyCFunction)Solid_list_registrars,
+      METH_NOARGS,
+      Solid_list_registrars_doc
+  },
+
+  { "set_kernel", 
+      (PyCFunction)Solid_set_kernel,
+      METH_VARARGS, 
+      NULL
+  },
+
+  { "get_kernel", 
+      (PyCFunction)Solid_get_kernel,
+      METH_NOARGS,
+      Solid_get_kernel_doc
+  },
+
   {NULL, NULL}
 };
 

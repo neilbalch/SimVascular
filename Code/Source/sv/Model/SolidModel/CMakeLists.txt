@@ -60,7 +60,7 @@ endif()
 
 target_link_libraries(${lib}
 	${VTK_LIBRARIES} ${TCL_LIBRARY} ${TK_LIBRARY}
-	${SV_LIB_GLOBALS_NAME} ${SV_LIB_UTILS_NAME} ${SV_LIB_REPOSITORY_NAME}
+	${SV_LIB_GLOBALS_NAME} ${SV_LIB_UTILS_NAME} ${SV_LIB_REPOSITORY_NAME} 
   )
 
 # Set up for exports

@@ -49,7 +49,7 @@
 #include "sv_MeshObject.h"
 #include "sv_mesh_init_py.h"
 #include "vtkPythonUtil.h"
-#include "sv3_PyUtil.h"
+#include "sv_PyUtils.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -69,10 +69,8 @@
 #include <iostream>
 #include "sv2_globals.h"
 
-
 // Exception type used by PyErr_SetString() to set the for the error indicator.
 static PyObject * PyRunTimeErr;
-
 
 static void MeshPrintMethods();
 
@@ -182,7 +180,7 @@ CheckMeshLoadUpdate(cvMeshObject *geom, std::string& msg)
 // in a single place. 
 //
 static cvMeshObject *
-CheckGeometry(Sv3PyUtilApiFunction& api, pyMeshObject *self)
+CheckGeometry(SvPyUtilApiFunction& api, pyMeshObject *self)
 {
   auto geom = self->geom;
   if (geom == NULL) {
@@ -215,7 +213,7 @@ PyDoc_STRVAR(Mesh_new_object_doc,
 static PyObject * 
 Mesh_new_object(pyMeshObject* self, PyObject* args)
 {
-  auto api = Sv3PyUtilApiFunction("s|ss", PyRunTimeErr, __func__); 
+  auto api = SvPyUtilApiFunction("s|ss", PyRunTimeErr, __func__); 
 
   char *resultName;
   char *meshFileName = NULL;
@@ -270,7 +268,7 @@ PyDoc_STRVAR(Mesh_get_mesh_doc,
 static PyObject * 
 Mesh_get_mesh(pyMeshObject* self, PyObject* args)
 {
-  auto api = Sv3PyUtilApiFunction("s", PyRunTimeErr, __func__); 
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__); 
   char *objName = NULL;
   if (!PyArg_ParseTuple(args, api.format, &objName)) {
       return api.argsError();
@@ -318,7 +316,7 @@ PyDoc_STRVAR(Mesh_set_kernel_doc,
 static PyObject * 
 Mesh_set_kernel(PyObject* self, PyObject* args)
 {
-  auto api = Sv3PyUtilApiFunction("s", PyRunTimeErr, __func__); 
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__); 
   char *kernelName;
   if(!PyArg_ParseTuple(args, api.format, &kernelName)) {
       return api.argsError();
@@ -357,7 +355,7 @@ PyDoc_STRVAR(Mesh_get_kernel_doc,
 static PyObject *  
 Mesh_get_kernel(pyMeshObject* self, PyObject* args)
 {
-  auto api = Sv3PyUtilApiFunction("s", PyRunTimeErr, __func__); 
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__); 
 
   std::string emsg;
   auto geom = self->geom;
@@ -391,7 +389,7 @@ PyDoc_STRVAR(Mesh_print_doc,
 static PyObject * 
 Mesh_print(pyMeshObject* self, PyObject* args)
 {
-  auto api = Sv3PyUtilApiFunction("s", PyRunTimeErr, __func__); 
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__); 
 
   std::string emsg;
   auto geom = self->geom;
@@ -424,7 +422,7 @@ PyDoc_STRVAR(Mesh_update_doc,
 static PyObject * 
 Mesh_update(pyMeshObject* self, PyObject* args)
 {
-  auto api = Sv3PyUtilApiFunction("s", PyRunTimeErr, __func__); 
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__); 
   auto geom = CheckGeometry(api, self); 
   if (geom == nullptr) { 
       return nullptr;
@@ -454,7 +452,7 @@ PyDoc_STRVAR(Mesh_set_solid_kernel_doc,
 static PyObject * 
 Mesh_set_solid_kernel(pyMeshObject* self, PyObject* args)
 {
-  auto api = Sv3PyUtilApiFunction("s", PyRunTimeErr, __func__); 
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__); 
   char *kernelName;
   if (!PyArg_ParseTuple(args, api.format, &kernelName)) {
       return api.argsError();
@@ -492,7 +490,7 @@ PyDoc_STRVAR(Mesh_write_metis_adjacency_doc,
 static PyObject * 
 Mesh_write_metis_adjacency(pyMeshObject* self, PyObject* args)
 {
-  auto api = Sv3PyUtilApiFunction("s", PyRunTimeErr, __func__); 
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__); 
   char *file_name;
   if (!PyArg_ParseTuple(args, api.format, &file_name)) {
       return api.argsError();
@@ -529,7 +527,7 @@ PyDoc_STRVAR(Mesh_get_polydata_doc,
 static PyObject * 
 Mesh_get_polydata(pyMeshObject* self, PyObject* args)
 {
-  auto api = Sv3PyUtilApiFunction("s", PyRunTimeErr, __func__); 
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__); 
   char *resultName;
   if (!PyArg_ParseTuple(args, api.format, &resultName)) {
       return api.argsError();
@@ -581,7 +579,7 @@ PyDoc_STRVAR(Mesh_get_solid_doc,
 static PyObject * 
 Mesh_get_solid(pyMeshObject* self, PyObject* args)
 {
-  auto api = Sv3PyUtilApiFunction("s", PyRunTimeErr, __func__); 
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__); 
   char *resultName;
   if (!PyArg_ParseTuple(args, api.format, &resultName)) {
       return api.argsError();
@@ -633,7 +631,7 @@ PyDoc_STRVAR(Mesh_set_vtk_polydata_doc,
 static PyObject * 
 Mesh_set_vtk_polydata(pyMeshObject* self, PyObject* args)
 {
-  auto api = Sv3PyUtilApiFunction("s", PyRunTimeErr, __func__); 
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__); 
   char *objName;
 
   if (!PyArg_ParseTuple(args, api.format, &objName)) {
@@ -690,7 +688,7 @@ PyDoc_STRVAR(Mesh_get_unstructured_grid_doc,
 static PyObject * 
 Mesh_get_unstructured_grid(pyMeshObject* self, PyObject* args)
 {
-  auto api = Sv3PyUtilApiFunction("s", PyRunTimeErr, __func__); 
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__); 
   char *resultName;
   if (!PyArg_ParseTuple(args, api.format, &resultName)) {
     return api.argsError();
@@ -742,7 +740,7 @@ PyDoc_STRVAR(Mesh_get_face_polydata_doc,
 static PyObject * 
 Mesh_get_face_polydata(pyMeshObject* self, PyObject* args)
 {
-  auto api = Sv3PyUtilApiFunction("si", PyRunTimeErr, __func__); 
+  auto api = SvPyUtilApiFunction("si", PyRunTimeErr, __func__); 
   char *resultName;
   int face;
   if(!PyArg_ParseTuple(args, api.format, &resultName, &face)) {
@@ -794,7 +792,7 @@ PyDoc_STRVAR(Mesh_logging_on_doc,
 static PyObject * 
 Mesh_logging_on(PyObject* self, PyObject* args)
 {
-  auto api = Sv3PyUtilApiFunction("s", PyRunTimeErr, __func__); 
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__); 
   char *logFileName;
 
   if (!PyArg_ParseTuple(args, api.format, &logFileName)) {
@@ -832,7 +830,7 @@ PyDoc_STRVAR(Mesh_logging_off_doc,
 static PyObject * 
 Mesh_logging_off(PyObject* self, PyObject* args)
 {
-  auto api = Sv3PyUtilApiFunction("", PyRunTimeErr, __func__); 
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__); 
   auto meshKernel = cvMeshSystem::GetCurrentKernel();
   if (meshKernel == NULL) {
       api.error("The mesh kernel is not set.");
@@ -863,7 +861,7 @@ PyDoc_STRVAR(Mesh_set_meshing_options_doc,
 static PyObject * 
 Mesh_set_meshing_options(pyMeshObject* self, PyObject* args)
 {
-  auto api = Sv3PyUtilApiFunction("sO", PyRunTimeErr, __func__); 
+  auto api = SvPyUtilApiFunction("sO", PyRunTimeErr, __func__); 
   char *flags;
   PyObject* valueList;
 
@@ -908,7 +906,7 @@ PyDoc_STRVAR(Mesh_load_model_doc,
 static PyObject * 
 Mesh_load_model(pyMeshObject* self, PyObject* args)
 {
-  auto api = Sv3PyUtilApiFunction("s", PyRunTimeErr, __func__); 
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__); 
   char *FileName;
 
   if (!PyArg_ParseTuple(args, api.format, &FileName)) {
@@ -945,7 +943,7 @@ PyDoc_STRVAR(Mesh_get_boundary_faces_doc,
 static PyObject * 
 Mesh_get_boundary_faces(pyMeshObject* self, PyObject* args)
 {
-  auto api = Sv3PyUtilApiFunction("d", PyRunTimeErr, __func__); 
+  auto api = SvPyUtilApiFunction("d", PyRunTimeErr, __func__); 
   double angle = 0.0;
 
   if (!PyArg_ParseTuple(args, api.format, &angle)) {
@@ -982,7 +980,7 @@ PyDoc_STRVAR(Mesh_load_mesh_doc,
 static PyObject * 
 Mesh_load_mesh(pyMeshObject* self, PyObject* args)
 {
-  auto api = Sv3PyUtilApiFunction("s|s", PyRunTimeErr, __func__); 
+  auto api = SvPyUtilApiFunction("s|s", PyRunTimeErr, __func__); 
   char *FileName;
   char *SurfFileName = 0;
 
@@ -1016,7 +1014,7 @@ PyDoc_STRVAR(Mesh_write_stats_doc,
 static PyObject * 
 Mesh_write_stats(pyMeshObject* self, PyObject* args)
 {
-  auto api = Sv3PyUtilApiFunction("s", PyRunTimeErr, __func__); 
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__); 
   char *fileName;
 
   if (!PyArg_ParseTuple(args, api.format, &fileName)) {
@@ -1054,7 +1052,7 @@ PyDoc_STRVAR(Mesh_adapt_doc,
 static PyObject * 
 Mesh_adapt(pyMeshObject* self, PyObject* args)
 {
-  auto api = Sv3PyUtilApiFunction("", PyRunTimeErr, __func__); 
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__); 
   std::string emsg;
   auto geom = self->geom;
   if (!CheckMeshLoadUpdate(geom, emsg)) {
@@ -1086,7 +1084,7 @@ PyDoc_STRVAR(Mesh_write_doc,
 static PyObject * 
 Mesh_write(pyMeshObject* self, PyObject* args)
 {
-  auto api = Sv3PyUtilApiFunction("s|i", PyRunTimeErr, __func__); 
+  auto api = SvPyUtilApiFunction("s|i", PyRunTimeErr, __func__); 
   char *fileName;
   int smsver = 0;
 
@@ -1126,7 +1124,7 @@ PyDoc_STRVAR(Mesh_new_mesh_doc,
 static PyObject * 
 Mesh_new_mesh( pyMeshObject* self, PyObject* args)
 {
-  auto api = Sv3PyUtilApiFunction("", PyRunTimeErr, __func__); 
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__); 
   auto geom = CheckGeometry(api, self);
   if (geom == nullptr) {
       return nullptr;
@@ -1154,7 +1152,7 @@ PyDoc_STRVAR(Mesh_generate_mesh_doc,
 static PyObject * 
 Mesh_generate_mesh(pyMeshObject* self, PyObject* args)
 {
-  auto api = Sv3PyUtilApiFunction("", PyRunTimeErr, __func__); 
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__); 
   auto geom = CheckGeometry(api, self);
   if (geom == nullptr) {
       return nullptr;
@@ -1185,7 +1183,7 @@ PyDoc_STRVAR(Mesh_set_sphere_refinement_doc,
 static PyObject * 
 Mesh_set_sphere_refinement(pyMeshObject* self, PyObject* args)
 {
-  auto api = Sv3PyUtilApiFunction("ddO", PyRunTimeErr, __func__); 
+  auto api = SvPyUtilApiFunction("ddO", PyRunTimeErr, __func__); 
   double size;
   PyObject* centerArg;
   double radius;
@@ -1200,7 +1198,7 @@ Mesh_set_sphere_refinement(pyMeshObject* self, PyObject* args)
   }
 
   std::string emsg;
-  if (!Sv3PyUtilCheckPointData(centerArg, emsg)) {
+  if (!svPyUtilCheckPointData(centerArg, emsg)) {
       api.error("The sphere center argument " + emsg);
       return nullptr;
   }
@@ -1237,7 +1235,7 @@ PyDoc_STRVAR(Mesh_set_size_function_based_mesh_doc,
 static PyObject * 
 Mesh_set_size_function_based_mesh(pyMeshObject* self, PyObject* args)
 {
-  auto api = Sv3PyUtilApiFunction("ds", PyRunTimeErr, __func__); 
+  auto api = SvPyUtilApiFunction("ds", PyRunTimeErr, __func__); 
   char *functionName;
   double size;
 
@@ -1275,7 +1273,7 @@ PyDoc_STRVAR(Mesh_set_cylinder_refinement_doc,
 static PyObject * 
 Mesh_set_cylinder_refinement(pyMeshObject* self, PyObject* args)
 {
-  auto api = Sv3PyUtilApiFunction("ddOO", PyRunTimeErr, __func__); 
+  auto api = SvPyUtilApiFunction("ddOO", PyRunTimeErr, __func__); 
   double size;
   PyObject* centerArg;
   PyObject* normalArg;
@@ -1292,11 +1290,11 @@ Mesh_set_cylinder_refinement(pyMeshObject* self, PyObject* args)
   }
 
   std::string emsg;
-  if (!Sv3PyUtilCheckPointData(centerArg, emsg)) {
+  if (!svPyUtilCheckPointData(centerArg, emsg)) {
       api.error("The cylinder center argument " + emsg);
       return nullptr;
   }
-  if (!Sv3PyUtilCheckPointData(normalArg, emsg)) {
+  if (!svPyUtilCheckPointData(normalArg, emsg)) {
       api.error("The normal argument " + emsg);
       return nullptr;
   }
@@ -1341,7 +1339,7 @@ PyDoc_STRVAR(Mesh_set_boundary_layer_doc,
 static PyObject * 
 Mesh_set_boundary_layer(pyMeshObject* self, PyObject* args)
 {
-  auto api = Sv3PyUtilApiFunction("iiiiO", PyRunTimeErr, __func__); 
+  auto api = SvPyUtilApiFunction("iiiiO", PyRunTimeErr, __func__); 
   int type = 0;
   int id = 0;
   int side = 0;
@@ -1389,7 +1387,7 @@ PyDoc_STRVAR(Mesh_set_walls_doc,
 static PyObject * 
 Mesh_set_walls(pyMeshObject* self, PyObject* args)
 {
-  auto api = Sv3PyUtilApiFunction("O", PyRunTimeErr, __func__); 
+  auto api = SvPyUtilApiFunction("O", PyRunTimeErr, __func__); 
   PyObject* wallsList;
 
   if (!PyArg_ParseTuple(args, api.format, &wallsList)) {
@@ -1434,7 +1432,7 @@ PyDoc_STRVAR(Mesh_get_model_face_info_doc,
 static PyObject * 
 Mesh_get_model_face_info(pyMeshObject* self, PyObject* args)
 {
-  auto api = Sv3PyUtilApiFunction("", PyRunTimeErr, __func__); 
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__); 
   auto geom = CheckGeometry(api, self); 
   if (geom == nullptr) { 
       return nullptr;

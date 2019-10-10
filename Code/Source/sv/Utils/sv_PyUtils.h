@@ -29,17 +29,17 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __SV3_PYUTIL_H__
-#define __SV3_PYUTIL_H__
+#ifndef __SV_PYUTILS_H__
+#define __SV_PYUTILS_H__
 
 #include "SimVascular.h"
 #include "Python.h"
 #include <string>
 
-class Sv3PyUtilApiFunction
+class SvPyUtilApiFunction
 {
   public:
-      Sv3PyUtilApiFunction(const std::string& format, PyObject* pyRunTimeErr, const char* funcName);
+      SvPyUtilApiFunction(const std::string& format, PyObject* pyRunTimeErr, const char* funcName);
       void error(std::string msg);
       PyObject * argsError();
       std::string formatString; 
@@ -48,18 +48,18 @@ class Sv3PyUtilApiFunction
       PyObject* pyError; 
 };
 
-std::string Sv3PyUtilGetFunctionName(const char* functionName);
+std::string svPyUtilGetFunctionName(const char* functionName);
 
-std::string Sv3PyUtilGetMsgPrefix(const std::string& functionName);
+std::string svPyUtilGetMsgPrefix(const std::string& functionName);
 
-PyObject * Sv3PyUtilResetException(PyObject * PyRunTimeErr);
+PyObject * svPyUtilResetException(PyObject * PyRunTimeErr);
 
-bool Sv3PyUtilCheckPointData(PyObject* pointData, std::string& msg);
+bool svPyUtilCheckPointData(PyObject* pointData, std::string& msg);
 
-bool Sv3PyUtilCheckPointDataList(PyObject* pointData, std::string& msg);
+bool svPyUtilCheckPointDataList(PyObject* pointData, std::string& msg);
 
-void Sv3PyUtilSetupApiFunction(const char* functionName, std::string& format, std::string& msg);
+void svPyUtilSetupApiFunction(const char* functionName, std::string& format, std::string& msg);
 
-void Sv3PyUtilSetErrorMsg(PyObject* pyRunTimeErr, std::string& msgp, std::string msg);
+void svPyUtilSetErrorMsg(PyObject* pyRunTimeErr, std::string& msgp, std::string msg);
 
 #endif 

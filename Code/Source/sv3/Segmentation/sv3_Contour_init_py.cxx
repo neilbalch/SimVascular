@@ -49,9 +49,9 @@
 #include "sv3_Contour.h"
 #include "sv3_LevelSetContour.h"
 #include "sv3_Contour_init_py.h"
-#include "sv3_PyUtil.h"
 #include "sv3_SegmentationUtils.h"
 #include "vtkPythonUtil.h"
+#include "sv_PyUtils.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -118,7 +118,7 @@ Contour_set_contour_kernel(PyObject* self, PyObject *args)
 {
     char *kernelName;
     cKernelType kernel;
-    auto api = Sv3PyUtilApiFunction("s", PyRunTimeErr, __func__);
+    auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
 
     if (!PyArg_ParseTuple(args, api.format, &kernelName)) {
         return api.argsError();
@@ -158,7 +158,7 @@ Contour_new_object(pyContour* self, PyObject* args)
     char *contourName = nullptr;
     char *pathName = nullptr;
     int index = 0;
-    auto api = Sv3PyUtilApiFunction("ssi", PyRunTimeErr, __func__);
+    auto api = SvPyUtilApiFunction("ssi", PyRunTimeErr, __func__);
 
     if (!PyArg_ParseTuple(args, api.format, &contourName, &pathName, &index)) {
         return api.argsError();
@@ -234,7 +234,7 @@ static PyObject*
 Contour_set_image(pyContour* self, PyObject* args)
 {
     PyObject *vtkName; 
-    auto api = Sv3PyUtilApiFunction("O", PyRunTimeErr, __func__);
+    auto api = SvPyUtilApiFunction("O", PyRunTimeErr, __func__);
 
     if (!PyArg_ParseTuple(args, api.format, &vtkName)) {
         return api.argsError();
@@ -284,7 +284,7 @@ static PyObject*
 Contour_get_object(pyContour* self, PyObject* args)
 {
     char *objName = NULL;
-    auto api = Sv3PyUtilApiFunction("s", PyRunTimeErr, __func__);
+    auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
 
     if (!PyArg_ParseTuple(args, api.format, &objName)) {
         return api.argsError();
@@ -333,7 +333,7 @@ static PyObject*
 Contour_set_control_points(pyContour* self, PyObject* args)
 {
     PyObject *controlPoints = nullptr;
-    auto api = Sv3PyUtilApiFunction("O", PyRunTimeErr, __func__);
+    auto api = SvPyUtilApiFunction("O", PyRunTimeErr, __func__);
 
     if (!PyArg_ParseTuple(args, api.format, &controlPoints)) {
         return api.argsError();
@@ -420,7 +420,7 @@ PyDoc_STRVAR(Contour_set_control_points_by_radius_doc,
 static PyObject* 
 Contour_set_control_points_by_radius(pyContour* self, PyObject* args)
 {
-    auto api = Sv3PyUtilApiFunction("Od", PyRunTimeErr, __func__);
+    auto api = SvPyUtilApiFunction("Od", PyRunTimeErr, __func__);
 
     if (Contour::gCurrentKernel != cKERNEL_CIRCLE) {
         api.error("Contour kernel is not set to 'Circle'");
@@ -478,7 +478,7 @@ PyDoc_STRVAR(Contour_create_doc,
 static PyObject* 
 Contour_create(pyContour* self, PyObject* args)
 {
-    auto api = Sv3PyUtilApiFunction("", PyRunTimeErr, __func__);
+    auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
 
     auto contour = self->geom;
     if (contour == NULL) {
@@ -523,7 +523,7 @@ PyDoc_STRVAR(Contour_get_area_doc,
 static PyObject* 
 Contour_get_area(pyContour* self, PyObject* args)
 {
-    auto api = Sv3PyUtilApiFunction("", PyRunTimeErr, __func__);
+    auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
     auto contour = self->geom;
     if (contour == NULL) {
         api.error("No geometry has been created for the contour.");
@@ -551,7 +551,7 @@ PyDoc_STRVAR(Contour_get_perimeter_doc,
 
 PyObject* Contour_get_perimeter(pyContour* self, PyObject* args)
 {
-    auto api = Sv3PyUtilApiFunction("", PyRunTimeErr, __func__);
+    auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
     auto contour = self->geom;
     if (contour == NULL) {
         api.error("No geometry has been created for the Contour.");
@@ -579,7 +579,7 @@ PyDoc_STRVAR(Contour_get_center_doc,
 
 PyObject* Contour_get_center(pyContour* self, PyObject* args)
 {
-    auto api = Sv3PyUtilApiFunction("", PyRunTimeErr, __func__);
+    auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
     auto contour = self->geom;
     if (contour == NULL ) {
         api.error("No geometry has been created for the Contour.");
@@ -609,7 +609,7 @@ PyDoc_STRVAR(Contour_set_threshold_value_doc,
 PyObject* Contour_set_threshold_value(pyContour* self, PyObject* args)
 {
     double threshold = 0.0;
-    auto api = Sv3PyUtilApiFunction("d", PyRunTimeErr, __func__);
+    auto api = SvPyUtilApiFunction("d", PyRunTimeErr, __func__);
 
     if (!PyArg_ParseTuple(args, api.format, &threshold)) {
         return api.argsError();
@@ -647,7 +647,7 @@ PyDoc_STRVAR(Contour_create_smooth_contour_doc,
 static pyContour* 
 Contour_create_smooth_contour(pyContour* self, PyObject* args)
 {
-    auto api = Sv3PyUtilApiFunction("is", PyRunTimeErr, __func__);
+    auto api = SvPyUtilApiFunction("is", PyRunTimeErr, __func__);
     int fourierNumber = 0;
     char* contourName;
 
@@ -703,7 +703,7 @@ PyDoc_STRVAR(Contour_get_polydata_doc,
 static PyObject* 
 Contour_get_polydata(pyContour* self, PyObject* args)
 {
-    auto api = Sv3PyUtilApiFunction("s", PyRunTimeErr, __func__);
+    auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
     char* dstName = NULL;
     if (!PyArg_ParseTuple(args, api.format, &dstName)) {
         return api.argsError();
