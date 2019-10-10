@@ -109,6 +109,47 @@ static PyObject * PyRunTimeErr;
 // it is defined so we need to define its prototype here.
 pySolidModel * createSolidModelType();
 
+// CheckSolidModel
+//-----------------
+// Check if a solid model is in the repository
+// and that its type is SOLID_MODEL_T.
+//
+static cvSolidModel *
+CheckSolidModel(SvPyUtilApiFunction& api, char* name)
+{
+  auto model = gRepository->GetObject(name);
+  if (model == NULL) {
+      api.error("The solid model '"+std::string(name)+"' is not in the repository.");
+      return nullptr;
+  }
+  auto type = gRepository->GetType(name);
+  if (type != SOLID_MODEL_T) {
+      api.error("'" + std::string(name) + "' is not a solid model.");
+      return nullptr;
+  }
+
+  return model;
+}
+
+//-------------------------
+// CheckSimplificationName
+//-------------------------
+//
+static SolidModel_SimplifyT
+CheckSimplificationName(SvPyUtilApiFunction& api, char* name)
+{
+  if (!name) {
+      return SM_Simplify_All;
+  }
+
+  auto smpType = SolidModel_SimplifyT_StrToEnum(name);
+  if (smpType == SM_Simplify_Invalid ) {
+      api.error("Unknown simplification argument '"+std::string(name)+ "'. Valid types are: All or None.");
+  }
+
+  return smpType;
+}
+
 //---------------
 // CheckGeometry
 //---------------
@@ -136,9 +177,9 @@ CheckGeometry(SvPyUtilApiFunction& api, pySolidModel *self)
 //
 // Python API functions. 
 
-//-------------------------
-// Solid_RegistrarsListCmd
-//-------------------------
+//------------------------
+// Solid_list_registrars  
+//------------------------
 // This routine is used for debugging the registrar/factory system.
 //
 PyDoc_STRVAR(Solid_list_registrars_doc,
@@ -164,122 +205,124 @@ Solid_list_registrars(PyObject* self, PyObject* args)
   return pyList;
 }
 
-// -----------------
-// Solid_GetModelCmd
-// -----------------
+/////////////////////////////////////////////////////////////////
+//          M o d u l e  C l a s s  F u n c t i o n s          //
+/////////////////////////////////////////////////////////////////
+//
+// Python API functions for the SolidModel class. 
 
-PyObject* Solid_GetModelCmd( pySolidModel* self, PyObject* args)
+//----------------------
+// SolidModel_get_model 
+//----------------------
+//
+// [TODO:DaveP] This does not 'get' anything, it sets the 'geom' data
+//   to the cvSolidModel object from the repository.
+//
+//   Rename to: set_model_from_repository()
+//
+//
+PyDoc_STRVAR(SolidModel_get_model_doc,
+" SolidModel_get_model(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject * 
+SolidModel_get_model(pySolidModel* self, PyObject* args)
 {
-  char *objName=NULL;
-  RepositoryDataT type;
-  cvRepositoryData *rd;
-  cvSolidModel *geom;
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  char *objName = NULL;
 
-  if (!PyArg_ParseTuple(args,"s", &objName))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import 1 char: objName");
-    
+  if (!PyArg_ParseTuple(args, api.format, &objName)) {
+      return api.argsError();
   }
 
-  // Do work of command:
-
-  // Retrieve source object:
-  rd = gRepository->GetObject( objName );
-  char r[2048];
-  if ( rd == NULL )
-  {
-    r[0] = '\0';
-    sprintf(r, "couldn't find object %s", objName);
-    PyErr_SetString(PyRunTimeErr,r);
-    
+  // Get solid model.
+  auto rd = gRepository->GetObject(objName);
+  if (rd == nullptr) {
+      api.error("The solid model '" + std::string(objName) + "' is not in the repository.");
+      return nullptr;
   }
 
-  type = rd->GetType();
-
-  if ( type != SOLID_MODEL_T )
-  {
-    r[0] = '\0';
-    sprintf(r, "%s not a model object", objName);
-    PyErr_SetString(PyRunTimeErr,r);
-    
+  auto type = rd->GetType();
+  if (type != SOLID_MODEL_T) {
+      api.error("'" + std::string(objName) + "' is not a solid model.");
+      return nullptr;
   }
   
-  geom = dynamic_cast<cvSolidModel*> (rd);
+  auto geom = dynamic_cast<cvSolidModel*>(rd);
   Py_INCREF(geom);
   self->geom=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK; 
-  
 }
 
-// ----------------
-// Solid_PolyPtsCmd
-// ----------------
+//---------------------------
+// SolidModel_polygon_points 
+//---------------------------
 //
-PyDoc_STRVAR(Solid_polygon_points_doc,
+PyDoc_STRVAR(SolidModel_polygon_points_doc,
   "polygon_points(kernel)  \n\ 
    \n\
-   Set the computational kernel used to segment image data.       \n\
+   ??? Set the computational kernel used to segment image data.       \n\
    \n\
    Args:\n\
      kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
 ");
 
 static PyObject * 
-Solid_polygon_points(pySolidModel* self, PyObject* args)
+SolidModel_polygon_points(pySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
-
   char *srcName;
   char *dstName;
-  cvRepositoryData *pd;
-  RepositoryDataT type;
-  cvSolidModel *geom;
 
-  if (!PyArg_ParseTuple(args,"ss",&srcName,&dstName)) {
-    PyErr_SetString(PyRunTimeErr,"Could not import two chars.");
-    
-  }
-  // Do work of command:
-
-  // Make sure the specified dst object does not exist:
-  if ( gRepository->Exists( dstName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists" );
-    
+  if (!PyArg_ParseTuple(args, api.format, &srcName, &dstName)) {
+      return api.argsError();
   }
 
-  // Retrieve cvPolyData source:
-  pd = gRepository->GetObject( srcName );
-  if ( pd == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object " );
-    
+  // Check that the repository object does not already exist.
+  if (gRepository->Exists(dstName)) {
+      api.error("The repository object '" + std::string(dstName) + "' already exists.");
+      return nullptr;
   }
-  type = pd->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr, "object not of type cvPolyData" );
-    
+
+  // Get polydata model from the repository.
+  auto pd = gRepository->GetObject(srcName);
+  if (pd == nullptr) {
+      api.error("The polydata '" + std::string(srcName) + "' is not in the repository.");
+      return nullptr;
+  }
+
+  auto type = pd->GetType();
+  if (type != POLY_DATA_T) {
+      api.error("'" + std::string(srcName) + "' is not of type polydata.");
+      return nullptr;
   }
 
   // Instantiate the new solid:
-  geom = cvSolidModel::pyDefaultInstantiateSolidModel();
-  if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr,"geom is NULL");
+  auto geom = cvSolidModel::pyDefaultInstantiateSolidModel();
+  if (geom == NULL) {
+      api.error("Error creating a solid model.");
+      return nullptr;
   }
 
   // Create the polygon solid:
-  if ( geom->MakePoly2dPts( (cvPolyData *)pd ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "polygon solid creation error" );
-    
+  if (geom->MakePoly2dPts((cvPolyData*)pd) != SV_OK) {
+      api.error("Error creating a polygon solid model from polydata.");
+      return nullptr;
   }
 
   // Register the solid:
-  if ( !( gRepository->Register( dstName, geom ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
-    delete geom;
-    
+  if (!gRepository->Register(dstName, geom)) {
+      delete geom;
+      api.error("Error adding the solid model '" + std::string(dstName) + "' to the repository.");
+      return nullptr;
   }
 
-  // Make a new Tcl command:
   Py_INCREF(geom);
   self->geom=geom;
   Py_DECREF(geom);
@@ -287,65 +330,68 @@ Solid_polygon_points(pySolidModel* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
+//--------------------
+// SolidModel_polygon 
+//--------------------
+//
+PyDoc_STRVAR(SolidModel_polygon_doc,
+  "polygon(kernel)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// -------------
-// Solid_PolyCmd
-// -------------
-
-PyObject* Solid_PolyCmd( pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_polygon(pySolidModel* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *srcName;
   char *dstName;
-  cvRepositoryData *pd;
-  RepositoryDataT type;
-  cvSolidModel *geom;
-  if(!PyArg_ParseTuple(args,"ss",&srcName,&dstName))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import two chars.");
-    
+
+  if (!PyArg_ParseTuple(args, api.format, &srcName, &dstName)) {
+      return api.argsError();
   }
 
-  // Do work of command:
-
-  // Make sure the specified dst object does not exist:
-  if ( gRepository->Exists( dstName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    
+  // Check that the repository object does not already exist.
+  if (gRepository->Exists(dstName)) {
+      api.error("The repository object '" + std::string(dstName) + "' already exists.");
+      return nullptr;
   }
 
-  // Retrieve cvPolyData source:
-  pd = gRepository->GetObject( srcName );
-  if ( pd == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object ");
-    
-  }
-  type = pd->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr, "object not of type cvPolyData" );
-    
+  // Get polydata model from the repository.
+  auto pd = gRepository->GetObject(srcName);
+  if (pd == nullptr) {
+      api.error("The polydata '" + std::string(srcName) + "' is not in the repository.");
+      return nullptr;
   }
 
-  // Instantiate the new solid:
-  geom = cvSolidModel::pyDefaultInstantiateSolidModel();
-  if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "Error creating solid object" );
-    
+  auto type = pd->GetType();
+  if (type != POLY_DATA_T) {
+      api.error("'" + std::string(srcName) + "' is not of type polydata.");
+      return nullptr;
   }
 
-  // Create the polygon solid:
-  if ( geom->MakePoly2d( (cvPolyData *)pd ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "polygon solid creation error" );
-    
+  // Instantiate the new solid.
+  auto geom = cvSolidModel::pyDefaultInstantiateSolidModel();
+  if (geom == NULL) {
+      api.error("Error creating a solid model.");
+      return nullptr;
+  }
+
+  // Create the polygon solid.
+  if (geom->MakePoly2d((cvPolyData*)pd) != SV_OK) {
+      api.error("Error creating a polygon solid model from polydata.");
+      return nullptr;
   }
 
   // Register the solid:
-  if ( !( gRepository->Register( dstName, geom ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
-    delete geom;
-    
+  if (!gRepository->Register(dstName,geom)) {
+      delete geom;
+      api.error("Error adding the solid model '" + std::string(dstName) + "' to the repository.");
+      return nullptr;
   }
-
-  // Make a new Tcl command:
 
   Py_INCREF(geom);
   self->geom=geom;
@@ -353,54 +399,61 @@ PyObject* Solid_PolyCmd( pySolidModel* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
+//-------------------
+// SolidModel_circle 
+//-------------------
+//
+PyDoc_STRVAR(SolidModel_circle_doc,
+  "circle(kernel)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// ---------------
-// Solid_CircleCmd
-// ---------------
-
-// % Circle -result /some/obj/name -r <radius> -x <x_ctr> -y <y_ctr>
-PyObject* Solid_CircleCmd(pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_circle(pySolidModel* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("sddd", PyRunTimeErr, __func__);
   char *objName;
   double radius;
   double ctr[2];
-  cvSolidModel* geom;
-  if(!PyArg_ParseTuple(args,"sddd",&objName,&radius,&(ctr[0]),&(ctr[1])))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one char and three doubles");
-    
-  }
-  // Do work of command:
 
-  if ( radius <= 0.0 ) {
-    PyErr_SetString(PyRunTimeErr,"radius must be positive");
-    
+  if (!PyArg_ParseTuple(args, api.format, &objName, &radius, &(ctr[0]), &(ctr[1]))) {
+      return api.argsError();
   }
 
-  // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( objName ) ) {
-    PyErr_SetString(PyRunTimeErr,"object already exists" );
+  if (radius <= 0.0) {
+      api.error("The radius argument <= 0.0."); 
+      return nullptr;
+  }
+
+  // Check that the repository object does not already exist.
+  if (gRepository->Exists(objName)) {
+      api.error("The repository object '" + std::string(objName) + "' already exists.");
+      return nullptr;
   }
 
   // Instantiate the new solid:
-  geom = cvSolidModel::pyDefaultInstantiateSolidModel();
-  if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "Error creating solid object" );
-    
+  auto geom = cvSolidModel::pyDefaultInstantiateSolidModel();
+  if (geom == NULL) {
+      api.error("Error creating a circle solid model.");
+      return nullptr;
   }
 
-  if ( geom->MakeCircle( radius, ctr ) != SV_OK ) {
-     PyErr_SetString(PyRunTimeErr, "circle solid creation error");
-    delete geom;
-    
+  if (geom->MakeCircle(radius, ctr) != SV_OK) {
+      delete geom;
+      api.error("Error creating a circle solid model.");
+      return nullptr;
   }
 
   // Register the new solid:
-  if ( !( gRepository->Register( objName, geom) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
-    delete geom;
-    
+  if (!gRepository->Register(objName, geom)) {
+      api.error("Error adding the solid model '" + std::string(objName) + "' to the repository.");
+      return nullptr;
   }
+
   Py_INCREF(geom);
   self->geom=geom;
   Py_DECREF(geom);
@@ -408,114 +461,135 @@ PyObject* Solid_CircleCmd(pySolidModel* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
-// ---------------
-// Solid_SphereCmd
-// ---------------
-PyObject* Solid_SphereCmd( pySolidModel* self, PyObject* args)
+//-------------------
+// SolidModel_sphere 
+//-------------------
+//
+// [TODO:DaveP] should this be named 'create_sphere' ?
+//
+PyDoc_STRVAR(SolidModel_sphere_doc,
+  "sphere(kernel)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
+
+static PyObject * 
+SolidModel_sphere(pySolidModel* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("sdO", PyRunTimeErr, __func__);
   char *objName;
-  PyObject* ctrList;
+  PyObject * centerArg;
   double ctr[3];
   double r;
-  cvSolidModel* geom;
-if(!PyArg_ParseTuple(args,"sdO",&objName,&r,&ctrList))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one char, one double and one list");
-    
+
+  if (!PyArg_ParseTuple(args, api.format, &objName, &r, &centerArg)) {
+      return api.argsError();
   }
 
-  if (PyList_Size(ctrList)!=3)
-  {
-    PyErr_SetString(PyRunTimeErr,"sphere requires a 3D center coordinate");
-    
+  std::string emsg;
+  if (!svPyUtilCheckPointData(centerArg, emsg)) {
+      api.error("The sphere center argument " + emsg);
+      return nullptr;
   }
-  for(int i=0;i<PyList_Size(ctrList);i++)
-  {
-    ctr[i]=PyFloat_AsDouble(PyList_GetItem(ctrList,i));
-  }
-  // Do work of command:
 
-  // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( objName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    
+  for(int i=0;i<PyList_Size(centerArg);i++) {
+    ctr[i] = PyFloat_AsDouble(PyList_GetItem(centerArg,i));
   }
+
+  // Check that the repository object does not already exist.
+  if (gRepository->Exists(objName)) {
+      api.error("The repository object '" + std::string(objName) + "' already exists.");
+      return nullptr;
+  }
+
   // Instantiate the new solid:
-  geom = cvSolidModel::pyDefaultInstantiateSolidModel();
-  if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "Error creating solid object" );
-    
+  auto geom = cvSolidModel::pyDefaultInstantiateSolidModel();
+  if (geom == NULL) {
+      api.error("Error creating a sphere solid model.");
+      return nullptr;
   }
-  if ( geom->MakeSphere( r, ctr ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "sphere solid creation error");
-    delete geom;
-    
+
+  if (geom->MakeSphere(r, ctr) != SV_OK) {
+      delete geom;
+      api.error("Error creating a sphere solid model.");
+      return nullptr;
   }
+
   // Register the new solid:
-  if ( !( gRepository->Register( objName, geom) ) ) {
-     PyErr_SetString(PyRunTimeErr,"error registering obj in repository" );
-    delete geom;
-    
+  if (!gRepository->Register(objName, geom)) {
+      delete geom;
+      api.error("Error adding the solid model '" + std::string(objName) + "' to the repository.");
+      return nullptr;
   }
 
   Py_INCREF(geom);
   self->geom=geom;
   Py_DECREF(geom);
-  //self->name=objName;
-  //std::cout<<"self "<<self->geom<<"geom "<<geom<<std::endl;
- // cvRepositoryData* geom2=gRepository->GetObject(self->name);
-  //cvPolyData* PD2=(self->geom)->GetPolyData(0,1.0);
- // return Py_BuildValue("s",geom->GetName());
   return SV_PYTHON_OK;
 }
-// ----------------
-// Solid_EllipseCmd
-// ----------------
 
-PyObject* Solid_EllipseCmd( pySolidModel* self, PyObject* args)
+//--------------------
+// SolidModel_ellipse 
+//--------------------
+//
+PyDoc_STRVAR(SolidModel_ellipse_doc,
+  "ellipse(kernel)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
+
+static PyObject * 
+SolidModel_ellipse(pySolidModel* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("sdddd", PyRunTimeErr, __func__);
   char *objName;
   double xr, yr;
   double ctr[2];
-  cvSolidModel *geom;
 
-  if(!PyArg_ParseTuple(args,"sdddd",&objName,&xr,&yr,&(ctr[0]),&(ctr[1])))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one char and four doubles.");
-    
+  if (!PyArg_ParseTuple(args, api.format, &objName, &xr, &yr, &(ctr[0]), &(ctr[1]))) {
+      return api.argsError();
   }
 
-  // Do work of command:
-
-  if ( ( xr <= 0.0 ) || ( yr <= 0.0 ) ) {
-    PyErr_SetString(PyRunTimeErr, "radii must be positive");
-    
+  if (xr <= 0.0) { 
+      api.error("The width argument <= 0.0."); 
+      return nullptr;
   }
 
-  // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( objName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    
+  if (yr <= 0.0) {
+      api.error("The height argument <= 0.0."); 
+      return nullptr;
+  }
+
+  // Check that the repository object does not already exist.
+  if (gRepository->Exists(objName)) {
+      api.error("The repository object '" + std::string(objName) + "' already exists.");
+      return nullptr;
   }
 
   // Instantiate the new solid:
-  geom = cvSolidModel::pyDefaultInstantiateSolidModel();
-  if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "Error creating solid object" );
-    
+  auto geom = cvSolidModel::pyDefaultInstantiateSolidModel();
+  if (geom == NULL) {
+      api.error("Error creating a ellipse solid model.");
+      return nullptr;
   }
 
-  if ( geom->MakeEllipse( xr, yr, ctr ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "ellipse solid creation error" );
-    delete geom;
-    
+  if (geom->MakeEllipse(xr, yr, ctr) != SV_OK) {
+      delete geom;
+      api.error("Error creating a ellipse solid model.");
+      return nullptr;
   }
 
   // Register the new solid:
-  if ( !( gRepository->Register( objName, geom ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository" );
-    delete geom;
-    
+  if (!gRepository->Register(objName, geom)) {
+      delete geom;
+      api.error("Error adding the solid model '" + std::string(objName) + "' to the repository.");
+      return nullptr;
   }
 
   Py_INCREF(geom);
@@ -524,57 +598,65 @@ PyObject* Solid_EllipseCmd( pySolidModel* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
+//------------------
+// SolidModel_box2d 
+//------------------
+//
+PyDoc_STRVAR(SolidModel_box2d_doc,
+  "box2d(kernel)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// --------------
-// Solid_Box2dCmd
-// --------------
-
-// % Box2d -result /some/obj/name -h <double> -w <double> \
-//       -xctr <double> -yctr <double>
-
-PyObject* Solid_Box2dCmd( pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_box2d(pySolidModel* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("sdddd", PyRunTimeErr, __func__);
   char *objName;
   double boxDims[2];
   double ctr[2];
-  cvSolidModel *geom;
-  if(!PyArg_ParseTuple(args,"sdddd",&objName,&(boxDims[0]),&(boxDims[1])
-                       ,&(ctr[0]),&(ctr[1])))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one char and four doubles.");
-    
-  }
-  // Do work of command:
 
-  if ( ( boxDims[0] <= 0.0 ) || ( boxDims[1] <= 0.0 ) ) {
-    PyErr_SetString(PyRunTimeErr, "height and width must be positive");
-    
+  if (!PyArg_ParseTuple(args, api.format, &objName, &(boxDims[0]), &(boxDims[1]), &(ctr[0]), &(ctr[1]))) {
+      return api.argsError();
   }
 
-  // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( objName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    
+  if (boxDims[0] <= 0.0) { 
+      api.error("The box height argument <= 0.0");
+      return nullptr;
+  }
+
+  if (boxDims[1] <= 0.0) {
+      api.error("The box width argument <= 0.0");
+      return nullptr;
+  }
+
+  // Check that the repository object does not already exist.
+  if (gRepository->Exists(objName)) {
+      api.error("The repository object '" + std::string(objName) + "' already exists.");
+      return nullptr;
   }
 
   // Instantiate the new solid:
-  geom = cvSolidModel::pyDefaultInstantiateSolidModel();
-  if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "Error creating solid object" );
-    
+  auto geom = cvSolidModel::pyDefaultInstantiateSolidModel();
+  if (geom == NULL ) {
+      api.error("Error creating a 2D box solid model.");
+      return nullptr;
   }
 
-  if ( geom->MakeBox2d( boxDims, ctr ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "box solid creation error");
-    delete geom;
-    
+  if (geom->MakeBox2d(boxDims, ctr) != SV_OK) {
+      delete geom;
+      api.error("Error creating a 2D box solid model.");
+      return nullptr;
   }
 
   // Register the new solid:
-  if ( !( gRepository->Register( objName, geom ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository" );
-    delete geom;
-    
+  if (!gRepository->Register(objName, geom)) {
+      delete geom;
+      api.error("Error adding the 2D box solid model '" + std::string(objName) + "' to the repository.");
+      return nullptr;
   }
 
   Py_INCREF(geom);
@@ -583,69 +665,83 @@ PyObject* Solid_Box2dCmd( pySolidModel* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
+//------------------
+// SolidModel_box3d 
+//------------------
+//
+PyDoc_STRVAR(SolidModel_box3d_doc,
+  "box3d(kernel)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// --------------
-// Solid_Box3dCmd
-// --------------
-
-PyObject* Solid_Box3dCmd( pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_box3d( pySolidModel* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("sOO", PyRunTimeErr, __func__);
   char *objName;
   double dims[3];
   double ctr[3];
   PyObject* dimList;
   PyObject* ctrList;
-  cvSolidModel *geom;
-  if(!PyArg_ParseTuple(args,"sOO",&objName,&dimList,&ctrList))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one char and two doubles.");
-    
+
+  if (!PyArg_ParseTuple(args, api.format, &objName, &dimList, &ctrList)) {
+      return api.argsError();
   }
 
-  if (PyList_Size(dimList)>3||PyList_Size(ctrList)>3)
-  {
-     PyErr_SetString(PyRunTimeErr,"error in list dimension");
-     
+  // [TODO:DaveP] do better check here.
+  if (PyList_Size(dimList) > 3) {
+      api.error("The dimension list argument > 3.");
+      return nullptr;
   }
-  for (int i=0;i<PyList_Size(dimList);i++)
-  {
+
+  std::string emsg;
+  if (!svPyUtilCheckPointData(ctrList, emsg)) {
+      api.error("The box center argument " + emsg);
+      return nullptr;
+  }
+
+  for (int i=0;i<PyList_Size(dimList);i++) {
     dims[i]=PyFloat_AsDouble(PyList_GetItem(dimList,i));
   }
-  for (int i=0;i<PyList_Size(ctrList);i++)
-  {
+  for (int i=0;i<PyList_Size(ctrList);i++) {
     ctr[i]=PyFloat_AsDouble(PyList_GetItem(ctrList,i));
   }
+
   // Do work of command:
 
-  if ( ( dims[0] <= 0.0 ) || ( dims[1] <= 0.0 ) || ( dims[2] <= 0.0 ) ) {
-    PyErr_SetString(PyRunTimeErr, "all dims must be positive" );
-    
+  if ((dims[0] <= 0.0) || (dims[1] <= 0.0) || (dims[2] <= 0.0)) {
+      api.error("The box dimensions argument <= 0.0.");
+      return nullptr;
   }
 
-  // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( objName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exist" );
-    
+  // Check that the repository object does not already exist.
+  if (gRepository->Exists(objName)) {
+      api.error("The repository object '" + std::string(objName) + "' already exists.");
+      return nullptr;
   }
 
   // Instantiate the new solid:
-  geom = cvSolidModel::pyDefaultInstantiateSolidModel();
-  if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "Error creating solid object" );
-    
+  auto geom = cvSolidModel::pyDefaultInstantiateSolidModel();
+  if (geom == NULL) {
+      api.error("Error creating a 3D box solid model.");
+      return nullptr;
   }
 
-  if ( geom->MakeBox3d( dims, ctr ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "box solid creation error" );
-    delete geom;
-    
+  if (geom->MakeBox3d(dims, ctr) != SV_OK) {
+      delete geom;
+      api.error("Error creating a 3D box solid model.");
+      return nullptr;
   }
 
   // Register the new solid:
-  if ( !( gRepository->Register( objName, geom ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
-    delete geom;
-    
+  if (!gRepository->Register(objName, geom)) {
+      delete geom;
+      api.error("Error adding the 3D box solid model '" + std::string(objName) + "' to the repository.");
+      return nullptr;
   }
 
   Py_INCREF(geom);
@@ -654,66 +750,74 @@ PyObject* Solid_Box3dCmd( pySolidModel* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
+//---------------------
+// SolidModel_ellipsoid 
+//---------------------
+//
+PyDoc_STRVAR(SolidModel_ellipsoid_doc,
+  "ellipsoid(kernel)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// ------------------
-// Solid_EllipsoidCmd
-// ------------------
-
-PyObject* Solid_EllipsoidCmd( pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_ellipsoid(pySolidModel* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("sOO", PyRunTimeErr, __func__);
   char *objName;
-  double ctr[3];
-  double r[3];
   PyObject* rList;
   PyObject* ctrList;
-  cvSolidModel *geom;
-  if(!PyArg_ParseTuple(args,"sOO",&objName,&rList,&ctrList))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one char and two doubles.");
-    
-  }
-  // Do work of command:
 
-  if (PyList_Size(ctrList)!=3)
-  {
-     PyErr_SetString(PyRunTimeErr,"ellipsoid requires a 3D center coordinate");
-     
-  }
-  if (PyList_Size(rList)!=3)
-  {
-     PyErr_SetString(PyRunTimeErr,"ellipsoid requires a 3D radius vector.");
-    
+  if (!PyArg_ParseTuple(args, api.format, &objName, &rList, &ctrList)) {
+      return api.argsError();
   }
 
-  for (int i=0;i<3;i++)
-  {
-    r[i]=PyFloat_AsDouble(PyList_GetItem(rList,i));
-    ctr[i]=PyFloat_AsDouble(PyList_GetItem(ctrList,i));
+  std::string emsg;
+  if (!svPyUtilCheckPointData(ctrList, emsg)) {
+      api.error("The ellipsoid center argument " + emsg);
+      return nullptr;
   }
-  // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( objName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists" );
-    
+
+  if (!svPyUtilCheckPointData(rList, emsg)) {
+      api.error("The ellipsoid radius vector argument " + emsg);
+      return nullptr;
+  }
+
+  double ctr[3];
+  double r[3];
+
+  for (int i=0;i<3;i++) {
+    r[i] = PyFloat_AsDouble(PyList_GetItem(rList,i));
+    ctr[i] = PyFloat_AsDouble(PyList_GetItem(ctrList,i));
+  }
+
+  // Check that the repository object does not already exist.
+  if (gRepository->Exists(objName)) {
+      api.error("The repository object '" + std::string(objName) + "' already exists.");
+      return nullptr;
   }
 
   // Instantiate the new solid:
-  geom = cvSolidModel::pyDefaultInstantiateSolidModel();
-  if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "Error creating solid object" );
-    
+  auto geom = cvSolidModel::pyDefaultInstantiateSolidModel();
+  if (geom == NULL) {
+      api.error("Error creating an ellipsoid sphere solid model.");
+      return nullptr;
   }
 
-  if ( geom->MakeEllipsoid( r, ctr ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "sphere solid creation error" );
-    delete geom;
-    
+  if (geom->MakeEllipsoid(r, ctr) != SV_OK) {
+      delete geom;
+      api.error("Error creating an ellipsoid sphere solid model.");
+      return nullptr;
   }
 
   // Register the new solid:
-  if ( !( gRepository->Register( objName, geom ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository" );
-    delete geom;
-    
+  if (!gRepository->Register(objName, geom)) {
+      delete geom;
+      api.error("Error adding the solid model '" + std::string(objName) + "' to the repository.");
+      return nullptr;
   }
 
   Py_INCREF(geom);
@@ -722,69 +826,83 @@ PyObject* Solid_EllipsoidCmd( pySolidModel* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
+//---------------------
+// SolidModel_cylinder 
+//---------------------
+PyDoc_STRVAR(SolidModel_cylinder_doc,
+  "cylinder(kernel)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// -----------------
-// Solid_CylinderCmd
-// -----------------
-
-PyObject* Solid_CylinderCmd( pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_cylinder(pySolidModel* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("sddOO", PyRunTimeErr, __func__);
   char *objName;
-  double ctr[3];
-  double axis[3];
   double r, l;
-  int nctr, naxis=0;
   PyObject* ctrList;
   PyObject* axisList;
-  cvSolidModel *geom;
 
-  if(!PyArg_ParseTuple(args,"sddOO",&objName,&r,&l,&ctrList,&axisList))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one char, two doubles and two lists");
-    
-  }
-  // Do work of command:
-
-  if (PyList_Size(ctrList)!=3)
-  {
-     PyErr_SetString(PyRunTimeErr,"cylinder requires a 3D center coordinate");
-     
-  }
-  if (PyList_Size(axisList)!=3)
-  {
-     PyErr_SetString(PyRunTimeErr,"ellipsoid requires a 3D axis vector.");
-    
+  if (!PyArg_ParseTuple(args, api.format, &objName, &r, &l, &ctrList, &axisList)) {
+      return api.argsError();
   }
 
-  for (int i=0;i<3;i++)
-  {
-    axis[i]=PyFloat_AsDouble(PyList_GetItem(axisList,i));
-    ctr[i]=PyFloat_AsDouble(PyList_GetItem(ctrList,i));
+  std::string emsg;
+  if (!svPyUtilCheckPointData(ctrList, emsg)) {
+      api.error("The cylinder center argument " + emsg);
+      return nullptr;
   }
-  // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( objName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists" );
-    
+
+  if (!svPyUtilCheckPointData(axisList, emsg)) {
+      api.error("The cylinder axis argument " + emsg);
+      return nullptr;
+  }
+
+  if (r <= 0.0) { 
+      api.error("The radius argument <= 0.0."); 
+      return nullptr;
+  }
+
+  if (l <= 0.0) { 
+      api.error("The length argument <= 0.0."); 
+      return nullptr;
+  }
+
+  double ctr[3];
+  double axis[3];
+  for (int i=0;i<3;i++) {
+    axis[i] = PyFloat_AsDouble(PyList_GetItem(axisList,i));
+    ctr[i] = PyFloat_AsDouble(PyList_GetItem(ctrList,i));
+  }
+
+  // Check that the repository object does not already exist.
+  if (gRepository->Exists(objName)) {
+      api.error("The repository object '" + std::string(objName) + "' already exists.");
+      return nullptr;
   }
 
   // Instantiate the new solid:
-  geom = cvSolidModel::pyDefaultInstantiateSolidModel();
-  if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "Error creating solid object" );
-    
+  auto geom = cvSolidModel::pyDefaultInstantiateSolidModel();
+  if (geom == NULL) {
+      api.error("Error creating a cylinder solid model.");
+      return nullptr;
   }
 
-  if ( geom->MakeCylinder( r, l, ctr, axis ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "cylinder solid creation error" );
-    delete geom;
-    
+  if (geom->MakeCylinder(r, l, ctr, axis) != SV_OK) {
+      delete geom;
+      api.error("Error creating a cylinder solid model.");
+      return nullptr;
   }
 
   // Register the new solid:
-  if ( !( gRepository->Register( objName, geom ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository" );
-    delete geom;
-    
+  if (!gRepository->Register(objName, geom)) {
+      delete geom;
+      api.error("Error adding the cylinder solid model '" + std::string(objName) + "' to the repository.");
+      return nullptr;
   }
 
   Py_INCREF(geom);
@@ -793,137 +911,170 @@ PyObject* Solid_CylinderCmd( pySolidModel* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
+//---------------------------
+// SolidModel_truncated_cone 
+//---------------------------
+//
+PyDoc_STRVAR(SolidModel_truncated_cone_doc,
+  "truncated_cone(kernel)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// ----------------------
-// Solid_TruncatedConeCmd
-// ----------------------
-
-PyObject* Solid_TruncatedConeCmd( pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_truncated_cone(pySolidModel* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("sddOO", PyRunTimeErr, __func__);
   char *objName;
-  double pt[3];
-  double dir[3];
   double r1, r2;
   PyObject* ptList;
   PyObject* dirList;
-  cvSolidModel *geom;
 
-  if(!PyArg_ParseTuple(args,"sddOO",&objName,&r1,&r2,&ptList,&dirList))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one char,two doubles and two lists.");
-    
-  }
-  // Do work of command:
-
-  if (PyList_Size(ptList)!=3)
-  {
-     PyErr_SetString(PyRunTimeErr,"truncatedCone requires a 3D coordinate");
-     
-  }
-  if (PyList_Size(dirList)!=3)
-  {
-     PyErr_SetString(PyRunTimeErr,"truncatedCone requires a 3D direction vector.");
-    
+  if (!PyArg_ParseTuple(args, api.format, &objName, &r1, &r2, &ptList, &dirList)) {
+      return api.argsError();
   }
 
-  for (int i=0;i<3;i++)
-  {
+  std::string emsg;
+  if (!svPyUtilCheckPointData(ptList, emsg)) {
+      api.error("The truncated cone point list argument " + emsg);
+      return nullptr;
+  }
+
+  if (!svPyUtilCheckPointData(ptList, emsg)) {
+      api.error("The truncated cone direction vector argument " + emsg);
+      return nullptr;
+  }
+
+  if (r1 <= 0.0) {
+      api.error("The radius 1 argument <= 0.0."); 
+      return nullptr;
+  }
+
+  if (r2 <= 0.0) {
+      api.error("The radius 2 argument <= 0.0."); 
+      return nullptr;
+  }
+
+  double pt[3];
+  double dir[3];
+  for (int i=0;i<3;i++) {
     pt[i]=PyFloat_AsDouble(PyList_GetItem(ptList,i));
     dir[i]=PyFloat_AsDouble(PyList_GetItem(dirList,i));
   }
-  // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( objName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists" );
-    
+
+  // Check that the repository object does not already exist.
+  if (gRepository->Exists(objName)) {
+      api.error("The repository object '" + std::string(objName) + "' already exists.");
+      return nullptr;
   }
 
   // Instantiate the new solid:
-  geom = cvSolidModel::pyDefaultInstantiateSolidModel();
-  if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "Error creating solid object" );
-    
+  auto geom = cvSolidModel::pyDefaultInstantiateSolidModel();
+  if (geom == NULL) {
+      api.error("Error creating a truncated cone solid model.");
+      return nullptr;
   }
 
-  if ( geom->MakeTruncatedCone( pt, dir, r1, r2 ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "cylinder solid creation error" );
-    delete geom;
-    
+  if (geom->MakeTruncatedCone(pt, dir, r1, r2) != SV_OK) {
+      delete geom;
+      api.error("Error creating a truncated cone solid model.");
+      return nullptr;
   }
 
   // Register the new solid:
-  if ( !( gRepository->Register( objName, geom ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository" );
-    delete geom;
-    
+  if (!gRepository->Register(objName, geom)) {
+      delete geom;
+      api.error("Error adding the truncated cone solid model '" + std::string(objName) + "' to the repository.");
+      return nullptr;
   }
+
   Py_INCREF(geom);
   self->geom=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
 
+//------------------
+// SolidModel_torus 
+//------------------
+//
+PyDoc_STRVAR(SolidModel_torus_doc,
+  "_torus(kernel)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// --------------
-// Solid_TorusCmd
-// --------------
-
-PyObject* Solid_TorusCmd( pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_torus(pySolidModel* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("sddOO", PyRunTimeErr, __func__);
   char *objName;
-  double ctr[3];
-  double axis[3];
   PyObject* ctrList;
   PyObject* axisList;
   double rmaj, rmin;
-  int nctr, naxis=0;
-  cvSolidModel *geom;
-  if(!PyArg_ParseTuple(args,"sddOO",&objName,&rmaj,&rmin,&ctrList,&axisList))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one char,two doubles and two lists.");
-    
+
+  if (!PyArg_ParseTuple(args, api.format, &objName, &rmaj, &rmin, &ctrList, &axisList)) {
+      return api.argsError();
   }
 
-  // Do work of command:
-  if (PyList_Size(ctrList)!=3)
-  {
-     PyErr_SetString(PyRunTimeErr,"torus requires a 3D center coordinate");
-     
-  }
-  if (PyList_Size(axisList)!=3)
-  {
-     PyErr_SetString(PyRunTimeErr,"ellipsoid requires a 3D axis vector.");
-    
+  std::string emsg;
+  if (!svPyUtilCheckPointData(ctrList, emsg)) {
+      api.error("The torus center argument " + emsg);
+      return nullptr;
   }
 
-  for (int i=0;i<3;i++)
-  {
+  if (!svPyUtilCheckPointData(axisList, emsg)) {
+      api.error("The torus axis argument " + emsg);
+      return nullptr;
+  }
+
+  if (rmaj  <= 0.0) {
+      api.error("The torus major radius argument <= 0.0."); 
+      return nullptr;
+  }
+
+  if (rmin  <= 0.0) {
+      api.error("The torus minor radius argument <= 0.0."); 
+      return nullptr;
+  }
+
+  double ctr[3];
+  double axis[3];
+  for (int i=0;i<3;i++) {
     axis[i]=PyFloat_AsDouble(PyList_GetItem(axisList,i));
     ctr[i]=PyFloat_AsDouble(PyList_GetItem(ctrList,i));
   }
-  // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( objName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    
+
+  // Check that the repository object does not already exist.
+  if (gRepository->Exists(objName)) {
+      api.error("The repository object '" + std::string(objName) + "' already exists.");
+      return nullptr;
   }
 
   // Instantiate the new solid:
-  geom = cvSolidModel::pyDefaultInstantiateSolidModel();
-  if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "Error creating solid object" );
-    
+  auto geom = cvSolidModel::pyDefaultInstantiateSolidModel();
+  if (geom == NULL) {
+      api.error("Error creating a torus solid model.");
+      return nullptr;
   }
 
-  if ( geom->MakeTorus( rmaj, rmin, ctr, axis ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "torus solid creation error" );
-    delete geom;
-    
+  if (geom->MakeTorus(rmaj, rmin, ctr, axis) != SV_OK) {
+      delete geom;
+      api.error("Error creating a torus solid model.");
+      return nullptr;
   }
 
   // Register the new solid:
-  if ( !( gRepository->Register( objName, geom ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository" );
-    delete geom;
-    
+  if (!gRepository->Register(objName, geom)) {
+      delete geom;
+      api.error("Error adding the torus solid model '" + std::string(objName) + "' to the repository.");
+      return nullptr;
   }
 
   Py_INCREF(geom);
@@ -932,79 +1083,84 @@ PyObject* Solid_TorusCmd( pySolidModel* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
+//-------------------------
+// SolidModel_poly3d_solid 
+//-------------------------
+//
+// [TODO:DaveP] not sure about this name.
+//
+PyDoc_STRVAR(SolidModel_poly3d_solid_doc,
+  "poly3d_solid(kernel)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// --------------------
-// Solid_Poly3dSolidCmd
-// --------------------
-
-PyObject* Solid_Poly3dSolidCmd( pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_poly3d_solid(pySolidModel* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("sssd", PyRunTimeErr, __func__);
   char *objName;
   char *srcName;
   char *facetMethodName;
-  char *facetStr;
-  SolidModel_FacetT facetMethod;
-  cvRepositoryData *pd;
-  RepositoryDataT type;
-  cvSolidModel *geom;
   double angle = 0.0;
 
-  if(!PyArg_ParseTuple(args,"sssd",&objName,&srcName,&facetMethodName,&angle))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import three char and one double.");
-    
+  if (!PyArg_ParseTuple(args, api.format, &objName, &srcName, &facetMethodName, &angle)) {
+      return api.argsError();
   }
 
-  facetMethod = SolidModel_FacetT_StrToEnum( facetMethodName );
-  if ( facetMethod == SM_Facet_Invalid ) {
-    facetStr = SolidModel_FacetT_EnumToStr( SM_Facet_Invalid );
-    PyErr_SetString(PyRunTimeErr, facetStr);
-    
+  auto facetMethod = SolidModel_FacetT_StrToEnum( facetMethodName );
+  if (facetMethod == SM_Facet_Invalid) {
+      api.error("Unknown polysolid facet method argument type '"+std::string(facetMethodName)+
+        "'. Valid methods are: Sew, Union or Webl."); 
+      return nullptr;
   }
-
-  // Do work of command:
 
   // Retrieve cvPolyData source:
-  pd = gRepository->GetObject( srcName );
-  if ( pd == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object " );
-    
-  }
-  type = pd->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr, "object not of type cvPolyData" );
-    
+  auto pd = gRepository->GetObject( srcName );
+  if (pd == NULL) {
+      api.error("The polydata '" + std::string(srcName) + "' is not in the repository.");
+      return nullptr;
   }
 
-  // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( objName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists" );
-    
+  auto type = pd->GetType();
+  if (type != POLY_DATA_T ) {
+      api.error("'" + std::string(srcName) + "' is not of type polydata.");
+      return nullptr;
+  }
+
+  // Check that the repository object does not already exist.
+  if (gRepository->Exists(objName)) {
+      api.error("The repository object '" + std::string(objName) + "' already exists.");
+      return nullptr;
   }
 
   // Instantiate the new solid:
-  geom = cvSolidModel::pyDefaultInstantiateSolidModel();
-  if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "Error creating solid object" );
-    
+  auto geom = cvSolidModel::pyDefaultInstantiateSolidModel();
+  if (geom == NULL) {
+      api.error("Error creating a solid model.");
+      return nullptr;
   }
 
-  if ( geom->SetPoly3dFacetMethod( facetMethod ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "error selecting facet method ");
-    delete geom;
-    
+  if (geom->SetPoly3dFacetMethod(facetMethod) != SV_OK) {
+      delete geom;
+      api.error("Error creating a solid model.");
+      return nullptr;
   }
+
   if ( geom->MakePoly3dSolid( (cvPolyData*)pd , angle ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "polygonal solid creation error" );
-    delete geom;
-    
+      delete geom;
+      api.error("Error creating a solid model.");
+      return nullptr;
   }
 
   // Register the new solid:
-  if ( !( gRepository->Register( objName, geom ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository" );
-    delete geom;
-    
+  if (!gRepository->Register(objName, geom)) {
+      delete geom;
+      api.error("Error adding the solid model '" + std::string(objName) + "' to the repository.");
+      return nullptr;
   }
 
   Py_INCREF(geom);
@@ -1013,80 +1169,81 @@ PyObject* Solid_Poly3dSolidCmd( pySolidModel* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
+//---------------------------
+// SolidModel_poly3d_surface 
+//---------------------------
+//
+PyDoc_STRVAR(SolidModel_poly3d_surface_doc,
+  "poly3d_surface(kernel)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// ----------------------
-// Solid_Poly3dSurfaceCmd
-// ----------------------
-
-PyObject* Solid_Poly3dSurfaceCmd( pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_poly3d_surface(pySolidModel* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("sss", PyRunTimeErr, __func__);
   char *objName;
   char *srcName;
   char *facetMethodName;
-  char *facetStr;
-  SolidModel_FacetT facetMethod;
-  cvRepositoryData *pd;
-  RepositoryDataT type;
-  cvSolidModel *geom;
 
-  if(!PyArg_ParseTuple(args,"sss",&objName,&srcName,&facetMethodName))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import three chars.");
-    
+  if (!PyArg_ParseTuple(args, api.format, &objName, &srcName, &facetMethodName)) {
+      return api.argsError();
   }
 
-  facetMethod = SolidModel_FacetT_StrToEnum( facetMethodName );
+  auto facetMethod = SolidModel_FacetT_StrToEnum( facetMethodName );
   if ( facetMethod == SM_Facet_Invalid ) {
-    facetStr = SolidModel_FacetT_EnumToStr( SM_Facet_Invalid );
-    PyErr_SetString(PyRunTimeErr, facetStr );
-    
+      api.error("Unknown polysolid facet method argument type '"+std::string(facetMethodName)+
+        "'. Valid methods are: Sew, Union or Webl."); 
+      return nullptr;
   }
-
-  // Do work of command:
 
   // Retrieve cvPolyData source:
-  pd = gRepository->GetObject( srcName );
+  auto pd = gRepository->GetObject( srcName );
   if ( pd == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object ");
-    
+      api.error("The polydata '" + std::string(srcName) + "' is not in the repository.");
+      return nullptr;
   }
-  type = pd->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr, "object not of type cvPolyData");
-    
+  auto type = pd->GetType();
+  if (type != POLY_DATA_T) {
+      api.error("'" + std::string(srcName) + "' is not of type polydata.");
+      return nullptr;
   }
 
-  // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( objName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object  already exists" );
-    
+  // Check that the repository object does not already exist.
+  if (gRepository->Exists(objName)) {
+      api.error("The repository object '" + std::string(objName) + "' already exists.");
+      return nullptr;
   }
 
   // Instantiate the new solid:
-  geom = cvSolidModel::pyDefaultInstantiateSolidModel();
+  auto geom = cvSolidModel::pyDefaultInstantiateSolidModel();
   if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "Error creating solid object" );
-    
+      api.error("Error creating a poly3d solid model.");
+      return nullptr;
   }
 
   if ( geom->SetPoly3dFacetMethod( facetMethod ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "error selecting facet method " );
-    delete geom;
-    
+      delete geom;
+      api.error("Error setting facet method to '" + std::string(facetMethodName) + "'.");
+      return nullptr;
   }
-  if ( geom->MakePoly3dSurface( (cvPolyData*)pd ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "solid polygonal surface creation error");
-    delete geom;
-    
+
+  if (geom->MakePoly3dSurface( (cvPolyData*)pd ) != SV_OK) {
+      delete geom;
+      api.error("Error creating a poly3d solid model.");
+      return nullptr;
   }
 
   // Register the new solid:
   if ( !( gRepository->Register( objName, geom ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
-    delete geom;
-    
+      delete geom;
+      api.error("Error adding the solid model '" + std::string(objName) + "' to the repository.");
+      return nullptr;
   }
-
 
   Py_INCREF(geom);
   self->geom=geom;
@@ -1094,62 +1251,73 @@ PyObject* Solid_Poly3dSurfaceCmd( pySolidModel* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
+//----------------------
+// SolidModel_extrude_z 
+//----------------------
+//
+PyDoc_STRVAR(SolidModel_extrude_z_doc,
+  "poly3d_surface(kernel)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// -----------------
-// Solid_ExtrudeZCmd
-// -----------------
-
-PyObject* Solid_ExtrudeZCmd( pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_extrude_z(pySolidModel* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("ssd", PyRunTimeErr, __func__);
   char *srcName;
   char *dstName;
   double dist;
-  cvRepositoryData *src;
-  RepositoryDataT type;
-  cvSolidModel *geom;
-  if(!PyArg_ParseTuple(args,"ssd",&srcName,&dstName,&dist))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import two chars and one double.");
-    
+
+  if (!PyArg_ParseTuple(args, api.format, &srcName, &dstName, &dist)) {
+      return api.argsError();
   }
-  // Do work of command:
 
   // Retrieve cvSolidModel source:
-  src = gRepository->GetObject( srcName );
-  if ( src == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object ");
-    
+  auto src = gRepository->GetObject( srcName );
+  if (src == NULL) {
+      api.error("The solid model '"+std::string(srcName)+"' is not in the repository.");
+      return nullptr;
   }
-  type = src->GetType();
-  if ( type != SOLID_MODEL_T ) {
-    PyErr_SetString(PyRunTimeErr, "object not of type cvSolidModel" );
-    
+  
+  auto type = src->GetType();
+  if (type != SOLID_MODEL_T) {
+      api.error("'" + std::string(srcName) + "' is not of type solid model.");
+      return nullptr;
   }
 
-  // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( dstName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    
+  if (dist <= 0.0) {
+      api.error("The extrude solid distance argument <= 0.0."); 
+      return nullptr;
+  }
+
+  // Check that the repository object does not already exist.
+  if (gRepository->Exists(dstName)) {
+      api.error("The repository object '" + std::string(dstName) + "' already exists.");
+      return nullptr;
   }
 
   // Instantiate the new solid:
-  geom = cvSolidModel::pyDefaultInstantiateSolidModel();
-  if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "Error creating solid object" );
-    
+  auto geom = cvSolidModel::pyDefaultInstantiateSolidModel();
+  if (geom == NULL) {
+      api.error("Error creating a extruded solid model.");
+      return nullptr;
   }
 
   if ( geom->ExtrudeZ( (cvSolidModel *)src, dist ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "error in solid extrusion" );
-    delete geom;
-    
+      delete geom;
+      api.error("Error creating a extruded solid model.");
+      return nullptr;
   }
 
   // Register the new solid:
-  if ( !( gRepository->Register( dstName, geom ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository" );
-    delete geom;
-    
+  if (!gRepository->Register(dstName, geom)) {
+      delete geom;
+      api.error("Error adding the solid model '" + std::string(dstName) + "' to the repository.");
+      return nullptr;
   }
 
   Py_INCREF(geom);
@@ -1158,88 +1326,96 @@ PyObject* Solid_ExtrudeZCmd( pySolidModel* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
+//--------------------
+// SolidModel_extrude 
+//--------------------
+//
+PyDoc_STRVAR(SolidModel_extrude_doc,
+  "extrude(kernel)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// ----------------
-// Solid_ExtrudeCmd
-// ----------------
-
-PyObject* Solid_ExtrudeCmd( pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_extrude(pySolidModel* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("ssOO", PyRunTimeErr, __func__);
   char *srcName;
   char *dstName;
-  double pt1[3],pt2[3];
   PyObject* pt1List;
   PyObject* pt2List;
-  double **dist;
-  cvRepositoryData *src;
-  RepositoryDataT type;
-  cvSolidModel *geom;
 
-  if(!PyArg_ParseTuple(args,"ssOO",&srcName,&dstName,&pt1List,&pt2List))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import two strings and two lists");
-    
+  if (!PyArg_ParseTuple(args, api.format, &srcName, &dstName, &pt1List, &pt2List)) {
+      return api.argsError();
   }
 
-  // Do work of command:
-
-  if (PyList_Size(pt1List)>3||PyList_Size(pt2List)>3)
-  {
-     PyErr_SetString(PyRunTimeErr,"error in list dimension ");
-     
+  std::string emsg;
+  if (!svPyUtilCheckPointData(pt1List, emsg)) {
+      api.error("The extrude point1 argument " + emsg);
+      return nullptr;
   }
 
-  for (int i=0;i<PyList_Size(pt1List);i++)
-  {
+  if (!svPyUtilCheckPointData(pt2List, emsg)) {
+      api.error("The extrude point2 argument " + emsg);
+      return nullptr;
+  }
+
+
+  double pt1[3],pt2[3];
+  for (int i=0;i<PyList_Size(pt1List);i++) {
     pt1[i]=PyFloat_AsDouble(PyList_GetItem(pt1List,i));
   }
-  for (int i=0;i<PyList_Size(pt2List);i++)
-  {
+  for (int i=0;i<PyList_Size(pt2List);i++) {
     pt2[i]=PyFloat_AsDouble(PyList_GetItem(pt2List,i));
   }
+
   // Retrieve cvSolidModel source:
-  src = gRepository->GetObject( srcName );
-  if ( src == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object ");
-    
-  }
-  type = src->GetType();
-  if ( type != SOLID_MODEL_T ) {
-    PyErr_SetString(PyRunTimeErr, "object not of type cvSolidModel" );
-    
+  auto src = gRepository->GetObject( srcName );
+  if (src == NULL) {
+      api.error("The solid model '"+std::string(srcName)+"' is not in the repository.");
+      return nullptr;
   }
 
-  // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( dstName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    
+  auto type = src->GetType();
+  if (type != SOLID_MODEL_T) {
+      api.error("'" + std::string(srcName) + "' is not of type solid model.");
+      return nullptr;
   }
 
-  dist = new double*[2];
+  // Check that the repository object does not already exist.
+  if (gRepository->Exists(dstName)) {
+      api.error("The repository object '" + std::string(dstName) + "' already exists.");
+      return nullptr;
+  }
+
+  // Instantiate the new solid:
+  auto geom = cvSolidModel::pyDefaultInstantiateSolidModel();
+  if (geom == NULL) {
+      api.error("Error creating a extruded solid model.");
+      return nullptr;
+  }
+
+  // [TODO:DaveP] should be using std::vector<> here.
+  auto dist = new double*[2];
   dist[0] = &pt1[0];
   dist[1] = &pt2[0];
 
-  // Instantiate the new solid:
-  geom = cvSolidModel::pyDefaultInstantiateSolidModel();
-  if ( geom == NULL ) {
-    delete dist;
-    PyErr_SetString(PyRunTimeErr, "Error creating solid object" );
-    
-  }
-
-  if ( geom->Extrude( (cvSolidModel *)src, dist ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "error in solid extrusion" );
-    delete geom;
-    delete dist;
-    
+  if (geom->Extrude((cvSolidModel*)src, dist) != SV_OK) {
+      delete geom;
+      delete dist;
+      api.error("Error creating a extruded solid model.");
+      return nullptr;
   }
 
   // Register the new solid:
-  if ( !( gRepository->Register( dstName, geom ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository" );
+  if (!gRepository->Register(dstName, geom)) {
     delete geom;
     delete dist;
-    
+    api.error("Error adding the extrude solid model '" + std::string(dstName) + "' to the repository.");
+    return nullptr;
   }
 
   delete dist;
@@ -1249,65 +1425,71 @@ PyObject* Solid_ExtrudeCmd( pySolidModel* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
+//----------------------------------------
+// SolidModel_make_approximate_curve_loop 
+//----------------------------------------
+//
+// [TODO:DaveP] here we have 'make' in the name unlike others.
+//
+PyDoc_STRVAR(SolidModel_make_approximate_curve_loop_doc,
+  "make_approximate_curve_loop(kernel)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// ----------------------------
-// Solid_MakeApproxCurveLoopCmd
-// ----------------------------
-
-PyObject* Solid_MakeApproxCurveLoopCmd( pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_make_approximate_curve_loop(pySolidModel* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("ssdi", PyRunTimeErr, __func__);
   char *srcName;
   char *dstName;
   double tol;
-  cvRepositoryData *src;
-  RepositoryDataT type;
-  cvSolidModel *geom;
   int closed = 1;
 
-  if(!PyArg_ParseTuple(args,"ssdi",&srcName,&dstName,&tol,&closed))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import two chars, one double and one int.");
-    
+  if (!PyArg_ParseTuple(args, api.format, &srcName, &dstName, &tol, &closed)) {
+      return api.argsError();
   }
-
-  // Do work of command:
 
   // Retrieve cvPolyData source:
-  src = gRepository->GetObject( srcName );
-  if ( src == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object ");
-    
-  }
-  type = src->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr, "object not of type cvPolyData" );
-    
+  auto src = gRepository->GetObject( srcName );
+  if (src == NULL) {
+      api.error("The solid model '"+std::string(srcName)+"' is not in the repository.");
+      return nullptr;
   }
 
-  // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( dstName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object  already exists");
-    
+  auto type = src->GetType();
+  if (type != POLY_DATA_T) {
+      api.error("'" + std::string(srcName) + "' is not of type solid model.");
+      return nullptr;
+  }
+
+  // Check that the repository object does not already exist.
+  if (gRepository->Exists(dstName)) {
+      api.error("The repository object '" + std::string(dstName) + "' already exists.");
+      return nullptr;
   }
 
   // Instantiate the new solid:
-  geom = cvSolidModel::pyDefaultInstantiateSolidModel();
-  if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "Error creating solid object" );
-    
+  auto geom = cvSolidModel::pyDefaultInstantiateSolidModel();
+  if (geom == NULL ) {
+      api.error("Error creating curve loop solid model.");
+      return nullptr;
   }
 
-  if ( geom->MakeApproxCurveLoop( (cvPolyData *)src, tol, closed ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "error in curve loop construction" );
-    delete geom;
-    
+  if (geom->MakeApproxCurveLoop( (cvPolyData *)src, tol, closed ) != SV_OK) {
+      delete geom;
+      api.error("Error creating curve loop solid model.");
+      return nullptr;
   }
 
   // Register the new solid:
-  if ( !( gRepository->Register( dstName, geom ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
-    delete geom;
-    
+  if (!gRepository->Register(dstName, geom)) {
+      delete geom;
+      api.error("Error adding the solid model '" + std::string(dstName) + "' to the repository.");
+      return nullptr;
   }
 
   Py_INCREF(geom);
@@ -1316,64 +1498,68 @@ PyObject* Solid_MakeApproxCurveLoopCmd( pySolidModel* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
+//-----------------------------------------
+// SolidModel_make_interpolated_curve_loop 
+//-----------------------------------------
+//
+PyDoc_STRVAR(SolidModel_make_interpolated_curve_loop_doc,
+  "make_interpolated_curve_loop(kernel)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// ----------------------------
-// Solid_MakeInterpCurveLoopCmd
-// ----------------------------
-
-PyObject* Solid_MakeInterpCurveLoopCmd( pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_make_interpolated_curve_loop( pySolidModel* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("ss|i", PyRunTimeErr, __func__);
   char *srcName;
   char *dstName;
-
-  cvRepositoryData *src;
-  RepositoryDataT type;
-  cvSolidModel *geom;
   int closed = 1;
 
-  if(!PyArg_ParseTuple(args,"ss|i",&srcName,&dstName,&closed))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import two chars and one int");
-    
+  if (!PyArg_ParseTuple(args, api.format, &srcName, &dstName, &closed)) {
+      return api.argsError();
   }
-  // Do work of command:
 
   // Retrieve cvPolyData source:
-  src = gRepository->GetObject( srcName );
-  if ( src == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object ");
-    
-  }
-  type = src->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr, "object not of type cvPolyData");
-    
+  auto src = gRepository->GetObject( srcName );
+  if (src == NULL) {
+      api.error("The solid model '"+std::string(srcName)+"' is not in the repository.");
+      return nullptr;
   }
 
-  // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( dstName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    
+  auto type = src->GetType();
+  if (type != POLY_DATA_T) {
+      api.error("'" + std::string(srcName) + "' is not of type polydata.");
+      return nullptr;
+  }
+
+  // Check that the repository object does not already exist.
+  if (gRepository->Exists(dstName)) {
+      api.error("The repository object '" + std::string(dstName) + "' already exists.");
+      return nullptr;
   }
 
   // Instantiate the new solid:
-  geom = cvSolidModel::pyDefaultInstantiateSolidModel();
-  if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "Error creating solid object" );
-    
+  auto geom = cvSolidModel::pyDefaultInstantiateSolidModel();
+  if (geom == NULL) {
+      api.error("Error creating a interpolated curve loop solid model.");
+      return nullptr;
   }
 
-  if ( geom->MakeInterpCurveLoop( (cvPolyData *)src, closed ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "error in curve loop construction" );
-    delete geom;
-    
+  if (geom->MakeInterpCurveLoop( (cvPolyData *)src, closed ) != SV_OK) {
+      delete geom;
+      api.error("Error creating a interpolated curve loop solid model.");
+      return nullptr;
   }
 
   // Register the new solid:
-  if ( !( gRepository->Register( dstName, geom ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
-    delete geom;
-    
+  if (!gRepository->Register(dstName, geom)) {
+      delete geom;
+      api.error("Error adding the solid model '" + std::string(dstName) + "' to the repository.");
+      return nullptr;
   }
 
   Py_INCREF(geom);
@@ -1382,95 +1568,85 @@ PyObject* Solid_MakeInterpCurveLoopCmd( pySolidModel* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
+//--------------------------------
+// SolidModel_make_lofted_surface 
+//--------------------------------
+//
+PyDoc_STRVAR(SolidModel_make_lofted_surface_doc,
+  "make_lofted_surface(kernel)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// -----------------------
-// Solid_MakeLoftedSurfCmd
-// -----------------------
-
-PyObject* Solid_MakeLoftedSurfCmd( pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_make_lofted_surface(pySolidModel* self, PyObject* args)
 {
-  char *dstName;
-  cvRepositoryData *src;
-  RepositoryDataT type;
-  int numSrcs;
+  auto api = SvPyUtilApiFunction("Os|iidddi", PyRunTimeErr, __func__);
   PyObject* srcList;
-  cvSolidModel **srcs;
-  cvSolidModel *geom;
+  char *dstName;
   int continuity=0;
   int partype=0;
   int smoothing=0;
   double w1=0.4,w2=0.2,w3=0.4;
-  int i;
 
-  if(!PyArg_ParseTuple(args,"Os|iidddi",&srcList,&dstName,&continuity,&partype,&w1,&w2,&w3,&smoothing))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one list, one string or optional three ints and three doubles.");
-    
-  }
-  // Do work of command:
-
-  numSrcs = PyList_Size(srcList);
-
-  if ( numSrcs < 2 ) {
-    PyErr_SetString(PyRunTimeErr, "need >= 2 curve cvSolidModel's to loft surface");
-    
+  if (!PyArg_ParseTuple(args, api.format, &srcList, &dstName, &continuity, &partype, &w1, &w2, &w3, &smoothing)) {
+      return api.argsError();
   }
 
-  // Foreach src obj, check that it is in the repository and of the
-  // correct type (i.e. cvSolidModel).  Also build up the array of
-  // cvSolidModel*'s to pass to cvSolidModel::MakeLoftedSurf.
-
-  srcs = new cvSolidModel * [numSrcs];
-
-  for ( i = 0; i < numSrcs; i++ ) {
-    src = gRepository->GetObject( PyString_AsString(PyList_GetItem(srcList,i)) );
-    if ( src == NULL ) {
-      PyErr_SetString(PyRunTimeErr,"Couldn't find object ");
-      delete [] srcs;
-      
-    }
-    type = src->GetType();
-    if ( type != SOLID_MODEL_T ) {
-	    PyErr_SetString(PyRunTimeErr,"src not of type cvSolidModel");
-      delete [] srcs;
-      
-    }
-    srcs[i] = (cvSolidModel *) src;
+  auto numSrcs = PyList_Size(srcList);
+  if (numSrcs < 2) {
+      api.error("The loft surface number of sources argument is less than two.");
+      return nullptr;
   }
 
-  // We're done with the src object names:
+  // Check source curves.
+  //
+  std::vector<cvSolidModel*> source_curves;
 
-  // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( dstName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    delete [] srcs;
-    
+  for (int i = 0; i < numSrcs; i++) {
+      auto srcName = PyString_AsString(PyList_GetItem(srcList,i));
+      auto src = gRepository->GetObject( PyString_AsString(PyList_GetItem(srcList,i)) );
+      if (src == NULL) {
+          api.error("The lofting source curve '"+std::string(srcName)+"' is not in the repository.");
+          return nullptr;
+      }
+
+      auto type = src->GetType();
+      if (type != SOLID_MODEL_T ) {
+          api.error("The lofting source curve '"+std::string(srcName)+"' is not a solid model.");
+          return nullptr;
+      }
+      source_curves.push_back((cvSolidModel*)src);
+  }
+
+  // Check that the repository object does not already exist.
+  if (gRepository->Exists(dstName)) {
+      api.error("The repository object '" + std::string(dstName) + "' already exists.");
+      return nullptr;
   }
 
   // Instantiate the new solid:
-  geom = cvSolidModel::pyDefaultInstantiateSolidModel();
-  if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "Error creating solid object" );
-    delete [] srcs;
-    
+  auto geom = cvSolidModel::pyDefaultInstantiateSolidModel();
+  if (geom == NULL) {
+      api.error("Error creating a lofted solid model.");
+      return nullptr;
   }
 
-  if ( geom->MakeLoftedSurf( srcs, numSrcs , dstName,
-	continuity,partype,w1,w2,w3,smoothing) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "error in curve loop construction" );
-    delete [] srcs;
-    delete geom;
-    
+  if (geom->MakeLoftedSurf(source_curves.data(), numSrcs, dstName, continuity, partype,
+        w1, w2, w3, smoothing) != SV_OK) {
+      delete geom;
+      api.error("Error creating a lofted solid model.");
+      return nullptr;
   }
 
-  // We're done with the srcs array:
-  delete [] srcs;
-
-  // Register the new solid:
-  if ( !( gRepository->Register( dstName, geom ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository" );
-    delete geom;
-    
+  // Register the new solid.
+  if (!gRepository->Register(dstName, geom)) {
+      delete geom;
+      api.error("Error adding the lofted surface solid model '" + std::string(dstName) + "' to the repository.");
+      return nullptr;
   }
 
   Py_INCREF(geom);
@@ -1479,65 +1655,67 @@ PyObject* Solid_MakeLoftedSurfCmd( pySolidModel* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
+//---------------------------------
+// SolidModel_cap_surface_to_solid
+//---------------------------------
+//
+PyDoc_STRVAR(SolidModel_cap_surface_to_solid_doc,
+  "cap_surface_to_solid(kernel)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// -----------------------
-// Solid_CapSurfToSolidCmd
-// -----------------------
-
-PyObject* Solid_CapSurfToSolidCmd( pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_cap_surface_to_solid(pySolidModel* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *srcName;
   char *dstName;
-  cvRepositoryData *src;
-  RepositoryDataT type;
-  cvSolidModel *geom;
 
-  if(!PyArg_ParseTuple(args,"ss",&srcName,&dstName))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import two chars");
-    
+  if (!PyArg_ParseTuple(args, api.format, &srcName, &dstName)) {
+      return api.argsError();
   }
 
-  // Do work of command:
-
-  src = gRepository->GetObject( srcName );
-  if ( src == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object ");
-    
+  auto src = gRepository->GetObject(srcName);
+  if (src == NULL) {
+      api.error("The solid model '"+std::string(srcName)+"' is not in the repository.");
+      return nullptr;
   }
 
-  type = src->GetType();
-  if ( type != SOLID_MODEL_T ) {
-    PyErr_SetString(PyRunTimeErr, "object not of type cvSolidModel" );
-    
+  auto type = src->GetType();
+  if (type != SOLID_MODEL_T) {
+      api.error("'" + std::string(srcName) + "' is not of type solid model.");
+      return nullptr;
   }
 
-  // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( dstName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists" );
-    
+  // Check that the repository object does not already exist.
+  if (gRepository->Exists(dstName)) {
+      api.error("The repository object '" + std::string(dstName) + "' already exists.");
+      return nullptr;
   }
 
   // Instantiate the new solid:
-  geom = cvSolidModel::pyDefaultInstantiateSolidModel();
-  if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "Error creating solid object" );
-    
+  auto geom = cvSolidModel::pyDefaultInstantiateSolidModel();
+  if (geom == NULL ) {
+      api.error("Error creating a capped surfaces solid model.");
+      return nullptr;
   }
 
-  if ( geom->CapSurfToSolid( (cvSolidModel *)src ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "error in cap / bound operation" );
-    delete geom;
-    
+  if (geom->CapSurfToSolid((cvSolidModel*)src) != SV_OK) {
+      delete geom;
+      api.error("Error creating a capped surfaces solid model.");
+      return nullptr;
   }
 
   // Register the new solid:
-  if ( !( gRepository->Register( dstName, geom ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
-    delete geom;
-    
+  if (!gRepository->Register(dstName, geom)) {
+      delete geom;
+      api.error("Error adding the capped surface solid model '" + std::string(dstName) + "' to the repository.");
+      return nullptr;
   }
-
 
   Py_INCREF(geom);
   self->geom=geom;
@@ -1545,123 +1723,127 @@ PyObject* Solid_CapSurfToSolidCmd( pySolidModel* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
+//------------------------
+// SolidModel_read_native 
+//------------------------
+//
+PyDoc_STRVAR(SolidModel_read_native_doc,
+  "read_native(kernel)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// -------------------
-// Solid_ReadNativeCmd
-// -------------------
-
-PyObject* Solid_ReadNativeCmd( pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_read_native(pySolidModel* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *objName, *fileName;
 
-  if(!PyArg_ParseTuple(args,"ss",&objName,&fileName))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import two chars");
-    
+  if (!PyArg_ParseTuple(args, api.format, &objName, &fileName)) {
+      return api.argsError();
   }
-  // Do work of command:
 
-  // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( objName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists" );
-    
+  // Check that the repository object does not already exist.
+  if (gRepository->Exists(objName)) {
+      api.error("The repository object '" + std::string(objName) + "' already exists.");
+      return nullptr;
   }
 
   // Instantiate the new solid:
-  cvSolidModel *geom;
-  if (cvSolidModel::gCurrentKernel == SM_KT_PARASOLID ||
-      cvSolidModel::gCurrentKernel == SM_KT_DISCRETE ||
-      cvSolidModel::gCurrentKernel == SM_KT_POLYDATA ||
-      cvSolidModel::gCurrentKernel == SM_KT_OCCT ||
-      cvSolidModel::gCurrentKernel == SM_KT_MESHSIMSOLID) {
-
-	  geom = cvSolidModel::pyDefaultInstantiateSolidModel();
-
-	  if ( geom == NULL ) {
-	   PyErr_SetString(PyRunTimeErr, "Error creating solid object" );
-	    
-	  }
-
-	  if ( geom->ReadNative( fileName ) != SV_OK ) {
-	    PyErr_SetString(PyRunTimeErr, "file read error" );
-	    delete geom;
-	    
-	  }
-
-	  // Register the new solid:
-	  if ( !( gRepository->Register( objName, geom ) ) ) {
-	    PyErr_SetString(PyRunTimeErr, "error registering obj in repository" );
-	    delete geom;
-	    
-	  }
-
+  if (cvSolidModel::gCurrentKernel == SM_KT_INVALID) { 
+      api.error("The solid model kernel is not set.");
+      return nullptr;
   }
 
-  else {
-    fprintf( stdout, "current kernel is not valid (%i)\n",cvSolidModel::gCurrentKernel);
-    PyErr_SetString(PyRunTimeErr, "current kernel is not valid" );}
+  auto geom = cvSolidModel::pyDefaultInstantiateSolidModel();
+  if (geom == NULL) {
+      api.error("Error creating a solid model.");
+      return nullptr;
+  }
+
+  if ( geom->ReadNative( fileName ) != SV_OK ) {
+      delete geom;
+      api.error("Error reading a solid model from the file '" + std::string(fileName) + "'.");
+      return nullptr;
+  }
+
+  // Register the new solid:
+  if (!gRepository->Register(objName, geom)) {
+      delete geom;
+      api.error("Error adding the solid model '" + std::string(objName) + "' to the repository.");
+      return nullptr;
+  }
+
   Py_INCREF(geom);
   self->geom=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
 
+//-----------------
+// SolidModel_copy
+//-----------------
+//
+PyDoc_STRVAR(SolidModel_copy_doc,
+  "copy(kernel)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// -------------
-// Solid_CopyCmd
-// -------------
-
-PyObject* Solid_CopyCmd( pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_copy(pySolidModel* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *srcName;
   char *dstName;
-  cvRepositoryData *srcGeom;
-  RepositoryDataT src_t;
-  cvSolidModel *dstGeom;
 
-  if(!PyArg_ParseTuple(args,"ss",&srcName,&dstName))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import two chars");
-    
+  if (!PyArg_ParseTuple(args, api.format, &srcName, &dstName)) {
+      return api.argsError();
   }
-
-  // Do work of command:
 
   // Retrieve source:
-  srcGeom = gRepository->GetObject( srcName );
-  if ( srcGeom == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object ");
-    
-  }
-  src_t = gRepository->GetType( srcName );
-  if ( src_t != SOLID_MODEL_T ) {
-    PyErr_SetString(PyRunTimeErr, "object not of type cvSolidModel" );
-    
+  auto srcGeom = gRepository->GetObject(srcName);
+  if (srcGeom == NULL) {
+      api.error("The solid model '"+std::string(srcName)+"' is not in the repository.");
+      return nullptr;
   }
 
-  // Make sure the specified destination object does not exist:
-  if ( gRepository->Exists( dstName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    
+  auto src_t = gRepository->GetType(srcName);
+  if (src_t != SOLID_MODEL_T) {
+      api.error("'" + std::string(srcName) + "' is not of type solid model.");
+      return nullptr;
+  }
+
+  // Check that the repository object does not already exist.
+  if (gRepository->Exists(dstName)) {
+      api.error("The repository object '" + std::string(dstName) + "' already exists.");
+      return nullptr;
   }
 
   // Instantiate the new solid:
-  dstGeom = cvSolidModel::pyDefaultInstantiateSolidModel();
+  auto dstGeom = cvSolidModel::pyDefaultInstantiateSolidModel();
   if ( dstGeom == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "Error creating solid object" );
-    
+      api.error("Error creating solid model.");
+      return nullptr;
   }
-  if ( dstGeom->Copy( *((cvSolidModel *)srcGeom) ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "cvSolidModel copy error" );
+
+  if (dstGeom->Copy(*((cvSolidModel*)srcGeom)) != SV_OK) {
     delete dstGeom;
-    
+    api.error("Error copying solid model.");
+    return nullptr;
   }
 
   // Register the new solid:
-  if ( !( gRepository->Register( dstName, dstGeom ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
-    delete dstGeom;
-    
+  if (!gRepository->Register(dstName, dstGeom)) {
+      delete dstGeom;
+      api.error("Error adding the solid model '" + std::string(dstName) + "' to the repository.");
+      return nullptr;
   }
 
   Py_INCREF(dstGeom);
@@ -1670,83 +1852,66 @@ PyObject* Solid_CopyCmd( pySolidModel* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
+//----------------------
+// SolidModel_intersect 
+//----------------------
+//
+PyDoc_STRVAR(SolidModel_intersect_doc,
+  "intersect(kernel)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// ------------------
-// Solid_IntersectCmd
-// ------------------
-
-PyObject* Solid_IntersectCmd( pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_intersect( pySolidModel* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("sss|s", PyRunTimeErr, __func__);
   char *resultName;
-  char *smpName=NULL;
-  char *smpStr;
   char *aName;
   char *bName;
-  SolidModel_SimplifyT smp = SM_Simplify_All;  // DEFAULT ARG VALUE
-  RepositoryDataT aType, bType;
-  cvRepositoryData *gmA;
-  cvRepositoryData *gmB;
-  cvSolidModel *geom;
-  if(!PyArg_ParseTuple(args,"sss|s",&resultName,&aName,&bName,&smpName))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import three chars or one optional char smpName");
-    
+  char *smpName=NULL;
+
+  if (!PyArg_ParseTuple(args, api.format, &resultName, &aName, &bName, &smpName)) {
+      return api.argsError();
   }
 
-
-  // Parse the simplification flag if given:
-  if (smpName ) {
-    smp = SolidModel_SimplifyT_StrToEnum( smpName );
-    if ( smp == SM_Simplify_Invalid ) {
-      smpStr = SolidModel_SimplifyT_EnumToStr( SM_Simplify_Invalid );
-      PyErr_SetString(PyRunTimeErr, smpStr );
-      
-    }
+  // Parse the simplification flag if given.
+  auto smp = CheckSimplificationName(api, smpName);
+  if (smp == SM_Simplify_Invalid) {
+      return nullptr;
   }
 
-  // Do work of command:
-
-  // Retrieve cvSolidModel operands:
-  gmA = gRepository->GetObject( aName );
-  if ( gmA == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object ");
-    
+  // Check that operands are solid models.
+  auto gmA = CheckSolidModel(api, aName);
+  if (gmA == NULL) {
+      return nullptr;
   }
-  aType = gRepository->GetType( aName );
-  if ( aType != SOLID_MODEL_T ) {
-    PyErr_SetString(PyRunTimeErr, "object not of type cvSolidModel");
-    
-  }
-
-  gmB = gRepository->GetObject( bName );
-  if ( gmB == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object ");
-    
-  }
-  bType = gRepository->GetType( bName );
-  if ( bType != SOLID_MODEL_T ) {
-    PyErr_SetString(PyRunTimeErr, "object  not of type cvSolidModel" );
-    
+  auto gmB = CheckSolidModel(api, bName);
+  if (gmB == NULL) {
+      return nullptr;
   }
 
   // Instantiate the new solid:
-  geom = cvSolidModel::pyDefaultInstantiateSolidModel();
-  if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "Error creating solid object" );
-    
+  auto geom = cvSolidModel::pyDefaultInstantiateSolidModel();
+  if (geom == NULL) {
+      api.error("Error creating a solid model.");
+      return nullptr;
   }
 
-  if ( geom->Intersect( (cvSolidModel*)gmA, (cvSolidModel*)gmB, smp ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "intersection error" );
-    delete geom;
-    
+  if (geom->Intersect( (cvSolidModel*)gmA, (cvSolidModel*)gmB, smp ) != SV_OK ) {
+      delete geom;
+      api.error("Error performing a Boolean intersection.");
+      return nullptr;
   }
 
   // Register the new solid:
-  if ( !( gRepository->Register( resultName, geom ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
+  if (!gRepository->Register(resultName, geom)) {
     delete geom;
-    
+    api.error("Error adding the solid model '" + std::string(resultName) + "' to the repository.");
+    return nullptr;
   }
 
   Py_INCREF(geom);
@@ -1755,80 +1920,66 @@ PyObject* Solid_IntersectCmd( pySolidModel* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
+//------------------
+// SolidModel_union 
+//------------------
+//
+PyDoc_STRVAR(SolidModel_union_doc,
+  "union(kernel)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// --------------
-// Solid_UnionCmd
-// --------------
-
-PyObject* Solid_UnionCmd( pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_union(pySolidModel* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("sss|s", PyRunTimeErr, __func__);
   char *resultName;
-  char *smpName=NULL;
-  char *smpStr;
   char *aName;
   char *bName;
-  SolidModel_SimplifyT smp = SM_Simplify_All;  // DEFAULT ARG VALUE
-  RepositoryDataT aType, bType;
-  cvRepositoryData *gmA;
-  cvRepositoryData *gmB;
-  cvSolidModel *result;
+  char *smpName=NULL;
 
-  if(!PyArg_ParseTuple(args,"sss|s",&resultName,&aName,&bName,&smpName))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import three chars or one optional char smpName");
-    
+  if (!PyArg_ParseTuple(args, api.format, &resultName, &aName, &bName, &smpName)) {
+      return api.argsError();
   }
 
-  // Parse the simplification flag if given:
-  if (smpName) {
-    smp = SolidModel_SimplifyT_StrToEnum( smpName );
-    if ( smp == SM_Simplify_Invalid ) {
-      smpStr = SolidModel_SimplifyT_EnumToStr( SM_Simplify_Invalid );
-      PyErr_SetString(PyRunTimeErr, smpStr );
-      
-    }
+  // Parse the simplification flag if given.
+  auto smp = CheckSimplificationName(api, smpName);
+  if (smp == SM_Simplify_Invalid) {
+      return nullptr;
   }
 
-  // Do work of command:
-  // Retrieve cvSolidModel operands:
-  gmA = gRepository->GetObject( aName );
-  if ( gmA == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object ");
-    
+  // Check that operands are solid models.
+  auto gmA = CheckSolidModel(api, aName);
+  if (gmA == NULL) {
+      return nullptr;
   }
-  aType = gRepository->GetType( aName );
-  if ( aType != SOLID_MODEL_T ) {
-    PyErr_SetString(PyRunTimeErr, "object not of type cvSolidModel");
-    
-  }
-
-  gmB = gRepository->GetObject( bName );
-  if ( gmB == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object ");
-    
-  }
-  bType = gRepository->GetType( bName );
-  if ( bType != SOLID_MODEL_T ) {
-    PyErr_SetString(PyRunTimeErr, "object not of type cvSolidModel");
-    
+  auto gmB = CheckSolidModel(api, bName);
+  if (gmB == NULL) {
+      return nullptr;
   }
 
   // Instantiate the new solid:
-  result = cvSolidModel::pyDefaultInstantiateSolidModel();
-  if ( result == NULL ) {
-    PyErr_SetString(PyRunTimeErr,"result is NULL");
+  auto result = cvSolidModel::pyDefaultInstantiateSolidModel();
+  if (result == NULL) {
+      api.error("Error creating a solid model.");
+      return nullptr;
   }
-  if ( result->Union( (cvSolidModel*)gmA, (cvSolidModel*)gmB, smp ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "union error" );
-    delete result;
-    
+
+  if (result->Union((cvSolidModel*)gmA, (cvSolidModel*)gmB, smp) != SV_OK) {
+      delete result;
+      api.error("Error performing the Boolean union.");
+      return nullptr;
   }
 
   // Register the new solid:
-  if ( !( gRepository->Register( resultName, result ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
-    delete result;
-    
+  if (!gRepository->Register(resultName, result)) {
+      delete result;
+      api.error("Error adding the solid model '" + std::string(resultName) + "' to the repository.");
+      return nullptr;
   }
 
   Py_INCREF(result);
@@ -1837,83 +1988,66 @@ PyObject* Solid_UnionCmd( pySolidModel* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
+//---------------------
+// SolidModel_subtract 
+//---------------------
+//
+PyDoc_STRVAR(SolidModel_subtract_doc,
+  "union(kernel)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// -----------------
-// Solid_SubtractCmd
-// -----------------
-
-PyObject* Solid_SubtractCmd( pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_subtract(pySolidModel* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("sss|s", PyRunTimeErr, __func__);
   char *resultName;
-  char *smpName=NULL;
-  char *smpStr;
   char *aName;
   char *bName;
-  SolidModel_SimplifyT smp = SM_Simplify_All;  // DEFAULT ARG VALUE
-  RepositoryDataT aType, bType;
-  cvRepositoryData *gmA;
-  cvRepositoryData *gmB;
-  cvSolidModel *result;
+  char *smpName=NULL;
 
-  if(!PyArg_ParseTuple(args,"sss|s",&resultName,&aName,&bName,&smpName))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import three chars or one optional char smpName");
-    
+  if (!PyArg_ParseTuple(args, api.format, &resultName, &aName, &bName, &smpName)) {
+      return api.argsError();
   }
 
-  // Parse the simplification flag if given:
-  if (smpName) {
-    smp = SolidModel_SimplifyT_StrToEnum( smpName );
-    if ( smp == SM_Simplify_Invalid ) {
-      smpStr = SolidModel_SimplifyT_EnumToStr( SM_Simplify_Invalid );
-      PyErr_SetString(PyRunTimeErr, smpStr );
-      
-    }
+  // Parse the simplification flag if given.
+  auto smp = CheckSimplificationName(api, smpName);
+  if (smp == SM_Simplify_Invalid) {
+      return nullptr;
   }
 
-  // Do work of command:
-
-  // Retrieve cvSolidModel operands:
-  gmA = gRepository->GetObject( aName );
-  if ( gmA == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object ");
-    
+  // Check that operands are solid models.
+  auto gmA = CheckSolidModel(api, aName);
+  if (gmA == NULL) {
+      return nullptr;
   }
-  aType = gRepository->GetType( aName );
-  if ( aType != SOLID_MODEL_T ) {
-    PyErr_SetString(PyRunTimeErr, "object not of type cvSolidModel");
-    
-  }
-
-  gmB = gRepository->GetObject( bName );
-  if ( gmB == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object ");
-    
-  }
-  bType = gRepository->GetType( bName );
-  if ( bType != SOLID_MODEL_T ) {
-    PyErr_SetString(PyRunTimeErr, "object not of type cvSolidModel" );
-    
+  auto gmB = CheckSolidModel(api, bName);
+  if (gmB == NULL) {
+      return nullptr;
   }
 
   // Instantiate the new solid:
-  result = cvSolidModel::pyDefaultInstantiateSolidModel();
-  if ( result == NULL ) {
-    PyErr_SetString(PyRunTimeErr,"geom is NULL");
+  auto result = cvSolidModel::pyDefaultInstantiateSolidModel();
+  if (result == NULL) {
+      api.error("Error creating a solid model.");
+      return nullptr;
   }
 
-  if ( result->Subtract( (cvSolidModel*)gmA, (cvSolidModel*)gmB, smp )
-       != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "subtract error" );
-    delete result;
-    
+  if (result->Subtract( (cvSolidModel*)gmA, (cvSolidModel*)gmB, smp) != SV_OK) {
+      delete result;
+      api.error("Error performing the Boolean subtract.");
+      return nullptr;
   }
 
   // Register the new solid:
-  if ( !( gRepository->Register( resultName, result ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
-    delete result;
-    
+  if (!gRepository->Register(resultName, result)) {
+      delete result;
+      api.error("Error adding the solid model '" + std::string(resultName) + "' to the repository.");
+      return nullptr;
   }
 
   Py_INCREF(result);
@@ -1925,6 +2059,8 @@ PyObject* Solid_SubtractCmd( pySolidModel* self, PyObject* args)
 // ---------------
 // Solid_ObjectCmd
 // ---------------
+// [TODO:DaveP] is this useful?
+//
 PyObject* Solid_ObjectCmd(pySolidModel* self,PyObject* args )
 {
   if (PyTuple_Size(args)== 0 ) {
@@ -1933,12 +2069,9 @@ PyObject* Solid_ObjectCmd(pySolidModel* self,PyObject* args )
   return SV_PYTHON_OK;
 }
 
-// -----------
-// DeleteSolid
-// -----------
-// This is the deletion call-back for cvSolidModel object commands.
-
-PyObject* DeleteSolid( pySolidModel* self, PyObject* args)
+// [TODO:DaveP] is this used?
+PyObject * 
+DeleteSolid( pySolidModel* self, PyObject* args)
 {
   cvSolidModel *geom = self->geom;
 
@@ -1950,6 +2083,11 @@ PyObject* DeleteSolid( pySolidModel* self, PyObject* args)
 //------------------
 //Solid_NewObjectCmd
 //------------------
+
+
+
+
+
 PyObject* Solid_NewObjectCmd(pySolidModel* self,PyObject *args )
 {
   char *objName, *fileName;
@@ -2058,11 +2196,6 @@ Solid_get_kernel(PyObject* self, PyObject* args)
 }
 
 
-/////////////////////////////////////////////////////////////////
-//          M o d u l e  C l a s s  F u n c t i o n s          //
-/////////////////////////////////////////////////////////////////
-//
-// Python API functions for the SolidModel class. 
 
 PyDoc_STRVAR(SolidModel_get_class_name_doc,
 " SolidModel_get_class_name()  \n\
@@ -2958,13 +3091,12 @@ SolidModel_get_discontinuities(pySolidModel* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
-
-// -----------------------------------
-// Solid_GetAxialIsoparametricCurveMtd
-// -----------------------------------
-
-PyDoc_STRVAR(SolidModel_get_discontinuities_doc,
-" get_discontinuities(name)  \n\ 
+//------------------------------------------
+// SolidModel_get_axial_isoparametric_curve
+//------------------------------------------
+//
+PyDoc_STRVAR(SolidModel_get_axial_isoparametric_curve_doc,
+" get_axial_isoparametric_curve(name)  \n\ 
   \n\
   ??? Add the unstructured grid mesh to the repository. \n\
   \n\
@@ -2975,545 +3107,734 @@ PyDoc_STRVAR(SolidModel_get_discontinuities_doc,
 static pySolidModel * 
 SolidModel_get_axial_isoparametric_curve(pySolidModel* self, PyObject* args)
 {
-  cvSolidModel *geom = (self->geom);
+  auto api = SvPyUtilApiFunction("sd", PyRunTimeErr, __func__);
   char *resultName;
   double prm;
-  cvSolidModel *curve;
 
-  if(!PyArg_ParseTuple(args,"sd",&resultName,&prm))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one string and one double");
-    
+  if (!PyArg_ParseTuple(args, api.format, &resultName, &prm)) {
+      api.argsError();
+      return nullptr;
   }
 
+  auto geom = CheckGeometry(api, self);
+  if (geom == nullptr) {
+      return nullptr;
+  }
 
-  // Do work of command:
-
-  // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( resultName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    
+  // Check that the new Contour object does not already exist.
+  if (gRepository->Exists(resultName)) {
+      api.error("The solid model '" + std::string(resultName) + "' is already in the repository.");
+      return nullptr;
   }
 
   // Get the isoparametric curve on the given surface at the given
-  // parameter value:
-  if ( ( prm < 0.0 ) || ( prm > 1.0 ) ) {
-    PyErr_SetString(PyRunTimeErr, "parameter value must be between 0.0 and 1.0");
-    
+  // parameter value.
+  if ((prm < 0.0) || (prm > 1.0)) {
+      api.error("The curve parameter argument must be between 0.0 and 1.0.");
+      return nullptr;
   }
-  curve = geom->GetAxialIsoparametricCurve( prm );
-  if ( curve == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "error getting isoparametric curve for");
-    
+
+  auto curve = geom->GetAxialIsoparametricCurve( prm );
+  if (curve == NULL) {
+      api.error("Error getting the isoparametric curve for the solid model.");
+      return nullptr;
   }
 
   // Register the result:
-  if ( !( gRepository->Register( resultName, curve ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
-    delete curve;
-    
+  if (!gRepository->Register(resultName, curve)) {
+      delete curve;
+      api.error("Error adding the isoparametric curve '" + std::string(resultName) + "' to the repository.");
+      return nullptr;
   }
-
-  PyErr_SetString(PyRunTimeErr, curve->GetName());
 
   Py_INCREF(curve);
   pySolidModel* newCurve;
   newCurve = createSolidModelType();
-  //newCurve = PyObject_New(pySolidModel, &pySolidModelType);
   newCurve->geom=curve;
   Py_DECREF(curve);
   return newCurve;
 }
 
-//-------------------------
-// SolidModel_GetKernel
-//-------------------------
+//-----------------------
+// SolidModel_get_kernel 
+//-----------------------
 //
+PyDoc_STRVAR(SolidModel_get_kernel_doc,
+" get_kernel(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
 static PyObject * 
-Solid_GetKernelMtd( pySolidModel* self, PyObject* args)
+SolidModel_get_kernel(pySolidModel* self, PyObject* args)
 {
-  cvSolidModel *geom = (self->geom);
-  SolidModel_KernelT kernelType;
-  char *kernelName;
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
 
-  // Do work of command:
-  kernelType = geom->GetKernelT();
-  kernelName = SolidModel_KernelT_EnumToStr( kernelType );
-
-
-  if ( kernelType == SM_KT_INVALID ) {
-    PyErr_SetString(PyRunTimeErr, kernelName);
-    
-  } else {
-    return Py_BuildValue("s",kernelName);
+  auto geom = CheckGeometry(api, self);
+  if (geom == nullptr) {
+      return nullptr;
   }
+
+  auto kernelType = geom->GetKernelT();
+  if (kernelType == SM_KT_INVALID) {
+      api.error("The solid model kernel is not set.");
+      return nullptr;
+  }
+    
+  auto kernelName = SolidModel_KernelT_EnumToStr( kernelType );
+  return Py_BuildValue("s",kernelName);
 }
 
+//---------------------------
+// SolidModel_get_label_keys 
+//---------------------------
+//
+PyDoc_STRVAR(SolidModel_get_label_keys_doc,
+" get_label_keys(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-// ---------------------
-// Solid_GetLabelKeysMtd
-// ---------------------
-
-static PyObject* Solid_GetLabelKeysMtd( pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_get_label_keys(pySolidModel* self, PyObject* args)
 {
-  cvSolidModel *geom = (self->geom);
-  int numKeys, i;
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+
+  auto geom = CheckGeometry(api, self);
+  if (geom == nullptr) {
+      return nullptr;
+  }
+
+  int numKeys;
   char **keys;
 
-  // Do work of command:
-  geom->GetLabelKeys( &numKeys, &keys );
-  PyObject* keyList=PyList_New(numKeys);
-  for (i = 0; i < numKeys; i++) {
+  geom->GetLabelKeys(&numKeys, &keys);
+  PyObject* keyList = PyList_New(numKeys);
+
+  for (int i = 0; i < numKeys; i++) {
     PyList_SetItem(keyList, i, PyString_FromString(keys[i]));
   }
+
   delete [] keys;
 
   return keyList;
 }
 
+//----------------------
+// SolidModel_get_label
+//----------------------
+//
+PyDoc_STRVAR(SolidModel_get_label_doc,
+" get_label()  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+");
 
-// -----------------
-// Solid_GetLabelMtd
-// -----------------
-
-static PyObject* Solid_GetLabelMtd( pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_get_label(pySolidModel* self, PyObject* args)
 {
-  cvSolidModel *geom = (self->geom);
-  char *key, *value;
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  char *key; 
 
-  if(!PyArg_ParseTuple(args,"s",&key))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one string");
-    
+  if (!PyArg_ParseTuple(args,api.format,&key)) {
+      return api.argsError();
   }
 
-
-  // Do work of command:
-
-  if ( ! geom->GetLabel( key, &value ) ) {
-    PyErr_SetString(PyRunTimeErr, "key not found" );
-    
+  auto geom = CheckGeometry(api, self);
+  if (geom == nullptr) {
+      return nullptr;
   }
+
+  char *value;
+
+  if (!geom->GetLabel(key, &value)) {
+      api.error("The solid model key '" + std::string(key) + "' was not found.");
+      return nullptr;
+  }
+
   return Py_BuildValue("s",value);
 }
 
+//----------------------
+// SolidModel_set_label 
+//----------------------
+//
+PyDoc_STRVAR(SolidModel_set_label_doc,
+" set_label(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-// -----------------
-// Solid_SetLabelMtd
-// -----------------
-
-static PyObject* Solid_SetLabelMtd( pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_set_label(pySolidModel* self, PyObject* args)
 {
-  cvSolidModel *geom = (self->geom);
+  auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *key, *value;
 
-  if(!PyArg_ParseTuple(args,"ss",&key,&value))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import two strings");
-    
+  if (!PyArg_ParseTuple(args,api.format,&key,&value)) {
+      return api.argsError();
   }
 
+  auto geom = CheckGeometry(api, self);
+  if (geom == nullptr) {
+      return nullptr;
+  }
 
-  // Do work of command:
-
-  if ( ! geom->SetLabel( key, value ) ) {
-    if ( geom->IsLabelPresent( key ) ) {
-      PyErr_SetString(PyRunTimeErr, "key already in use");
-      
-    } else {
-      PyErr_SetString(PyRunTimeErr, "error setting label" );
-      
-    }
+  if (!geom->SetLabel(key, value)) {
+      if (geom->IsLabelPresent(key)) {
+          api.error("The solid model key '" + std::string(key) + "' is already being used.");
+          return nullptr;
+      } else {
+          PyErr_SetString(PyRunTimeErr, "error setting label" );
+          api.error("Error setting the solid model key '" + std::string(key) + ".");
+          return nullptr;
+      }
   }
 
   return SV_PYTHON_OK;
 }
 
+//------------------------
+// SolidModel_clear_label 
+//------------------------
+//
+PyDoc_STRVAR(SolidModel_clear_label_doc,
+" clear_label(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-// -------------------
-// Solid_ClearLabelMtd
-// -------------------
-
-static PyObject* Solid_ClearLabelMtd( pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_clear_label(pySolidModel* self, PyObject* args)
 {
-  cvSolidModel *geom = (self->geom);
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *key;
 
-  if(!PyArg_ParseTuple(args,"s",&key))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one string");
-    
+  if (!PyArg_ParseTuple(args,api.format,&key)) {
+      return api.argsError();
   }
 
-  // Do work of command:
-
-  if ( ! geom->IsLabelPresent( key ) ) {
-    PyErr_SetString(PyRunTimeErr, "key not found");
-    
+  auto geom = CheckGeometry(api, self);
+  if (geom == nullptr) {
+      return nullptr;
   }
 
-  geom->ClearLabel( key );
+  if (!geom->IsLabelPresent(key)) {
+      api.error("The solid model key '" + std::string(key) + "' is not defined.");
+      return nullptr;
+  }
+
+  geom->ClearLabel(key);
+  return SV_PYTHON_OK;
+}
+
+//-------------------------
+// SolidModel_get_face_ids 
+//-------------------------
+//
+PyDoc_STRVAR(SolidModel_get_face_ids_doc,
+" get_face_ids_doc()  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+");
+
+static PyObject * 
+SolidModel_get_face_ids(pySolidModel* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+
+  auto geom = CheckGeometry(api, self);
+  if (geom == nullptr) {
+      return nullptr;
+  }
+
+  int numFaces;
+  int *faces;
+
+  if (geom->GetFaceIds(&numFaces, &faces) != SV_OK) {
+      api.error("Error getting the face IDs for the solid model."); 
+      return nullptr;
+  }
+
+  if (numFaces == 0) {
+      Py_INCREF(Py_None);
+      return Py_None;
+  }
+
+  auto faceList = PyList_New(numFaces);
+
+  for (int i = 0; i < numFaces; i++) {
+      auto faceID = std::to_string(faces[i]);
+      PyList_SetItem(faceList, i, PyString_FromFormat(faceID.c_str()));
+  }
+
+  delete faces;
+  return faceList;
+}
+
+//-------------------------------
+// SolidModel_get_boundary_faces 
+//-------------------------------
+//
+// [TODO:DaveP] This function does not 'get' anything.
+//   Should this be renamed to 'extract_boundary_faces' ?
+//
+PyDoc_STRVAR(SolidModel_get_boundary_faces_doc,
+" get_boundary_faces()  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject *  
+SolidModel_get_boundary_faces(pySolidModel* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("d", PyRunTimeErr, __func__);
+  double angle = 0.0;
+
+  if (!PyArg_ParseTuple(args,api.format,&angle)) {
+      return api.argsError();
+  }
+
+  auto geom = CheckGeometry(api, self);
+  if (geom == nullptr) {
+      return nullptr;
+  }
+
+  if (geom->GetBoundaryFaces(angle) != SV_OK ) {
+    api.error("Error getting boundary faces for the solid model using angle '" + std::to_string(angle) + ".");
+    return nullptr;
+  }
 
   return SV_PYTHON_OK;
 }
 
-
-// -------------------
-// Solid_GetFaceIdsMtd
-// -------------------
-
-static PyObject* Solid_GetFaceIdsMtd( pySolidModel* self, PyObject* args)
-{
-  cvSolidModel *geom = (self->geom);
-  int numFaces;
-  int *faces;
-  char facestring[256];
-  PyObject* faceList;
-  int status = geom->GetFaceIds( &numFaces, &faces);
-  if ( status == SV_OK ) {
-    if (numFaces == 0)
-    {
-      Py_INCREF(Py_None);
-
-      return Py_None;
-    }
-    faceList=PyList_New(numFaces);
-    for (int i = 0; i < numFaces; i++) {
-	  sprintf(facestring, "%i", faces[i]);
-      PyList_SetItem(faceList,i,PyString_FromFormat(facestring));
-	  facestring[0]='\n';
-    }
-    delete faces;
-    return faceList;
-  } else {
-    PyErr_SetString(PyRunTimeErr, "GetFaceIds: error on object ");
-    
-  }
-}
-
-// -------------------
-// Solid_GetBoundaryFacesMtd
-// -------------------
+//---------------------------
+// SolidModel_get_region_ids 
+//---------------------------
 //
-static PyObject*  Solid_GetBoundaryFacesMtd( pySolidModel* self, PyObject* args)
-{
-  cvSolidModel *geom = (self->geom);
-  double angle = 0.0;
+PyDoc_STRVAR(SolidModel_get_region_ids_doc,
+" get_region_ids()  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+");
 
-  if(!PyArg_ParseTuple(args,"d",&angle))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one double");
-    
+static PyObject * 
+SolidModel_get_region_ids(pySolidModel* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+
+  auto geom = CheckGeometry(api, self);
+  if (geom == nullptr) {
+      return nullptr;
   }
 
-
-  int status = geom->GetBoundaryFaces(angle);
-  if ( status == SV_OK ) {
-    return SV_PYTHON_OK;
-  } else {
-    PyErr_SetString(PyRunTimeErr, "GetBoundaryFaces: error on object ");
-    
+  int numRegions, *regions;
+  if (geom->GetRegionIds(&numRegions, &regions) != SV_OK) {
+      api.error("Error getting regions IDs for the solid model.");
+      return nullptr;
   }
-}
 
-// ---------------------
-// Solid_GetRegionIdsMtd
-// ---------------------
-
-static PyObject* Solid_GetRegionIdsMtd( pySolidModel* self, PyObject* args)
-{
-  cvSolidModel *geom = (self->geom);
-  int numRegions;
-  int *regions;
-  char regionstring[256];
-  PyObject* regionList;
-
-  int status = geom->GetRegionIds( &numRegions, &regions);
-  if ( status == SV_OK ) {
-    if (numRegions == 0)
-    {
+  if (numRegions == 0) {
       Py_INCREF(Py_None);
       return Py_None;
-    }
-    regionList=PyList_New(numRegions);
-    for (int i = 0; i < numRegions; i++) {
-	  sprintf(regionstring, "%i", regions[i]);
-      PyList_SetItem(regionList,i,PyString_FromFormat(regionstring));
-	  regionstring[0]='\n';
-    }
-    delete regions;
-    return regionList;
-  } else {
-    PyErr_SetString(PyRunTimeErr, "GetRegionIds: error on object ");
-    
   }
-}
 
+  // Create the list of region IDs.
+  auto regionList = PyList_New(numRegions);
+  for (int i = 0; i < numRegions; i++) {
+      auto regionID = std::to_string(regions[i]);
+      PyList_SetItem(regionList, i, PyString_FromFormat(regionID.c_str()));
+  }
+
+  delete regions;
+  return regionList;
+}
 
 // --------------------
 // Solid_GetFaceAttrMtd
 // --------------------
 
-static PyObject* Solid_GetFaceAttrMtd( pySolidModel* self, PyObject* args)
+PyDoc_STRVAR(SolidModel_get_face_attribute_doc,
+" get_face_attribute(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject * 
+SolidModel_get_face_attribute( pySolidModel* self, PyObject* args)
 {
-  cvSolidModel *geom = (self->geom);
-  char *key, *value;
+  auto api = SvPyUtilApiFunction("si", PyRunTimeErr, __func__);
+  char *key;
   int faceid;
 
-  if(!PyArg_ParseTuple(args,"si",&key, &faceid))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one string and one int");
-    
+  if (!PyArg_ParseTuple(args,api.format, &key, &faceid)) {
+      return api.argsError();
   }
 
-  // Do work of command:
-
-  if ( ! geom->GetFaceAttribute( key, faceid, &value ) ) {
-    PyErr_SetString(PyRunTimeErr, "attribute not found");
-    
+  auto geom = CheckGeometry(api, self);
+  if (geom == nullptr) {
+      return nullptr;
   }
 
+  char *value;
+  if (!geom->GetFaceAttribute(key, faceid, &value)) {
+      api.error("The solid model attribute was not found: key='" + std::string(key) +
+        "  faceID='" + std::to_string(faceid) + "' .");
+      return nullptr;
+  }
 
   return Py_BuildValue("s",value);
 }
 
+//-------------------------------
+// SolidModel_set_face_attribute 
+//-------------------------------
+//
+// [TODO:DaveP] Should the args be "key, faceID, value" ?
+//
+PyDoc_STRVAR(SolidModel_set_face_attribute_doc,
+" set_face_attribute(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-// --------------------
-// Solid_SetFaceAttrMtd
-// --------------------
-
-static PyObject* Solid_SetFaceAttrMtd( pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_set_face_attribute(pySolidModel* self, PyObject* args)
 {
-  cvSolidModel *geom = (self->geom);
+  auto api = SvPyUtilApiFunction("ssi", PyRunTimeErr, __func__);
   char *key, *value;
   int faceid;
 
-  if(!PyArg_ParseTuple(args,"ssi",&key,&value,&faceid))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import two strings and one int");
-    
+  if (!PyArg_ParseTuple(args, api.format, &key, &value, &faceid)) {
+      return api.argsError();
   }
 
-  // Do work of command:
+  auto geom = CheckGeometry(api, self);
+  if (geom == nullptr) {
+      return nullptr;
+  }
 
-  if ( ! geom->SetFaceAttribute( key, faceid, value ) ) {
-    PyErr_SetString(PyRunTimeErr, "attribute could not be set");
-    
+  if (!geom->SetFaceAttribute(key, faceid, value) ) {
+      api.error("Error setting the solid model attribute: key='" + std::string(key) +
+        "  faceID='" + std::to_string(faceid) + "' .");
+      return nullptr;
   }
 
   return SV_PYTHON_OK;
 }
 
+//---------------------------------
+// SolidModel_get_region_attribute 
+//---------------------------------
+//
+PyDoc_STRVAR(SolidModel_get_region_attribute_doc,
+" get_region_attribute(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-// ----------------------
-// Solid_GetRegionAttrMtd
-// ----------------------
-
-static PyObject* Solid_GetRegionAttrMtd( pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_get_region_attribute(pySolidModel* self, PyObject* args)
 {
-  cvSolidModel *geom = (self->geom);
-  char *key, *value;
+  auto api = SvPyUtilApiFunction("si", PyRunTimeErr, __func__);
+  char *key;
   int regionid;
 
-  if(!PyArg_ParseTuple(args,"si",&key, &regionid))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one string and one int");
-    
+  if (!PyArg_ParseTuple(args, api.format, &key, &regionid)) {
+      return api.argsError();
   }
 
-
-  // Do work of command:
-
-  if ( ! geom->GetRegionAttribute( key, regionid, &value ) ) {
-    PyErr_SetString(PyRunTimeErr, "attribute not found");
-    
+  auto geom = CheckGeometry(api, self);
+  if (geom == nullptr) {
+      return nullptr;
   }
 
+  char *value;
+  if (!geom->GetRegionAttribute(key, regionid, &value)) {
+      api.error("The solid model region attribute was not found: key='" + std::string(key) +
+        "  RegionID='" + std::to_string(regionid) + "' .");
+      return nullptr;
+  }
 
   return Py_BuildValue("s",value);
 }
 
+//----------------------------------
+// SolidModel_set_region_attribute 
+//----------------------------------
+//
+PyDoc_STRVAR(SolidModel_set_region_attribute_doc,
+" set_region_attribute(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-// ----------------------
-// Solid_SetRegionAttrMtd
-// ----------------------
-
-static PyObject* Solid_SetRegionAttrMtd( pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_set_region_attribute(pySolidModel* self, PyObject* args)
 {
-  cvSolidModel *geom = (self->geom);
+  auto api = SvPyUtilApiFunction("ssi", PyRunTimeErr, __func__);
   char *key, *value;
   int regionid;
 
-  if(!PyArg_ParseTuple(args,"ssi",&key,&value,&regionid))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import two strings and one int");
-    
+  if (!PyArg_ParseTuple(args, api.format, &key, &value, &regionid)) {
+      return api.argsError();
   }
 
-
-  // Do work of command:
-
-  if ( ! geom->SetRegionAttribute( key, regionid, value ) ) {
-    PyErr_SetString(PyRunTimeErr, "attribute could not be set" );
-    
+  auto geom = CheckGeometry(api, self);
+  if (geom == nullptr) {
+      return nullptr;
   }
 
+  if (!geom->SetRegionAttribute(key, regionid, value)) {
+      api.error("Error setting the solid model attribute: key='" + std::string(key) +
+        "  regionID='" + std::to_string(regionid) + "' .");
+      return nullptr;
+  }
+    
   return SV_PYTHON_OK;
 }
 
-
-// --------------------
+//--------------------
 // Solid_DeleteFacesMtd
-// --------------------
+//--------------------
+//
+PyDoc_STRVAR(SolidModel_delete_faces_doc,
+" delete_faces(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-static PyObject* Solid_DeleteFacesMtd( pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_delete_faces(pySolidModel* self, PyObject* args)
 {
-  cvSolidModel *geom = (self->geom);
-  int status;
+  auto api = SvPyUtilApiFunction("O", PyRunTimeErr, __func__);
   PyObject* faceList;
-  if(!PyArg_ParseTuple(args,"O",&faceList))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one list");
-    
+
+  if (!PyArg_ParseTuple(args, api.format, &faceList)) {
+      return api.argsError();
+  }
+
+  auto geom = CheckGeometry(api, self);
+  if (geom == nullptr) {
+      return nullptr;
   }
 
   if (PyList_Size(faceList) == 0) {
       return SV_PYTHON_OK;
   }
 
+  // [TODO:DaveP] We should check that the face IDs are
+  // valid.
+
+  // Create list of faces to delete.
   int nfaces = 0;
   int *faces = new int[PyList_Size(faceList)];
-
-  for (int i=0;i<PyList_Size(faceList);i++)
-  {
-    faces[i]=PyLong_AsLong(PyList_GetItem(faceList,i));
+  for (int i = 0; i < PyList_Size(faceList); i++) {
+      faces[i] = PyLong_AsLong(PyList_GetItem(faceList,i));
   }
-  // Do work of command:
 
-  status = geom->DeleteFaces( nfaces, faces );
+  if (geom->DeleteFaces(nfaces, faces) != SV_OK) {
+      api.error("Error deleting faces for the solid model."); 
+      delete [] faces;
+  }
 
   delete [] faces;
-
-  if ( status != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "DeleteFaces: error on object");
-    
-  }
-
   return SV_PYTHON_OK;
 }
 
-// --------------------
-// Solid_DeleteRegionMtd
-// --------------------
+//--------------------------
+// SolidModel_delete_region 
+//--------------------------
+//
+PyDoc_STRVAR(SolidModel_delete_region_doc,
+" delete_region(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-static PyObject* Solid_DeleteRegionMtd( pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_delete_region(pySolidModel* self, PyObject* args)
 {
-  cvSolidModel *geom = (self->geom);
+  auto api = SvPyUtilApiFunction("i", PyRunTimeErr, __func__);
   int regionid;
-  int status;
 
-  if(!PyArg_ParseTuple(args,"i",&regionid))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one int");
-    
+  if (!PyArg_ParseTuple(args, api.format, &regionid)) {
+      return api.argsError();
   }
-  // Do work of command:
 
-  status = geom->DeleteRegion( regionid );
+  auto geom = CheckGeometry(api, self);
+  if (geom == nullptr) {
+      return nullptr;
+  }
 
-  if ( status != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "DeleteRegion: error on object");
-    
+  if (geom->DeleteRegion(regionid) != SV_OK) {
+      api.error("Error deleting the solid model region: regionID ='" + std::to_string(regionid)+"."); 
+      return nullptr;
   }
 
   return SV_PYTHON_OK;
 }
 
-
-// ------------------------
+//------------------------
 // Solid_CreateEdgeBlendMtd
-// ------------------------
+//------------------------
+//
+PyDoc_STRVAR(SolidModel_create_edge_blend_doc,
+" create_edge_blend(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-static PyObject* Solid_CreateEdgeBlendMtd( pySolidModel* self, PyObject* args)
+static PyObject * 
+SolidModel_create_edge_blend(pySolidModel* self, PyObject* args)
 {
-  cvSolidModel *geom = (self->geom);
-  int status;
+  auto api = SvPyUtilApiFunction("iid|i", PyRunTimeErr, __func__);
   int faceA;
   int faceB;
-  int filletshape=0;
   double radius;
+  int filletshape = 0;
 
-  if(!PyArg_ParseTuple(args,"iid|i",&faceA,&faceB,&radius,&filletshape))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import two ints, one double or one optional int");
-    
+  if (!PyArg_ParseTuple(args, api.format, &faceA, &faceB, &radius, &filletshape)) {
+      return api.argsError();
   }
 
-  status = geom->CreateEdgeBlend( faceA, faceB, radius, filletshape );
+  auto geom = CheckGeometry(api, self);
+  if (geom == nullptr) {
+      return nullptr;
+  }
 
-  if ( status != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "CreateEdgeBlend: error on object ");
-    
+  if (geom->CreateEdgeBlend(faceA, faceB, radius, filletshape) != SV_OK) {
+      api.error("Error creating edge blend for the solid model.");
+      return nullptr;
   }
 
   return SV_PYTHON_OK;
 }
 
-static PyObject* Solid_CombineFacesMtd( pySolidModel* self, PyObject* args)
+//--------------------------
+// SolidModel_combine_faces
+//--------------------------
+//
+PyDoc_STRVAR(SolidModel_combine_faces_doc,
+" combine_faces(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject * 
+SolidModel_combine_faces(pySolidModel* self, PyObject* args)
 {
-  cvSolidModel *geom = (self->geom);
-  int status;
+  auto api = SvPyUtilApiFunction("ii", PyRunTimeErr, __func__);
   int faceid1;
   int faceid2;
 
-  if(!PyArg_ParseTuple(args,"ii",&faceid1,&faceid2))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import two ints");
-    
+  if (!PyArg_ParseTuple(args, api.format, &faceid1, &faceid2)) {
+      return api.argsError();
   }
 
+  auto geom = CheckGeometry(api, self);
+  if (geom == nullptr) {
+      return nullptr;
+  }
 
-  status = geom->CombineFaces( faceid1, faceid2);
-
-  if ( status != SV_OK ) {
+  if (geom->CombineFaces(faceid1, faceid2) != SV_OK) {
     PyErr_SetString(PyRunTimeErr, "Combine Faces: Error");
-    
+      api.error("Error combining faces for the solid model: faceID1="+std::to_string(faceid1)+
+        " faceID2="+std::to_string(faceid2)+".");
+      return nullptr;
   }
 
   return SV_PYTHON_OK;
 }
 
-static PyObject* Solid_RemeshFaceMtd( pySolidModel* self, PyObject* args)
+//------------------------
+// SolidModel_remesh_face
+//------------------------
+//
+PyDoc_STRVAR(SolidModel_remesh_face_doc,
+" remesh_face(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject * 
+SolidModel_remesh_face(pySolidModel* self, PyObject* args)
 {
-  cvSolidModel *geom = (self->geom);
-  int status;
+  auto api = SvPyUtilApiFunction("Od", PyRunTimeErr, __func__);
   double size;
   PyObject* excludeList;
-  if(!PyArg_ParseTuple(args,"Od",&excludeList,&size))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one list and one double");
-    
+
+  if (!PyArg_ParseTuple(args, api.format, &excludeList, &size)) {
+      return api.argsError();
+  }
+
+  auto geom = CheckGeometry(api, self);
+  if (geom == nullptr) {
+      return nullptr;
   }
 
   if (PyList_Size(excludeList) == 0) {
       return SV_PYTHON_OK;
   }
 
+  // Create list of face IDs.
   int nfaces = 0;
   int *faces = new int[PyList_Size(excludeList)];
-
-  for (int i=0;i<PyList_Size(excludeList);i++)
-  {
-    faces[i]=PyLong_AsLong(PyList_GetItem(excludeList,i));
+  for (int i=0;i<PyList_Size(excludeList);i++) {
+    faces[i] = PyLong_AsLong(PyList_GetItem(excludeList,i));
   }
 
-  status = geom->RemeshFace( nfaces, faces, size);
-
+  auto status = geom->RemeshFace(nfaces, faces, size);
   delete [] faces;
 
-  if ( status != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "Remesh Face: Error");
-    
+  if (status != SV_OK) {
+      api.error("Error remeshing face for the solid model.");
+      return nullptr;
   }
 
   return SV_PYTHON_OK;
@@ -3537,10 +3858,28 @@ static PyMemberDef pySolidModel_members[]={
 
 static PyMethodDef pySolidModel_methods[] = {
 
-  { "Apply4x4",
+  { "apply4x4",
       (PyCFunction)SolidModel_apply4x4,
       METH_VARARGS,
       SolidModel_apply4x4_doc
+  },
+
+  { "box2d", 
+      (PyCFunction)SolidModel_box2d,
+      METH_VARARGS,
+      SolidModel_box2d_doc
+  },
+
+  { "box3d", 
+      (PyCFunction)SolidModel_box3d,
+      METH_VARARGS,
+      SolidModel_box3d_doc
+  },
+
+  { "cap_surface_to_solid", 
+      (PyCFunction)SolidModel_cap_surface_to_solid,
+      METH_VARARGS,     
+      SolidModel_cap_surface_to_solid_doc
   },
 
   { "check", 
@@ -3549,10 +3888,58 @@ static PyMethodDef pySolidModel_methods[] = {
       SolidModel_check_doc
   },
 
+  { "circle", 
+      (PyCFunction)SolidModel_circle,
+      METH_VARARGS,
+      SolidModel_circle_doc
+  },
+
   { "classify_point",
       (PyCFunction)SolidModel_classify_point,
       METH_VARARGS,   
       SolidModel_classify_point_doc
+  },
+
+  { "clear_label", 
+      (PyCFunction)SolidModel_clear_label,
+      METH_VARARGS,
+      SolidModel_clear_label_doc
+  },
+
+  { "combine_faces",
+      (PyCFunction)SolidModel_combine_faces,
+      METH_VARARGS,
+      SolidModel_combine_faces_doc
+  },
+
+  { "copy", 
+      (PyCFunction)SolidModel_copy,
+      METH_VARARGS,
+      SolidModel_copy_doc
+  },
+
+  { "create_edge_blend",
+      (PyCFunction)SolidModel_create_edge_blend,
+      METH_VARARGS,
+      SolidModel_create_edge_blend_doc
+  },
+
+  { "cylinder", 
+      (PyCFunction)SolidModel_cylinder,
+      METH_VARARGS,
+      SolidModel_cylinder_doc
+  },
+
+  { "delete_faces",
+      (PyCFunction)SolidModel_delete_faces,
+      METH_VARARGS,
+      SolidModel_delete_faces_doc
+  },
+
+  { "delete_region",
+      (PyCFunction)SolidModel_delete_region,
+      METH_VARARGS,
+      SolidModel_delete_region_doc
   },
 
   { "distance",
@@ -3560,6 +3947,30 @@ static PyMethodDef pySolidModel_methods[] = {
       METH_VARARGS,
       SolidModel_distance_doc
    },
+
+  { "ellipse", 
+      (PyCFunction)SolidModel_ellipse,
+      METH_VARARGS,
+      SolidModel_ellipse_doc
+  },
+
+  { "ellipsoid", 
+      (PyCFunction)SolidModel_ellipsoid,
+      METH_VARARGS,
+      SolidModel_ellipsoid_doc
+  },
+
+  { "extrude", 
+      (PyCFunction)SolidModel_extrude,
+      METH_VARARGS,
+      SolidModel_extrude_doc
+  },
+
+  { "extrude_z", 
+      (PyCFunction)SolidModel_extrude_z,
+      METH_VARARGS,
+      SolidModel_extrude_z_doc
+  },
 
   { "find_centroid",
       (PyCFunction)SolidModel_find_centroid,
@@ -3573,10 +3984,16 @@ static PyMethodDef pySolidModel_methods[] = {
       SolidModel_find_extent_doc
    },
 
-  { "GetAxialIsoparametricCurve",
-      (PyCFunction)Solid_GetAxialIsoparametricCurveMtd,
+  { "get_axial_isoparametric_curve",
+      (PyCFunction)SolidModel_get_axial_isoparametric_curve,
       METH_VARARGS,
-      NULL
+      SolidModel_get_axial_isoparametric_curve_doc
+  },
+
+  { "get_boundary_faces",
+      (PyCFunction)SolidModel_get_boundary_faces,
+      METH_VARARGS,     
+      SolidModel_get_boundary_faces_doc
   },
 
   { "get_class_name", 
@@ -3591,6 +4008,18 @@ static PyMethodDef pySolidModel_methods[] = {
       SolidModel_get_discontinuities_doc
   },
 
+  { "get_face_attribute",
+      (PyCFunction)SolidModel_get_face_attribute,
+      METH_VARARGS,
+      SolidModel_get_face_attribute_doc
+  },
+
+  { "get_face_ids", 
+      (PyCFunction)SolidModel_get_face_ids,
+      METH_NOARGS,
+      SolidModel_get_face_ids_doc
+  },
+
   { "get_face_normal",
       (PyCFunction)SolidModel_get_face_normal,
       METH_VARARGS,     
@@ -3603,10 +4032,46 @@ static PyMethodDef pySolidModel_methods[] = {
       SolidModel_get_face_polydata_doc
   },
 
+  { "get_kernel",
+      (PyCFunction)SolidModel_get_kernel,
+      METH_VARARGS,
+      SolidModel_get_kernel_doc
+  },
+
+  { "get_label", 
+      (PyCFunction)SolidModel_get_label,
+      METH_VARARGS,
+      SolidModel_get_label_doc
+  },
+
+  { "get_label_keys",
+      (PyCFunction)SolidModel_get_label_keys,
+      METH_VARARGS,
+      SolidModel_get_label_keys_doc
+  },
+
+  { "get_model", 
+      (PyCFunction)SolidModel_get_model, 
+      METH_VARARGS, 
+      SolidModel_get_model_doc
+  },
+
   { "get_polydata",
       (PyCFunction)SolidModel_get_polydata,
       METH_VARARGS,
       SolidModel_get_polydata_doc
+  },
+
+  { "get_region_attribute",
+      (PyCFunction)SolidModel_get_region_attribute,
+      METH_VARARGS,
+      SolidModel_get_region_attribute_doc
+  },
+
+  { "get_region_ids",
+      (PyCFunction)SolidModel_get_region_ids,
+      METH_VARARGS,     
+      SolidModel_get_region_ids_doc
   },
 
   { "get_spatial_dimension",
@@ -3621,16 +4086,76 @@ static PyMethodDef pySolidModel_methods[] = {
       SolidModel_get_topological_dimension_doc
    },
 
+  { "intersect", 
+      (PyCFunction)SolidModel_intersect,
+      METH_VARARGS,
+      SolidModel_intersect_doc
+  },
+
+  { "make_approximate_curve_loop",
+      (PyCFunction)SolidModel_make_approximate_curve_loop,
+      METH_VARARGS,
+      SolidModel_make_approximate_curve_loop_doc
+  },
+
+  { "make_interpolated_curve_loop",
+      (PyCFunction)SolidModel_make_interpolated_curve_loop,
+      METH_VARARGS,
+      SolidModel_make_interpolated_curve_loop_doc
+  },
+
+  { "make_lofted_surface", 
+      (PyCFunction)SolidModel_make_lofted_surface,
+      METH_VARARGS,
+      SolidModel_make_lofted_surface_doc
+  },
+
+  { "polygon",
+      (PyCFunction)SolidModel_polygon,
+      METH_VARARGS,
+      SolidModel_polygon_doc
+  },
+
+  { "poly3d_solid", 
+      (PyCFunction)SolidModel_poly3d_solid,
+      METH_VARARGS,
+      SolidModel_poly3d_solid_doc
+  },
+
+  { "poly3d_surface", 
+      (PyCFunction)SolidModel_poly3d_surface,
+      METH_VARARGS,
+      SolidModel_poly3d_surface_doc
+  },
+
+  { "polygon_points", 
+      (PyCFunction)SolidModel_polygon_points,
+      METH_VARARGS,
+      SolidModel_polygon_points_doc
+  },
+
   { "print", 
       (PyCFunction)SolidModel_print,
       METH_VARARGS,
       SolidModel_print_doc
    },
 
+  { "read_native", 
+      (PyCFunction)SolidModel_read_native,
+      METH_VARARGS,
+      SolidModel_read_native_doc
+  },
+
   { "reflect",
       (PyCFunction)SolidModel_reflect,
       METH_VARARGS,
       SolidModel_reflect_doc
+  },
+
+  { "remesh_face",
+      (PyCFunction)SolidModel_remesh_face,
+      METH_VARARGS,
+      SolidModel_remesh_face_doc
   },
 
   { "rotate",
@@ -3645,16 +4170,64 @@ static PyMethodDef pySolidModel_methods[] = {
       SolidModel_scale_doc
   },
 
+  { "set_face_attribute",
+      (PyCFunction)SolidModel_set_face_attribute,
+      METH_VARARGS,
+      SolidModel_set_face_attribute_doc
+  },
+
+  { "set_label",
+      (PyCFunction)SolidModel_set_label,
+      METH_VARARGS,
+      SolidModel_set_label_doc
+  },
+
+  { "set_region_attribute", 
+      (PyCFunction)SolidModel_set_region_attribute,
+      METH_VARARGS,
+      SolidModel_set_region_attribute_doc
+  },
+
   { "set_vtk_polydata",
       (PyCFunction)SolidModel_set_vtk_polydata,
       METH_VARARGS,
       SolidModel_set_vtk_polydata_doc
   },
 
+  { "sphere", 
+      (PyCFunction)SolidModel_sphere,
+      METH_VARARGS,
+      SolidModel_sphere_doc
+  },
+
+  { "subtract", 
+      (PyCFunction)SolidModel_subtract,
+      METH_VARARGS,
+      SolidModel_subtract_doc
+  },
+
+  { "torus", 
+      (PyCFunction)SolidModel_torus,
+      METH_VARARGS,
+      SolidModel_torus_doc
+  },
+
   { "translate", 
       (PyCFunction)SolidModel_translate,
       METH_VARARGS,
       SolidModel_translate_doc
+  },
+
+  { "truncated_cone", 
+      (PyCFunction)SolidModel_truncated_cone,
+      METH_VARARGS,
+      SolidModel_truncated_cone_doc
+  },
+
+  { "union", 
+      (PyCFunction)SolidModel_union,
+      METH_VARARGS,
+      SolidModel_union_doc
   },
 
   { "write_geom_sim", 
@@ -3676,123 +4249,39 @@ static PyMethodDef pySolidModel_methods[] = {
    },
 
 
-// ============================================== //
+  //===========================================================//
 
-  { "GetModel", 
-      (PyCFunction)Solid_GetModelCmd, 
-      METH_VARARGS, 
-      NULL
-  },
 
-  { "Poly",(PyCFunction) Solid_PolyCmd,
-		     METH_VARARGS,NULL},
-  { "polygon_points", 
-      (PyCFunction)Solid_polygon_points,
-      METH_VARARGS,
-      Solid_polygon_points_doc
-  },
 
-  { "Circle", (PyCFunction)Solid_CircleCmd,
-		     METH_VARARGS,NULL},
-  { "Ellipse", (PyCFunction)Solid_EllipseCmd,
-		     METH_VARARGS,NULL},
-  { "Box2d", (PyCFunction)Solid_Box2dCmd,
-		     METH_VARARGS,NULL},
-  { "Box3d", (PyCFunction)Solid_Box3dCmd,
-		     METH_VARARGS,NULL},
-  { "Sphere", (PyCFunction)Solid_SphereCmd,
-		     METH_VARARGS,NULL},
-  { "Ellipsoid", (PyCFunction)Solid_EllipsoidCmd,
-		     METH_VARARGS,NULL},
-  { "Cylinder", (PyCFunction)Solid_CylinderCmd,
-		     METH_VARARGS,NULL},
-  { "TruncatedCone", (PyCFunction)Solid_TruncatedConeCmd,
-		     METH_VARARGS,NULL},
-  { "Torus", (PyCFunction)Solid_TorusCmd,
-		     METH_VARARGS,NULL},
-  { "Poly3dSolid", (PyCFunction)Solid_Poly3dSolidCmd,
-		     METH_VARARGS,NULL},
-  { "Poly3dSurface", (PyCFunction)Solid_Poly3dSurfaceCmd,
-		     METH_VARARGS,NULL},
-  { "ExtrudeZ", (PyCFunction)Solid_ExtrudeZCmd,
-		     METH_VARARGS,NULL},
-  { "Extrude", (PyCFunction)Solid_ExtrudeCmd,
-		     METH_VARARGS,NULL},
-  { "MakeApproxCurveLoop",
-		     (PyCFunction)Solid_MakeApproxCurveLoopCmd,
-		     METH_VARARGS,NULL},
-  { "MakeInterpCurveLoop",
-		     (PyCFunction)Solid_MakeInterpCurveLoopCmd,
-		     METH_VARARGS,NULL},
-  { "MakeLoftedSurf", (PyCFunction)Solid_MakeLoftedSurfCmd,
-		     METH_VARARGS,NULL},
-  { "CapSurfToSolid", (PyCFunction)Solid_CapSurfToSolidCmd,
-		     METH_VARARGS,NULL},
-  { "Intersect", (PyCFunction)Solid_IntersectCmd,
-		     METH_VARARGS,NULL},
-  { "Union", (PyCFunction)Solid_UnionCmd,
-		     METH_VARARGS,NULL},
-  { "Subtract", (PyCFunction)Solid_SubtractCmd,
-		     METH_VARARGS,NULL},
-  { "ReadNative", (PyCFunction)Solid_ReadNativeCmd,
-		     METH_VARARGS,NULL},
-  { "Copy", (PyCFunction)Solid_CopyCmd,
-		     METH_VARARGS,NULL},
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   { "NewObject", (PyCFunction)Solid_NewObjectCmd,
 		     METH_VARARGS,NULL},
 
-  { "DeleteFaces",(PyCFunction)Solid_DeleteFacesMtd,
-		     METH_VARARGS,NULL},
-  { "DeleteRegion",(PyCFunction)Solid_DeleteRegionMtd,
-		     METH_VARARGS,NULL},
-  { "CreateEdgeBlend",(PyCFunction)Solid_CreateEdgeBlendMtd,
-		     METH_VARARGS,NULL},
-  { "CombineFaces",(PyCFunction)Solid_CombineFacesMtd,
-		     METH_VARARGS,NULL},
-  { "RemeshFace",(PyCFunction)Solid_RemeshFaceMtd,
-		     METH_VARARGS,NULL},
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-  { "GetKernel",(PyCFunction)Solid_GetKernelMtd,
-		     METH_VARARGS,NULL},
-  { "GetLabelKeys",(PyCFunction)Solid_GetLabelKeysMtd,
-		     METH_VARARGS,NULL},
-  { "GetLabel", (PyCFunction)Solid_GetLabelMtd,
-		     METH_VARARGS,NULL},
-  { "SetLabel",(PyCFunction)Solid_SetLabelMtd,
-		     METH_VARARGS,NULL},
-  { "ClearLabel", (PyCFunction)Solid_ClearLabelMtd,
-		     METH_VARARGS,NULL},
-  { "GetFaceIds", (PyCFunction)Solid_GetFaceIdsMtd,
-		     METH_NOARGS,NULL},
-  { "GetBoundaryFaces",(PyCFunction)Solid_GetBoundaryFacesMtd,
-		     METH_VARARGS,NULL},
-  { "GetRegionIds",(PyCFunction)Solid_GetRegionIdsMtd,
-		     METH_VARARGS,NULL},
-  { "GetFaceAttr",(PyCFunction)Solid_GetFaceAttrMtd,
-		     METH_VARARGS,NULL},
-  { "SetFaceAttr",(PyCFunction)Solid_SetFaceAttrMtd,
-		     METH_VARARGS,NULL},
-  { "GetRegionAttr",(PyCFunction)Solid_GetRegionAttrMtd,
-		     METH_VARARGS,NULL},
-  { "SetRegionAttr", (PyCFunction)Solid_SetRegionAttrMtd,
-		     METH_VARARGS,NULL},
   {NULL,NULL}
 };
 

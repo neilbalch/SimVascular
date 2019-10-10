@@ -29,7 +29,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "sv_pyutils.h"
+#include "sv_PyUtils.h"
 #include <string>
 
 SvPyUtilApiFunction::SvPyUtilApiFunction(const std::string& format, PyObject* pyError, const char* function)
