@@ -580,18 +580,20 @@ PyObject* Geom_CapWIdsCmd( PyObject* self, PyObject* args)
   geomSrc = gRepository->GetObject( geomName );
   if ( geomSrc == NULL ) {
     PyErr_SetString(PyRunTimeErr, "couldn't find object ");
-    
+    return nullptr;
   }
 
   type = geomSrc->GetType();
   if ( type != POLY_DATA_T ) {
     PyErr_SetString(PyRunTimeErr,"obj not of type cvPolyData");
+    return nullptr;
     
   }
 
   // Make sure the specified dst object does not exist:
   if ( gRepository->Exists( cappedName ) ) {
     PyErr_SetString(PyRunTimeErr, "object already exists");
+    return nullptr;
     
   }
 
@@ -601,12 +603,14 @@ PyObject* Geom_CapWIdsCmd( PyObject* self, PyObject* args)
 	,fillId,num_filled,filltype)
        != SV_OK ) {
     PyErr_SetString(PyRunTimeErr, "error capping model" );
+    return nullptr;
     
   }
 
   if ( !( gRepository->Register( cappedName, cappedDst ) ) ) {
     PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
     delete cappedDst;
+    return nullptr;
     
   }
 

@@ -128,12 +128,16 @@ CheckSolidModel(SvPyUtilApiFunction& api, char* name)
       return nullptr;
   }
 
-  return model;
+  return (cvSolidModel*)model;
 }
 
 //-------------------------
 // CheckSimplificationName
 //-------------------------
+// Check for a valid model simplification name. 
+//
+// Returns the equivalent SolidModel_SimplifyT type 
+// or SM_Simplify_Invalid if the name is not valid. 
 //
 static SolidModel_SimplifyT
 CheckSimplificationName(SvPyUtilApiFunction& api, char* name)
@@ -203,6 +207,65 @@ Solid_list_registrars(PyObject* self, PyObject* args)
     PyList_SetItem(pyList,i+1,PyString_FromFormat(result));
   }
   return pyList;
+}
+
+//------------------
+// Solid_set_kernel  
+//------------------
+//
+PyDoc_STRVAR(Solid_set_kernel_doc,
+" set_kernel(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args:                                    \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject * 
+Solid_set_kernel(PyObject* self, PyObject *args)
+{
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  char *kernelArg;
+
+  if (!PyArg_ParseTuple(args, api.format, &kernelArg)) {
+      return api.argsError();
+  }
+
+  SolidModel_KernelT kernel;
+
+  try {
+        kernel = kernelNameTypeMap.at(std::string(kernelArg));
+  } catch (const std::out_of_range& except) {
+      auto msg = "Unknown solid modeling kernel '" + std::string(kernelArg) + "'." +
+        " Valid solid modeling kernel names are: Discrete, MeshSimSolid, OpenCASCADE, Parasolid or PolyData.";
+      api.error(msg);
+      return nullptr;
+  }
+
+  cvSolidModel::gCurrentKernel = kernel;
+  return Py_BuildValue("s", kernelArg);
+}
+
+//------------------
+// Solid_get_kernel 
+//------------------
+//
+PyDoc_STRVAR(Solid_get_kernel_doc,
+" get_kernel()  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args:                                    \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject * 
+Solid_get_kernel(PyObject* self, PyObject* args)
+{
+  char *kernelName;
+  kernelName = SolidModel_KernelT_EnumToStr(cvSolidModel::gCurrentKernel);
+  return Py_BuildValue("s",kernelName);
 }
 
 /////////////////////////////////////////////////////////////////
@@ -2056,12 +2119,13 @@ SolidModel_subtract(pySolidModel* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
-// ---------------
-// Solid_ObjectCmd
-// ---------------
+// ------------------
+// SolidModel_object
+// ------------------
 // [TODO:DaveP] is this useful?
 //
-PyObject* Solid_ObjectCmd(pySolidModel* self,PyObject* args )
+static PyObject * 
+SolidModel_object(pySolidModel* self,PyObject* args )
 {
   if (PyTuple_Size(args)== 0 ) {
     //PrintMethods();
@@ -2070,6 +2134,7 @@ PyObject* Solid_ObjectCmd(pySolidModel* self,PyObject* args )
 }
 
 // [TODO:DaveP] is this used?
+/*
 PyObject * 
 DeleteSolid( pySolidModel* self, PyObject* args)
 {
@@ -2079,126 +2144,71 @@ DeleteSolid( pySolidModel* self, PyObject* args)
   Py_INCREF(Py_None);
   return Py_None;
 }
+*/
 
-//------------------
-//Solid_NewObjectCmd
-//------------------
+//-----------------------
+// SolidModel_new_object 
+//-----------------------
+//
+// [TODO:DaveP] why is the solid modeler kernel not
+//   passed as an argument here?
+//
+PyDoc_STRVAR(SolidModel_new_object_doc,
+  "new_object(kernel)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-
-
-
-
-PyObject* Solid_NewObjectCmd(pySolidModel* self,PyObject *args )
+static PyObject * 
+SolidModel_new_object(pySolidModel* self,PyObject *args)
 {
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *objName, *fileName;
-  cvSolidModel* geom;
-  if(!PyArg_ParseTuple(args,"s",&objName))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import char objName");
-    
-  }
-  // Do work of command:
-  // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( objName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exist");
-    
-  }
-  // Instantiate the new solid:
 
-  if (cvSolidModel::gCurrentKernel == SM_KT_PARASOLID ||
-      cvSolidModel::gCurrentKernel == SM_KT_DISCRETE ||
-      cvSolidModel::gCurrentKernel == SM_KT_POLYDATA ||
-      cvSolidModel::gCurrentKernel == SM_KT_OCCT ||
-      cvSolidModel::gCurrentKernel == SM_KT_MESHSIMSOLID) {
-  geom = cvSolidModel::pyDefaultInstantiateSolidModel();
-  if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "Error creating solid object" );
+  if (!PyArg_ParseTuple(args, api.format, &objName)) {
+      return api.argsError();
+  }
+
+  // Check that the repository object does not already exist.
+  if (gRepository->Exists(objName)) {
+      api.error("The repository object '" + std::string(objName) + "' already exists.");
+      return nullptr;
+  }
+
+  // Check curent kernel? Ugh! 
+  if (cvSolidModel::gCurrentKernel == SM_KT_INVALID) { 
+      api.error("The solid model kernel is not set.");
+      return nullptr;
+  }
     
+  auto geom = cvSolidModel::pyDefaultInstantiateSolidModel();
+  if (geom == NULL) {
+      api.error("Error creating solid model.");
+      return nullptr;
   }
 
    // Register the new solid:
-   if ( !( gRepository->Register( objName, geom ) ) )
-   {
-     PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
-    delete geom;
-    
-   }
+   if (!gRepository->Register(objName, geom)) {
+      delete geom;
+      api.error("Error adding the solid model '" + std::string(objName) + "' to the repository.");
+      return nullptr;
   }
-  else {
-    fprintf( stdout, "current kernel is not valid (%i)\n",cvSolidModel::gCurrentKernel);
-    //PyErr_SetString(PyRunTimeErr, "current kernel is not valid", TCL_STATIC );
-    PyErr_SetString(PyRunTimeErr,"kernel is invalid");
-  }
-  // Allocate new object in python
+
   Py_INCREF(geom);
-  self->geom=geom;
+  self->geom = geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
 
-//------------------
-// Solid_set_kernel  
-//------------------
+//---------------------------
+// SolidModel_get_class_name
+//---------------------------
 //
-PyDoc_STRVAR(Solid_set_kernel_doc,
-" set_kernel(name)  \n\ 
-  \n\
-  ??? Add the unstructured grid mesh to the repository. \n\
-  \n\
-  Args:                                    \n\
-    name (str): Name in the repository to store the unstructured grid. \n\
-");
-
-static PyObject * 
-Solid_set_kernel(PyObject* self, PyObject *args)
-{
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
-  char *kernelArg;
-
-  if (!PyArg_ParseTuple(args, api.format, &kernelArg)) {
-      return api.argsError();
-  }
-
-  SolidModel_KernelT kernel;
-
-  try {
-        kernel = kernelNameTypeMap.at(std::string(kernelArg));
-  } catch (const std::out_of_range& except) {
-      auto msg = "Unknown solid modeling kernel '" + std::string(kernelArg) + "'." +
-        " Valid solid modeling kernel names are: Discrete, MeshSimSolid, OpenCASCADE, Parasolid or PolyData.";
-      api.error(msg);
-      return nullptr;
-  }
-
-  cvSolidModel::gCurrentKernel = kernel;
-  return Py_BuildValue("s", kernelArg);
-}
-
-//------------------
-// Solid_get_kernel 
-//------------------
-//
-PyDoc_STRVAR(Solid_get_kernel_doc,
-" get_kernel()  \n\ 
-  \n\
-  ??? Add the unstructured grid mesh to the repository. \n\
-  \n\
-  Args:                                    \n\
-    name (str): Name in the repository to store the unstructured grid. \n\
-");
-
-static PyObject * 
-Solid_get_kernel(PyObject* self, PyObject* args)
-{
-  char *kernelName;
-  kernelName = SolidModel_KernelT_EnumToStr(cvSolidModel::gCurrentKernel);
-  return Py_BuildValue("s",kernelName);
-}
-
-
-
 PyDoc_STRVAR(SolidModel_get_class_name_doc,
-" SolidModel_get_class_name()  \n\
+" get_class_name()  \n\
   \n\
   ??? Add the unstructured grid mesh to the repository. \n\
   \n\
@@ -3844,14 +3854,6 @@ SolidModel_remesh_face(pySolidModel* self, PyObject* args)
 //          M o d u l e  D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
 
-
-//All functions listed and initiated as pySolid_methods declared here
-/*
-static PyMemberDef pySolidModel_members[]={
-{NULL}
-};
-*/
-
 //------------------------------------------------
 // Define API function names for SolidModel class 
 //------------------------------------------------
@@ -4110,6 +4112,12 @@ static PyMethodDef pySolidModel_methods[] = {
       SolidModel_make_lofted_surface_doc
   },
 
+  { "new_object", 
+      (PyCFunction)SolidModel_new_object,
+      METH_VARARGS,
+      SolidModel_new_object_doc
+  },
+
   { "polygon",
       (PyCFunction)SolidModel_polygon,
       METH_VARARGS,
@@ -4247,40 +4255,6 @@ static PyMethodDef pySolidModel_methods[] = {
       METH_VARARGS,
       SolidModel_write_vtk_polydata_doc
    },
-
-
-  //===========================================================//
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  { "NewObject", (PyCFunction)Solid_NewObjectCmd,
-		     METH_VARARGS,NULL},
-
-
-
-
-
 
   {NULL,NULL}
 };
