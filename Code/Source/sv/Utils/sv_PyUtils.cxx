@@ -148,6 +148,40 @@ bool svPyUtilCheckPointData(PyObject *pointData, std::string& msg)
   return true;
 }
 
+//----------------------
+// svPyUtilGetPointData 
+//-----------------------
+// Get an array of three floats. 
+//
+// The data is a list [x,y,z] of three floats.
+//
+// If there is a problem with the data then the function returns false and
+// a string describing the problem.
+//
+bool svPyUtilGetPointData(PyObject *pyPoint, std::string& msg, double point[3])
+{
+  if (!PyList_Check(pyPoint)) {
+      msg = "is not a Python list.";
+      return false;
+  }
+
+  if (PyList_Size(pyPoint) != 3) {
+      msg = "is not a 3D point (three float values).";
+      return false;
+  }
+
+  for (int i = 0; i < 3; i++) {
+      if (!PyFloat_Check(PyList_GetItem(pyPoint,i))) {
+          msg = "data at " + std::to_string(i) + " in the list is not a float.";
+          return false;
+      }
+      point[i] = PyFloat_AsDouble(PyList_GetItem(pyPoint,i));
+  }
+
+  return true;
+}
+
+
 //-----------------------------
 // svPyUtilCheckPointDataList
 //-----------------------------

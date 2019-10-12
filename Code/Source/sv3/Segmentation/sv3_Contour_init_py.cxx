@@ -743,34 +743,22 @@ Contour_get_polydata(pyContour* self, PyObject* args)
 //          M o d u l e  D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
 
-#if PYTHON_MAJOR_VERSION == 2
-PyMODINIT_FUNC  initpyContour();
-#endif
-#if PYTHON_MAJOR_VERSION == 3
-PyMODINIT_FUNC  PyInit_pyContour();
-#endif
-
-int Contour_pyInit()
-{
-#if PYTHON_MAJOR_VERSION == 2
-  initpyContour();
-#endif
-#if PYTHON_MAJOR_VERSION == 3
-  PyInit_pyContour();
-#endif
-  return SV_OK;
-}
-
 //----------------------------
 // Define API function names
 //----------------------------
 
 static PyMethodDef pyContour_methods[] = {
 
-  {"new_object", 
-     (PyCFunction)Contour_new_object,
-     METH_VARARGS,
-     Contour_new_object_doc
+  { "area", 
+       (PyCFunction)Contour_get_area,
+       METH_NOARGS,
+       Contour_get_area_doc
+  },
+
+  { "new_object", 
+       (PyCFunction)Contour_new_object,
+        METH_VARARGS,
+        Contour_new_object_doc
    },
 
   {"get_object", 
@@ -785,11 +773,6 @@ static PyMethodDef pyContour_methods[] = {
      Contour_create_doc, 
    },
 
-  {"area", 
-      (PyCFunction)Contour_get_area,
-      METH_NOARGS,
-      Contour_get_area_doc
-  },
 
   {"perimeter", 
       (PyCFunction)Contour_get_perimeter,
