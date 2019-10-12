@@ -133,6 +133,44 @@ AddGeometryToRepository(SvPyUtilApiFunction& api, char *name, cvPolyData *geom)
   return true;
 }
 
+//--------------------
+// GetGeometryObjects
+//--------------------
+// Get a list of geometry objects from a list of names.
+//
+static bool
+GetGeometryObjects(SvPyUtilApiFunction& api, PyObject* geometryNames, std::vector<cvPolyData*>& geometryObjects) 
+{
+  if (!PyList_Check(geometryNames)) {
+      api.error("The source geometries argument is not a Python list.");
+      return false;
+  }
+
+  auto numSrcs = PyList_Size(geometryNames);
+  if (numSrcs == 0) { 
+      api.error("The source geometries argument list is empty.");
+      return false;
+  }
+
+  geometryObjects.clear();
+
+  for (int i = 0; i < numSrcs; i++ ) {
+    #if PYTHON_MAJOR_VERSION == 2
+    auto str = PyString_AsString(PyList_GetItem(geometryNames,i));
+    #endif
+    #if PYTHON_MAJOR_VERSION ==3
+    auto str = PyBytes_AsString(PyUnicode_AsUTF8String(PyList_GetItem(geometryNames,i)));
+    #endif
+    auto src = GetRepositoryGeometry(api, str);
+    if (src == NULL) {
+      return nullptr;
+    }
+    geometryObjects.push_back((cvPolyData *)src);
+  }
+
+  return true;
+}
+
 //////////////////////////////////////////////////////
 //          M o d u l e  F u n c t i o n s          //
 //////////////////////////////////////////////////////
@@ -1140,30 +1178,13 @@ Geom_all_union(PyObject* self, PyObject* args)
       return api.argsError();
   }
 
-  if (!PyList_Check(srcList)) {
-      api.error("Source list argument is not a Python list.");
-      return nullptr;
-  }
-  auto numSrcs = PyList_Size(srcList);
-
   // Check that sources are in the repository.
   //
   std::vector<cvPolyData*> srcs;
-  cvRepositoryData *src;
-
-  for (int i = 0; i < numSrcs; i++ ) {
-#if PYTHON_MAJOR_VERSION == 2
-    auto str = PyString_AsString(PyList_GetItem(srcList,i));
-#endif
-#if PYTHON_MAJOR_VERSION ==3
-    auto str = PyBytes_AsString(PyUnicode_AsUTF8String(PyList_GetItem(srcList,i)));
-#endif
-    src = GetRepositoryGeometry(api, str);
-    if (src == NULL) {
+  if (!GetGeometryObjects(api, srcList, srcs)) {
       return nullptr;
-    }
-    srcs.push_back((cvPolyData*)src);
   }
+  auto numSrcs = srcs.size();
 
   if (RepositoryGeometryExists(api, dstName)) {
       return nullptr;
@@ -1238,7 +1259,6 @@ Geom_convert_nurbs_to_poly(PyObject* self, PyObject* args)
 
   auto numFaces = PyList_Size(faceList);
   auto numIds = PyList_Size(idList);
-
   if (numFaces != numIds) {
       api.error("The number of IDs (" + std::to_string(numIds)+") != the number of faces ("+std::to_string(numFaces)+").");
   }
@@ -1246,20 +1266,8 @@ Geom_convert_nurbs_to_poly(PyObject* self, PyObject* args)
   // Check that sources are in the repository.
   //
   std::vector<cvPolyData*> faces;
-  cvRepositoryData *face;
-
-  for (int i = 0; i < numFaces; i++ ) {
-#if PYTHON_MAJOR_VERSION == 2
-    auto str = PyString_AsString(PyList_GetItem(faceList,i));
-#endif
-#if PYTHON_MAJOR_VERSION ==3
-    auto str = PyBytes_AsString(PyUnicode_AsUTF8String(PyList_GetItem(faceList,i)));
-#endif
-    face = GetRepositoryGeometry(api, str);
-    if (face == NULL) {
-        return nullptr;
-    }
-    faces.push_back((cvPolyData *)face);
+  if (!GetGeometryObjects(api, faceList, faces)) {
+      return nullptr;
   }
 
   std::vector<int> allids;
@@ -1605,7 +1613,7 @@ Geom_orient_profile(PyObject* self, PyObject* args)
 }
 
 //------------------------
-// Geom_DisorientProfileCmd
+// Geom_disorient_profile
 //------------------------
 //
 // [TODO:DaveP] I can only wonder what 'disorient profile' does!
@@ -2082,9 +2090,9 @@ Geom_get_poly_centroid(PyObject* self, PyObject* args)
   return Py_BuildValue("ddd",centroid[0], centroid[1], centroid[2]);
 }
 
-//---------------------
-// Geom_PrintTriStatsCmd
-//---------------------
+//----------------------
+// Geom_print_tri_stats 
+//----------------------
 //
 PyDoc_STRVAR(Geom_print_tri_stats_doc,
   "Geom_print_tri_stats(kernel) \n\ 
@@ -2118,9 +2126,9 @@ Geom_print_tri_stats(PyObject* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
-//-----------------------
-// Geom_PrintSmallPolysCmd
-//-----------------------
+//------------------------
+// Geom_print_small_polys 
+//------------------------
 //
 PyDoc_STRVAR(Geom_print_small_polys_doc,
   "print_small_polys(kernel) \n\ 
@@ -2155,9 +2163,9 @@ Geom_print_small_polys(PyObject* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
-//--------------------
-// Geom_RmSmallPolysCmd
-//--------------------
+//-------------------------
+// Geom_remove_small_polys 
+//-------------------------
 //
 PyDoc_STRVAR(Geom_remove_small_polys_doc,
   "remove_small_polys(kernel) \n\ 
@@ -2202,9 +2210,9 @@ Geom_remove_small_polys(PyObject* self, PyObject* args)
   return Py_BuildValue("s",dst->GetName());
 }
 
-//------------
-// Geom_BBoxCmd
-//------------
+//-----------
+// Geom_bbox
+//-----------
 //
 PyDoc_STRVAR(Geom_bbox_doc,
   "Geom_bbox(kernel) \n\ 
@@ -2244,9 +2252,9 @@ Geom_bbox(PyObject* self, PyObject* args)
   return pylist;
 }
 
-//----------------
-// Geom_ClassifyCmd
-//----------------
+//---------------
+// Geom_classify
+//---------------
 //
 PyDoc_STRVAR(Geom_classify_doc,
   "classify(kernel) \n\ 
@@ -2335,313 +2343,268 @@ Geom_point_in_poly(PyObject* self, PyObject* args)
   return Py_BuildValue("i",ans);
 }
 
-// ----------------
-// Geom_MergePtsCmd
-// ----------------
+//-------------------
+// Geom_merge_points 
+//-------------------
+//
+PyDoc_STRVAR(Geom_merge_points_doc,
+  "merge_points(kernel) \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-PyObject* Geom_MergePtsCmd(PyObject* self, PyObject* args)
+static PyObject * 
+Geom_merge_points(PyObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("ssd", PyRunTimeErr, __func__);
   char *srcName;
   char *dstName;
-  cvRepositoryData *src;
-  RepositoryDataT type;
-  cvPolyData *dst;
   double tol = 1e10 * FindMachineEpsilon();
 
-  if (!PyArg_ParseTuple(args,"ssd", &srcName,&dstName,&tol))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import two chars and one double srcName, dstName,tol");
-    
+  if (!PyArg_ParseTuple(args, api.format, &srcName,&dstName,&tol)) {
+      return api.argsError();
   }
 
-
-  // Do work of command:
-
-  // Retrieve source object:
-  src = gRepository->GetObject( srcName );
-  if ( src == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "couldn't find object" );
-    
+  auto src = GetRepositoryGeometry(api, srcName);
+  if (src == NULL) {
+      return nullptr;
   }
 
-  // Make sure the specified dst object does not exist:
-  if ( gRepository->Exists( dstName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    
+  if (RepositoryGeometryExists(api, dstName)) {
+      return nullptr;
   }
 
-  type = src->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-    
+  // [TODO:DaveP] we now see two diffetent return patters.
+  auto dst = sys_geom_MergePts_tol(src, tol);
+  if (dst == nullptr) {
+      api.error("Error merging points poly for the geometry '" + std::string(srcName) + ".");
+      return nullptr;
   }
 
-  dst = sys_geom_MergePts_tol( (cvPolyData*)src, tol );
-
-  if ( !( gRepository->Register( dstName, dst ) ) ) {
-    PyErr_SetString(PyRunTimeErr,  "error registering obj in repository");
-    delete dst;
-    
+  if (!AddGeometryToRepository(api, dstName, dst)) {
+      return nullptr;
   }
-
+    
   return Py_BuildValue("s",dst->GetName());
 }
 
+//---------------------
+// Geom_warp_3d_points 
+//---------------------
+//
+PyDoc_STRVAR(Geom_warp_3d_points_doc,
+  "warp_3d_points(kernel) \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// -----------------
-// Geom_Warp3dPtsCmd
-// -----------------
-
-PyObject* Geom_Warp3dPtsCmd(PyObject* self, PyObject* args)
+static PyObject * 
+Geom_warp_3d_points(PyObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("ssd", PyRunTimeErr, __func__);
   char *srcName;
   char *dstName;
-  cvRepositoryData *src;
-  RepositoryDataT type;
-  cvPolyData *dst;
   double scale = 1.0;
 
-  if (!PyArg_ParseTuple(args,"ssd", &srcName,&dstName,&scale))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import two chars and one double srcName, dstName,scale");
-    
+  if (!PyArg_ParseTuple(args,api.format, &srcName,&dstName,&scale)) {
+      return api.argsError();
   }
 
-
-  // Do work of command:
-
-  // Retrieve source object:
-  src = gRepository->GetObject( srcName );
-  if ( src == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "couldn't find object" );
-    
+  auto src = GetRepositoryGeometry(api, srcName);
+  if (src == NULL) {
+      return nullptr;
   }
 
-  // Make sure the specified dst object does not exist:
-  if ( gRepository->Exists( dstName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    
+  if (RepositoryGeometryExists(api, dstName)) {
+      return nullptr;
   }
 
-  type = src->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-    
+  auto dst = sys_geom_warp3dPts(src, scale);
+  if (dst == nullptr) { 
+      api.error("Error warping 3D points from the geometry '" + std::string(srcName) + ".");
+      return nullptr;
   }
 
-  dst = sys_geom_warp3dPts( (cvPolyData*)src, scale );
-
-  if ( !( gRepository->Register( dstName, dst ) ) ) {
-    PyErr_SetString(PyRunTimeErr,  "error registering obj in repository");
-    delete dst;
-    
+  if (!AddGeometryToRepository(api, dstName, dst)) {
+      return nullptr;
   }
 
   return Py_BuildValue("s",dst->GetName());
 }
 
+//-----------------
+// Geom_num_points 
+//-----------------
+//
+PyDoc_STRVAR(Geom_num_points_doc,
+  "num_points(kernel) \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// --------------
-// Geom_NumPtsCmd
-// --------------
-
-PyObject* Geom_NumPtsCmd(PyObject* self, PyObject* args)
+static PyObject * 
+Geom_num_points(PyObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *srcName;
-  cvRepositoryData *src;
-  RepositoryDataT type;
-  int num;
 
-  if (!PyArg_ParseTuple(args,"s", &srcName))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import one char srcName");
-    
+  if (!PyArg_ParseTuple(args, api.format, &srcName)) {
+      return api.argsError();
   }
 
-
-  // Do work of command:
-
-  // Retrieve source object:
-  src = gRepository->GetObject( srcName );
-  if ( src == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "couldn't find object" );
-    
+  auto src = GetRepositoryGeometry(api, srcName);
+  if (src == NULL) {
+      return nullptr;
   }
 
-  type = src->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-    
-  }
-
-  num = ((cvPolyData*)src)->GetVtkPolyData()->GetNumberOfPoints();
-
+  auto num = src->GetVtkPolyData()->GetNumberOfPoints();
 
   return Py_BuildValue("i", num);
 }
 
+//------------------
+// Geom_sample_loop 
+//------------------
+//
+PyDoc_STRVAR(Geom_sample_loop_doc,
+  "sample_loop(kernel) \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// ---------------------
-// Geom_sampleLoopCmd
-// ---------------------
-
-PyObject* Geom_sampleLoopCmd(PyObject* self, PyObject* args)
+static PyObject * 
+Geom_sample_loop(PyObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("sis", PyRunTimeErr, __func__);
   char *srcName;
   int targetNumPts;
   char *dstName;
-  cvRepositoryData *src;
-  RepositoryDataT type;
-  cvPolyData *dst;
 
-  if (!PyArg_ParseTuple(args,"sis", &srcName,&targetNumPts,&dstName))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import two chars and one int srcName, targetNumPts,dstName");
-    
+  if (!PyArg_ParseTuple(args, api.format, &srcName, &targetNumPts, &dstName)) {
+      return api.argsError();
   }
 
-
-  // Do work of command:
-
-  // Retrieve source object:
-  src = gRepository->GetObject( srcName );
-  if ( src == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "couldn't find object" );
-    
+  auto src = GetRepositoryGeometry(api, srcName);
+  if (src == NULL) {
+      return nullptr;
   }
 
-  // Make sure the specified dst object does not exist:
-  if ( gRepository->Exists( dstName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    
+  if (RepositoryGeometryExists(api, dstName)) {
+      return nullptr;
   }
 
-  type = src->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-    
+  auto dst = sys_geom_sampleLoop( (cvPolyData*)src, targetNumPts );
+
+  if (dst == NULL) {
+      api.error("Error performing the sample loop operation on the geometry '" + std::string(srcName) + ".");
+      return nullptr;
   }
 
-  dst = sys_geom_sampleLoop( (cvPolyData*)src, targetNumPts );
-
-  if ( dst == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "subsample loop error" );
-    
-  }
-
-  if ( !( gRepository->Register( dstName, dst ) ) ) {
-    PyErr_SetString(PyRunTimeErr,  "error registering obj in repository");
-    delete dst;
-    
+  if (!AddGeometryToRepository(api, dstName, dst)) {
+      return nullptr;
   }
 
   return Py_BuildValue("s",dst->GetName());
 }
 
-// ---------------------
-// Geom_loftSolidCmd
-// ---------------------
+//-----------------
+// Geom_loft_solid 
+//-----------------
+//
+// [TODO:DaveP] need to have named arguments here. 
+//
+PyDoc_STRVAR(Geom_loft_solid_doc,
+  "loft_solid(kernel) \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-PyObject* Geom_loftSolidCmd(PyObject* self, PyObject* args)
+static PyObject * 
+Geom_loft_solid(PyObject* self, PyObject* args)
 {
-  int numSrcs;
+  auto api = SvPyUtilApiFunction("Osiiiiii|iddd", PyRunTimeErr, __func__);
   PyObject* srcList;
   char *dstName;
-  cvRepositoryData *src;
-  cvPolyData *dst;
-  RepositoryDataT type;
-  cvPolyData **srcs;
   int numOutPtsInSegs;
   int numOutPtsAlongLength;
+  int numLinearPtsAlongLength;
   int numModes;
   int useFFT;
   int useLinearSampleAlongLength;
-  int numLinearPtsAlongLength;
   int splineType = 0;
-  double continuity = 0;
   double bias = 0;
   double tension = 0;
-  if (!PyArg_ParseTuple(args,"Osiiiiii|iddd", &srcList,&dstName,&numOutPtsInSegs,
-&numOutPtsAlongLength,&numLinearPtsAlongLength,&numModes,&useFFT,
-&useLinearSampleAlongLength,&splineType,&bias,&tension,&continuity))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import one list,one char,\
-six ints, and one optional int, three optional doubles,\
-srcList, dstName, numOutPtsInSegs,numOutPtsAlongLength, numLinearPtsAlongLength,\
-numModes,useFFT, useLinearSampleAlongLength, splineType, bias,tension, continuity");
-    
+  double continuity = 0;
+
+  if (!PyArg_ParseTuple(args, api.format, &srcList, &dstName, &numOutPtsInSegs, &numOutPtsAlongLength, &numLinearPtsAlongLength, 
+          &numModes, &useFFT, &useLinearSampleAlongLength, &splineType, &bias, &tension, &continuity)) {
+      return api.argsError();
   }
 
-  // Do work of command:
-  numSrcs = PyList_Size(srcList);
+  // [TODO:DaveP] we really need to check the values of all of the input arguments.
+  //
+  // splineType 0?
 
-  // Foreach src obj, check that it is in the repository and of the
-  // correct type (i.e. cvSolidModel).  Also build up the array of
-  // cvSolidModel*'s to pass to cvSolidModel::MakeLoftedSurf.
-  srcs = new cvPolyData * [numSrcs];
+  // Check the list of source geometries.
+  std::vector<cvPolyData*> srcs;
+  if (!GetGeometryObjects(api, srcList, srcs)) {
+      return nullptr;
+  }
+  auto numSrcs = srcs.size();
 
-  for (int i = 0; i < numSrcs; i++ ) {
-    char* str;
-#if PYTHON_MAJOR_VERSION == 2
-    str = PyString_AsString(PyList_GetItem(srcList,i));
-#endif
-#if PYTHON_MAJOR_VERSION ==3
-    str = PyBytes_AsString(PyUnicode_AsUTF8String(PyList_GetItem(srcList,i)));
-#endif
-    src = gRepository->GetObject(str);
-    if ( src == NULL ) {
-      PyErr_SetString(PyRunTimeErr,  "couldn't find object ");
-      delete [] srcs;
-      
-    }
-    type = src->GetType();
-    if ( type != POLY_DATA_T ) {
-      PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-      delete [] srcs;
-      
-    }
-    srcs[i] = (cvPolyData *) src;
+  if (RepositoryGeometryExists(api, dstName)) {
+      return nullptr;
   }
-  // We're done with the src object names:
 
-  // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( dstName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    delete [] srcs;
-    
+  cvPolyData *dst;
+  if (sys_geom_loft_solid(srcs.data(), numSrcs,useLinearSampleAlongLength,useFFT, numOutPtsAlongLength,numOutPtsInSegs,
+          numLinearPtsAlongLength,numModes,splineType,bias,tension,continuity, &dst) != SV_OK) {
+      delete dst;
+      api.error("Error performing the loft operation.");
+      return nullptr;
   }
-  if ( sys_geom_loft_solid( srcs, numSrcs,useLinearSampleAlongLength,useFFT,
-			  numOutPtsAlongLength,numOutPtsInSegs,
-			  numLinearPtsAlongLength,numModes,splineType,bias,tension,continuity,
-			  (cvPolyData**)(&dst) )
-       != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "poly manipulation error" );
-    delete dst;
-    delete [] srcs;
-    
-  }
-  if ( !( gRepository->Register( dstName, dst ) ) ) {
-    PyErr_SetString(PyRunTimeErr,  "error registering obj in repository");
-    delete dst;
-    
+
+  if (!AddGeometryToRepository(api, dstName, dst)) {
+      return nullptr;
   }
 
   return Py_BuildValue("s",dst->GetName());
 }
 
-// ---------------------
-// Geom_loftSolidWithNURBSCmd
-// ---------------------
+//-----------------------------
+// Geom_loft_solid_using_nurbs 
+//-----------------------------
+//
+PyDoc_STRVAR(Geom_loft_solid_using_nurbs_doc,
+  "loft_solid_using_nurbs(kernel) \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-PyObject* Geom_loftSolidWithNURBSCmd(PyObject* self, PyObject* args)
+static PyObject *
+Geom_loft_solid_using_nurbs(PyObject* self, PyObject* args)
 {
-  int numSrcs;
+  auto api = SvPyUtilApiFunction("Osiiddssss", PyRunTimeErr, __func__);
   PyObject* srcList;
   char *dstName;
-  cvRepositoryData *src;
-  cvPolyData *dst;
-  RepositoryDataT type;
-  cvPolyData **srcs;
   int uDegree = 2;
   int vDegree = 2;
   double uSpacing = 0.01;
@@ -2651,836 +2614,654 @@ PyObject* Geom_loftSolidWithNURBSCmd(PyObject* self, PyObject* args)
   char *uParametricSpanType;
   char *vParametricSpanType;
 
-  if (!PyArg_ParseTuple(args,"Osiiddssss", &srcList,&dstName,&uDegree,
-&vDegree,&uSpacing,&vSpacing,&uKnotSpanType,&vKnotSpanType,
-&uParametricSpanType,&vParametricSpanType))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import one list, one char, two ints, two doubles and four chars\
-srcList,dstName,uDegree,\
-vDegree,uSpacing,vSpacing,uKnotSpanType,vKnotSpanType,\
-uParametricSpanType,vParametricSpanType");
-    
+  if (!PyArg_ParseTuple(args, api.format, &srcList, &dstName, &uDegree, &vDegree, &uSpacing, &vSpacing, &uKnotSpanType, &vKnotSpanType, 
+          &uParametricSpanType, &vParametricSpanType)) {
+      return api.argsError();
   }
 
+  // Check the list of source geometries.
+  std::vector<cvPolyData*> srcs;
+  if (!GetGeometryObjects(api, srcList, srcs)) {
+      return nullptr;
+  }
+  auto numSrcs = srcs.size();
 
-  // Do work of command:
-  numSrcs = PyList_Size(srcList);
-
-  // Foreach src obj, check that it is in the repository and of the
-  // correct type (i.e. cvSolidModel).  Also build up the array of
-  // cvSolidModel*'s to pass to cvSolidModel::MakeLoftedSurf.
-
-  srcs = new cvPolyData * [numSrcs];
-
-  for (int i = 0; i < numSrcs; i++ ) {
-    char* str;
-#if PYTHON_MAJOR_VERSION == 2
-    str = PyString_AsString(PyList_GetItem(srcList,i));
-#endif
-#if PYTHON_MAJOR_VERSION ==3
-    str = PyBytes_AsString(PyUnicode_AsUTF8String(PyList_GetItem(srcList,i)));
-#endif
-    src = gRepository->GetObject(str);
-    if ( src == NULL ) {
-      PyErr_SetString(PyRunTimeErr,  "couldn't find object ");
-      delete [] srcs;
-      
-    }
-    type = src->GetType();
-    if ( type != POLY_DATA_T ) {
-      PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-      delete [] srcs;
-      
-    }
-    srcs[i] = (cvPolyData *) src;
+  if (RepositoryGeometryExists(api, dstName)) {
+      return nullptr;
   }
 
-  // We're done with the src object names:
+  cvPolyData *dst;
+  vtkSmartPointer<vtkSVNURBSSurface> NURBSSurface = vtkSmartPointer<vtkSVNURBSSurface>::New();
 
-  // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( dstName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    delete [] srcs;
-    
+  if (sys_geom_loft_solid_with_nurbs(srcs.data(), numSrcs, uDegree, vDegree, uSpacing, vSpacing, uKnotSpanType, vKnotSpanType,
+          uParametricSpanType, vParametricSpanType, NURBSSurface, &dst) != SV_OK) {
+      delete dst;
+      api.error("Error creating a lofted solid using nurbs.");
+      return nullptr;
   }
 
-  vtkSmartPointer<vtkSVNURBSSurface> NURBSSurface =
-    vtkSmartPointer<vtkSVNURBSSurface>::New();
-  if ( sys_geom_loft_solid_with_nurbs(srcs, numSrcs, uDegree, vDegree, uSpacing,
-                                      vSpacing, uKnotSpanType, vKnotSpanType,
-                                      uParametricSpanType, vParametricSpanType,
-                                      NURBSSurface,
-			                                (cvPolyData**)(&dst) ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "poly manipulation error" );
-    delete dst;
-    delete [] srcs;
-    
-  }
-
-  if ( !( gRepository->Register( dstName, dst ) ) ) {
-    PyErr_SetString(PyRunTimeErr,  "error registering obj in repository");
-    delete dst;
-    
+  if (!AddGeometryToRepository(api, dstName, dst)) {
+      return nullptr;
   }
 
   return Py_BuildValue("s",dst->GetName());
 }
 
+//---------------------
+// Geom_winding_number 
+//---------------------
+//
+PyDoc_STRVAR(Geom_winding_number_doc,
+  "winding_number(kernel) \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// --------------------
-// Geom_2dWindingNumCmd
-// --------------------
-
-PyObject* Geom_2dWindingNumCmd(PyObject* self, PyObject* args)
+static PyObject * 
+Geom_winding_number(PyObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *objName;
-  cvRepositoryData *obj;
-  RepositoryDataT type;
-  int wnum;
 
-  if (!PyArg_ParseTuple(args,"s", &objName))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import one char objName");
-    
+  if (!PyArg_ParseTuple(args, api.format, &objName)) {
+      return api.argsError();
   }
 
-
-  // Do work of command:
-
-  // Retrieve source object:
-  obj = gRepository->GetObject( objName );
-  if ( obj == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "couldn't find object" );
-    
+  auto obj = GetRepositoryGeometry(api, objName);
+  if (obj == NULL) {
+      return nullptr;
   }
 
-  type = obj->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-    
-  }
-
-  wnum = sys_geom_2DWindingNum( (cvPolyData*)obj );
-
+  auto wnum = sys_geom_2DWindingNum(obj);
 
   return Py_BuildValue("i",wnum);
 }
 
+//---------------------
+// Geom_polygon_normal 
+//---------------------
+//
+PyDoc_STRVAR(Geom_polygon_normal_doc,
+  "polygon_norma(kernel) \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// -------------------
-// Geom_PolygonNormCmd
-// -------------------
-
-PyObject* Geom_PolygonNormCmd(PyObject* self, PyObject* args)
+static PyObject * 
+Geom_polygon_normal(PyObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *objName;
-  cvRepositoryData *obj;
-  RepositoryDataT type;
-  double n[3];
 
-  if (!PyArg_ParseTuple(args,"s", &objName))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import one char objName");
-    
+  if (!PyArg_ParseTuple(args, api.format, &objName)) {
+      return api.argsError();
   }
 
-
-  // Do work of command:
-
-  // Retrieve source object:
-  obj = gRepository->GetObject( objName );
-  if ( obj == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "couldn't find object" );
-    
+  auto obj = GetRepositoryGeometry(api, objName);
+  if (obj == NULL) {
+      return nullptr;
   }
 
-  type = obj->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-    
+  double normal[3];
+
+  if (sys_geom_PolygonNormal(obj, normal) != SV_OK) {
+      api.error("Error calculating the normal for the geometry '" + std::string(objName) + ".");
+      return nullptr;
   }
 
-  if ( sys_geom_PolygonNormal( (cvPolyData*)obj, n ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr,  "error computing normal");
-    
-  }
-
-  return Py_BuildValue("ddd",n[0],n[1],n[2]);
+  return Py_BuildValue("ddd",normal[0],normal[1],normal[2]);
 }
 
+//--------------------
+// Geom_average_point 
+//--------------------
+//
+PyDoc_STRVAR(Geom_average_point_doc,
+  "average_point(kernel) \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// -------------
-// Geom_AvgPtCmd
-// -------------
-
-PyObject* Geom_AvgPtCmd(PyObject* self, PyObject* args)
+static PyObject * 
+Geom_average_point(PyObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *objName;
-  cvRepositoryData *obj;
-  RepositoryDataT type;
+
+  if (!PyArg_ParseTuple(args, api.format, &objName)) {
+      return api.argsError();
+  }
+
+  auto obj = GetRepositoryGeometry(api, objName);
+  if (obj == NULL) {
+      return nullptr;
+  }
+
   double pt[3];
 
-  if (!PyArg_ParseTuple(args,"s", &objName))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import one char objName");
-    
-  }
-
-
-  // Do work of command:
-
-  // Retrieve source object:
-  obj = gRepository->GetObject( objName );
-  if ( obj == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "couldn't find object" );
-    
-  }
-
-  type = obj->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-    
-  }
-
-  if ( sys_geom_AvgPt( (cvPolyData*)obj, pt ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr,  "error averaging points");
-    
+  if (sys_geom_AvgPt(obj, pt) != SV_OK) {
+      api.error("Error calculating the average point for the geometry '" + std::string(objName) + ".");
+      return nullptr;
   }
 
   return Py_BuildValue("ddd",pt[0], pt[1], pt[2]);
 }
 
+//-----------
+// Geom_copy 
+//-----------
+//
+PyDoc_STRVAR(Geom_copy_doc,
+  "Geom_copy(kernel) \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// ------------
-// Geom_CopyCmd
-// ------------
-
-PyObject* Geom_CopyCmd(PyObject* self, PyObject* args)
+static PyObject * 
+Geom_copy(PyObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *srcName;
   char *dstName;
-  cvRepositoryData *src;
-  cvPolyData *dst;
-  RepositoryDataT type;
 
-  if (!PyArg_ParseTuple(args,"ss", &srcName,&dstName))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import two chars srcName,dstName");
-    
+  if (!PyArg_ParseTuple(args, api.format, &srcName, &dstName)) {
+      return api.argsError();
   }
 
-
-  // Do work of command:
-
-  // Retrieve source object:
-  src = gRepository->GetObject( srcName );
-  if ( src == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "couldn't find object" );
-    
+  auto src = GetRepositoryGeometry(api, srcName);
+  if (src == NULL) {
+      return nullptr;
   }
 
-  type = src->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-    
+  if (RepositoryGeometryExists(api, dstName)) {
+      return nullptr;
   }
 
-  // Make sure the specified dst object does not exist:
-  if ( gRepository->Exists( dstName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    
+  auto dst = sys_geom_DeepCopy(src);
+  if (dst == NULL) {
+      api.error("Error copying the geometry '" + std::string(srcName) + ".");
+      return nullptr;
   }
 
-  dst = sys_geom_DeepCopy( (cvPolyData*)src );
-  if ( dst == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "error copying object" );
-    
-  }
-
-  if ( !( gRepository->Register( dstName, dst ) ) ) {
-    PyErr_SetString(PyRunTimeErr,  "error registering obj in repository");
-    delete dst;
-    
+  if (!AddGeometryToRepository(api, dstName, dst)) {
+      return nullptr;
   }
 
   return Py_BuildValue("s",dst->GetName());
 }
 
-// ------------------
-// Geom_ReorderPgnCmd
-// ------------------
+//----------------------
+// Geom_reorder_polygon 
+//----------------------
+//
+PyDoc_STRVAR(Geom_reorder_polygon_doc,
+  "reorder_polygon(kernel) \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-PyObject* Geom_ReorderPgnCmd(PyObject* self, PyObject* args)
+static PyObject * 
+Geom_reorder_polygon(PyObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("sis", PyRunTimeErr, __func__);
   char *srcName;
-  char *dstName;
-  cvRepositoryData *src;
-  cvPolyData *dst;
-  RepositoryDataT type;
   int start;
+  char *dstName;
 
-  if (!PyArg_ParseTuple(args,"sis", &srcName,&start,&dstName))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import two chars and one int srcName, start,dstName");
-    
+  if (!PyArg_ParseTuple(args, api.format, &srcName, &start, &dstName)) {
+      return api.argsError();
   }
 
-
-  // Do work of command:
-
-  // Retrieve source object:
-  src = gRepository->GetObject( srcName );
-  if ( src == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "couldn't find object" );
-    
-  }
-  type = src->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-    
+  auto src = GetRepositoryGeometry(api, srcName);
+  if (src == NULL) {
+      return nullptr;
   }
 
-  // Make sure the specified dst object does not exist:
-  if ( gRepository->Exists( dstName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    
+  if (RepositoryGeometryExists(api, dstName)) {
+      return nullptr;
   }
 
-  dst = sys_geom_ReorderPolygon( (cvPolyData*)src, start );
-  if ( dst == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "error reordering object");
-    
+  auto dst = sys_geom_ReorderPolygon( (cvPolyData*)src, start );
+  if (dst == NULL) {
+      api.error("Error repordering a polygon for the geometry '" + std::string(srcName) + ".");
+      return nullptr;
   }
 
-  if ( !( gRepository->Register( dstName, dst ) ) ) {
-    PyErr_SetString(PyRunTimeErr,  "error registering obj in repository");
-    delete dst;
-    
+  if (!AddGeometryToRepository(api, dstName, dst)) {
+      return nullptr;
   }
 
   return Py_BuildValue("s",dst->GetName());
 }
 
+//---------------------------------
+// Geom_spline_points_to_path_plan 
+//---------------------------------
+//
+PyDoc_STRVAR(Geom_spline_points_to_path_plan_doc,
+  "spline_points_to_path_plan(kernel) \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// ---------------------------
-// Geom_SplinePtsToPathPlanCmd
-// ---------------------------
-
-PyObject* Geom_SplinePtsToPathPlanCmd(PyObject* self, PyObject* args)
+static PyObject * 
+Geom_spline_points_to_path_plan(PyObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("sii|s", PyRunTimeErr, __func__);
   char *srcName;
   int numOutputPts;
-  char *filename = NULL;
   int flag;
-  cvRepositoryData *src;
-  RepositoryDataT type;
+  char *filename = NULL;
 
-  if (!PyArg_ParseTuple(args,"sii|s", &srcName,&numOutputPts,&flag,&filename))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import one char, two ints and one optional char, srcName, numOutputPts, flags, fileName");
-    
+  if (!PyArg_ParseTuple(args, api.format, &srcName, &numOutputPts, &flag, &filename)) {
+      return api.argsError();
   }
 
-
-  // Do work of command:
-
-  // Retrieve source object:
-  src = gRepository->GetObject( srcName );
-  if ( src == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "couldn't find object" );
-    
+  auto src = GetRepositoryGeometry(api, srcName);
+  if (src == NULL) {
+      return nullptr;
   }
 
-  type = src->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-    
-  }
-
-  // if no filename is specified, pass the interp to the spline code to create
-  // a tcl string containing the path.  If a filename is specified, return string
-  // will be left blank.
   int result;
   char *output;
   if (filename == NULL) {
-    result = pysys_geom_splinePtsToPathPlan( ((cvPolyData*)src)->GetVtkPolyData(),numOutputPts,
-                                  filename, flag, &output);
+    result = pysys_geom_splinePtsToPathPlan(src->GetVtkPolyData(),numOutputPts, filename, flag, &output);
   } else {
-    result = pysys_geom_splinePtsToPathPlan( ((cvPolyData*)src)->GetVtkPolyData(),numOutputPts,
-                                  filename, flag, NULL);
+    result = pysys_geom_splinePtsToPathPlan(src->GetVtkPolyData(),numOutputPts, filename, flag, NULL);
   }
 
-  if (result == SV_OK) {
-    if (filename !=NULL)
-    	return SV_PYTHON_OK;
-    else
-	return Py_BuildValue("s",output);
-  } else {
-    PyErr_SetString(PyRunTimeErr, "Error getting splinePtsToPathPlan");
-    
+  if (result != SV_OK) {
+      api.error("Error writing spline points for the geometry '" + std::string(srcName) + ".");
+      return nullptr;
   }
 
+  if (filename == NULL) {
+      return Py_BuildValue("s",output);
+  } else {
+      return SV_PYTHON_OK;
+  } 
 }
 
+//------------------------
+// Geom_integrate_surface 
+//------------------------
+//
+PyDoc_STRVAR(Geom_integrate_surface_doc,
+  "integrate_surface(kernel) \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// ------------------------
-// Geom_IntegrateSurfaceCmd
-// ------------------------
-
-PyObject* Geom_IntegrateSurfaceCmd(PyObject* self, PyObject* args)
+static PyObject * 
+Geom_integrate_surface(PyObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("sOi", PyRunTimeErr, __func__);
   char *objName;
   PyObject* nrmList;
-  cvRepositoryData *obj;
-  RepositoryDataT type;
-  double nrm[3];
   int tensorType;
 
-  if (!PyArg_ParseTuple(args,"sOi", &objName,&nrmList,&tensorType))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import one char, one list, ont int, objName, nrmList,tensorType");
-    
+  if (!PyArg_ParseTuple(args, api.format, &objName, &nrmList, &tensorType)) {
+      return api.argsError();
   }
 
-
-    // Convert given coordinate to double's:
-    if ( PyList_Size(nrmList) != 3 ) {
-      PyErr_SetString(PyRunTimeErr,  "list must have three elements");
-      
-    }
-      
-    for (int i=0; i<3;i++)
-	nrm[i] = PyFloat_AsDouble(PyList_GetItem(nrmList,i));
-    if(PyErr_Occurred()!=NULL)
-    {
-      PyErr_SetString(PyRunTimeErr, "list elements must all be double's");
-      
-    }
-
-
-  // Do work of command:
-
-  // Retrieve object:
-  obj = gRepository->GetObject( objName );
-  if ( obj == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "couldn't find object" );
-    
+  std::string emsg;
+  double normal[3];
+  if (!svPyUtilGetPointData(nrmList, emsg, normal)) {
+      api.error("The normal argument " + emsg);
+      return nullptr;
   }
 
-  type = obj->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-    
+  auto obj = GetRepositoryGeometry(api, objName);
+  if (obj == NULL) {
+      return nullptr;
   }
 
   double q = 0.0;
-  if ( sys_geom_IntegrateSurface((cvPolyData*)obj, tensorType, nrm, &q) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "error calculating surface integral");
-    
+  if (sys_geom_IntegrateSurface(obj, tensorType, normal, &q) != SV_OK) {
+      api.error("Error calculating surface integral for the geometry '" + std::string(objName) + ".");
+      return nullptr;
   }
 
   return Py_BuildValue("d",q);
 }
 
+//-------------------------
+// Geom_integrate_surface2 
+//-------------------------
+//
+PyDoc_STRVAR(Geom_integrate_surface2_doc,
+  "integrate_surface2(kernel) \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// -------------------------
-// Geom_IntegrateSurface2Cmd
-// -------------------------
-
-PyObject* Geom_IntegrateSurface2Cmd(PyObject* self, PyObject* args)
+static PyObject * 
+Geom_integrate_surface2(PyObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("si", PyRunTimeErr, __func__);
   char *objName;
-  cvRepositoryData *obj;
-  RepositoryDataT type;
   int tensorType;
 
-  if (!PyArg_ParseTuple(args,"si", &objName,&tensorType))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import one char, ont int, objName,tensorType");
-    
+  if (!PyArg_ParseTuple(args, api.format, &objName, &tensorType)) {
+      return api.argsError();
   }
 
-
-
-  // Do work of command:
-
-  // Retrieve object:
-  obj = gRepository->GetObject( objName );
-  if ( obj == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "couldn't find object" );
-    
-  }
-
-  type = obj->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-    
+  auto obj = GetRepositoryGeometry(api, objName);
+  if (obj == NULL) {
+      return nullptr;
   }
 
   double q = 0.0;
   double area = 0.0;
-  if ( sys_geom_IntegrateSurface2((cvPolyData*)obj, tensorType, &q, &area) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "error calculating surface integral");
-    
+  if (sys_geom_IntegrateSurface2(obj, tensorType, &q, &area) != SV_OK) {
+      api.error("Error calculating surface integral for the geometry '" + std::string(objName) + ".");
+      return nullptr;
   }
-
 
   return Py_BuildValue("dd",q,area);
 }
 
+//-----------------------
+// Geom_integrate_energy 
+//-----------------------
+//
+PyDoc_STRVAR(Geom_integrate_energy_doc,
+  "integrate_energy(kernel) \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// -----------------------
-// Geom_IntegrateEnergyCmd
-// -----------------------
-
-PyObject* Geom_IntegrateEnergyCmd(PyObject* self, PyObject* args)
+static PyObject * 
+Geom_integrate_energy(PyObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("sOd", PyRunTimeErr, __func__);
   char *objName;
   PyObject* nrmList;
-  cvRepositoryData *obj;
-  RepositoryDataT type;
-  double nrm[3];
   double rho = 0.0;
 
-  if (!PyArg_ParseTuple(args,"sOd", &objName,&nrmList,&rho))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import one char, one list, one double, objName, nrmList,rho");
-    
+  if (!PyArg_ParseTuple(args, api.format, &objName,&nrmList,&rho)) {
+      return api.argsError();
   }
 
-
-    // Convert given coordinate to double's:
-
-    if ( PyList_Size(nrmList) != 3 ) {
-      PyErr_SetString(PyRunTimeErr,  "list must have three elements");
-      
-    }
-    for(int i = 0; i<3; i++)
-    {
-      nrm[i] = PyFloat_AsDouble(PyList_GetItem(nrmList,i));
-    }
-    if (PyErr_Occurred()!=NULL)
-    {      
-      PyErr_SetString(PyRunTimeErr, "list elements must all be double's");
-      
-    }
-
-
-  // Do work of command:
-
-  // Retrieve object:
-  obj = gRepository->GetObject( objName );
-  if ( obj == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "couldn't find object" );
-    
+  std::string emsg;
+  double normal[3];
+  if (!svPyUtilGetPointData(nrmList, emsg, normal)) {
+      api.error("The normal argument " + emsg);
+      return nullptr;
   }
-
-  type = obj->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-    
+  
+  auto obj = GetRepositoryGeometry(api, objName);
+  if (obj == NULL) {
+      return nullptr;
   }
 
   double energy = 0.0;
-  if ( sys_geom_IntegrateEnergy((cvPolyData*)obj, rho, nrm, &energy) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "error calculating surface integral");
-    
+  if (sys_geom_IntegrateEnergy(obj, rho, normal, &energy) != SV_OK ) {
+      api.error("Error calculating the energy integral for the geometry '" + std::string(objName) + ".");
+      return nullptr;
   }
 
   return Py_BuildValue("d",energy);
 }
 
+//--------------------
+// Geom_find_distance 
+//--------------------
+//
+PyDoc_STRVAR(Geom_find_distance_doc,
+  "find_distance(kernel) \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// --------------------
-// Geom_FindDistanceCmd
-// --------------------
-
-PyObject* Geom_FindDistanceCmd(PyObject* self, PyObject* args)
+static PyObject * 
+Geom_find_distance(PyObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("sO", PyRunTimeErr, __func__);
   char *objName;
-  cvRepositoryData *obj;
-  RepositoryDataT type;
   PyObject* ptList;
+
+  if (!PyArg_ParseTuple(args, api.format, &objName,&ptList)) {
+      return api.argsError();
+  }
+
+  auto obj = GetRepositoryGeometry(api, objName);
+  if (obj == NULL) {
+      return nullptr;
+  }
+
+  std::string emsg;
   double pt[3];
-  int npt;
-  double distance;
-
-  if (!PyArg_ParseTuple(args,"sO", &objName,&ptList))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import one char, one list, ont int, objName, ptList");
-    
+  if (!svPyUtilGetPointData(ptList, emsg, pt)) {
+      api.error("The point argument " + emsg);
+      return nullptr;
   }
 
-
-  // Parse coordinate list:
-  npt = PyList_Size(ptList);
-  if ( npt != 3 ) {
-    PyErr_SetString(PyRunTimeErr, "only valid for 3d objects and queries");
-    
-  }
-  for(int i=0; i<3; i++)
-    pt[i] = PyFloat_AsDouble(PyList_GetItem(ptList,i));
-  // Do work of command:
-
-  // Retrieve object:
-  obj = gRepository->GetObject( objName );
-  if ( obj == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "couldn't find object" );
-    
-  }
-
-  type = obj->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-    
-  }
-
-  distance = ((cvPolyData*)obj)->FindDistance( pt[0], pt[1], pt[2] );
+  auto distance = obj->FindDistance( pt[0], pt[1], pt[2] );
 
   return Py_BuildValue("d",distance);
 }
 
+//-------------------------
+// Geom_interpolate_scalar 
+//-------------------------
+//
+PyDoc_STRVAR(Geom_interpolate_scalar_doc,
+  "interpolate_scalar(kernel) \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// -------------------------
-// Geom_InterpolateScalarCmd
-// -------------------------
-
-PyObject* Geom_InterpolateScalarCmd(PyObject* self, PyObject* args)
+static PyObject * 
+Geom_interpolate_scalar(PyObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("sO", PyRunTimeErr, __func__);
   char *objName;
-  cvRepositoryData *obj;
-  RepositoryDataT type;
   PyObject* ptList;
+
+  if (!PyArg_ParseTuple(args, api.format, &objName,&ptList)) {
+      return api.argsError();
+  }
+
+  auto obj = GetRepositoryGeometry(api, objName);
+  if (obj == NULL) {
+      return nullptr;
+  }
+
+  std::string emsg;
   double pt[3];
-  int npt;
-
-  if (!PyArg_ParseTuple(args,"sO", &objName,&ptList))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import one char, one list, ont int, objName, ptList");
-    
-  }
-
-
-  // Parse coordinate list:
-  npt = PyList_Size(ptList);
-
-  if ( npt != 3 ) {
-    PyErr_SetString(PyRunTimeErr, "only valid for 3d objects and queries");
-    
-  }
-
-  for(int i = 0; i<3; i++)
-    pt[i] = PyFloat_AsDouble(PyList_GetItem(ptList,i));
-
-  // Do work of command:
-
-  // Retrieve object:
-  obj = gRepository->GetObject( objName );
-  if ( obj == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "couldn't find object" );
-    
-  }
-
-  type = obj->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-    
+  if (!svPyUtilGetPointData(ptList, emsg, pt)) {
+      api.error("The point argument " + emsg);
+      return nullptr;
   }
 
   double scalar = 0.0;
-  if ( sys_geom_InterpolateScalar((cvPolyData*)obj, pt, &scalar) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "error interpolating scalar");
-    
+  if (sys_geom_InterpolateScalar(obj, pt, &scalar) != SV_OK) {
+      api.error("Error calculating the scalar integral for the geometry '" + std::string(objName) + ".");
+      return nullptr;
   }
 
   return Py_BuildValue("d",scalar);
 }
 
+//-------------------------
+// Geom_interpolate_vector 
+//-------------------------
+//
+PyDoc_STRVAR(Geom_interpolate_vector_doc,
+  "interpolate_vector(kernel) \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// -------------------------
-// Geom_InterpolateVectorCmd
-// -------------------------
-
-PyObject* Geom_InterpolateVectorCmd(PyObject* self, PyObject* args)
+static PyObject * 
+Geom_interpolate_vector(PyObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("sO", PyRunTimeErr, __func__);
   char *objName;
-  cvRepositoryData *obj;
-  RepositoryDataT type;
   PyObject* ptList;
+
+  if (!PyArg_ParseTuple(args, api.format, &objName,&ptList)) {
+      return api.argsError();
+  }
+
+  auto obj = GetRepositoryGeometry(api, objName);
+  if (obj == NULL) {
+      return nullptr;
+  }
+
+  std::string emsg;
   double pt[3];
-  int npt;
-
-  if (!PyArg_ParseTuple(args,"sO", &objName,&ptList))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import one char, one list, ont int, objName, ptList");
-    
+  if (!svPyUtilGetPointData(ptList, emsg, pt)) {
+      api.error("The point argument " + emsg);
+      return nullptr;
   }
 
-
-  // Parse coordinate list:
-  npt = PyList_Size(ptList); 
-
-  if ( npt != 3 ) {
-    PyErr_SetString(PyRunTimeErr, "only valid for 3d objects and queries");
-    
-  }
-  for (int i=0; i<3; i++)
-  {
-    pt[i]=PyFloat_AsDouble(PyList_GetItem(ptList,i)); 
-  } 
-  // Do work of command:
-
-  // Retrieve object:
-  obj = gRepository->GetObject( objName );
-  if ( obj == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "couldn't find object" );
-    
-  }
-
-  type = obj->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-    
-  }
-
-  double vect[3];
-  vect[0] = 0.0;
-  vect[1] = 0.0;
-  vect[2] = 0.0;
-  if ( sys_geom_InterpolateVector((cvPolyData*)obj, pt, vect) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "error interpolating vector");
-    
+  double vect[3] = {0.0, 0.0, 0.0};
+  if ( sys_geom_InterpolateVector(obj, pt, vect) != SV_OK ) {
+      api.error("Error interpolating a vector for the geometry '" + std::string(objName) + ".");
+      return nullptr;
   }
 
   PyObject* pList = PyList_New(3);
-  for (int i = 0; i<3; i++)
+  for (int i = 0; i<3; i++) {
     PyList_SetItem(pList,i,PyFloat_FromDouble(vect[i]));
+  }
   return pList;
 }
 
+//--------------------------
+// Geom_intersect_with_line 
+//--------------------------
+//
+PyDoc_STRVAR(Geom_intersect_with_line_doc,
+  "intersect_with_line(kernel) \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-
-// -------------------------
-// Geom_IntersectWithLineCmd
-// -------------------------
-
-PyObject* Geom_IntersectWithLineCmd(PyObject* self, PyObject* args)
+static PyObject * 
+Geom_intersect_with_line(PyObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("sOO", PyRunTimeErr, __func__);
   char *objName;
-  cvRepositoryData *obj;
-  RepositoryDataT type;
-  PyObject *p0List,*p1List;
-  double p0[3],p1[3];
-  int npt0,npt1;
+  PyObject *p1List;
+  PyObject *p2List;
 
-  if (!PyArg_ParseTuple(args,"sOO", &objName,&p0List,&p1List))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import one char, two lists, ont int, objName, p0List,p1List");
-    
+  if (!PyArg_ParseTuple(args, api.format, &objName, &p1List, &p2List)) {
+      return api.argsError();
   }
 
-
-  // Parse coordinate list:
-  npt0 = PyList_Size(p0List);
-  npt1 = PyList_Size(p1List);
-
-  if ( npt0 != 3 || npt1 != 3 ) {
-    PyErr_SetString(PyRunTimeErr, "only valid for 3d objects and queries");
-    
-  }
-  for (int i=0; i<3; i++)
-  {
-    p0[i] = PyFloat_AsDouble(PyList_GetItem(p0List,i));
-    p1[i] = PyFloat_AsDouble(PyList_GetItem(p1List,i));
+  auto obj = GetRepositoryGeometry(api, objName);
+  if (obj == NULL) {
+      return nullptr;
   }
 
-  // Do work of command:
-
-  // Retrieve object:
-  obj = gRepository->GetObject( objName );
-  if ( obj == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "couldn't find object" );
-    
+  std::string emsg;
+  double pt1[3];
+  if (!svPyUtilGetPointData(p1List, emsg, pt1)) {
+      api.error("The point1 argument " + emsg);
+      return nullptr;
   }
 
-  type = obj->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-    
+  double pt2[3];
+  if (!svPyUtilGetPointData(p2List, emsg, pt2)) {
+      api.error("The point2 argument " + emsg);
+      return nullptr;
   }
 
   double intersect[3];
-  if ( sys_geom_IntersectWithLine((cvPolyData*)obj, p0, p1, intersect) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "error intersecting vtkPolyData with line");
-    
+  if (sys_geom_IntersectWithLine(obj, pt1, pt2, intersect) != SV_OK) {
+      api.error("Error intersecting the geometry '" + std::string(objName) + " with a line.");
+      return nullptr;
   }
 
   return Py_BuildValue("ddd",intersect[0], intersect[1], intersect[2]);
 }
 
+//---------------------
+// Geom_add_point_data 
+//---------------------
+//
+PyDoc_STRVAR(Geom_add_point_data_doc,
+  "add_point_data(kernel) \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// --------------------
-// Geom_AddPointDataCmd
-// --------------------
-
-PyObject* Geom_AddPointDataCmd(PyObject* self, PyObject* args)
+static PyObject * 
+Geom_add_point_data(PyObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("sssii", PyRunTimeErr, __func__);
   char *srcNameA;
   char *srcNameB;
+  char *dstName;
   int scflag = FALSE;
   int vflag = FALSE;
-  char *dstName;
 
-  cvRepositoryData *srcA = NULL;
-  cvRepositoryData *srcB = NULL;
-  cvRepositoryData *dst = NULL;
-  RepositoryDataT type;
-
-  if (!PyArg_ParseTuple(args,"sssii", &srcNameA,&srcNameB,&dstName,&scflag,&vflag))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import three chars,two ints\
-srcNameA, srcNameB,dstName,scflag,vflag");
-    
+  if (!PyArg_ParseTuple(args, api.format, &srcNameA, &srcNameB, &dstName, &scflag, &vflag)) {
+      return api.argsError();
   }
 
-
-  // Do work of command:
-
-  // Retrieve source object:
-  srcA = gRepository->GetObject( srcNameA );
-  if ( srcA == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "couldn't find object");
-    
+  auto srcA = GetRepositoryGeometry(api, srcNameA);
+  if (srcA == NULL) {
+      return nullptr;
   }
 
-  // Retrieve source object:
-  srcB = gRepository->GetObject( srcNameB );
-  if ( srcB == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "couldn't find object");
-    
+  auto srcB = GetRepositoryGeometry(api, srcNameB);
+  if (srcB == NULL) {
+      return nullptr;
   }
 
-
-  // Make sure the specified dst object does not exist:
-  if ( gRepository->Exists( dstName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    
-  }
-
-  type = srcA->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-    
-  }
-
-  type = srcB->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-    
+  if (RepositoryGeometryExists(api, dstName)) {
+      return nullptr;
   }
 
   sys_geom_math_scalar sc = SYS_GEOM_NO_SCALAR;
   sys_geom_math_vector v = SYS_GEOM_NO_VECTOR;
+
   if (scflag) {
       sc = SYS_GEOM_ADD_SCALAR;
   }
@@ -3488,79 +3269,59 @@ srcNameA, srcNameB,dstName,scflag,vflag");
       v = SYS_GEOM_ADD_VECTOR;
   }
 
-  if ( sys_geom_mathPointData( (cvPolyData*)srcA, (cvPolyData*)srcB, sc, v, (cvPolyData**)(&dst) ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "point data math error" );
-    
+  cvPolyData *dst;
+  if ( sys_geom_mathPointData(srcA, srcB, sc, v, &dst) != SV_OK ) {
+      api.error("Error adding point data for the geometry '" + std::string(srcNameA) + 
+          " and " + std::string(srcNameB) +".");
+      return nullptr;
   }
 
-  if ( !( gRepository->Register( dstName, dst ) ) ) {
-    PyErr_SetString(PyRunTimeErr,  "error registering obj in repository");
-    delete dst;
-    
+  if (!AddGeometryToRepository(api, dstName, dst)) {
+      return nullptr;
   }
 
   return Py_BuildValue("s",dst->GetName());
 }
 
+//--------------------------
+// Geom_subtract_point_data
+//--------------------------
+//
+PyDoc_STRVAR(Geom_subtract_point_data_doc,
+  "subtract_point_data(kernel) \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// -------------------------
-// Geom_SubtractPointDataCmd
-// -------------------------
-
-PyObject* Geom_SubtractPointDataCmd(PyObject* self, PyObject* args)
+static PyObject * 
+Geom_subtract_point_data(PyObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("sssii", PyRunTimeErr, __func__);
   char *srcNameA;
   char *srcNameB;
+  char *dstName;
   int scflag = FALSE;
   int vflag = FALSE;
-  char *dstName;
 
-  cvRepositoryData *srcA = NULL;
-  cvRepositoryData *srcB = NULL;
-  cvRepositoryData *dst = NULL;
-  RepositoryDataT type;
-
-  if (!PyArg_ParseTuple(args,"sssii", &srcNameA,&srcNameB,&dstName,&scflag,&vflag))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import three chars,two ints\
-srcNameA, srcNameB,dstName,scflag,vflag");
-    
+  if (!PyArg_ParseTuple(args, api.format, &srcNameA,&srcNameB,&dstName,&scflag,&vflag)) {
+      return api.argsError();
   }
 
-
-  // Do work of command:
-
-  // Retrieve source object:
-  srcA = gRepository->GetObject( srcNameA );
-  if ( srcA == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "couldn't find object");
-    
+  auto srcA = GetRepositoryGeometry(api, srcNameA);
+  if (srcA == NULL) {
+      return nullptr;
   }
 
-  // Retrieve source object:
-  srcB = gRepository->GetObject( srcNameB );
-  if ( srcB == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "couldn't find object");
-    
+  auto srcB = GetRepositoryGeometry(api, srcNameB);
+  if (srcB == NULL) {
+      return nullptr;
   }
 
-
-  // Make sure the specified dst object does not exist:
-  if ( gRepository->Exists( dstName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    
-  }
-
-  type = srcA->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-    
-  }
-
-  type = srcB->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-    
+  if (RepositoryGeometryExists(api, dstName)) {
+      return nullptr;
   }
 
   sys_geom_math_scalar sc = SYS_GEOM_NO_SCALAR;
@@ -3572,79 +3333,59 @@ srcNameA, srcNameB,dstName,scflag,vflag");
       v = SYS_GEOM_SUBTRACT_VECTOR;
   }
 
-  if ( sys_geom_mathPointData( (cvPolyData*)srcA, (cvPolyData*)srcB, sc, v, (cvPolyData**)(&dst) ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "point data math error" );
-    
+  cvPolyData *dst;
+  if (sys_geom_mathPointData(srcA, srcB, sc, v, &dst) != SV_OK) {
+      api.error("Error subtracting point data for the geometry '" + std::string(srcNameA) + 
+          " and " + std::string(srcNameB) +".");
+      return nullptr;
   }
 
-  if ( !( gRepository->Register( dstName, dst ) ) ) {
-    PyErr_SetString(PyRunTimeErr,  "error registering obj in repository");
-    delete dst;
-    
+  if (!AddGeometryToRepository(api, dstName, dst)) {
+      return nullptr;
   }
 
   return Py_BuildValue("s",dst->GetName());
 }
 
+//--------------------------
+// Geom_multiply_point_data 
+//--------------------------
+//
+PyDoc_STRVAR(Geom_multiply_point_data_doc,
+  "multiply_point_data(kernel) \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// -------------------------
-// Geom_MultiplyPointDataCmd
-// -------------------------
-
-PyObject* Geom_MultiplyPointDataCmd(PyObject* self, PyObject* args)
+static PyObject * 
+Geom_multiply_point_data(PyObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("sssii", PyRunTimeErr, __func__);
   char *srcNameA;
   char *srcNameB;
+  char *dstName;
   int scflag = FALSE;
   int vflag = FALSE;
-  char *dstName;
 
-  cvRepositoryData *srcA = NULL;
-  cvRepositoryData *srcB = NULL;
-  cvRepositoryData *dst = NULL;
-  RepositoryDataT type;
-
-  if (!PyArg_ParseTuple(args,"sssii", &srcNameA,&srcNameB,&dstName,&scflag,&vflag))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import three chars,two ints\
-srcNameA, srcNameB,dstName,scflag,vflag");
-    
+  if (!PyArg_ParseTuple(args, api.format, &srcNameA, &srcNameB, &dstName, &scflag, &vflag)) {
+      return api.argsError();
   }
 
-
-  // Do work of command:
-
-  // Retrieve source object:
-  srcA = gRepository->GetObject( srcNameA );
-  if ( srcA == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "couldn't find object");
-    
+  auto srcA = GetRepositoryGeometry(api, srcNameA);
+  if (srcA == NULL) {
+      return nullptr;
   }
 
-  // Retrieve source object:
-  srcB = gRepository->GetObject( srcNameB );
-  if ( srcB == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "couldn't find object");
-    
+  auto srcB = GetRepositoryGeometry(api, srcNameB);
+  if (srcB == NULL) {
+      return nullptr;
   }
 
-
-  // Make sure the specified dst object does not exist:
-  if ( gRepository->Exists( dstName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    
-  }
-
-  type = srcA->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-    
-  }
-
-  type = srcB->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-    
+  if (RepositoryGeometryExists(api, dstName)) {
+      return nullptr;
   }
 
   sys_geom_math_scalar sc = SYS_GEOM_NO_SCALAR;
@@ -3656,84 +3397,64 @@ srcNameA, srcNameB,dstName,scflag,vflag");
       v = SYS_GEOM_MULTIPLY_VECTOR;
   }
 
+  cvPolyData *dst;
   if ( sys_geom_mathPointData( (cvPolyData*)srcA, (cvPolyData*)srcB, sc, v, (cvPolyData**)(&dst) ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "point data math error" );
-    
+      api.error("Error multiplying point data for the geometry '" + std::string(srcNameA) + 
+          " and " + std::string(srcNameB) +".");
+      return nullptr;
   }
 
-  if ( !( gRepository->Register( dstName, dst ) ) ) {
-    PyErr_SetString(PyRunTimeErr,  "error registering obj in repository");
-    delete dst;
-    
+  if (!AddGeometryToRepository(api, dstName, dst)) {
+      return nullptr;
   }
-
 
   return Py_BuildValue("s",dst->GetName());
 }
 
+//------------------------
+// Geom_divide_point_data 
+//------------------------
+//
+PyDoc_STRVAR(Geom_divide_point_data_doc,
+  "Geom_divide_point_data(kernel) \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// -----------------------
-// Geom_DividePointDataCmd
-// -----------------------
-
-PyObject* Geom_DividePointDataCmd(PyObject* self, PyObject* args)
+static PyObject * 
+Geom_divide_point_data(PyObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("sssii", PyRunTimeErr, __func__);
   char *srcNameA;
   char *srcNameB;
+  char *dstName;
   int scflag = FALSE;
   int vflag = FALSE;
-  char *dstName;
 
-  cvRepositoryData *srcA = NULL;
-  cvRepositoryData *srcB = NULL;
-  cvRepositoryData *dst = NULL;
-  RepositoryDataT type;
-
-  if (!PyArg_ParseTuple(args,"sssii", &srcNameA,&srcNameB,&dstName,&scflag,&vflag))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import three chars,two ints\
-srcNameA, srcNameB,dstName,scflag,vflag");
-    
+  if (!PyArg_ParseTuple(args, api.format, &srcNameA,&srcNameB,&dstName,&scflag,&vflag)) {
+      return api.argsError();
   }
 
-
-  // Do work of command:
-
-  // Retrieve source object:
-  srcA = gRepository->GetObject( srcNameA );
-  if ( srcA == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "couldn't find object");
-    
+  auto srcA = GetRepositoryGeometry(api, srcNameA);
+  if (srcA == NULL) {
+      return nullptr;
   }
 
-  // Retrieve source object:
-  srcB = gRepository->GetObject( srcNameB );
-  if ( srcB == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "couldn't find object");
-    
+  auto srcB = GetRepositoryGeometry(api, srcNameB);
+  if (srcB == NULL) {
+      return nullptr;
   }
 
-
-  // Make sure the specified dst object does not exist:
-  if ( gRepository->Exists( dstName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    
-  }
-
-  type = srcA->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-    
-  }
-
-  type = srcB->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-    
+  if (RepositoryGeometryExists(api, dstName)) {
+      return nullptr;
   }
 
   sys_geom_math_scalar sc = SYS_GEOM_NO_SCALAR;
   sys_geom_math_vector v = SYS_GEOM_NO_VECTOR;
+
   if (scflag) {
       sc = SYS_GEOM_DIVIDE_SCALAR;
   }
@@ -3741,83 +3462,65 @@ srcNameA, srcNameB,dstName,scflag,vflag");
       v = SYS_GEOM_DIVIDE_VECTOR;
   }
 
-  if ( sys_geom_mathPointData( (cvPolyData*)srcA, (cvPolyData*)srcB, sc, v, (cvPolyData**)(&dst) ) != SV_OK ) {
+  cvPolyData *dst;
+  if (sys_geom_mathPointData(srcA, srcB, sc, v, &dst) != SV_OK) {
     PyErr_SetString(PyRunTimeErr, "point data math error" );
-    
+      api.error("Error dividing point data for the geometry '" + std::string(srcNameA) + 
+          " and " + std::string(srcNameB) +".");
+      return nullptr;
   }
 
-  if ( !( gRepository->Register( dstName, dst ) ) ) {
-    PyErr_SetString(PyRunTimeErr,  "error registering obj in repository");
-    delete dst;
-    
+  if (!AddGeometryToRepository(api, dstName, dst)) {
+      return nullptr;
   }
 
   return Py_BuildValue("s",dst->GetName());
 }
 
+//--------------
+// Geom_project 
+//---------------
+//
+PyDoc_STRVAR(Geom_project_doc,
+  "project(kernel) \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// ---------------
-// Geom_ProjectCmd
-// ---------------
-
-PyObject* Geom_ProjectCmd(PyObject* self, PyObject* args)
+static PyObject * 
+Geom_project(PyObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("sssii", PyRunTimeErr, __func__);
   char *srcNameA;
   char *srcNameB;
+  char *dstName;
   int scflag = FALSE;
   int vflag = FALSE;
-  char *dstName;
 
-  cvRepositoryData *srcA = NULL;
-  cvRepositoryData *srcB = NULL;
-  cvRepositoryData *dst = NULL;
-  RepositoryDataT type;
-
-  if (!PyArg_ParseTuple(args,"sssii", &srcNameA,&srcNameB,&dstName,&scflag,&vflag))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import three chars,two ints\
-srcNameA, srcNameB,dstName,scflag,vflag");
-    
+  if (!PyArg_ParseTuple(args,api.format, &srcNameA,&srcNameB,&dstName,&scflag,&vflag)) {
+      return api.argsError();
   }
 
-
-  // Do work of command:
-
-  // Retrieve source object:
-  srcA = gRepository->GetObject( srcNameA );
-  if ( srcA == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "couldn't find object");
-    
+  auto srcA = GetRepositoryGeometry(api, srcNameA);
+  if (srcA == NULL) {
+      return nullptr;
   }
 
-  // Retrieve source object:
-  srcB = gRepository->GetObject( srcNameB );
-  if ( srcB == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "couldn't find object");
-    
+  auto srcB = GetRepositoryGeometry(api, srcNameB);
+  if (srcB == NULL) {
+      return nullptr;
   }
 
-
-  // Make sure the specified dst object does not exist:
-  if ( gRepository->Exists( dstName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    
-  }
-
-  type = srcA->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-    
-  }
-
-  type = srcB->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-    
+  if (RepositoryGeometryExists(api, dstName)) {
+      return nullptr;
   }
 
   sys_geom_math_scalar sc = SYS_GEOM_NO_SCALAR;
   sys_geom_math_vector v = SYS_GEOM_NO_VECTOR;
+
   if (scflag) {
       sc = SYS_GEOM_ADD_SCALAR;
   }
@@ -3825,169 +3528,145 @@ srcNameA, srcNameB,dstName,scflag,vflag");
       v = SYS_GEOM_ADD_VECTOR;
   }
 
-  if ( sys_geom_Project( (cvPolyData*)srcA, (cvPolyData*)srcB, sc, v, (cvPolyData**)(&dst) ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "error projecting polydata point data" );
-    
+  cvPolyData *dst;
+  if (sys_geom_Project(srcA, srcB, sc, v, &dst) != SV_OK) {
+      api.error("Error projecting point data for the geometry '" + std::string(srcNameA) + 
+          " and " + std::string(srcNameB) +".");
+      return nullptr;
   }
 
-  if ( !( gRepository->Register( dstName, dst ) ) ) {
-    PyErr_SetString(PyRunTimeErr,  "error registering obj in repository");
-    delete dst;
-    
+  if (!AddGeometryToRepository(api, dstName, dst)) {
+      return nullptr;
   }
 
   return Py_BuildValue("s",dst->GetName());
 }
 
+//-------------------------------
+// Geom_integrate_scalar_surface
+//-------------------------------
+//
+PyDoc_STRVAR(Geom_integrate_scalar_surface_doc,
+  "integrate_scalar_surface(kernel) \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// ---------------------------
-// Geom_IntegrateScalarSurfCmd
-// ---------------------------
-
-PyObject* Geom_IntegrateScalarSurfCmd(PyObject* self, PyObject* args)
+static PyObject * 
+Geom_integrate_scalar_surface(PyObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *srcName;
-  cvRepositoryData *src;
-  RepositoryDataT type;
+
+  if (!PyArg_ParseTuple(args, api.format, &srcName)) {
+      return api.argsError();
+  }
+
+  auto src = GetRepositoryGeometry(api, srcName);
+  if (src == NULL) {
+      return nullptr;
+  }
+
   double flux;
 
-  if (!PyArg_ParseTuple(args,"s", &srcName))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import one char,srcName");
-    
-  }
-
-  // Do work of command:
-
-  // Retrieve source object:
-  src = gRepository->GetObject( srcName );
-  if ( src == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "couldn't find object");
-    
-  }
-
-  type = src->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-    
-  }
-
-  if ( sys_geom_IntegrateScalarSurf( (cvPolyData*)src, &flux ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "surface area computation error" );
-    
+  if (sys_geom_IntegrateScalarSurf(src, &flux) != SV_OK) {
+      api.error("Error integrating scalar over the surface for the geometry '" + std::string(srcName) + "'.");
+      return nullptr;
   }
 
   return Py_BuildValue("d",flux);
 }
 
+//---------------------------------
+// Geom_integrate_scalar_threshold
+//---------------------------------
+//
+PyDoc_STRVAR(Geom_integrate_scalar_threshold_doc,
+  "integrate_scalar_threshold(kernel) \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// -----------------------------
-// Geom_IntegrateScalarThreshCmd
-// -----------------------------
-
-PyObject* Geom_IntegrateScalarThreshCmd(PyObject* self, PyObject* args)
+static PyObject * 
+Geom_integrate_scalar_threshold(PyObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("sd", PyRunTimeErr, __func__);
   char *srcName;
-  cvRepositoryData *src;
-  RepositoryDataT type;
   double wssthresh;
-  double flux;
-  double area;
 
-  if (!PyArg_ParseTuple(args,"sd", &srcName,&wssthresh))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import one char and one double\
-,srcName,wssthresh");
-    
+  if (!PyArg_ParseTuple(args, api.format, &srcName,&wssthresh)) {
+      return api.argsError();
   }
 
-
-  // Do work of command:
-
-  // Retrieve source object:
-  src = gRepository->GetObject( srcName );
-  if ( src == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "couldn't find object");
-    
+  if (!PyArg_ParseTuple(args, api.format, &srcName)) {
+      return api.argsError();
   }
 
-  type = src->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-    
+  auto src = GetRepositoryGeometry(api, srcName);
+  if (src == NULL) {
+      return nullptr;
   }
 
-  if ( sys_geom_IntegrateScalarThresh( (cvPolyData*)src, wssthresh, &flux, &area) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "surface area computation error" );
-    
+  double flux, area;
+
+  if (sys_geom_IntegrateScalarThresh(src, wssthresh, &flux, &area) != SV_OK) {
+      api.error("Error in calculating the surface area for the geometry '" + std::string(srcName) + "'.");
+      return nullptr;
   }
 
   return Py_BuildValue("dd",flux, area);
 }
 
+//-------------------------
+// Geom_replace_point_data 
+//-------------------------
+//
+PyDoc_STRVAR(Geom_replace_point_data_doc,
+  "replace_point_data(kernel) \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// -------------------------
-// Geom_ReplacePointDataCmd
-// ------------------------
-
-PyObject* Geom_ReplacePointDataCmd(PyObject* self, PyObject* args)
+static PyObject * 
+Geom_replace_point_data(PyObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("sssii", PyRunTimeErr, __func__);
   char *srcNameA;
   char *srcNameB;
+  char *dstName;
   int scflag = FALSE;
   int vflag = FALSE;
-  char *dstName;
 
-  cvRepositoryData *srcA = NULL;
-  cvRepositoryData *srcB = NULL;
-  cvRepositoryData *dst = NULL;
-  RepositoryDataT type;
-
-  if (!PyArg_ParseTuple(args,"sssii", &srcNameA,&srcNameB,&dstName,&scflag,&vflag))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import three chars,two ints\
-srcNameA, srcNameB,dstName,scflag,vflag");
-    
+  if (!PyArg_ParseTuple(args, api.format, &srcNameA,&srcNameB,&dstName,&scflag,&vflag)) {
+      return api.argsError();
   }
 
-
-  // Do work of command:
-
-  // Retrieve source object:
-  srcA = gRepository->GetObject( srcNameA );
-  if ( srcA == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "couldn't find object");
-    
+  auto srcA = GetRepositoryGeometry(api, srcNameA);
+  if (srcA == NULL) {
+      return nullptr;
   }
 
-  // Retrieve source object:
-  srcB = gRepository->GetObject( srcNameB );
-  if ( srcB == NULL ) {
-    PyErr_SetString(PyRunTimeErr,  "couldn't find object");
-    
+  auto srcB = GetRepositoryGeometry(api, srcNameB);
+  if (srcB == NULL) {
+      return nullptr;
   }
 
-
-  // Make sure the specified dst object does not exist:
-  if ( gRepository->Exists( dstName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    
-  }
-
-  type = srcA->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-    
-  }
-
-  type = srcB->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,  "object not of type cvPolyData" );
-    
+  if (RepositoryGeometryExists(api, dstName)) {
+      return nullptr;
   }
 
   sys_geom_math_scalar sc = SYS_GEOM_NO_SCALAR;
   sys_geom_math_vector v = SYS_GEOM_NO_VECTOR;
+
   if (scflag) {
       sc = SYS_GEOM_ADD_SCALAR;
   }
@@ -3995,15 +3674,16 @@ srcNameA, srcNameB,dstName,scflag,vflag");
       v = SYS_GEOM_ADD_VECTOR;
   }
 
-  if ( sys_geom_ReplacePointData( (cvPolyData*)srcA, (cvPolyData*)srcB, sc, v, (cvPolyData**)(&dst) ) != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "error replacing point data" );
-    
+  cvPolyData *dst;
+
+  if (sys_geom_ReplacePointData(srcA, srcB, sc, v, &dst) != SV_OK) {
+      api.error("Error replacing point data for the geometry '" + std::string(srcNameA) + 
+          " and " + std::string(srcNameB) +".");
+      return nullptr;
   }
 
-  if ( !( gRepository->Register( dstName, dst ) ) ) {
-    PyErr_SetString(PyRunTimeErr,  "error registering obj in repository");
-    delete dst;
-    
+  if (!AddGeometryToRepository(api, dstName, dst)) {
+      return nullptr;
   }
 
   return Py_BuildValue("s",dst->GetName());
@@ -4019,13 +3699,14 @@ srcNameA, srcNameB,dstName,scflag,vflag");
 //
 PyMethodDef pyGeom_methods[] =
 {
-  {"AddPointData", Geom_AddPointDataCmd, METH_VARARGS, NULL},
+  {"add_point_data", Geom_add_point_data, METH_VARARGS, Geom_add_point_data_doc},
 
   {"align_profile", Geom_align_profile, METH_VARARGS, Geom_align_profile_doc},
 
   {"all_union", Geom_all_union, METH_VARARGS, Geom_all_union_doc},
 
-  {"AvgPt", Geom_AvgPtCmd, METH_VARARGS, NULL},
+  // RenameL: AvgPt
+  {"average_point", Geom_average_point, METH_VARARGS, Geom_average_point_doc},
 
   {"bbox", Geom_bbox, METH_VARARGS, Geom_bbox_doc},
 
@@ -4035,13 +3716,13 @@ PyMethodDef pyGeom_methods[] =
 
   {"clean", Geom_clean, METH_VARARGS, Geom_clean_doc},
 
-  {"Copy", Geom_CopyCmd, METH_VARARGS, NULL},
+  {"copy", Geom_copy, METH_VARARGS, Geom_copy_doc},
 
   {"disorient_profile", Geom_disorient_profile, METH_VARARGS, Geom_disorient_profile_doc},
 
-  {"DividePointData", Geom_DividePointDataCmd, METH_VARARGS, NULL},
+  {"divide_point_data", Geom_divide_point_data, METH_VARARGS, Geom_divide_point_data_doc},
 
-  {"FindDistance", Geom_FindDistanceCmd, METH_VARARGS, NULL},
+  {"find_distance", Geom_find_distance, METH_VARARGS, Geom_find_distance_doc},
 
   {"get_closed_line_region", Geom_get_closed_line_region, METH_VARARGS, Geom_get_closed_line_region_doc},
 
@@ -4050,17 +3731,24 @@ PyMethodDef pyGeom_methods[] =
 
   {"get_poly_centroid", Geom_get_poly_centroid, METH_VARARGS, Geom_get_poly_centroid_doc},
 
-  {"IntegrateSurfaceFlux", Geom_IntegrateSurfaceCmd, METH_VARARGS, NULL},
-  {"IntegrateSurface2", Geom_IntegrateSurface2Cmd, METH_VARARGS, NULL},
-  {"IntegrateEnergy", Geom_IntegrateEnergyCmd, METH_VARARGS, NULL},
-  {"IntegrateScalarSurf", Geom_IntegrateScalarSurfCmd, METH_VARARGS, NULL},
-  {"IntegrateScalarThresh", Geom_IntegrateScalarThreshCmd, METH_VARARGS, NULL},
-  {"InterpolateScalar", Geom_InterpolateScalarCmd, METH_VARARGS, NULL},
-  {"InterpolateVector", Geom_InterpolateVectorCmd, METH_VARARGS, NULL},
+  {"integrate_surface", Geom_integrate_surface, METH_VARARGS, Geom_integrate_surface_doc},
+
+  {"integrate_surface2", Geom_integrate_surface2, METH_VARARGS, Geom_integrate_surface2_doc},
+
+  {"integrate_energy", Geom_integrate_energy, METH_VARARGS, Geom_integrate_energy_doc},
+
+  {"integrate_scalar_surface", Geom_integrate_scalar_surface, METH_VARARGS, Geom_integrate_scalar_surface_doc},
+
+  // Renmae: IntegrateScalarThresh
+  {"integrate_scalar_threshold", Geom_integrate_scalar_threshold, METH_VARARGS, Geom_integrate_scalar_threshold_doc},
+
+  {"interpolate_scalar", Geom_interpolate_scalar, METH_VARARGS, Geom_interpolate_scalar_doc},
+
+  {"interpolate_vector", Geom_interpolate_vector, METH_VARARGS, Geom_interpolate_vector_doc},
 
   {"intersect", Geom_intersect, METH_VARARGS, Geom_intersect_doc},
 
-  {"IntersectWithLine", Geom_IntersectWithLineCmd, METH_VARARGS, NULL},
+  {"intersect_with_line", Geom_intersect_with_line, METH_VARARGS, Geom_intersect_with_line_doc},
 
   {"local_blend", Geom_local_blend, METH_VARARGS, Geom_local_blend_doc},
 
@@ -4076,27 +3764,32 @@ PyMethodDef pyGeom_methods[] =
 
   {"local_loop_subdivision", Geom_local_loop_subdivision, METH_VARARGS, Geom_local_loop_subdivision_doc},
 
-  {"LoftSolid", Geom_loftSolidCmd, METH_VARARGS, NULL},
-  {"LoftSolidWithNURBS", Geom_loftSolidWithNURBSCmd, METH_VARARGS, NULL},
+  {"loft_solid", Geom_loft_solid, METH_VARARGS, Geom_loft_solid_doc},
+
+  // Rename: LoftSolidWithNURBS
+  {"loft_solid_using_nurbs", Geom_loft_solid_using_nurbs, METH_VARARGS, Geom_loft_solid_using_nurbs_doc},
 
   {"make_polys_consistent", Geom_make_polys_consistent, METH_VARARGS, Geom_make_polys_consistent_doc},
 
-  {"MergePts", Geom_MergePtsCmd, METH_VARARGS, NULL},
+  // Rename: MergePts
+  {"merge_points", Geom_merge_points, METH_VARARGS, Geom_merge_points_doc},
 
   // Renamed: "model_name_model_from_polydata_names"
   {"convert_nurbs_to_poly", Geom_convert_nurbs_to_poly, METH_VARARGS, Geom_convert_nurbs_to_poly_doc},
 
-  {"MultiplyPointData", Geom_MultiplyPointDataCmd, METH_VARARGS, NULL},
+  {"multiply_point_data", Geom_multiply_point_data, METH_VARARGS, Geom_multiply_point_data_doc},
 
   {"num_closed_line_regions", Geom_num_closed_line_regions, METH_VARARGS, Geom_num_closed_line_regions_doc},
 
-  {"NumPts", Geom_NumPtsCmd, METH_VARARGS, NULL},
+  // Rename: NumPts
+  {"num_points", Geom_num_points, METH_VARARGS, Geom_num_points_doc},
 
   {"orient_profile", Geom_orient_profile, METH_VARARGS, Geom_orient_profile_doc},
 
   {"pick", Geom_pick, METH_VARARGS, Geom_pick_doc},
 
-  {"PolygonNorm", Geom_PolygonNormCmd, METH_VARARGS, NULL},
+  // Rename: PolygonNorm
+  {"polygon_normal", Geom_polygon_normal, METH_VARARGS, Geom_polygon_normal_doc},
 
   {"polys_closed", Geom_polys_closed, METH_VARARGS, Geom_polys_closed_doc},
 
@@ -4104,22 +3797,24 @@ PyMethodDef pyGeom_methods[] =
 
   {"print_tri_stats", Geom_print_tri_stats, METH_VARARGS, Geom_print_tri_stats_doc},
 
-  {"Project", Geom_ProjectCmd, METH_VARARGS, NULL},
+  {"project", Geom_project, METH_VARARGS, Geom_project_doc},
 
   // Rename: PtInPoly
   {"point_in_poly", Geom_point_in_poly, METH_VARARGS, Geom_point_in_poly_doc},
 
   {"reduce", Geom_reduce, METH_VARARGS, Geom_reduce_doc},
 
-  {"ReorderPgn", Geom_ReorderPgnCmd, METH_VARARGS, NULL},
-  {"ReplacePointData", Geom_ReplacePointDataCmd, METH_VARARGS, NULL},
+  // Rename: ReorderPgn
+  {"reorder_polygon", Geom_reorder_polygon, METH_VARARGS, Geom_reorder_polygon_doc},
+
+  {"replace_point_data", Geom_replace_point_data, METH_VARARGS, Geom_replace_point_data_doc},
 
   {"reverse_all_cells", Geom_reverse_all_cells, METH_VARARGS, Geom_reverse_all_cells_doc},
 
   // Rename: RmSmallPolys
   {"remove_small_polys", Geom_remove_small_polys, METH_VARARGS, Geom_remove_small_polys_doc},
 
-  {"SampleLoop", Geom_sampleLoopCmd, METH_VARARGS, NULL},
+  {"sample_loop", Geom_sample_loop, METH_VARARGS, Geom_sample_loop_doc},
 
   {"scale_avg", Geom_scale_avg, METH_VARARGS, Geom_scale_avg_doc},
 
@@ -4133,11 +3828,12 @@ PyMethodDef pyGeom_methods[] =
 
   {"set_ids_for_caps", Geom_set_ids_for_caps, METH_VARARGS, Geom_set_ids_for_caps_doc},
 
-  {"SplinePtsToPathPlan", Geom_SplinePtsToPathPlanCmd, METH_VARARGS, NULL},
+  // Rename: SplinePtsToPathPlan
+  {"spline_points_to_path_plan", Geom_spline_points_to_path_plan, METH_VARARGS, Geom_spline_points_to_path_plan_doc},
 
   {"subtract", Geom_subtract, METH_VARARGS, Geom_subtract_doc},
 
-  {"SubtractPointData", Geom_SubtractPointDataCmd, METH_VARARGS, NULL},
+  {"subtract_point_data", Geom_subtract_point_data, METH_VARARGS, Geom_subtract_point_data_doc},
 
   // Rename: SurfArea
   {"surface_area", Geom_surface_area, METH_VARARGS, Geom_surface_area_doc},
@@ -4146,8 +3842,10 @@ PyMethodDef pyGeom_methods[] =
 
   {"union", Geom_union, METH_VARARGS, Geom_union_doc},
 
-  {"Warp3dPts", Geom_Warp3dPtsCmd, METH_VARARGS, NULL},
-  {"WindingNum", Geom_2dWindingNumCmd, METH_VARARGS, NULL},
+  // Rename:Warp3dPts
+  {"warp_3d_points", Geom_warp_3d_points, METH_VARARGS, Geom_warp_3d_points_doc},
+
+  {"winding_number", Geom_winding_number, METH_VARARGS, Geom_winding_number_doc},
 
   {"write_lines", Geom_write_lines, METH_VARARGS, Geom_write_lines_doc},
 
