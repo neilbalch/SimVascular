@@ -142,7 +142,7 @@ void SimVascular_pyInit()
 void SimVascular_pyInit()
 {
     printf("Loading Python Modules ...\n");
-    PyImport_AppendInittab("pyRepository",PyInit_pyRepository);
+    PyImport_AppendInittab("repository", PyInit_pyRepository);
     PyImport_AppendInittab("pyMath",PyInit_pyMath);
     PyImport_AppendInittab("geometry", PyInit_pyGeom);
     PyImport_AppendInittab("pyImage",PyInit_pyImage);

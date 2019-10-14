@@ -39,13 +39,6 @@
 //
 //    except sv.geometry.GeometryException:
 //
-// [TODO:DaveP] A lot of these functions create a cvPolyData object but
-// don't delete it
-// 
-//    cvPolyData* dst;
-//    sys_geom_set_array_for_local_op_sphere(src, &dst, radius, ctr, outArray, dataType); 
-//
-//
 #include "SimVascular.h"
 #include "SimVascular_python.h"
 

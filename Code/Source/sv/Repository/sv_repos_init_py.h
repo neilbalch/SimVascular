@@ -35,8 +35,6 @@
 #include "SimVascular.h"
 #include "svRepositoryExports.h" // For exports
 
-extern "C" SV_EXPORT_REPOSITORY int Repos_pyInit();
-
 #if PYTHON_MAJOR_VERSION == 2
 PyMODINIT_FUNC initpyRepository(void);
 #elif PYTHON_MAJOR_VERSION == 3

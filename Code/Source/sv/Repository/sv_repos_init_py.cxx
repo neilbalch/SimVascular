@@ -29,10 +29,17 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+// The functions defined here implement the SV Python API 'repository' module. 
+//
+// A Python exception sv.repository.RepositoryException is defined for this module. 
+// The exception can be used in a Python 'try' statement with an 'except' clause 
+// like this
+//
+//    except sv.repository.RepositoryException:
+//
 #include "SimVascular.h"
 #include "Python.h"
 #include "SimVascular_python.h"
-
 
 #include "sv_repos_init_py.h"
 #include "sv_Repository.h"
@@ -41,657 +48,506 @@
 #include "sv_UnstructuredGrid.h"
 #include "sv_arg.h"
 #include "sv_VTK.h"
+#include "sv_PyUtils.h"
+
 #include "vtkTclUtil.h"
 #include "vtkPythonUtil.h"
 #include <vtkXMLPolyDataReader.h>
+
+#include <set>
 
 // The following is needed for Windows
 #ifdef GetObject
 #undef GetObject
 #endif
 
-// The global cvRepository object should be allocated in the file where
-// main() lives.  ... Why?
-
 #include "sv2_globals.h"
-//#include <unistd.h>
 
-// Prototypes:
-
+// Exception type used by PyErr_SetString() to set the for the error indicator.
 PyObject* PyRunTimeErr;
 
-PyObject* Repos_ListCmd( PyObject* self, PyObject* args);
-
-PyObject* Repos_ExistsCmd( PyObject* self, PyObject* args);
-
-PyObject* Repos_DeleteCmd( PyObject* self, PyObject* args);
-
-PyObject* Repos_TypeCmd( PyObject* self, PyObject* args );
-
-PyObject* Repos_ImportVtkPdCmd( PyObject* self, PyObject* args);
-
-PyObject* Repos_ImportVtkSpCmd( PyObject* self, PyObject* args );
-
-PyObject* Repos_ImportVtkImgCmd( PyObject* self, PyObject* args);
-
-PyObject* Repos_ImportVtkUnstructuredGridCmd( PyObject* self, PyObject* args );
-
-PyObject*  Repos_ExportToVtkCmd( PyObject* self, PyObject* args );
-
-PyObject*  Repos_SaveCmd( PyObject* self, PyObject* args );
-
-PyObject*  Repos_LoadCmd( PyObject* self, PyObject* args );
-
-PyObject* Repos_WriteVtkPolyDataCmd( PyObject* self, PyObject* args);
-
-PyObject* Repos_ReadVtkPolyDataCmd( PyObject* self, PyObject* args);
-
-PyObject* Repos_ReadVtkXMLPolyDataCmd( PyObject* self, PyObject* args );
-
-PyObject*  Repos_WriteVtkStructuredPointsCmd( PyObject* self, PyObject* args);
-
-PyObject*  Repos_WriteVtkUnstructuredGridCmd( PyObject* self, PyObject* args);
-
-PyObject*  Repos_SetStringCmd( PyObject* self, PyObject* args);
-
-PyObject* Repos_GetStringCmd( PyObject* self, PyObject* args);
-
-#if PYTHON_MAJOR_VERSION == 2
-PyMODINIT_FUNC initpyRepository(void);
-#elif PYTHON_MAJOR_VERSION == 3
-PyMODINIT_FUNC PyInit_pyRepository(void);
-#endif
-
-// Label-related methods
-// ---------------------
-
-static PyObject* Repos_GetLabelKeysCmd( PyObject* self, PyObject* args );
-
-static PyObject* Repos_GetLabelCmd( PyObject* self, PyObject* args);
-
-static PyObject* Repos_SetLabelCmd( PyObject* self, PyObject* args);
-
-static PyObject* Repos_ClearLabelCmd( PyObject* self, PyObject* args );
-
-// ----------
-// Repos_Methods
-// ----------
-PyMethodDef pyRepository_methods[] =
-
+//---------------
+// CheckFileType
+//---------------
+// Check for valid file type. 
+//
+static bool
+CheckFileType(SvPyUtilApiFunction& api, vtkDataWriter* writer, const std::string& fileType)
 {
-
-    {"List", Repos_ListCmd, METH_NOARGS,NULL},
-    {"Exists", Repos_ExistsCmd, METH_VARARGS,NULL},
-    {"Delete", Repos_DeleteCmd, METH_VARARGS,NULL},
-    {"Type", Repos_TypeCmd, METH_VARARGS,NULL},
-    {"ImportVtkPd", Repos_ImportVtkPdCmd, METH_VARARGS,NULL},
-    {"ExportToVtk", Repos_ExportToVtkCmd, METH_VARARGS,NULL},
-    {"ImportVtkSp", Repos_ImportVtkSpCmd, METH_VARARGS,NULL},
-    {"ImportVtkImg", Repos_ImportVtkImgCmd, METH_VARARGS,NULL},
-    {"ImportVtkUnstructuredGrid", Repos_ImportVtkUnstructuredGridCmd,
-      METH_VARARGS,NULL},
-    {"Save", Repos_SaveCmd, METH_VARARGS,NULL},
-    {"Load", Repos_LoadCmd, METH_VARARGS,NULL},
-    {"WriteVtkPolyData", Repos_WriteVtkPolyDataCmd, METH_VARARGS,NULL},
-    {"ReadVtkPolyData", Repos_ReadVtkPolyDataCmd, METH_VARARGS,NULL},
-    {"ReadXMLPolyData",Repos_ReadVtkXMLPolyDataCmd,METH_VARARGS,NULL},
-    {"WriteVtkStructuredPoints", Repos_WriteVtkStructuredPointsCmd,
-     METH_VARARGS,NULL},
-    {"WriteVtkUnstructuredGrid", Repos_WriteVtkUnstructuredGridCmd,
-     METH_VARARGS,NULL},
-    {"GetLabelKeys", Repos_GetLabelKeysCmd, METH_VARARGS,NULL},
-    {"GetLabel", Repos_GetLabelCmd, METH_VARARGS,NULL},
-    {"SetLabel", Repos_SetLabelCmd, METH_VARARGS,NULL},
-    {"ClearLabel", Repos_ClearLabelCmd, METH_VARARGS,NULL},
-    {"Setstring", Repos_SetStringCmd, METH_VARARGS,NULL},
-    {"Getstring", Repos_GetStringCmd, METH_VARARGS,NULL},
-    {NULL, NULL,0,NULL},
-
-};
-#if PYTHON_MAJOR_VERSION == 3
-static struct PyModuleDef pyRepositorymodule = {
-   PyModuleDef_HEAD_INIT,
-   "pyRepository",   /* name of module */
-   "", /* module documentation, may be NULL */
-   -1,       /* size of per-interpreter state of the module,
-                or -1 if the module keeps state in global variables. */
-   pyRepository_methods
-};
-#endif
-
-#if PYTHON_MAJOR_VERSION == 2
-PyMODINIT_FUNC initpyRepository(void)
-
-{
-
-  PyObject *pyRepo;
-  gRepository = new cvRepository();
-  if ( gRepository == NULL ) {
-    fprintf( stderr, "error allocating gRepository\n" );
-    return;
-  }
-  pyRepo = Py_InitModule("pyRepository",pyRepository_methods);
-
-  PyRunTimeErr = PyErr_NewException("pyRepository.error",NULL,NULL);
-  Py_INCREF(PyRunTimeErr);
-  PyModule_AddObject(pyRepo,"error",PyRunTimeErr);
-
-}
-
-#endif
-#if PYTHON_MAJOR_VERSION == 3
-PyMODINIT_FUNC PyInit_pyRepository(void)
-{
-      PyObject *pyRepo;
-  gRepository = new cvRepository();
-  if ( gRepository == NULL ) {
-    fprintf( stderr, "error allocating gRepository\n" );
-
-    return SV_PYTHON_ERROR;
+  if (fileType == "binary") {
+      writer->SetFileTypeToBinary();
+  } else if (fileType == "ascii") {
+      writer->SetFileTypeToASCII();
+  } else {
+      api.error("Unknown file type argument '" + fileType + "'. Valid types are: ascii or binary.");
+      return false;
   }
 
-  pyRepo = PyModule_Create(& pyRepositorymodule);
-  PyRunTimeErr = PyErr_NewException("pyRepository.error",NULL,NULL);
-  Py_INCREF(PyRunTimeErr);
-  PyModule_AddObject(pyRepo,"error",PyRunTimeErr);
-  return pyRepo;
+  return true;
 }
-#endif
-int Repos_pyInit()
 
+//--------------
+// GetVtkObject
+//--------------
+// Get a vtk object for a given type.
+//
+static cvRepositoryData * 
+GetVtkObject(SvPyUtilApiFunction& api, const char *name, const RepositoryDataT type, const std::string& desc)
 {
+  auto obj = gRepository->GetObject(name);
+  if (obj == nullptr) {
+      api.error("The object '"+std::string(name)+"' is not in the repository.");
+      return nullptr;
+  }
 
-#if PYTHON_MAJOR_VERSION == 2
-  initpyRepository();
-#elif PYTHON_MAJOR_VERSION == 3
-  PyInit_pyRepository();
-#endif
-  return SV_OK;
+  if (gRepository->GetType(name) != type) {
+      api.error("The object '" + std::string(name) + "' is not a vtk " + desc + " object.");
+      return nullptr;
+  }
 
+  return obj;
 }
 
-// -------------
+
+//////////////////////////////////////////////////////
+//          M o d u l e  F u n c t i o n s          //
+//////////////////////////////////////////////////////
+//
+// Python API functions. 
+
+//-------------
 // Repos_PassCmd
-// -------------
+//-------------
+//
+PyDoc_STRVAR(Repos_set_string_doc,
+  "set_string(file)  \n\ 
+   \n\
+   Set the solid modeling kernel. \n\
+   \n\
+   Args: \n\
+     file (str): The name of the file ??? \n\
+");
 
-PyObject* Repos_SetStringCmd( PyObject* self, PyObject* args)
-
+static PyObject * 
+Repos_set_string( PyObject* self, PyObject* args)
 {
-
+  auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *stringPd;
-  char *string;
-  cvRepositoryData *pd;
+  char *stringArg;
 
-  if (!PyArg_ParseTuple(args,"ss", &stringPd, &string))
-  {
-  PyErr_SetString(PyRunTimeErr, "Could not import 2 chars: stringPd, string");
-  
+  if (!PyArg_ParseTuple(args,api.format, &stringPd, &stringArg)) {
+     return api.argsError();
   }
 
   // Retrieve source object:
-  pd = gRepository->GetObject( stringPd );
-  if ( pd == NULL )
-  {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object stringPd");
-    
+  auto pd = gRepository->GetObject( stringPd );
+  if (pd == NULL) {
+      api.error("The object '"+std::string(stringPd)+"' is not in the repository.");
+      return nullptr;
   }
 
-  pd->SetName( string );
+  pd->SetName(stringArg);
 
-  char rtnstr[255];
-  rtnstr[0]='\0';
-  sprintf( rtnstr, "%s", string );
-  return Py_BuildValue("s",rtnstr);
-
+  std::string result(stringArg);
+  return Py_BuildValue("s",result.c_str());
 }
 
-PyObject* Repos_GetStringCmd( PyObject* self, PyObject* args)
 
+//------------------
+// Repos_get_string
+//------------------
+//
+PyDoc_STRVAR(Repos_get_string_doc,
+  "get_string(file)  \n\ 
+   \n\
+   Set the solid modeling kernel. \n\
+   \n\
+   Args: \n\
+     file (str): The name of the file ??? \n\
+");
+
+static PyObject * 
+Repos_get_string(PyObject* self, PyObject* args)
 {
-
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *stringPd;
-  cvRepositoryData *pd;
 
-  if (!PyArg_ParseTuple(args,"s", &stringPd))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import 1 char: stringPd");
-    
+  if (!PyArg_ParseTuple(args, api.format, &stringPd)) {
+     return api.argsError();
   }
 
   // Retrieve source object:
-  pd = gRepository->GetObject( stringPd );
-  if ( pd == NULL )
-  {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object stringPd");
-    
+  auto pd = gRepository->GetObject( stringPd );
+  if ( pd == NULL ) {
+      api.error("The object '"+std::string(stringPd)+"' is not in the repository.");
+      return nullptr;
   }
   return Py_BuildValue("s",pd->GetName());
-
 }
 
-// -------------
-// Repos_ListCmd
-// -------------
+//------------
+// Repos_list 
+//------------
+//
+PyDoc_STRVAR(Repos_list_doc,
+  "list(file)  \n\ 
+   \n\
+   Set the solid modeling kernel. \n\
+   \n\
+   Args: \n\
+     file (str): The name of the file ??? \n\
+");
 
-PyObject* Repos_ListCmd( PyObject* self, PyObject* args)
-
+static PyObject * 
+Repos_list(PyObject* self, PyObject* args)
 {
-
-  char *name;
-
   PyObject *pylist=PyList_New(0);
   gRepository->InitIterator();
-  while ( name = gRepository->GetNextName() )
-  {
+
+  while (auto name = gRepository->GetNextName()) {
     PyObject* pyName = PyString_FromString(name);
     PyList_Append( pylist, pyName );
   }
   return pylist;
-
 }
 
+//--------------
+// Repos_exists 
+//--------------
+//
+PyDoc_STRVAR(Repos_exists_doc,
+  "exists(file)  \n\ 
+   \n\
+   Set the solid modeling kernel. \n\
+   \n\
+   Args: \n\
+     file (str): The name of the file ??? \n\
+");
 
-// ---------------
-// Repos_ExistsCmd
-// ---------------
-
-PyObject*  Repos_ExistsCmd( PyObject* self, PyObject* args)
-
+static PyObject *  
+Repos_exists(PyObject* self, PyObject* args)
 {
-
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *name;
-  int exists;
 
-  if (!PyArg_ParseTuple(args,"s", &name))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import 1 char: name");
-    
+  if (!PyArg_ParseTuple(args, api.format, &name)) {
+     return api.argsError();
   }
 
-  exists = gRepository->Exists( name );
+  auto exists = gRepository->Exists( name );
 
   return Py_BuildValue("N",PyBool_FromLong(exists));
-
 }
 
-// ---------------
-// Repos_DeleteCmd
-// ---------------
+//--------------
+// Repos_delete 
+//--------------
+//
+PyDoc_STRVAR(Repos_delete_doc,
+  "delete(file)  \n\ 
+   \n\
+   Set the solid modeling kernel. \n\
+   \n\
+   Args: \n\
+     file (str): The name of the file ??? \n\
+");
 
-PyObject*  Repos_DeleteCmd( PyObject* self, PyObject* args)
-
+static PyObject *
+Repos_delete( PyObject* self, PyObject* args)
 {
-
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *objName;
-  int exists;
-  int unreg_status;
-  RepositoryDataT obj_t;
 
-  if (!PyArg_ParseTuple(args,"s", &objName))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import 1 char: objName");
-    
+  if (!PyArg_ParseTuple(args, api.format, &objName)) {
+     return api.argsError();
   }
 
-  // Do work of command:
-  char r[2048];
-  exists = gRepository->Exists( objName );
-  if ( ! exists ) {
-    r[0] = '\0';
-    sprintf(r,"object %s not in repository",objName);
-    PyErr_SetString(PyRunTimeErr, r);
-    
+  auto exists = gRepository->Exists(objName);
+  if (!exists) {
+      api.error("The object '"+std::string(objName)+"' is not in the repository.");
+      return nullptr;
   }
 
-  obj_t = gRepository->GetType( objName );
-  //if ( obj_t == SOLID_MODEL_T || obj_t == MESH_T || obj_t == ADAPTOR_T) {
-  //  return Tcl_VarEval( interp, "rename ", objName, " {}", (char *)NULL );
-  //} else {
-    unreg_status = gRepository->UnRegister( objName );
-  //}
+  auto obj_t = gRepository->GetType( objName );
+  auto unreg_status = gRepository->UnRegister( objName );
 
-  if ( ! unreg_status )
-  {
-    r[0] = '\0';
-    sprintf(r,"error deleting object %s", objName);
-    PyErr_SetString(PyRunTimeErr, r);
-    
+  if (!unreg_status) {
+      api.error("Error deleting the object '"+std::string(objName)+"' is not in the repository.");
+      return nullptr;
   }
+
   return SV_PYTHON_OK;
-
 }
 
+//------------
+// Repos_type 
+//------------
+//
+PyDoc_STRVAR(Repos_type_doc,
+  "type(file)  \n\ 
+   \n\
+   Set the solid modeling kernel. \n\
+   \n\
+   Args: \n\
+     file (str): The name of the file ??? \n\
+");
 
-// -------------
-// Repos_TypeCmd
-// -------------
-
-PyObject* Repos_TypeCmd( PyObject* self, PyObject* args)
-
+static PyObject * 
+Repos_type(PyObject* self, PyObject* args)
 {
-
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *name;
-  RepositoryDataT type;
-  char *typeStr;
 
-  if (!PyArg_ParseTuple(args,"s", &name))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import 1 char: name");
-    
+  if (!PyArg_ParseTuple(args, api.format, &name)) {
+     return api.argsError();
   }
 
-  char r[2048];
-  if ( ! gRepository->Exists( name ) )
-  {
-    r[0] = '\0';
-    sprintf(r, "object %s not found", name);
-    PyErr_SetString(PyRunTimeErr,r);
-    
+  if (!gRepository->Exists(name)) {
+      api.error("The object '"+std::string(name)+"' is not in the repository.");
+      return nullptr;
   }
 
-  type = gRepository->GetType( name );
-  typeStr = RepositoryDataT_EnumToStr( type );
-  //delete [] typeStr;
+  auto type = gRepository->GetType(name);
+  auto typeStr = RepositoryDataT_EnumToStr(type);
   return Py_BuildValue("s",typeStr);
-
 }
 
+//---------------------------
+// Repos_import_vtk_polydata 
+//---------------------------
+//
+PyDoc_STRVAR(Repos_import_vtk_polydata_doc,
+  "import_vtk_polydata(file)  \n\ 
+   \n\
+   Set the solid modeling kernel. \n\
+   \n\
+   Args: \n\
+     file (str): The name of the file ??? \n\
+");
 
-// --------------------
-// Repos_ImportVtkPdCmd
-// --------------------
-// The idea here is that we want to take an interpreter-level name for
-// a vtk object, and use that to look up a pointer to that object and
-// then to create a cvRepositoryData object from that pointer.
-
-PyObject* Repos_ImportVtkPdCmd( PyObject* self, PyObject* args)
-
+static PyObject * 
+Repos_import_vtk_polydata(PyObject* self, PyObject* args)
 {
-
+  auto api = SvPyUtilApiFunction("Os", PyRunTimeErr, __func__);
   PyObject *vtkName;
   char *objName;
-  vtkPolyData *vtkObj;
-  int status;
-  cvPolyData *pd;
 
-  if (!PyArg_ParseTuple(args,"Os", &vtkName,&objName))
-  {
-    PyErr_SetString(PyRunTimeErr,
-      "Could not import 1 tuple and 1 char: vtkName,name");
-    
+  if (!PyArg_ParseTuple(args,api.format, &vtkName, &objName)) {
+      return api.argsError();
   }
 
-  // Look up the named vtk object:
-  vtkObj = (vtkPolyData *)vtkPythonUtil::GetPointerFromObject( vtkName,
-    "vtkPolyData");
-  char r[2048];
-  if ( vtkObj == NULL )
-  {
-    r[0] = '\0';
-    sprintf(r, "error retrieving vtk object %s", objName);
-    PyErr_SetString(PyRunTimeErr, r);
-    
+  auto vtkObj = (vtkPolyData *)vtkPythonUtil::GetPointerFromObject(vtkName, "vtkPolyData");
+  if (vtkObj == NULL) {
+      api.error("The vtk argument object is not vtkPolyData.");
+      return nullptr;
   }
 
-  // Is the specified repository object name already in use?
-  if ( gRepository->Exists( objName ) )
-  {
-    r[0] = '\0';
-    sprintf(r, "obj %s already exists", objName);
-    PyErr_SetString(PyRunTimeErr, r);
-    
+  if (gRepository->Exists(objName)) {
+      api.error("The repository object '" + std::string(objName) + "' already exists.");
+      return nullptr;
   }
 
-  pd = new cvPolyData( vtkObj );
-  pd->SetName( objName );
-  if ( !( gRepository->Register( pd->GetName(), pd ) ) )
-  {
-    r[0] = '\0';
-    sprintf(r, "error registering obj %s in repository", objName);
-    PyErr_SetString(PyRunTimeErr, r);
-    delete pd;
-    
+  auto pd = new cvPolyData(vtkObj);
+  pd->SetName(objName);
+
+  if (!gRepository->Register(pd->GetName(), pd)) {
+      delete pd;
+      api.error("Error adding the vtk polydata '" + std::string(objName) + "' to the repository.");
+      return nullptr;
   }
 
   return Py_BuildValue("s",pd->GetName());
-
 }
 
+//---------------------
+// Repos_export_to_vtk 
+//---------------------
+//
+PyDoc_STRVAR(Repos_export_to_vtk_doc,
+  "export_to_vtk(file)  \n\ 
+   \n\
+   Set the solid modeling kernel. \n\
+   \n\
+   Args: \n\
+     file (str): The name of the file ??? \n\
+");
 
-// --------------------
-// Repos_ExportToVtkCmd
-// --------------------
-
-PyObject* Repos_ExportToVtkCmd( PyObject* self, PyObject* args)
-
+static PyObject * 
+Repos_export_to_vtk(PyObject* self, PyObject* args)
 {
-
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *objName;
-  RepositoryDataT type;
-  cvRepositoryData *pd;
-  vtkObject *vtkObj;
 
-  if (!PyArg_ParseTuple(args,"s", &objName))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import 1 char: objName");
-    
+  if (!PyArg_ParseTuple(args, api.format, &objName)) {
+      return api.argsError();
   }
-
-  // Do work of command:
 
   // Retrieve source object:
-  pd = gRepository->GetObject( objName );
-  char r[2048];
-  if ( pd == NULL )
-  {
-    r[0] = '\0';
-    sprintf(r, "couldn't find object %s", objName);
-    PyErr_SetString(PyRunTimeErr,r);
-    
+  auto pd = gRepository->GetObject(objName);
+  if (pd == NULL) {
+      api.error("The object '"+std::string(objName)+"' is not in the repository.");
+      return nullptr;
   }
 
-  // Check type (be aware that this implementation is not
-  // ideal... what we'd rather be doing here is official RTTI to check
-  // that pd is of type cvDataObject... this would be much better than
-  // checking for any of the cvDataObject's derived types, since we'll have
-  // to remember to update this list if/when more classes are derived
-  // from cvDataObject... however RTTI in Sun's WorkShop implementation is
-  // not readily cooperating...).
+  auto type = pd->GetType();
 
-  type = pd->GetType();
-
-  // RTTI version of type check (?):
-  //  if ( typeid( pd ) != typeid( cvDataObject ) ) {
-
-  if ( ( type != POLY_DATA_T ) && ( type != STRUCTURED_PTS_T ) &&
-       ( type != UNSTRUCTURED_GRID_T ) && ( type != TEMPORALDATASET_T ) )
-  {
-    r[0] = '\0';
-    sprintf(r, "%s not a data object", objName);
-    PyErr_SetString(PyRunTimeErr,r);
-    
+  if ((type != POLY_DATA_T) && (type != STRUCTURED_PTS_T) &&
+      (type != UNSTRUCTURED_GRID_T) && (type != TEMPORALDATASET_T)) {
+      api.error("Unknown type for the object '"+std::string(objName)+"'.");
+      return nullptr;
   }
 
-  // vtkTclGetObjectFromPointer takes a vtkObject * and does either:
-  //
-  //   (i)  finds a pre-existing Tcl binding for this pointer value
-  //   (ii) creates a new Tcl command for this pointer, dynamically
-  //        figuring out the concrete type via GetClassName()
-  //
-  // Note that the third arg is a Tcl command function ptr.  It should
-  // be something like a vtkPolyDataCommand fn ptr, I think.  It
-  // should be OK to pass in NULL, though, because
-  // vtkTclGetObjectFromPointer will be able to find the instantiation
-  // command based on class name.  That instantiation command
-  // (e.g. "vtkPolyData") has a pointer to the object command
-  // (e.g. "vtkPolyDataCommand").
-
-  vtkObj = ((cvDataObject *)pd)->GetVtkPtr();
+  auto vtkObj = ((cvDataObject *)pd)->GetVtkPtr();
   PyObject* pyVtkObj=vtkPythonUtil::GetObjectFromPointer(vtkObj);
 
-  // The newly-generated object name has already been put in the result.
   return pyVtkObj;
-
 }
 
+//------------------------------------
+// Repos_import_vtk_structured_points 
+//------------------------------------
+//
+PyDoc_STRVAR(Repos_import_vtk_structured_points_doc,
+  "import_vtk_structured_points(file)  \n\ 
+   \n\
+   Set the solid modeling kernel. \n\
+   \n\
+   Args: \n\
+     file (str): The name of the file ??? \n\
+");
 
-// --------------------
-// Repos_ImportVtkSpCmd
-// --------------------
-// Note that for images, vtkImageToStructuredPoints must be applied in
-// the interpreter before calling this command.  We could pull that
-// conversion inside this function, but there was mention on the vtk
-// mailing list a while back about how image caches would be going
-// away in vtk 3.0, and so I don't want to code in something that's
-// going to become obsolete.
-
-PyObject* Repos_ImportVtkSpCmd( PyObject* self, PyObject* args)
-
+static PyObject * 
+Repos_import_vtk_structured_points(PyObject* self, PyObject* args)
 {
-
+  auto api = SvPyUtilApiFunction("Os", PyRunTimeErr, __func__);
   PyObject *vtkName;
   char *objName;
-  vtkStructuredPoints *vtkObj;
-  cvStrPts *sp;
-  if (!PyArg_ParseTuple(args,"Os", &vtkName,&objName))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import 2 chars: vtkName, objName");
-    
+
+  if (!PyArg_ParseTuple(args, api.format, &vtkName,&objName)) {
+      return api.argsError();
   }
 
-  // Look up the named vtk object:
-  vtkObj = (vtkStructuredPoints *)vtkPythonUtil::GetPointerFromObject( vtkName,
-    "vtkStructuredPoints");
-  if ( vtkObj == NULL )
-  {
-    PyErr_SetString(PyRunTimeErr, "error retrieving vtk object ");
-    
+  auto vtkObj = (vtkStructuredPoints*)vtkPythonUtil::GetPointerFromObject(vtkName, "vtkStructuredPoints");
+  if (vtkObj == NULL) {
+      api.error("The vtk argument object is not vtkStructuredPoints.");
+      return nullptr;
   }
 
   // Is the specified repository object name already in use?
-  if ( gRepository->Exists( objName ) )
-  {
-    PyErr_SetString(PyRunTimeErr, "obj already exists");
-    
+  if (gRepository->Exists(objName)) {
+      api.error("The repository object '" + std::string(objName) + "' already exists.");
+      return nullptr;
   }
 
-  sp = new cvStrPts( vtkObj );
+  auto sp = new cvStrPts( vtkObj );
   sp->SetName( objName );
-  if ( !( gRepository->Register( sp->GetName(), sp ) ) )
-  {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
-    delete sp;
-    
-  }
-  return Py_BuildValue("s",sp->GetName());
 
+  if (!gRepository->Register(sp->GetName(), sp)) {
+      delete sp;
+      api.error("Error adding the vtk structure points '" + std::string(objName) + "' to the repository.");
+      return nullptr;
+  }
+
+  return Py_BuildValue("s",sp->GetName());
 }
 
+//------------------------------------
+// Repos_import_vtk_unstructured_grid 
+//------------------------------------
+//
+PyDoc_STRVAR(Repos_import_vtk_unstructured_grid_doc,
+  "import_vtk_unstructured_grid(file)  \n\ 
+   \n\
+   Set the solid modeling kernel. \n\
+   \n\
+   Args: \n\
+     file (str): The name of the file ??? \n\
+");
 
-// ----------------------------------
-// Repos_ImportVtkUnstructuredGridCmd
-// ----------------------------------
-
-PyObject* Repos_ImportVtkUnstructuredGridCmd( PyObject* self, PyObject* args)
-
+static PyObject * 
+Repos_import_vtk_unstructured_grid(PyObject* self, PyObject* args)
 {
-
+  auto api = SvPyUtilApiFunction("Os", PyRunTimeErr, __func__);
   PyObject *vtkName;
   char *objName;
-  vtkUnstructuredGrid *vtkObj;
-  int status;
-  cvUnstructuredGrid *sp;
 
-  if (!PyArg_ParseTuple(args,"Os", &vtkName,&objName))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import 2 chars: vtkName, objName");
-    
+  if (!PyArg_ParseTuple(args, api.format, &vtkName,&objName)) {
+      return api.argsError();
   }
 
   // Look up the named vtk object:
-  vtkObj = (vtkUnstructuredGrid *)vtkPythonUtil::GetPointerFromObject( vtkName,
-    "vtkUnstructuredGrid");
-  if ( vtkObj == NULL )
-  {
-    PyErr_SetString(PyRunTimeErr, "error retrieving vtk object ");
-    
+  auto vtkObj = (vtkUnstructuredGrid *)vtkPythonUtil::GetPointerFromObject(vtkName, "vtkUnstructuredGrid");
+  if (vtkObj == NULL) {
+      api.error("The vtk argument object is not an vtkUnstructuredGrid.");
+      return nullptr;
   }
 
-  // Is the specified repository object name already in use?
-  if ( gRepository->Exists( objName ) )
-  {
-    PyErr_SetString(PyRunTimeErr, "obj already exists");
-    
+  if (gRepository->Exists(objName)) {
+      api.error("The repository object '" + std::string(objName) + "' already exists.");
+      return nullptr;
   }
 
-  sp = new cvUnstructuredGrid( vtkObj );
+  auto sp = new cvUnstructuredGrid(vtkObj);
   sp->SetName( objName );
-  if ( !( gRepository->Register( sp->GetName(), sp ) ) )
-  {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository" );
-    delete sp;
-    
+  if (!gRepository->Register(sp->GetName(), sp)) { 
+      delete sp;
+      api.error("Error adding the vtk unstructure points '" + std::string(objName) + "' to the repository.");
+      return nullptr;
   }
-  return Py_BuildValue("s",sp->GetName());
 
+  return Py_BuildValue("s",sp->GetName());
 }
 
+//------------------------
+// Repos_import_vtk_image 
+//------------------------
+//
+PyDoc_STRVAR(Repos_import_vtk_image_doc,
+  "import_vtk_image(file)  \n\ 
+   \n\
+   Set the solid modeling kernel. \n\
+   \n\
+   Args: \n\
+     file (str): The name of the file ??? \n\
+");
 
-// ---------------------
-// Repos_ImportVtkImgCmd
-// ---------------------
-
-PyObject* Repos_ImportVtkImgCmd( PyObject* self, PyObject* args )
-
+static PyObject * 
+Repos_import_vtk_image( PyObject* self, PyObject* args )
 {
+  auto api = SvPyUtilApiFunction("Os", PyRunTimeErr, __func__);
+  PyObject *vtkName = NULL;
+  char *objName = NULL;
 
-  PyObject *vtkName=NULL;
-  char *objName=NULL;
-  vtkImageData *vtkObj=NULL;
-  int status;
-  cvStrPts *sp;
-  if (!PyArg_ParseTuple(args,"Os", &vtkName,&objName))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import 2 chars: vtkName, objName");
-    
+  if (!PyArg_ParseTuple(args, api.format, &vtkName,&objName)) {
+      return api.argsError();
   }
 
   // Look up the named vtk object:
-  vtkObj = (vtkImageData *)vtkPythonUtil::GetPointerFromObject( vtkName,
-    "vtkImageData");
-  if ( vtkObj == NULL )
-  {
-    PyErr_SetString(PyRunTimeErr, "error retrieving vtk object ");
-    
-  }
-  // Is the specified repository object name already in use?
-  if ( gRepository->Exists( objName ) )
-  {
-    PyErr_SetString(PyRunTimeErr, "obj already exists");
-    
+  auto vtkObj = (vtkImageData *)vtkPythonUtil::GetPointerFromObject( vtkName, "vtkImageData");
+  if (vtkObj == NULL) {
+      api.error("The vtk argument object is not vtkImageData.");
+      return nullptr;
   }
 
-  vtkStructuredPoints *mysp = vtkStructuredPoints::New();
+  // Is the specified repository object name already in use?
+  if (gRepository->Exists(objName)) {
+      api.error("The repository object '" + std::string(objName) + "' already exists.");
+      return nullptr;
+  }
+
+  auto mysp = vtkStructuredPoints::New();
   mysp->ShallowCopy(vtkObj);
-  // need to shift the origin like what used to be done
-  // in vtkImageToStructuredPoints class
 
+  // Need to shift the origin like what used to be done
+  // in vtkImageToStructuredPoints class.
   int whole[6];
   int extent[6];
   double *spacing, origin[3];
 
-  //vtkObj->GetWholeExtent(whole);
-  //vtkObj->GetExtent(extent);
-
-  // hack job here - vtk-6.0.0 seems to change how to get whole extent
   // so we just assume that we have the whole extent loaded.
   vtkObj->GetExtent(whole);
   spacing = vtkObj->GetSpacing();
   vtkObj->GetOrigin(origin);
-  // slide min extent to 0,0,0 (I Hate this !!!!)
-  //  this->Translate[0] = whole[0];
-  //  this->Translate[1] = whole[2];
-  //  this->Translate[2] = whole[4];
 
   origin[0] += spacing[0] * whole[0];
   origin[1] += spacing[1] * whole[2];
@@ -711,537 +567,628 @@ PyObject* Repos_ImportVtkImgCmd( PyObject* self, PyObject* args )
   // How about xyx arrays in RectilinearGrid of Points in StructuredGrid?
   mysp->SetOrigin(origin);
   mysp->SetSpacing(spacing);
-  sp = new cvStrPts (mysp);
+  auto sp = new cvStrPts (mysp);
   mysp->Delete();
   sp->SetName( objName );
-  if ( !( gRepository->Register( sp->GetName(), sp ) ) )
-  {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
-    delete sp;
-    
+
+  if (!gRepository->Register(sp->GetName(), sp)) {
+      delete sp;
+      api.error("Error adding the vtk image '" + std::string(objName) + "' to the repository.");
+      return nullptr;
   }
+
   return Py_BuildValue("s",sp->GetName());
-
 }
 
+//------------
+// Repos_save 
+//------------
+//
+PyDoc_STRVAR(Repos_save_doc,
+  "save(file)  \n\ 
+   \n\
+   Set the solid modeling kernel. \n\
+   \n\
+   Args: \n\
+     file (str): The name of the file ??? \n\
+");
 
-// -------------
-// Repos_SaveCmd
-// -------------
-
-PyObject* Repos_SaveCmd( PyObject* self, PyObject* args )
-
+static PyObject * 
+Repos_save(PyObject* self, PyObject* args )
 {
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  char* fileName;
 
-  char* filename;
-  int saveResult;
-
-  if (!PyArg_ParseTuple(args,"s", &filename))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import 1 char: filename");
-    
+  if (!PyArg_ParseTuple(args, api.format, &fileName)) {
+      return api.argsError();
   }
 
-
-  saveResult = gRepository->Save( filename );
-  if ( !saveResult )
-  {
-    PyErr_SetString(PyRunTimeErr, "error saving repository");
-    
+  if (!gRepository->Save(fileName)) {
+      api.error("Error saving the repository to the file '" + std::string(fileName) + "'.");
+      return nullptr;
   }
+
   return Py_BuildValue("s","repository successfully saved");
-
 }
 
+//------------
+// Repos_load 
+//------------
+//
+PyDoc_STRVAR(Repos_load_doc,
+  "load(file)  \n\ 
+   \n\
+   Set the solid modeling kernel. \n\
+   \n\
+   Args: \n\
+     file (str): The name of the file ??? \n\
+");
 
-
-// -------------
-// Repos_LoadCmd
-// -------------
-
-PyObject* Repos_LoadCmd( PyObject* self, PyObject* args)
-
+static PyObject * 
+Repos_load(PyObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  char* fileName;
 
-  char* filename;
-  int loadResult;
-
-  if (!PyArg_ParseTuple(args,"s", &filename))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import 1 char: filename");
-    
+  if (!PyArg_ParseTuple(args, api.format, &fileName)) {
+      return api.argsError();
   }
 
-  loadResult = gRepository->Load( filename );
-  if ( !loadResult )
-  {
-    PyErr_SetString(PyRunTimeErr, "error loading repository" );
-    
+  if (!gRepository->Load(fileName)) {
+      api.error("Error loading the repository from the file '" + std::string(fileName) + "'.");
+      return nullptr;
   }
+
   return Py_BuildValue("s","repository successfully load");
-
 }
 
-
 // -------------------------
-// Repos_WriteVtkPolyDataCmd
+// Repos_write_vtk_polydata
 // -------------------------
+//
+PyDoc_STRVAR(Repos_write_vtk_polydata_doc,
+  "write_vtk_polydata(file)  \n\ 
+   \n\
+   Set the solid modeling kernel. \n\
+   \n\
+   Args: \n\
+     file (str): The name of the file ??? \n\
+");
 
-// I'm making this command part of the cvRepository package.  Note
-// however that it only applies to objects in the cvRepository which are
-// based on vtkPolyData.  See vtk/common/vtkSetGet.h for the macro
-// used for methods like SetFileName.
-
-PyObject* Repos_WriteVtkPolyDataCmd( PyObject* self, PyObject* args )
-
+static 
+PyObject * 
+Repos_write_vtk_polydata(PyObject* self, PyObject* args )
 {
-
+  auto api = SvPyUtilApiFunction("sss", PyRunTimeErr, __func__);
   char *objName, *ft, *fn;
-  RepositoryDataT type;
-  cvRepositoryData *obj;
-  vtkPolyData *pd;
 
-  // Define syntax:
-  if (!PyArg_ParseTuple(args,"sss", &objName,&ft,&fn))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import 3 chars: objName,ft and fn");
-    
+  if (!PyArg_ParseTuple(args, api.format, &objName, &ft, &fn)) {
+      return api.argsError();
   }
 
-  // Do work of command:
-  char r[1024];
-  type = gRepository->GetType( objName );
-  if ( type != POLY_DATA_T )
-  {
-    sprintf(r,"\"&s\" must be of type cvPolyData",objName);
-    PyErr_SetString(PyRunTimeErr, r);
-    
+  auto obj = GetVtkObject(api, objName, POLY_DATA_T, "polydata");
+  if (obj == nullptr) {
+      return nullptr;
   }
 
-  obj = gRepository->GetObject( objName );
-  switch (type)
-  {
-  case POLY_DATA_T:
-    pd = ((cvPolyData *)obj)->GetVtkPolyData();
-    break;
-  default:
-  PyErr_SetString(PyRunTimeErr, "error in GetVtkPolyData" );
-    
-    break;
+  auto pd = ((cvPolyData*)obj)->GetVtkPolyData();
+  if (pd == nullptr) {
+      api.error("Error getting the polydata for the object '" + std::string(objName) + "'.");
+      return nullptr;
   }
 
   vtkPolyDataWriter *pdWriter = vtkPolyDataWriter::New();
   pdWriter->SetInputDataObject( pd );
   pdWriter->SetFileName( fn );
-  if ( strcmp( ft, "bin" ) == 0 )
-  {
-    pdWriter->SetFileTypeToBinary();
-  }
-  else if ( strcmp( ft, "ascii" ) == 0 )
-  {
-    pdWriter->SetFileTypeToASCII();
-  }
-  pdWriter->Write();
 
+  if (!CheckFileType(api, pdWriter, std::string(ft))) {
+     return nullptr;
+  }
+
+  // [TODO:DaveP] check that the write completed?
+  pdWriter->Write();
   pdWriter->Delete();
   return SV_PYTHON_OK;
-
 }
 
+//-------------------------
+// Repos_read_vtk_polydata 
+//-------------------------
+//
+PyDoc_STRVAR(Repos_read_vtk_polydata_doc,
+  "read_vtk_polydata(file)  \n\ 
+   \n\
+   Set the solid modeling kernel. \n\
+   \n\
+   Args: \n\
+     file (str): The name of the file ??? \n\
+");
 
-// ------------------------
-// Repos_ReadVtkPolyDataCmd
-// ------------------------
-
-PyObject* Repos_ReadVtkPolyDataCmd( PyObject* self, PyObject* args )
-
+static PyObject * 
+Repos_read_vtk_polydata( PyObject* self, PyObject* args )
 {
-
+  auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *objName, *fn;
-  vtkPolyData *vtkPd;
-  cvPolyData *pd;
 
-  if (!PyArg_ParseTuple(args,"ss", &objName,&fn))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import 2 chars: objName and fn");
-    
+  if (!PyArg_ParseTuple(args, api.format, &objName,&fn)) {
+      return api.argsError();
   }
 
-  // Do work of command:
+  if (gRepository->Exists(objName)) {
+      api.error("The repository object '" + std::string(objName) + "' already exists.");
+      return nullptr;
+  }
 
-  vtkPolyDataReader *pdReader = vtkPolyDataReader::New();
-  pdReader->SetFileName( fn );
-
+  // Read the polydata froma a file.
+  //
   // Note that it is critical to call Update even for vtk readers.
+  //
+  auto pdReader = vtkPolyDataReader::New();
+  pdReader->SetFileName( fn );
   pdReader->Update();
 
-  vtkPd = pdReader->GetOutput();
-  if ( vtkPd == NULL ||vtkPd->GetNumberOfPolys()==0 )
-  {
-    PyErr_SetString(PyRunTimeErr, "error reading file ");
-    pdReader->Delete();
-    
+  auto vtkPd = pdReader->GetOutput();
+  if ((vtkPd == NULL) || (vtkPd->GetNumberOfPolys()==0)) {
+      pdReader->Delete();
+      api.error("Error reading polydata from the file '" + std::string(fn) + "'.");
+      return nullptr;
   }
-
-  if ( gRepository->Exists( objName ) )
-  {
-    PyErr_SetString(PyRunTimeErr, "obj already exists");
-    pdReader->Delete();
-    
-  }
-
-  pd = new cvPolyData( vtkPd );
-  if ( !( gRepository->Register( objName, pd ) ) )
-  {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository" );
-    pdReader->Delete();
-    delete pd;
-    
-  }
-
-  PyObject* n = Py_BuildValue("s",pd->GetName());
   pdReader->Delete();
-  return n;
 
+  auto pd = new cvPolyData(vtkPd);
+  if (!gRepository->Register(objName, pd)) {
+      delete pd;
+      api.error("Error adding the vtk polydata '" + std::string(objName) + "' to the repository.");
+      return nullptr;
+  }
+
+  return Py_BuildValue("s",pd->GetName());
 }
 
-// ------------------------
-// Repos_ReadVtkXMLPolyDataCmd
-// ------------------------
+//-----------------------------
+// Repos_read_vtk_xml_polydata 
+//-----------------------------
+//
+PyDoc_STRVAR(Repos_read_vtk_xml_polydata_doc,
+  "read_vtk_xml_polydata(file)  \n\ 
+   \n\
+   Set the solid modeling kernel. \n\
+   \n\
+   Args: \n\
+     file (str): The name of the file ??? \n\
+");
 
-PyObject* Repos_ReadVtkXMLPolyDataCmd( PyObject* self, PyObject* args )
-
+static PyObject * 
+Repos_read_vtk_xml_polydata( PyObject* self, PyObject* args )
 {
-
+  auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *objName, *fn;
-  vtkPolyData *vtkPd;
-  cvPolyData *pd;
 
-  if (!PyArg_ParseTuple(args,"ss", &objName,&fn))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import 2 chars: objName and fn");
-    
+  if (!PyArg_ParseTuple(args, api.format, &objName,&fn)) {
+      return api.argsError();
   }
 
-  // Do work of command:
+  if (gRepository->Exists(objName)) {
+      api.error("The repository object '" + std::string(objName) + "' already exists.");
+      return nullptr;
+  }
 
-  vtkXMLPolyDataReader *pdReader = vtkXMLPolyDataReader::New();
-  pdReader->SetFileName( fn );
-
+  // Read the polydata from a file.
+  //
   // Note that it is critical to call Update even for vtk readers.
+  //
+  auto pdReader = vtkXMLPolyDataReader::New();
+  pdReader->SetFileName(fn);
   pdReader->Update();
 
-  vtkPd = pdReader->GetOutput();
-  if ( vtkPd == NULL ||vtkPd->GetNumberOfPolys()==0 )
-  {
-    PyErr_SetString(PyRunTimeErr, "error reading file ");
-    pdReader->Delete();
-    
+  auto vtkPd = pdReader->GetOutput();
+  if ((vtkPd == NULL) || (vtkPd->GetNumberOfPolys() == 0)) {
+      pdReader->Delete();
+      api.error("Error reading polydata from the file '" + std::string(fn) + "'.");
+      return nullptr;
   }
-
-  if ( gRepository->Exists( objName ) )
-  {
-    PyErr_SetString(PyRunTimeErr, "obj already exists");
-    pdReader->Delete();
-    
-  }
-
-  pd = new cvPolyData( vtkPd );
-  if ( !( gRepository->Register( objName, pd ) ) )
-  {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository" );
-    pdReader->Delete();
-    delete pd;
-    
-  }
-
-  PyObject* n = Py_BuildValue("s",pd->GetName());
   pdReader->Delete();
-  return n;
 
+  auto pd = new cvPolyData(vtkPd);
+  if (!gRepository->Register(objName, pd)) {
+      delete pd;
+      api.error("Error adding the vtk polydata '" + std::string(objName) + "' to the repository.");
+      return nullptr;
+  }
+
+  return Py_BuildValue("s",pd->GetName());
 }
 
-
-// ---------------------------------
+//---------------------------------
 // Repos_WriteVtkStructuredPointsCmd
-// ---------------------------------
-PyObject* Repos_WriteVtkStructuredPointsCmd( PyObject* self, PyObject* args)
+//---------------------------------
+//
+PyDoc_STRVAR(Repos_write_vtk_structured_points_doc,
+  "write_vtk_structured_points(file)  \n\ 
+   \n\
+   Set the solid modeling kernel. \n\
+   \n\
+   Args: \n\
+     file (str): The name of the file ??? \n\
+");
 
+static PyObject * 
+Repos_write_vtk_structured_points(PyObject* self, PyObject* args)
 {
-
+  auto api = SvPyUtilApiFunction("sss", PyRunTimeErr, __func__);
   char *objName, *ft, *fn;
-  RepositoryDataT type;
-  cvRepositoryData *obj;
-  vtkStructuredPoints *sp;
-  if (!PyArg_ParseTuple(args,"sss", &objName,&ft,&fn))
-  {
-    PyErr_SetString(PyRunTimeErr,
-      "Could not import 3 chars: objName,ft-type and fn-file");
-    
+
+  if (!PyArg_ParseTuple(args, api.format, &objName, &ft, &fn)) {
+      return api.argsError();
   }
 
-  // Do work of command:
-  char r[1024];
-  type = gRepository->GetType( objName );
-  if ( type != STRUCTURED_PTS_T )
-  {
-    sprintf(r,"\"%s\" must be of a structured points type",objName);
-    PyErr_SetString(PyRunTimeErr, r);
-    
+  auto obj = GetVtkObject(api, objName, STRUCTURED_PTS_T, "structured points");
+  if (obj == nullptr) {
+      return nullptr;
   }
 
-  obj = gRepository->GetObject( objName );
-  switch (type)
-  {
-  case STRUCTURED_PTS_T:
-    sp = ((cvStrPts *)obj)->GetVtkStructuredPoints();
-    break;
-  default:
-    PyErr_SetString(PyRunTimeErr, "error in GetVtkStructuredPoints" );
-    
-    break;
-  }
-
-  vtkStructuredPointsWriter *spWriter = vtkStructuredPointsWriter::New();
+  auto sp = ((cvStrPts*)obj)->GetVtkStructuredPoints();
+  auto spWriter = vtkStructuredPointsWriter::New();
   spWriter->SetInputDataObject( sp );
-  spWriter->SetFileName( fn );
-  if ( strcmp( ft, "bin" ) == 0 )
-  {
-    spWriter->SetFileTypeToBinary();
-  }
-  else if ( strcmp( ft, "ascii" ) == 0 )
-  {
-    spWriter->SetFileTypeToASCII();
-  }
-  spWriter->Write();
+  spWriter->SetFileName(fn);
 
+  if (!CheckFileType(api, spWriter, std::string(ft))) {
+     return nullptr;
+  }
+
+  spWriter->Write();
   spWriter->Delete();
 
   return SV_PYTHON_OK;
-
 }
 
+//-----------------------------------
+// Repos_write_vtk_unstructured_grid 
+//-----------------------------------
+//
+PyDoc_STRVAR(Repos_write_vtk_unstructured_grid_doc,
+  "write_vtk_unstructured_grid(file)  \n\ 
+   \n\
+   Set the solid modeling kernel. \n\
+   \n\
+   Args: \n\
+     file (str): The name of the file ??? \n\
+");
 
-// ---------------------------------
-// Repos_WriteVtkUnstructuredGridCmd
-// ---------------------------------
-PyObject* Repos_WriteVtkUnstructuredGridCmd( PyObject* self, PyObject* args)
-
+static PyObject * 
+Repos_write_vtk_unstructured_grid(PyObject* self, PyObject* args)
 {
-
+  auto api = SvPyUtilApiFunction("sss", PyRunTimeErr, __func__);
   char *objName, *ft, *fn;
-  RepositoryDataT type;
-  cvRepositoryData *obj;
-  vtkUnstructuredGrid *sp;
 
-  // Define syntax:
-  if (!PyArg_ParseTuple(args,"sss", &objName,&ft,&fn))
-  {
-    PyErr_SetString(PyRunTimeErr,
-      "Could not import 3 chars: objName,ft-type and fn-file");
-    
+  if (!PyArg_ParseTuple(args, api.format, &objName,&ft,&fn)) {
+      return api.argsError();
   }
 
-  // Do work of command:
-  type = gRepository->GetType( objName );
-  if ( type != UNSTRUCTURED_GRID_T )
-  {
-    PyErr_SetString(PyRunTimeErr, "\"%s\" must be of a structured points type");
-    
+  auto obj = GetVtkObject(api, objName, UNSTRUCTURED_GRID_T, "unstructured grid");
+  if (obj == nullptr) {
+      return nullptr;
   }
 
-  obj = gRepository->GetObject( objName );
-  switch (type)
-  {
-  case UNSTRUCTURED_GRID_T:
-    sp = ((cvUnstructuredGrid*)obj)->GetVtkUnstructuredGrid();
-    break;
-  default:
-  PyErr_SetString(PyRunTimeErr, "error in GetVtkUnstructuredGrid" );
-    
-    break;
+  // Write the unstructured grid.
+  //
+  auto sp = ((cvUnstructuredGrid*)obj)->GetVtkUnstructuredGrid();
+  auto spWriter = vtkUnstructuredGridWriter::New();
+  spWriter->SetInputDataObject(sp);
+  spWriter->SetFileName(fn);
+
+  if (!CheckFileType(api, spWriter, std::string(ft))) {
+     return nullptr;
   }
 
-  vtkUnstructuredGridWriter *spWriter = vtkUnstructuredGridWriter::New();
-  spWriter->SetInputDataObject( sp );
-  spWriter->SetFileName( fn );
-  if ( strcmp( ft, "bin" ) == 0 )
-  {
-    spWriter->SetFileTypeToBinary();
-  }
-  else if ( strcmp( ft, "ascii" ) == 0 )
-  {
-    spWriter->SetFileTypeToASCII();
-  }
   spWriter->Write();
-
   spWriter->Delete();
-
   return SV_PYTHON_OK;
-
 }
 
+//----------------------
+// Repos_get_label_keys 
+//---------------------
+//
+PyDoc_STRVAR(Repos_get_label_keys_doc,
+  "get_label_keys(file)  \n\ 
+   \n\
+   Set the solid modeling kernel. \n\
+   \n\
+   Args: \n\
+     file (str): The name of the file ??? \n\
+");
 
-// ---------------------
-// Repos_GetLabelKeysCmd
-// ---------------------
-
-PyObject* Repos_GetLabelKeysCmd( PyObject* self, PyObject* args)
-
+static PyObject * 
+Repos_get_label_keys(PyObject* self, PyObject* args)
 {
-
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *objName;
-  cvRepositoryData *obj;
-  int numKeys, i;
+
+  if (!PyArg_ParseTuple(args, api.format, &objName)) {
+      return api.argsError();
+  }
+
+  auto obj = gRepository->GetObject( objName );
+  if (obj == NULL) {
+      api.error("The object '"+std::string(objName)+"' is not in the repository.");
+      return nullptr;
+  }
+
+  // Create a list of kets to return.
+  int numKeys;
   char **keys;
-
-  if (!PyArg_ParseTuple(args,"s", &objName))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import 1 char: objName");
-    
-  }
-
-  // Do work of command:
-
-  obj = gRepository->GetObject( objName );
-  if ( obj == NULL )
-  {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object " );
-    
-  }
-
   obj->GetLabelKeys( &numKeys, &keys );
-
   PyObject *pylist=PyList_New(0);
-  for (i = 0; i < numKeys; i++)
-  {
+
+  for (int i = 0; i < numKeys; i++) {
     PyObject* pyKeys = PyString_FromString(keys[i]);
     PyList_Append( pylist,  pyKeys );
   }
 
   return pylist;
-
 }
 
+//-----------------
+// Repos_get_label 
+//-----------------
+//
+PyDoc_STRVAR(Repos_get_label_doc,
+  "get_label(file)  \n\ 
+   \n\
+   Set the solid modeling kernel. \n\
+   \n\
+   Args: \n\
+     file (str): The name of the file ??? \n\
+");
 
-// -----------------
-// Repos_GetLabelCmd
-// -----------------
-
-PyObject* Repos_GetLabelCmd( PyObject* self, PyObject* args)
-
+static PyObject * 
+Repos_get_label(PyObject* self, PyObject* args)
 {
-
+  auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *objName;
-  cvRepositoryData *obj;
-  char *key, *value;
+  char *key; 
 
-  if (!PyArg_ParseTuple(args,"ss", &objName,&key))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import 2 chars: objName,key");
-    
+  char *value;
+
+  if (!PyArg_ParseTuple(args, api.format, &objName,&key)) {
+      return api.argsError();
   }
 
-  // Do work of command:
-
-  obj = gRepository->GetObject( objName );
-  if ( obj == NULL )
-  {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object ");
-    
+  auto obj = gRepository->GetObject( objName );
+  if (obj == NULL) {
+      api.error("The object '"+std::string(objName)+"' is not in the repository.");
+      return nullptr;
   }
 
-  if ( ! obj->GetLabel( key, &value ) )
-  {
-    PyErr_SetString(PyRunTimeErr, "key not found" );
-    
+  if (!obj->GetLabel(key, &value)) {
+      api.error("The key argument '"+std::string(key)+"' was not found for the object '"+std::string(objName)+"'."); 
+      return nullptr;
   }
 
   return Py_BuildValue("s",value);
-
 }
 
+//-----------------
+// Repos_set_label 
+//-----------------
+//
+PyDoc_STRVAR(Repos_set_label_doc,
+  "set_label(file)  \n\ 
+   \n\
+   Set the solid modeling kernel. \n\
+   \n\
+   Args: \n\
+     file (str): The name of the file ??? \n\
+");
 
-// -----------------
-// Repos_SetLabelCmd
-// -----------------
-PyObject* Repos_SetLabelCmd( PyObject* self, PyObject* args)
-
+static PyObject * 
+Repos_set_label(PyObject* self, PyObject* args)
 {
-
+  auto api = SvPyUtilApiFunction("sss", PyRunTimeErr, __func__);
   char *objName;
-  cvRepositoryData *obj;
   char *key, *value;
 
-  if (!PyArg_ParseTuple(args,"sss", &objName,&key,&value))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import 3 chars: objName,key and value");
-    
+  if (!PyArg_ParseTuple(args, api.format, &objName,&key,&value)) {
+      return api.argsError();
   }
 
-  // Do work of command:
-
-  obj = gRepository->GetObject( objName );
-  if ( obj == NULL )
-  {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object " );
-    
+  auto obj = gRepository->GetObject(objName);
+  if (obj == NULL) {
+      api.error("The object '"+std::string(objName)+"' is not in the repository.");
+      return nullptr;
   }
 
-  if ( ! obj->SetLabel( key, value ) )
-  {
-    if ( !obj->IsLabelPresent( key ) )
-    {
-      PyErr_SetString(PyRunTimeErr, "key already in use");
-      
-    }
-    else
-    {
-      PyErr_SetString(PyRunTimeErr, "error setting label ");
-      
-    }
+  if (obj->IsLabelPresent(key)) {
+      api.error("The key argument '"+std::string(key)+"' is already in use for the object '"+
+          std::string(objName)+"'."); 
+      return nullptr;
+  }
+
+  if (!obj->SetLabel(key, value)) {
+      api.error("Error setting the key '"+std::string(key)+"' for the object '"+ std::string(objName)+"'."); 
+      return nullptr;
   }
 
   return SV_PYTHON_OK;
-
 }
 
+//-------------------
+// Repos_clear_label 
+//-------------------
+//
+PyDoc_STRVAR(Repos_clear_label_doc,
+  "clear_label(file)  \n\ 
+   \n\
+   Set the solid modeling kernel. \n\
+   \n\
+   Args: \n\
+     file (str): The name of the file ??? \n\
+");
 
-// -------------------
-// Repos_ClearLabelCmd
-// -------------------
-
-PyObject* Repos_ClearLabelCmd( PyObject* self, PyObject* args)
-
+static PyObject * 
+Repos_clear_label(PyObject* self, PyObject* args)
 {
-
+  auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *objName;
-  cvRepositoryData *obj;
   char *key;
 
-  if (!PyArg_ParseTuple(args,"ss", &objName,&key))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import 2 chars: objName,key");
-    
+  if (!PyArg_ParseTuple(args, api.format, &objName,&key)) {
+      return api.argsError();
   }
 
-  // Do work of command:
-
-  obj = gRepository->GetObject( objName );
-  if ( obj == NULL )
-  {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object" );
-    
+  auto obj = gRepository->GetObject(objName);
+  if (obj == NULL) {
+      api.error("The object '"+std::string(objName)+"' is not in the repository.");
+      return nullptr;
   }
 
-  if ( ! obj->IsLabelPresent( key ) )
-  {
-    PyErr_SetString(PyRunTimeErr, "key not found");
-    
+  if (!obj->IsLabelPresent(key)) {
+      api.error("The key argument '"+std::string(key)+"' was not found for the object '"+std::string(objName)+"'."); 
+      return nullptr;
   }
 
-  obj->ClearLabel( key );
+  obj->ClearLabel(key);
 
   return SV_PYTHON_OK;
+}
+
+////////////////////////////////////////////////////////
+//          M o d u l e  D e f i n i t i o n          //
+////////////////////////////////////////////////////////
+
+//----------------------------
+// Define API function names
+//----------------------------
+
+PyMethodDef pyRepository_methods[] = {
+
+    {"clear_label", Repos_clear_label, METH_VARARGS, Repos_clear_label_doc},
+
+    {"delete", Repos_delete, METH_VARARGS, Repos_delete_doc},
+
+    {"export_to_vtk", Repos_export_to_vtk, METH_VARARGS, Repos_export_to_vtk_doc},
+
+    {"exists", Repos_exists, METH_VARARGS, Repos_exists_doc},
+
+    {"get_label", Repos_get_label, METH_VARARGS, Repos_get_label_doc},
+
+    {"get_label_keys", Repos_get_label_keys, METH_VARARGS, Repos_get_label_keys_doc},
+
+    {"get_string", Repos_get_string, METH_VARARGS, Repos_get_string_doc},
+
+    {"import_vtk_image", Repos_import_vtk_image, METH_VARARGS, Repos_import_vtk_image_doc},
+
+    // Rename: ImportVtkPd
+    {"import_vtk_polydata", Repos_import_vtk_polydata, METH_VARARGS, Repos_import_vtk_polydata_doc},
+
+    {"import_vtk_structured_points", Repos_import_vtk_structured_points, METH_VARARGS, Repos_import_vtk_structured_points_doc},
+
+    {"import_vtk_unstructured_grid", Repos_import_vtk_unstructured_grid, METH_VARARGS, Repos_import_vtk_unstructured_grid_doc},
+
+    {"list", Repos_list, METH_NOARGS, Repos_list_doc},
+    {"load", Repos_load, METH_VARARGS, Repos_load_doc},
+
+    {"read_vtk_polydata", Repos_read_vtk_polydata, METH_VARARGS, Repos_read_vtk_polydata_doc},
+
+    {"read_vtk_xml_polydata", Repos_read_vtk_xml_polydata, METH_VARARGS, Repos_read_vtk_xml_polydata_doc},
+
+    {"save", Repos_save, METH_VARARGS, Repos_save_doc},
+
+    {"set_label", Repos_set_label, METH_VARARGS, Repos_set_label_doc},
+    {"set_string", Repos_set_string, METH_VARARGS,Repos_set_string_doc},
+
+    {"type", Repos_type, METH_VARARGS, Repos_type_doc},
+
+    {"write_vtk_polydata", Repos_write_vtk_polydata, METH_VARARGS, Repos_write_vtk_polydata_doc},
+    {"write_vtk_structured_points", Repos_write_vtk_structured_points, METH_VARARGS, Repos_write_vtk_structured_points_doc},
+    {"write_vtk_unstructured_grid", Repos_write_vtk_unstructured_grid, METH_VARARGS, Repos_write_vtk_unstructured_grid_doc},
+
+    {NULL, NULL,0,NULL},
+
+};
+
+//-----------------------
+// Initialize the module
+//-----------------------
+// Define the initialization function called by the Python 
+// interpreter when the module is loaded.
+
+static char* MODULE_NAME = "repository";
+
+PyDoc_STRVAR(Repository_module_doc, "repository module functions");
+
+
+//---------------------------------------------------------------------------
+//                           PYTHON_MAJOR_VERSION 3                         
+//---------------------------------------------------------------------------
+
+#if PYTHON_MAJOR_VERSION == 3
+
+// Size of per-interpreter state of the module.
+// Set to -1 if the module keeps state in global variables. 
+static int perInterpreterStateSize = -1;
+
+// Always initialize this to PyModuleDef_HEAD_INIT.
+static PyModuleDef_Base m_base = PyModuleDef_HEAD_INIT;
+
+// Define the module definition struct which holds all information 
+// needed to create a module object. 
+
+static struct PyModuleDef pyRepositorymodule = {
+   m_base,
+   MODULE_NAME,  
+   Repository_module_doc,
+   perInterpreterStateSize, 
+   pyRepository_methods
+};
+
+//---------------------
+// PyInit_pyRepository 
+//---------------------
+// The initialization function called by the Python interpreter when the module is loaded.
+//
+PyMODINIT_FUNC 
+PyInit_pyRepository(void)
+{
+  gRepository = new cvRepository();
+
+  if ( gRepository == NULL ) {
+    fprintf( stderr, "error allocating gRepository\n" );
+    return SV_PYTHON_ERROR;
+  }
+
+  auto module = PyModule_Create(&pyRepositorymodule);
+
+  PyRunTimeErr = PyErr_NewException("repository.RepositoryException",NULL,NULL);
+  Py_INCREF(PyRunTimeErr);
+  PyModule_AddObject(module,"RepositoryException",PyRunTimeErr);
+  return module;
+}
+
+
+#endif
+
+//---------------------------------------------------------------------------
+//                           PYTHON_MAJOR_VERSION 2                         
+//---------------------------------------------------------------------------
+
+#if PYTHON_MAJOR_VERSION == 2
+
+PyMODINIT_FUNC initpyRepository(void)
+{
+
+  gRepository = new cvRepository();
+  if ( gRepository == NULL ) {
+    fprintf( stderr, "error allocating gRepository\n" );
+    return;
+  }
+  auto module = Py_InitModule("pyRepository",pyRepository_methods);
+  PyRunTimeErr = PyErr_NewException("repository.RepositoryException",NULL,NULL);
+  Py_INCREF(PyRunTimeErr);
+  PyModule_AddObject(module, "RepositoryException",PyRunTimeErr);
 
 }
+
+#endif
+
