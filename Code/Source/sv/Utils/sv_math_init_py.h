@@ -36,7 +36,7 @@
 #include "svUtilsExports.h" // For exports
 #include "Python.h"
 
-extern "C" SV_EXPORT_UTILS int Math_pyInit( );
+//extern "C" SV_EXPORT_UTILS int Math_pyInit( );
 
 #if PYTHON_MAJOR_VERSION == 2
 PyMODINIT_FUNC  initpyMath();

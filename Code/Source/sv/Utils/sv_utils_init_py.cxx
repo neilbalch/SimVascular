@@ -34,8 +34,10 @@
 #include "sv_utils_init.h"
 #include "sv_math_init_py.h"
 
+/*
 int Utils_pyInit()
 {
   Math_pyInit();
   return SV_OK;
 }
+*/

@@ -66,6 +66,9 @@
 // Exception type used by PyErr_SetString() to set the for the error indicator.
 PyObject* PyRunTimeErr;
 
+// The valid repository types that can be exported to vtk.
+static std::set<RepositoryDataT> validVtkExportTypes{POLY_DATA_T, STRUCTURED_PTS_T, UNSTRUCTURED_GRID_T, TEMPORALDATASET_T};
+
 //---------------
 // CheckFileType
 //---------------
@@ -116,10 +119,10 @@ GetVtkObject(SvPyUtilApiFunction& api, const char *name, const RepositoryDataT t
 // Python API functions. 
 
 //-------------
-// Repos_PassCmd
+// Repository_PassCmd
 //-------------
 //
-PyDoc_STRVAR(Repos_set_string_doc,
+PyDoc_STRVAR(Repository_set_string_doc,
   "set_string(file)  \n\ 
    \n\
    Set the solid modeling kernel. \n\
@@ -129,7 +132,7 @@ PyDoc_STRVAR(Repos_set_string_doc,
 ");
 
 static PyObject * 
-Repos_set_string( PyObject* self, PyObject* args)
+Repository_set_string( PyObject* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *stringPd;
@@ -154,10 +157,10 @@ Repos_set_string( PyObject* self, PyObject* args)
 
 
 //------------------
-// Repos_get_string
+// Repository_get_string
 //------------------
 //
-PyDoc_STRVAR(Repos_get_string_doc,
+PyDoc_STRVAR(Repository_get_string_doc,
   "get_string(file)  \n\ 
    \n\
    Set the solid modeling kernel. \n\
@@ -167,7 +170,7 @@ PyDoc_STRVAR(Repos_get_string_doc,
 ");
 
 static PyObject * 
-Repos_get_string(PyObject* self, PyObject* args)
+Repository_get_string(PyObject* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *stringPd;
@@ -186,10 +189,10 @@ Repos_get_string(PyObject* self, PyObject* args)
 }
 
 //------------
-// Repos_list 
+// Repository_list 
 //------------
 //
-PyDoc_STRVAR(Repos_list_doc,
+PyDoc_STRVAR(Repository_list_doc,
   "list(file)  \n\ 
    \n\
    Set the solid modeling kernel. \n\
@@ -199,7 +202,7 @@ PyDoc_STRVAR(Repos_list_doc,
 ");
 
 static PyObject * 
-Repos_list(PyObject* self, PyObject* args)
+Repository_list(PyObject* self, PyObject* args)
 {
   PyObject *pylist=PyList_New(0);
   gRepository->InitIterator();
@@ -212,10 +215,10 @@ Repos_list(PyObject* self, PyObject* args)
 }
 
 //--------------
-// Repos_exists 
+// Repository_exists 
 //--------------
 //
-PyDoc_STRVAR(Repos_exists_doc,
+PyDoc_STRVAR(Repository_exists_doc,
   "exists(file)  \n\ 
    \n\
    Set the solid modeling kernel. \n\
@@ -225,7 +228,7 @@ PyDoc_STRVAR(Repos_exists_doc,
 ");
 
 static PyObject *  
-Repos_exists(PyObject* self, PyObject* args)
+Repository_exists(PyObject* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *name;
@@ -240,10 +243,10 @@ Repos_exists(PyObject* self, PyObject* args)
 }
 
 //--------------
-// Repos_delete 
+// Repository_delete 
 //--------------
 //
-PyDoc_STRVAR(Repos_delete_doc,
+PyDoc_STRVAR(Repository_delete_doc,
   "delete(file)  \n\ 
    \n\
    Set the solid modeling kernel. \n\
@@ -253,7 +256,7 @@ PyDoc_STRVAR(Repos_delete_doc,
 ");
 
 static PyObject *
-Repos_delete( PyObject* self, PyObject* args)
+Repository_delete( PyObject* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *objName;
@@ -280,10 +283,10 @@ Repos_delete( PyObject* self, PyObject* args)
 }
 
 //------------
-// Repos_type 
+// Repository_type 
 //------------
 //
-PyDoc_STRVAR(Repos_type_doc,
+PyDoc_STRVAR(Repository_type_doc,
   "type(file)  \n\ 
    \n\
    Set the solid modeling kernel. \n\
@@ -293,7 +296,7 @@ PyDoc_STRVAR(Repos_type_doc,
 ");
 
 static PyObject * 
-Repos_type(PyObject* self, PyObject* args)
+Repository_type(PyObject* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *name;
@@ -313,10 +316,10 @@ Repos_type(PyObject* self, PyObject* args)
 }
 
 //---------------------------
-// Repos_import_vtk_polydata 
+// Repository_import_vtk_polydata 
 //---------------------------
 //
-PyDoc_STRVAR(Repos_import_vtk_polydata_doc,
+PyDoc_STRVAR(Repository_import_vtk_polydata_doc,
   "import_vtk_polydata(file)  \n\ 
    \n\
    Set the solid modeling kernel. \n\
@@ -326,7 +329,7 @@ PyDoc_STRVAR(Repos_import_vtk_polydata_doc,
 ");
 
 static PyObject * 
-Repos_import_vtk_polydata(PyObject* self, PyObject* args)
+Repository_import_vtk_polydata(PyObject* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("Os", PyRunTimeErr, __func__);
   PyObject *vtkName;
@@ -360,10 +363,10 @@ Repos_import_vtk_polydata(PyObject* self, PyObject* args)
 }
 
 //---------------------
-// Repos_export_to_vtk 
+// Repository_export_to_vtk 
 //---------------------
 //
-PyDoc_STRVAR(Repos_export_to_vtk_doc,
+PyDoc_STRVAR(Repository_export_to_vtk_doc,
   "export_to_vtk(file)  \n\ 
    \n\
    Set the solid modeling kernel. \n\
@@ -373,7 +376,7 @@ PyDoc_STRVAR(Repos_export_to_vtk_doc,
 ");
 
 static PyObject * 
-Repos_export_to_vtk(PyObject* self, PyObject* args)
+Repository_export_to_vtk(PyObject* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *objName;
@@ -389,11 +392,12 @@ Repos_export_to_vtk(PyObject* self, PyObject* args)
       return nullptr;
   }
 
+  // Check that the object has a type that can be exported to vtk.
   auto type = pd->GetType();
-
-  if ((type != POLY_DATA_T) && (type != STRUCTURED_PTS_T) &&
-      (type != UNSTRUCTURED_GRID_T) && (type != TEMPORALDATASET_T)) {
-      api.error("Unknown type for the object '"+std::string(objName)+"'.");
+  if (validVtkExportTypes.count(type) == 0) {
+      auto typeStr = std::string(RepositoryDataT_EnumToStr(type));
+      api.error("Cannot export object '"+std::string(objName)+"' of type '" + typeStr + "'." +  
+          " Valid types: polydata, structured points, temporal data set or unstructured grid.");
       return nullptr;
   }
 
@@ -404,10 +408,10 @@ Repos_export_to_vtk(PyObject* self, PyObject* args)
 }
 
 //------------------------------------
-// Repos_import_vtk_structured_points 
+// Repository_import_vtk_structured_points 
 //------------------------------------
 //
-PyDoc_STRVAR(Repos_import_vtk_structured_points_doc,
+PyDoc_STRVAR(Repository_import_vtk_structured_points_doc,
   "import_vtk_structured_points(file)  \n\ 
    \n\
    Set the solid modeling kernel. \n\
@@ -417,7 +421,7 @@ PyDoc_STRVAR(Repos_import_vtk_structured_points_doc,
 ");
 
 static PyObject * 
-Repos_import_vtk_structured_points(PyObject* self, PyObject* args)
+Repository_import_vtk_structured_points(PyObject* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("Os", PyRunTimeErr, __func__);
   PyObject *vtkName;
@@ -452,10 +456,10 @@ Repos_import_vtk_structured_points(PyObject* self, PyObject* args)
 }
 
 //------------------------------------
-// Repos_import_vtk_unstructured_grid 
+// Repository_import_vtk_unstructured_grid 
 //------------------------------------
 //
-PyDoc_STRVAR(Repos_import_vtk_unstructured_grid_doc,
+PyDoc_STRVAR(Repository_import_vtk_unstructured_grid_doc,
   "import_vtk_unstructured_grid(file)  \n\ 
    \n\
    Set the solid modeling kernel. \n\
@@ -465,7 +469,7 @@ PyDoc_STRVAR(Repos_import_vtk_unstructured_grid_doc,
 ");
 
 static PyObject * 
-Repos_import_vtk_unstructured_grid(PyObject* self, PyObject* args)
+Repository_import_vtk_unstructured_grid(PyObject* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("Os", PyRunTimeErr, __func__);
   PyObject *vtkName;
@@ -499,10 +503,10 @@ Repos_import_vtk_unstructured_grid(PyObject* self, PyObject* args)
 }
 
 //------------------------
-// Repos_import_vtk_image 
+// Repository_import_vtk_image 
 //------------------------
 //
-PyDoc_STRVAR(Repos_import_vtk_image_doc,
+PyDoc_STRVAR(Repository_import_vtk_image_doc,
   "import_vtk_image(file)  \n\ 
    \n\
    Set the solid modeling kernel. \n\
@@ -512,7 +516,7 @@ PyDoc_STRVAR(Repos_import_vtk_image_doc,
 ");
 
 static PyObject * 
-Repos_import_vtk_image( PyObject* self, PyObject* args )
+Repository_import_vtk_image( PyObject* self, PyObject* args )
 {
   auto api = SvPyUtilApiFunction("Os", PyRunTimeErr, __func__);
   PyObject *vtkName = NULL;
@@ -581,10 +585,10 @@ Repos_import_vtk_image( PyObject* self, PyObject* args )
 }
 
 //------------
-// Repos_save 
+// Repository_save 
 //------------
 //
-PyDoc_STRVAR(Repos_save_doc,
+PyDoc_STRVAR(Repository_save_doc,
   "save(file)  \n\ 
    \n\
    Set the solid modeling kernel. \n\
@@ -594,7 +598,7 @@ PyDoc_STRVAR(Repos_save_doc,
 ");
 
 static PyObject * 
-Repos_save(PyObject* self, PyObject* args )
+Repository_save(PyObject* self, PyObject* args )
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char* fileName;
@@ -612,10 +616,10 @@ Repos_save(PyObject* self, PyObject* args )
 }
 
 //------------
-// Repos_load 
+// Repository_load 
 //------------
 //
-PyDoc_STRVAR(Repos_load_doc,
+PyDoc_STRVAR(Repository_load_doc,
   "load(file)  \n\ 
    \n\
    Set the solid modeling kernel. \n\
@@ -625,7 +629,7 @@ PyDoc_STRVAR(Repos_load_doc,
 ");
 
 static PyObject * 
-Repos_load(PyObject* self, PyObject* args)
+Repository_load(PyObject* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char* fileName;
@@ -643,10 +647,10 @@ Repos_load(PyObject* self, PyObject* args)
 }
 
 // -------------------------
-// Repos_write_vtk_polydata
+// Repository_write_vtk_polydata
 // -------------------------
 //
-PyDoc_STRVAR(Repos_write_vtk_polydata_doc,
+PyDoc_STRVAR(Repository_write_vtk_polydata_doc,
   "write_vtk_polydata(file)  \n\ 
    \n\
    Set the solid modeling kernel. \n\
@@ -657,7 +661,7 @@ PyDoc_STRVAR(Repos_write_vtk_polydata_doc,
 
 static 
 PyObject * 
-Repos_write_vtk_polydata(PyObject* self, PyObject* args )
+Repository_write_vtk_polydata(PyObject* self, PyObject* args )
 {
   auto api = SvPyUtilApiFunction("sss", PyRunTimeErr, __func__);
   char *objName, *ft, *fn;
@@ -692,10 +696,10 @@ Repos_write_vtk_polydata(PyObject* self, PyObject* args )
 }
 
 //-------------------------
-// Repos_read_vtk_polydata 
+// Repository_read_vtk_polydata 
 //-------------------------
 //
-PyDoc_STRVAR(Repos_read_vtk_polydata_doc,
+PyDoc_STRVAR(Repository_read_vtk_polydata_doc,
   "read_vtk_polydata(file)  \n\ 
    \n\
    Set the solid modeling kernel. \n\
@@ -705,7 +709,7 @@ PyDoc_STRVAR(Repos_read_vtk_polydata_doc,
 ");
 
 static PyObject * 
-Repos_read_vtk_polydata( PyObject* self, PyObject* args )
+Repository_read_vtk_polydata( PyObject* self, PyObject* args )
 {
   auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *objName, *fn;
@@ -746,10 +750,10 @@ Repos_read_vtk_polydata( PyObject* self, PyObject* args )
 }
 
 //-----------------------------
-// Repos_read_vtk_xml_polydata 
+// Repository_read_vtk_xml_polydata 
 //-----------------------------
 //
-PyDoc_STRVAR(Repos_read_vtk_xml_polydata_doc,
+PyDoc_STRVAR(Repository_read_vtk_xml_polydata_doc,
   "read_vtk_xml_polydata(file)  \n\ 
    \n\
    Set the solid modeling kernel. \n\
@@ -759,7 +763,7 @@ PyDoc_STRVAR(Repos_read_vtk_xml_polydata_doc,
 ");
 
 static PyObject * 
-Repos_read_vtk_xml_polydata( PyObject* self, PyObject* args )
+Repository_read_vtk_xml_polydata( PyObject* self, PyObject* args )
 {
   auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *objName, *fn;
@@ -800,10 +804,10 @@ Repos_read_vtk_xml_polydata( PyObject* self, PyObject* args )
 }
 
 //---------------------------------
-// Repos_WriteVtkStructuredPointsCmd
+// Repository_WriteVtkStructuredPointsCmd
 //---------------------------------
 //
-PyDoc_STRVAR(Repos_write_vtk_structured_points_doc,
+PyDoc_STRVAR(Repository_write_vtk_structured_points_doc,
   "write_vtk_structured_points(file)  \n\ 
    \n\
    Set the solid modeling kernel. \n\
@@ -813,7 +817,7 @@ PyDoc_STRVAR(Repos_write_vtk_structured_points_doc,
 ");
 
 static PyObject * 
-Repos_write_vtk_structured_points(PyObject* self, PyObject* args)
+Repository_write_vtk_structured_points(PyObject* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("sss", PyRunTimeErr, __func__);
   char *objName, *ft, *fn;
@@ -843,10 +847,10 @@ Repos_write_vtk_structured_points(PyObject* self, PyObject* args)
 }
 
 //-----------------------------------
-// Repos_write_vtk_unstructured_grid 
+// Repository_write_vtk_unstructured_grid 
 //-----------------------------------
 //
-PyDoc_STRVAR(Repos_write_vtk_unstructured_grid_doc,
+PyDoc_STRVAR(Repository_write_vtk_unstructured_grid_doc,
   "write_vtk_unstructured_grid(file)  \n\ 
    \n\
    Set the solid modeling kernel. \n\
@@ -856,7 +860,7 @@ PyDoc_STRVAR(Repos_write_vtk_unstructured_grid_doc,
 ");
 
 static PyObject * 
-Repos_write_vtk_unstructured_grid(PyObject* self, PyObject* args)
+Repository_write_vtk_unstructured_grid(PyObject* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("sss", PyRunTimeErr, __func__);
   char *objName, *ft, *fn;
@@ -887,10 +891,10 @@ Repos_write_vtk_unstructured_grid(PyObject* self, PyObject* args)
 }
 
 //----------------------
-// Repos_get_label_keys 
+// Repository_get_label_keys 
 //---------------------
 //
-PyDoc_STRVAR(Repos_get_label_keys_doc,
+PyDoc_STRVAR(Repository_get_label_keys_doc,
   "get_label_keys(file)  \n\ 
    \n\
    Set the solid modeling kernel. \n\
@@ -900,7 +904,7 @@ PyDoc_STRVAR(Repos_get_label_keys_doc,
 ");
 
 static PyObject * 
-Repos_get_label_keys(PyObject* self, PyObject* args)
+Repository_get_label_keys(PyObject* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *objName;
@@ -930,10 +934,10 @@ Repos_get_label_keys(PyObject* self, PyObject* args)
 }
 
 //-----------------
-// Repos_get_label 
+// Repository_get_label 
 //-----------------
 //
-PyDoc_STRVAR(Repos_get_label_doc,
+PyDoc_STRVAR(Repository_get_label_doc,
   "get_label(file)  \n\ 
    \n\
    Set the solid modeling kernel. \n\
@@ -943,7 +947,7 @@ PyDoc_STRVAR(Repos_get_label_doc,
 ");
 
 static PyObject * 
-Repos_get_label(PyObject* self, PyObject* args)
+Repository_get_label(PyObject* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *objName;
@@ -970,10 +974,10 @@ Repos_get_label(PyObject* self, PyObject* args)
 }
 
 //-----------------
-// Repos_set_label 
+// Repository_set_label 
 //-----------------
 //
-PyDoc_STRVAR(Repos_set_label_doc,
+PyDoc_STRVAR(Repository_set_label_doc,
   "set_label(file)  \n\ 
    \n\
    Set the solid modeling kernel. \n\
@@ -983,7 +987,7 @@ PyDoc_STRVAR(Repos_set_label_doc,
 ");
 
 static PyObject * 
-Repos_set_label(PyObject* self, PyObject* args)
+Repository_set_label(PyObject* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("sss", PyRunTimeErr, __func__);
   char *objName;
@@ -1014,10 +1018,10 @@ Repos_set_label(PyObject* self, PyObject* args)
 }
 
 //-------------------
-// Repos_clear_label 
+// Repository_clear_label 
 //-------------------
 //
-PyDoc_STRVAR(Repos_clear_label_doc,
+PyDoc_STRVAR(Repository_clear_label_doc,
   "clear_label(file)  \n\ 
    \n\
    Set the solid modeling kernel. \n\
@@ -1027,7 +1031,7 @@ PyDoc_STRVAR(Repos_clear_label_doc,
 ");
 
 static PyObject * 
-Repos_clear_label(PyObject* self, PyObject* args)
+Repository_clear_label(PyObject* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *objName;
@@ -1063,46 +1067,46 @@ Repos_clear_label(PyObject* self, PyObject* args)
 
 PyMethodDef pyRepository_methods[] = {
 
-    {"clear_label", Repos_clear_label, METH_VARARGS, Repos_clear_label_doc},
+    {"clear_label", Repository_clear_label, METH_VARARGS, Repository_clear_label_doc},
 
-    {"delete", Repos_delete, METH_VARARGS, Repos_delete_doc},
+    {"delete", Repository_delete, METH_VARARGS, Repository_delete_doc},
 
-    {"export_to_vtk", Repos_export_to_vtk, METH_VARARGS, Repos_export_to_vtk_doc},
+    {"export_to_vtk", Repository_export_to_vtk, METH_VARARGS, Repository_export_to_vtk_doc},
 
-    {"exists", Repos_exists, METH_VARARGS, Repos_exists_doc},
+    {"exists", Repository_exists, METH_VARARGS, Repository_exists_doc},
 
-    {"get_label", Repos_get_label, METH_VARARGS, Repos_get_label_doc},
+    {"get_label", Repository_get_label, METH_VARARGS, Repository_get_label_doc},
 
-    {"get_label_keys", Repos_get_label_keys, METH_VARARGS, Repos_get_label_keys_doc},
+    {"get_label_keys", Repository_get_label_keys, METH_VARARGS, Repository_get_label_keys_doc},
 
-    {"get_string", Repos_get_string, METH_VARARGS, Repos_get_string_doc},
+    {"get_string", Repository_get_string, METH_VARARGS, Repository_get_string_doc},
 
-    {"import_vtk_image", Repos_import_vtk_image, METH_VARARGS, Repos_import_vtk_image_doc},
+    {"import_vtk_image", Repository_import_vtk_image, METH_VARARGS, Repository_import_vtk_image_doc},
 
     // Rename: ImportVtkPd
-    {"import_vtk_polydata", Repos_import_vtk_polydata, METH_VARARGS, Repos_import_vtk_polydata_doc},
+    {"import_vtk_polydata", Repository_import_vtk_polydata, METH_VARARGS, Repository_import_vtk_polydata_doc},
 
-    {"import_vtk_structured_points", Repos_import_vtk_structured_points, METH_VARARGS, Repos_import_vtk_structured_points_doc},
+    {"import_vtk_structured_points", Repository_import_vtk_structured_points, METH_VARARGS, Repository_import_vtk_structured_points_doc},
 
-    {"import_vtk_unstructured_grid", Repos_import_vtk_unstructured_grid, METH_VARARGS, Repos_import_vtk_unstructured_grid_doc},
+    {"import_vtk_unstructured_grid", Repository_import_vtk_unstructured_grid, METH_VARARGS, Repository_import_vtk_unstructured_grid_doc},
 
-    {"list", Repos_list, METH_NOARGS, Repos_list_doc},
-    {"load", Repos_load, METH_VARARGS, Repos_load_doc},
+    {"list", Repository_list, METH_NOARGS, Repository_list_doc},
+    {"load", Repository_load, METH_VARARGS, Repository_load_doc},
 
-    {"read_vtk_polydata", Repos_read_vtk_polydata, METH_VARARGS, Repos_read_vtk_polydata_doc},
+    {"read_vtk_polydata", Repository_read_vtk_polydata, METH_VARARGS, Repository_read_vtk_polydata_doc},
 
-    {"read_vtk_xml_polydata", Repos_read_vtk_xml_polydata, METH_VARARGS, Repos_read_vtk_xml_polydata_doc},
+    {"read_vtk_xml_polydata", Repository_read_vtk_xml_polydata, METH_VARARGS, Repository_read_vtk_xml_polydata_doc},
 
-    {"save", Repos_save, METH_VARARGS, Repos_save_doc},
+    {"save", Repository_save, METH_VARARGS, Repository_save_doc},
 
-    {"set_label", Repos_set_label, METH_VARARGS, Repos_set_label_doc},
-    {"set_string", Repos_set_string, METH_VARARGS,Repos_set_string_doc},
+    {"set_label", Repository_set_label, METH_VARARGS, Repository_set_label_doc},
+    {"set_string", Repository_set_string, METH_VARARGS,Repository_set_string_doc},
 
-    {"type", Repos_type, METH_VARARGS, Repos_type_doc},
+    {"type", Repository_type, METH_VARARGS, Repository_type_doc},
 
-    {"write_vtk_polydata", Repos_write_vtk_polydata, METH_VARARGS, Repos_write_vtk_polydata_doc},
-    {"write_vtk_structured_points", Repos_write_vtk_structured_points, METH_VARARGS, Repos_write_vtk_structured_points_doc},
-    {"write_vtk_unstructured_grid", Repos_write_vtk_unstructured_grid, METH_VARARGS, Repos_write_vtk_unstructured_grid_doc},
+    {"write_vtk_polydata", Repository_write_vtk_polydata, METH_VARARGS, Repository_write_vtk_polydata_doc},
+    {"write_vtk_structured_points", Repository_write_vtk_structured_points, METH_VARARGS, Repository_write_vtk_structured_points_doc},
+    {"write_vtk_unstructured_grid", Repository_write_vtk_unstructured_grid, METH_VARARGS, Repository_write_vtk_unstructured_grid_doc},
 
     {NULL, NULL,0,NULL},
 

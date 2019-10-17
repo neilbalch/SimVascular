@@ -33,12 +33,12 @@ set(SRC_CPP_FILES
 )
 
 set(INTERNAL_CPP_FILES
-  sv4gui_Vis_init_py.cxx
+  sv4gui_dmg_init_py.cxx
   sv4gui_PythonDataNodesPluginActivator.cxx
 )
 
 set(MOC_H_FILES
-  sv4gui_Vis_init_py.h
+  sv4gui_dmg_init_py.h
   sv4gui_PythonDataNodesPluginActivator.h
 )
 

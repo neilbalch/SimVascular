@@ -28,6 +28,17 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+// The functions defined here implement the SV Python API math module. 
+//
+// The module name is 'math'. 
+//
+// A Python exception sv.math.MathException is defined for this module. 
+// The exception can be used in a Python 'try' statement with an 'except' clause 
+// like this
+//
+//    except sv.math.MathException:
+//
 #include "Python.h"
 #include "SimVascular.h"
 
@@ -37,6 +48,7 @@
 #include "sv_arg.h"
 #include "sv_misc_utils.h"
 #include "sv_Math.h"
+#include "sv_PyUtils.h"
 
 #include "sv_math_init_py.h"
 
@@ -44,221 +56,208 @@
 #ifdef GetObject
 #undef GetObject
 #endif
-// Prototypes:
 
 
-static PyObject *MathErr;
-static PyObject *pyMath_FFTCmd( PyObject *self, PyObject *args );
-PyObject *pyMath_inverseFFTCmd(PyObject *self, PyObject *args  );
-PyObject *pyMath_computeWomersleyCmd( PyObject *self, PyObject *args  );
-PyObject *pyMath_linearInterpCmd( PyObject *self, PyObject *args  );
-PyObject *pyMath_curveLengthCmd( PyObject *self, PyObject *args  );
-PyObject *pyMath_linearInterpolateCurveCmd( PyObject *self, PyObject *args  );
-PyObject *pyMath_fitLeastSquaresCmd( PyObject *self, PyObject *args  );
-PyObject *pyMath_smoothCurveCmd( PyObject *self, PyObject *args  );
-#if PYTHON_MAJOR_VERSION == 2
-PyMODINIT_FUNC
-initpyMath(void);
-#elif PYTHON_MAJOR_VERSION == 3
-PyMODINIT_FUNC PyInit_pyMath(void);
-#endif
+// Exception type used by PyErr_SetString() to set the for the error indicator.
+static PyObject *PyRunTimeErr;
 
+//////////////////////////////////////////////////////
+//        U t i l i t y     F u n c t i o n s       //
+//////////////////////////////////////////////////////
 
-// ---------
-// Math_Init
-// ---------
-
-int Math_pyInit( )
+//-------------------
+// GetPointsFromList
+//-------------------
+// Create an array of points from a Python list.
+//
+// [TODO:DaveP] should really use exceptions here.
+//
+static double **
+GetPointsFromList(SvPyUtilApiFunction& api, PyObject* listArg, int dim, const std::string& argName)
 {
+  // First check that the listArg is a list.
+  if (!PyList_Check(listArg)){
+      api.error("The " + argName + " argument is not a list.");
+      return nullptr;
+  }
 
-#if PYTHON_MAJOR_VERSION == 2
-  initpyMath();
-#elif PYTHON_MAJOR_VERSION == 3
-  PyInit_pyMath();
-#endif
-  return SV_OK;
+  int listSize = PyList_Size(listArg);
+  if (listSize == 0) { 
+      api.error("The " + argName + " argument is empty.");
+      return nullptr;
+  }
+
+  // Convert the Python list to a double array.
+  //
+  double **points = cvMath().createArray(listSize, dim);
+  for (int i = 0; i < listSize; i++) {
+      PyObject *temp = PyList_GetItem(listArg,i);
+      if (temp == nullptr) { 
+          api.error("The " + std::to_string(i) + "th element of the " + argName + "argument is not defined.");
+          return nullptr;
+      }
+      if (PyList_Size(temp) != dim) { 
+          api.error("The " + std::to_string(i) + "th element of the " + argName + " argument list != "+std::to_string(dim)+".");
+          return nullptr;
+      }
+      for (int j = 0; j < dim; j++) {
+          points[i][j] = PyFloat_AsDouble(PyList_GetItem(temp,j));
+      }
+  }
+
+  return points;
 }
 
-// -----------
-// Math_FFTCmd
-// -----------
+//////////////////////////////////////////////////////
+//          M o d u l e  F u n c t i o n s          //
+//////////////////////////////////////////////////////
+//
+// Python API functions. 
 
-static PyObject *pyMath_FFTCmd(PyObject *self, PyObject *args)
+//------------
+// pyMath_fft 
+//------------
+//
+PyDoc_STRVAR(pyMath_fft_doc,
+  "fft(kernel)                                    \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
+
+static PyObject * 
+pyMath_fft(PyObject *self, PyObject *args)
 {
-  char *usage;
-
+  auto api = SvPyUtilApiFunction("Oii", PyRunTimeErr, __func__);
+  PyObject *pointsArg;
   int nterms = 0;
   int numInterpPoints = 0;
 
-  PyObject *pointsArg;
+  if (!PyArg_ParseTuple(args,api.format, &pointsArg, &nterms, &numInterpPoints)) {
+      return api.argsError();
+  }
 
-    if (!PyArg_ParseTuple(args,"Oii", &pointsArg,
-      &nterms,&numInterpPoints))
-    {
-      PyErr_SetString(MathErr, "Could not import 1 tuple and 2 int: pointsArg, nterms, numInterpPoints");
-      return NULL;
-    }
+  // [TODO:DaveP] check that other arguments are valid.
 
-  // Do work of command
-  if (!PyList_Check(pointsArg)){
-    PyErr_SetString( MathErr, "pointsArg not a list");
-    
+  // Get an array of points from the pointsArgs list.
+  int dim = 2;
+  auto pts = GetPointsFromList(api, pointsArg, dim, "points");
+  if (pts == nullptr) { 
+      return nullptr;
   }
   int nlistpts = PyList_Size(pointsArg);
-  if (nlistpts < 0)   return NULL;
-  int npts = 0;
 
-  int i;
-  cvMath *mathobj = new cvMath();
-  double **pts = mathobj->createArray(nlistpts,2);
-  double pt[2];
-
-  for (i = 0; i < nlistpts; i++) {
-    PyObject *temp=PyList_GetItem(pointsArg,i);
-    if (temp!=NULL)
-    {
-      for (int j=0;j<2;j++)
-      {
-        pts[i][j]=PyFloat_AsDouble(PyList_GetItem(temp,j));
-        //printf("%f\n",pts[i][j]);
-      }
-    }
-  }
-
-  //for (i = 0; i < nlistpts; i++) {
-  //     fprintf(stdout,"Point %i:  %lf %lf\n",i,pts[i][0],pts[i][1]);
-  //}
-
+  // Perform the fft operation.
+  auto mathObj = cvMath();
   double **terms = NULL;
-  //printf("%d,%d,%d,%d\n",nlistpts,numInterpPoints,nterms,&terms);
-  if ((mathobj->FFT(pts, nlistpts, numInterpPoints, nterms, &terms)) == SV_ERROR) {
-     PyErr_SetString( MathErr, "error in fft");
-     mathobj->deleteArray(pts,nlistpts,2);
-     delete mathobj;
-     
+  if (mathObj.FFT(pts, nlistpts, numInterpPoints, nterms, &terms) == SV_ERROR) {
+       mathObj.deleteArray(pts,nlistpts,dim);
+       api.error("Error calculating the fft.");
+       return nullptr;
   }
 
-  // create result string
-  char r[2048];
-  PyObject *pylist=PyList_New(nterms);
-  if(pylist!=NULL)
-  {
-  for (i = 0; i < nterms; i++) {
-      PyObject* rr = PyList_New(2);
+  // Create result list.
+  PyObject *pylist = PyList_New(nterms);
+  for (int i = 0; i < nterms; i++) {
+      PyObject* rr = PyList_New(dim);
       PyList_SetItem(rr,0,PyFloat_FromDouble(terms[i][0]));
       PyList_SetItem(rr,1,PyFloat_FromDouble(terms[i][1]));
-        if(!rr)
-        {
-        Py_DECREF(pylist);
-        return NULL;
-        }
-    PyList_SET_ITEM(pylist, i, rr);
-    }
+      PyList_SET_ITEM(pylist, i, rr);
   }
 
-  // clean up
-  mathobj->deleteArray(pts,nlistpts,2);
-  mathobj->deleteArray(terms,nterms,2);
-  delete mathobj;
-
+  mathObj.deleteArray(pts,nlistpts,dim);
+  mathObj.deleteArray(terms,nterms,dim);
   return pylist;
 }
 
+//--------------------
+// pyMath_inverse_fft 
+//--------------------
+//
+PyDoc_STRVAR(pyMath_inverse_fft_doc,
+  "inverse_fft(kernel)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// ------------------
-// Math_inverseFFTCmd
-// ------------------
-
-PyObject *pyMath_inverseFFTCmd(PyObject *self, PyObject *args)
+static PyObject * 
+pyMath_inverse_fft(PyObject *self, PyObject *args)
 {
+  auto api = SvPyUtilApiFunction("Odddi", PyRunTimeErr, __func__);
+  PyObject *termsArg;
   double t0 = 0;
   double dt = 0;
   double omega = 0;
   int numPts = 0;
 
-  PyObject *termsArg;
+  if (!PyArg_ParseTuple(args, api.format, &termsArg, &t0, &dt, &omega, &numPts)) { return api.argsError();
+      return api.argsError();
+  }
 
-    if (!PyArg_ParseTuple(args,"Odddi", &termsArg,
-      &t0,&dt,&omega,&numPts))
-    {
-      PyErr_SetString(MathErr, "Could not import 1 tuple, 3 double and 1 int: termsArg, t0, dt,omega, numPts");
-      return NULL;
-    }
-
-
-  // Do work of command
-  if (!PyList_Check(termsArg)){
-    PyErr_SetString( MathErr, "termsArg is not a list");
-    
+  // Get an array of points from the pointsArgs list.
+  int dim = 2;
+  auto terms = GetPointsFromList(api, termsArg, dim, "terms");
+  if (terms == nullptr) {
+      return nullptr;
   }
   int nlistterms = PyList_Size(termsArg);
-  if (nlistterms < 0)   return NULL;
 
-  int numTerms = 0;
-
-  int i;
-  cvMath *mathobj = new cvMath();
-  double **terms = mathobj->createArray(nlistterms,2);
-  double term[2];
-  int nt = 0;
-
-  for (i = 0; i < nlistterms; i++) {
-
-    PyObject *temp=PyList_GetItem(termsArg,i);
-    if (temp!=NULL)
-    {
-      for (int j=0;j<2;j++)
-      {
-        terms[i][j]=PyFloat_AsDouble(PyList_GetItem(temp,j));
-      }
-    }
-
-  }
-
-  //for (i = 0; i < nlistterms; i++) {
-  //     fprintf(stdout,"Term %i:  %lf %lf\n",i,terms[i][0],terms[i][1]);
-  //}
-
+  // Perform inverse fft operation.
+  //
+  auto mathObj = cvMath();
   double **pts = NULL;
-  if ( (mathobj->inverseFFT(terms, nlistterms, t0, dt, omega, numPts, &pts)) == SV_ERROR) {
-     PyErr_SetString( MathErr, "error in inverse fft" );
-     mathobj->deleteArray(terms,nlistterms,2);
-     delete mathobj;
-     
+  if (mathObj.inverseFFT(terms, nlistterms, t0, dt, omega, numPts, &pts) == SV_ERROR) {
+       mathObj.deleteArray(terms,nlistterms,dim);
+       api.error("Error calculating the inverse fft.");
+       return nullptr;
   }
 
-  // create result string
+  // Create result string
+  //
+  // [TODO:DaveP] This converts results to a string, not 
+  //    a list list the fft function above.
+  //
   char r[2048];
-  PyObject *pylist=PyList_New(numPts);
-  if(pylist!=NULL)
-  {
-  for (i = 0; i < numPts; i++) {
-    r[0] = '\0';
-    sprintf(r,"%.6le %.6le",pts[i][0],pts[i][1]);
-    PyObject *rr=PyBytes_FromString(r);
-    if(!rr)
-    {
-      Py_DECREF(pylist);
-      return NULL;
-    }
-    PyList_SET_ITEM(pylist, i, rr);
-    }
+  PyObject *pylist = PyList_New(numPts);
+  for (int i = 0; i < numPts; i++) {
+      r[0] = '\0';
+      sprintf(r,"%.6le %.6le",pts[i][0],pts[i][1]);
+      PyObject *rr = PyBytes_FromString(r);
+      PyList_SET_ITEM(pylist, i, rr);
   }
 
-  // clean up
-  mathobj->deleteArray(terms,nlistterms,2);
-  mathobj->deleteArray(pts,numPts,2);
-  delete mathobj;
+  // [TODO:DaveP] this is hideous!
+  mathObj.deleteArray(terms,nlistterms,dim);
+  mathObj.deleteArray(pts,numPts,dim);
 
   return pylist;
 }
 
+//--------------------------
+// pyMath_compute_womersley 
+//--------------------------
+//
+// [TODO:DaveP] need keyword args here.
+//
+PyDoc_STRVAR(pyMath_compute_womersley_doc,
+  "compute_womersley(kernel)                                    \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// ------------------------
-// Math_computeWomersleyCmd
-// ------------------------
-PyObject *pyMath_computeWomersleyCmd(PyObject *self, PyObject *args)
+static PyObject *
+pyMath_compute_womersley(PyObject *self, PyObject *args)
 {
+  auto api = SvPyUtilApiFunction("Odddddd", PyRunTimeErr, __func__);
+  PyObject *termsArg;
   double time = 0;
   double viscosity = 0;
   double omega = 0;
@@ -266,493 +265,442 @@ PyObject *pyMath_computeWomersleyCmd(PyObject *self, PyObject *args)
   double radmax = 0;
   double radius = 0;
 
-  PyObject *termsArg;
+  if (!PyArg_ParseTuple(args, api.format, &termsArg, &time, &viscosity, &omega, &density, &radmax, &radius)) {
+      return api.argsError();
+  }
 
-    if (!PyArg_ParseTuple(args,"Odddddd", &termsArg,
-      &time,&viscosity,&omega,&density,&radmax,&radius))
-    {
-      PyErr_SetString(MathErr, "Could not import 1 tuple and 6 double: termsArg,time,viscosity,omega,density,radmax,radius");
-      return NULL;
-    }
+  // TODO:DaveP] check other args.
 
-  // Do work of command
-  if (!PyList_Check(termsArg)){
-    PyErr_SetString( MathErr, "termsArg not a list");
-    
+  // Get an array of points from the pointsArgs list.
+  int dim = 2;
+  auto terms = GetPointsFromList(api, termsArg, dim, "terms");
+  if (terms == nullptr) {
+      return nullptr;
   }
   int nlistterms = PyList_Size(termsArg);
-  if (nlistterms < 0)   return NULL;
-  int numTerms = 0;
 
-  int i;
-  cvMath *mathobj = new cvMath();
-  double **terms = mathobj->createArray(nlistterms,2);
-  int nt = 0;
-
-  for (i = 0; i < nlistterms; i++) {
-    PyObject *temp=PyList_GetItem(termsArg,i);
-    if (temp!=NULL)
-    {
-      for (int j=0;j<2;j++)
-      {
-        terms[i][j]=PyFloat_AsDouble(PyList_GetItem(temp,j));
-      }
-    }
-  }
-
-  //for (i = 0; i < nlistterms; i++) {
-  //     fprintf(stdout,"Term %i:  %lf %lf\n",i,terms[i][0],terms[i][1]);
-  //}
-
+  // Perform the womersley operation.
+  //
+  auto mathObj = cvMath();
   double velocity = 0;
-  if ((mathobj->compute_v_womersley(terms, nlistterms, viscosity, density,
-                     omega, radmax, radius, time, &velocity)) == SV_ERROR) {
-     PyErr_SetString( MathErr, "error in calculate worm" );
-     mathobj->deleteArray(terms,nlistterms,2);
-     delete mathobj;
-     
+  if (mathObj.compute_v_womersley(terms, nlistterms, viscosity, density, omega, radmax, radius, time, &velocity) == SV_ERROR) {
+       mathObj.deleteArray(terms,nlistterms,dim);
+       api.error("Error calculating the womersley velocity.");
+       return nullptr;
   }
 
-  // clean up
-  mathobj->deleteArray(terms,nlistterms,2);
-  delete mathobj;
+  mathObj.deleteArray(terms,nlistterms,dim);
 
   return Py_BuildValue("d",velocity);
 }
 
-PyObject *pyMath_linearInterpCmd(PyObject *self, PyObject *args)
+//---------------------------
+// pyMath_linear_interpolate
+//---------------------------
+//
+PyDoc_STRVAR(pyMath_linear_interpolate_doc,
+  "linear_interpolate(kernel)                                    \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
+
+static PyObject * 
+pyMath_linear_interpolate(PyObject *self, PyObject *args)
 {
+  auto api = SvPyUtilApiFunction("Oi", PyRunTimeErr, __func__);
+  PyObject *pointsArg;
   int numInterpPoints = 0;
 
-  PyObject *pointsArg;
-
-  if (!PyArg_ParseTuple(args,"Oi", &pointsArg,
-      &numInterpPoints))
-  {
-      PyErr_SetString(MathErr, "Could not import 1 tuple and 1 int: termsArg,numInterpPoints");
-      return NULL;
+  if (!PyArg_ParseTuple(args, api.format, &pointsArg, &numInterpPoints)) {
+      return api.argsError();
   }
 
-
-  // Do work of command
-
-  if (!PyList_Check(pointsArg)){
-    PyErr_SetString( MathErr, "pointsArg not a list");
-    
+  // Get an array of points from the pointsArgs list.
+  int dim = 2;
+  auto pts = GetPointsFromList(api, pointsArg, dim, "points");
+  if (pts == nullptr) {
+      return nullptr;
   }
   int nlistpts = PyList_Size(pointsArg);
-  if (nlistpts < 0)   return NULL;
-  int npts = 0;
 
-
-  int i;
-  cvMath *mathobj = new cvMath();
-  double **pts = mathobj->createArray(nlistpts,2);
-
-
-  for (i = 0; i < nlistpts; i++) {
-
-    PyObject *temp=PyList_GetItem(pointsArg,i);
-    if (temp!=NULL)
-    {
-      for (int j=0;j<2;j++)
-      {
-        pts[i][j]=PyFloat_AsDouble(PyList_GetItem(temp,j));
-      }
-    }
-  }
-
-  //for (i = 0; i < nlistpts; i++) {
-  //     fprintf(stdout,"Point %i:  %lf %lf\n",i,pts[i][0],pts[i][1]);
-  //}
-
-  // here we calculate dt so that our time series will go from
-  // 0 to T.
+  // Calculate dt so that our time series will go from 0 to T.
   double t0 = pts[0][0];
   double dt = (pts[nlistpts-1][0]-t0)/(numInterpPoints-1);
   double **outPts = NULL;
 
-  if ((mathobj->linearInterpolate(pts, nlistpts, t0, dt, numInterpPoints, &outPts)) == SV_ERROR) {
-     PyErr_SetString( MathErr, "error in linear interpolation");
-     mathobj->deleteArray(pts,nlistpts,2);
-     delete mathobj;
-     
+  // Perform the linear interpolation.
+  auto mathObj = cvMath();
+  if (mathObj.linearInterpolate(pts, nlistpts, t0, dt, numInterpPoints, &outPts) == SV_ERROR) {
+       mathObj.deleteArray(pts,nlistpts,dim);
+       api.error("Error linear interplating points.");
+       return nullptr;
   }
 
   // create result string
   char r[2048];
-  PyObject *pylist=PyList_New(numInterpPoints);
-  if(pylist!=NULL)
-  {
-  for (i = 0; i < numInterpPoints; i++) {
+  PyObject *pylist = PyList_New(numInterpPoints);
+  for (int i = 0; i < numInterpPoints; i++) {
     r[0] = '\0';
     sprintf(r,"%.6le %.6le",outPts[i][0],outPts[i][1]);
-    PyObject *rr=PyBytes_FromString(r);
-    if(!rr)
-    {
-      Py_DECREF(pylist);
-      return NULL;
-    }
+    PyObject *rr = PyBytes_FromString(r);
     PyList_SET_ITEM(pylist, i, rr);
-    }
   }
 
-  // clean up
-  mathobj->deleteArray(pts,nlistpts,2);
-  mathobj->deleteArray(outPts,numInterpPoints,2);
-  delete mathobj;
+  mathObj.deleteArray(pts,nlistpts,dim);
+  mathObj.deleteArray(outPts,numInterpPoints,dim);
 
   return pylist;
 }
 
-PyObject *pyMath_curveLengthCmd(PyObject *self, PyObject *args)
+//---------------------
+// pyMath_curve_length
+//---------------------
+//
+PyDoc_STRVAR(pyMath_curve_length_doc,
+  "curve_length(kernel)                                    \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
+
+static PyObject *
+pyMath_curve_length(PyObject *self, PyObject *args)
 {
+  auto api = SvPyUtilApiFunction("Oi", PyRunTimeErr, __func__);
+  PyObject *pointsArg;
   int closed = 0;
 
-  PyObject *pointsArg;
-  if (!PyArg_ParseTuple(args,"Oi", &pointsArg,
-      &closed))
-  {
-      PyErr_SetString(MathErr, "Could not import 1 tuple and 1 int: termsArg,closed");
-      return NULL;
+  if (!PyArg_ParseTuple(args, api.format, &pointsArg, &closed)) {
+      return api.argsError();
   }
 
-  // Do work of command
-  if (!PyList_Check(pointsArg)){
-    PyErr_SetString( MathErr, "pointsArg not a list");
-    
+  // Get an array of points from the pointsArgs list.
+  int dim = 3;
+  auto pts = GetPointsFromList(api, pointsArg, dim, "points");
+  if (pts == nullptr) {
+      return nullptr;
   }
   int nlistpts = PyList_Size(pointsArg);
-  if (nlistpts < 0)   return NULL;
-  int npts = 0;
 
-  int i;
-  cvMath *mathobj = new cvMath();
-  double **pts = mathobj->createArray(nlistpts,3);
-  double pt[3];
-
-  for (i = 0; i < nlistpts; i++) {
-    PyObject *temp=PyList_GetItem(pointsArg,i);
-    if (temp!=NULL)
-    {
-      for (int j=0;j<3;j++)
-      {
-        pts[i][j]=PyFloat_AsDouble(PyList_GetItem(temp,j));
-      }
-    }
-  }
-
-  //for (i = 0; i < nlistpts; i++) {
-  //     fprintf(stdout,"Point %i:  %lf %lf\n",i,pts[i][0],pts[i][1]);
-  //}
-
+  // Calculate the curve length.
+  //
+  auto mathObj = cvMath();
   double length = 0;
-  if ((mathobj->curveLength(pts, nlistpts, closed, &length)) == SV_ERROR) {
-     PyErr_SetString( MathErr, "error finding curve length" );
-     mathobj->deleteArray(pts,nlistpts,3);
-     delete mathobj;
-     
+  if (mathObj.curveLength(pts, nlistpts, closed, &length) == SV_ERROR) {
+       mathObj.deleteArray(pts,nlistpts,dim);
+       api.error("Error calculating the curve length.");
+       return nullptr;
   }
 
-  // clean up
-  mathobj->deleteArray(pts,nlistpts,3);
-  delete mathobj;
+  mathObj.deleteArray(pts,nlistpts,dim);
 
   return Py_BuildValue("d",length);
 }
 
-PyObject *pyMath_linearInterpolateCurveCmd(PyObject *self, PyObject *args)
+//---------------------------------
+// pyMath_linear_interpolate_curve
+//---------------------------------
+//
+PyDoc_STRVAR(pyMath_linear_interpolate_curve_doc,
+  "inear_interpolate_curve(kernel)                                    \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
+
+static PyObject * 
+pyMath_linear_interpolate_curve(PyObject *self, PyObject *args)
 {
+  auto api = SvPyUtilApiFunction("Oii", PyRunTimeErr, __func__);
+  PyObject *pointsArg;
   int numInterpPoints = 0;
   int closed = 0;
 
-  PyObject *pointsArg;
-  if (!PyArg_ParseTuple(args,"Oii", &pointsArg,
-      &closed,&numInterpPoints))
-  {
-      PyErr_SetString(MathErr, "Could not import 1 tuple and 2 int: termsArg,closed,&numInterpPoints");
-      return NULL;
+  if (!PyArg_ParseTuple(args, api.format, &pointsArg, &closed, &numInterpPoints)) {
+      return api.argsError();
   }
 
-  // Do work of command
-  if (!PyList_Check(pointsArg)){
-    PyErr_SetString( MathErr, "pointsArg not a list");
-    
+  // Get an array of points from the pointsArgs list.
+  int dim = 3;
+  auto pts = GetPointsFromList(api, pointsArg, dim, "points");
+  if (pts == nullptr) {
+      return nullptr;
   }
   int nlistpts = PyList_Size(pointsArg);
-  if (nlistpts < 0)   return NULL;
-  int npts = 0;
 
-  int i;
-  cvMath *mathobj = new cvMath();
-  double **pts = mathobj->createArray(nlistpts,3);
-  double pt[3];
-
-  for (i = 0; i < nlistpts; i++) {
-    PyObject *temp=PyList_GetItem(pointsArg,i);
-    if (temp!=NULL)
-    {
-      for (int j=0;j<3;j++)
-      {
-        pts[i][j]=PyFloat_AsDouble(PyList_GetItem(temp,j));
-      }
-    }
-  }
-
-  //for (i = 0; i < nlistpts; i++) {
-  //     fprintf(stdout,"Point %i:  %lf %lf\n",i,pts[i][0],pts[i][1]);
-  //}
-
+  // Interpolate the curve.
+  //
+  auto mathObj = cvMath();
   double **outPts = NULL;
-  if ((mathobj->linearInterpolateCurve(pts, nlistpts, closed, numInterpPoints, &outPts)) == SV_ERROR) {
-     PyErr_SetString( MathErr, "error in linear interpolation" );
-     mathobj->deleteArray(pts,nlistpts,3);
-     delete mathobj;
-     
+  if (mathObj.linearInterpolateCurve(pts, nlistpts, closed, numInterpPoints, &outPts) == SV_ERROR) {
+      mathObj.deleteArray(pts,nlistpts,dim);
+      api.error("Error interpolating the curve length.");
+      return nullptr;
   }
 
   // create result string
   char r[2048];
   PyObject *pylist=PyList_New(numInterpPoints);
-  if(pylist!=NULL)
-  {
-  for (i = 0; i < numInterpPoints; i++) {
-    r[0] = '\0';
-    sprintf(r,"%.6le %.6le %.6le",outPts[i][0],outPts[i][1],outPts[i][2]);
-    PyObject *rr=PyBytes_FromString(r);
-    if(!rr)
-    {
-      Py_DECREF(pylist);
-      return NULL;
-    }
-    PyList_SET_ITEM(pylist, i, rr);
-    }
+  for (int i = 0; i < numInterpPoints; i++) {
+     r[0] = '\0';
+     sprintf(r,"%.6le %.6le %.6le",outPts[i][0],outPts[i][1],outPts[i][2]);
+     PyObject *rr=PyBytes_FromString(r);
+     PyList_SET_ITEM(pylist, i, rr);
   }
 
-  // clean up
-  mathobj->deleteArray(pts,nlistpts,3);
-  mathobj->deleteArray(outPts,numInterpPoints,3);
-  delete mathobj;
+  mathObj.deleteArray(pts,nlistpts,dim);
+  mathObj.deleteArray(outPts,numInterpPoints,dim);
 
   return pylist;
 }
 
+//---------------------------
+// pyMath_fit_least_squares 
+//---------------------------
+//
+PyDoc_STRVAR(pyMath_fit_least_squares_doc,
+  "fit_least_squares(kernel)                                    \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
 
-// -----------------------
-// Math_fitLeastSquaresCmd
-// -----------------------
-PyObject *pyMath_fitLeastSquaresCmd(PyObject *self, PyObject *args)
+static PyObject *
+pyMath_fit_least_squares(PyObject *self, PyObject *args)
 {
+  auto api = SvPyUtilApiFunction("OOii", PyRunTimeErr, __func__);
   int xOrder = 0;
   int yOrder = 0;
 
   PyObject *xtermsArg;
   PyObject *ytermsArg;
 
-  if (!PyArg_ParseTuple(args,"OOii",  &xtermsArg,
-                         &ytermsArg,
-                        &xOrder,&yOrder))
-  {
-      PyErr_SetString(MathErr, "Could not import 2 tuple and 2 int:xtermsArg, termsArg,xOrder,yOrder");
-      return NULL;
+  if (!PyArg_ParseTuple(args, api.format,  &xtermsArg, &ytermsArg, &xOrder,&yOrder)) {
+      return api.argsError();
   }
 
-
-  // Do work of command
-  if (!(PyList_Check(xtermsArg)||PyList_Check(ytermsArg))){
-    PyErr_SetString( MathErr, "xtermsArg or ytermsArg is not a list");
-    
-  }
   int numberOfSamples = PyList_Size(xtermsArg);
   int numberOfSamplesY = PyList_Size(ytermsArg);
-  if (numberOfSamples < 0)   return NULL;
-
   if (numberOfSamples!= numberOfSamplesY) {
-
-      PyErr_SetString(MathErr,"ERROR:  X and Y must have the same number of samples\n");
+      api.error("The number of x terms ("+std::to_string(numberOfSamples)+") != the number of y terms ("+std::to_string(numberOfSamplesY)+"."); 
+      return nullptr;
   }
 
-  int numTerms = 0;
-
-  int i,j;
-  cvMath *mathobj = new cvMath();
-  PyObject *temp;
-  double **xt = mathobj->createArray(numberOfSamples,xOrder);
-  for (i = 0; i < numberOfSamples; i++) {
-    temp=PyList_GetItem(xtermsArg,i);
-    if (temp!=NULL)
-    {
-      for (int j=0;j<3;j++)
-      {
-        xt[i][j]=PyFloat_AsDouble(PyList_GetItem(temp,j));
-      }
-    }
+  // Get an array of points from the xtermsArg list.
+  int dim = 3;
+  auto xt = GetPointsFromList(api, xtermsArg, dim, "x terms");
+  if (xt == nullptr) {
+      return nullptr;
   }
 
-  double **yt = mathobj->createArray(numberOfSamples,yOrder);
-  for (i = 0; i < numberOfSamples; i++) {
-    temp=PyList_GetItem(ytermsArg,i);
-    if (temp!=NULL)
-    {
-      for (j=0;j<3;j++)
-      {
-        yt[i][j]=PyFloat_AsDouble(PyList_GetItem(temp,j));
-      }
-    }
-  }
-  // debug print
-  for (int k = 0; k < numberOfSamples; k++) {
-      for (i = 0; i < xOrder; i++) {
-       fprintf(stdout,"%lf ",xt[k][i]);
-      }
-      fprintf(stdout, " M : ");
-      for (j = 0; j < yOrder; j++) {
-          fprintf(stdout,"%lf ",yt[k][j]);
-      }
-      fprintf(stdout,"\n");
+  // Get an array of points from the xtermsArg list.
+  auto yt = GetPointsFromList(api, ytermsArg, dim, "y terms");
+  if (yt == nullptr) {
+      return nullptr;
   }
 
-  double **mt = mathobj->createArray(xOrder,yOrder);
-  if ( (mathobj->fitLeastSquares(numberOfSamples,xt,xOrder,yt,yOrder,mt)) == SV_ERROR) {
-     PyErr_SetString( MathErr, "error in least squares fit" );
-      mathobj->deleteArray(xt,numberOfSamples,xOrder);
-      mathobj->deleteArray(yt,numberOfSamples,yOrder);
-      delete mathobj;
-      delete temp;
-      
+  // Perform the least squares fit.
+  //
+  auto mathObj = cvMath();
+  double **mt = mathObj.createArray(xOrder,yOrder);
+  if (mathObj.fitLeastSquares(numberOfSamples,xt,xOrder,yt,yOrder,mt) == SV_ERROR) {
+     PyErr_SetString( PyRunTimeErr, "error in least squares fit" );
+      mathObj.deleteArray(xt,numberOfSamples,xOrder);
+      mathObj.deleteArray(yt,numberOfSamples,yOrder);
+      api.error("Error performing the least squares fit.");
+      return nullptr;
   }
 
   // create result string
   char r[2048];
   PyObject *pylist=PyList_New(xOrder);
-  if(pylist!=NULL)
-  {
-  for (i = 0; i < xOrder; i++) {
-    r[0] = '\0';
-    for (j = 0; j < yOrder; j++) {
-    sprintf(r,"%.6le ",mt[i][j]);
-    PyObject *rr=PyBytes_FromString(r);
-    if(!rr)
-    {
-      Py_DECREF(pylist);
-      return NULL;
-    }
-    PyList_SET_ITEM(pylist, i, rr);
-  }
-    }
+  for (int i = 0; i < xOrder; i++) {
+      r[0] = '\0';
+      for (int j = 0; j < yOrder; j++) {
+          sprintf(r,"%.6le ",mt[i][j]);
+          PyObject *rr=PyBytes_FromString(r);
+          PyList_SET_ITEM(pylist, i, rr);
+     }
   }
 
-  // clean up
-  mathobj->deleteArray(xt,numberOfSamples,xOrder);
-  mathobj->deleteArray(yt,numberOfSamples,yOrder);
-  mathobj->deleteArray(mt,xOrder,yOrder);
-  delete mathobj;
+  mathObj.deleteArray(xt,numberOfSamples,xOrder);
+  mathObj.deleteArray(yt,numberOfSamples,yOrder);
+  mathObj.deleteArray(mt,xOrder,yOrder);
 
   return pylist;
 }
 
 
-PyObject *pyMath_smoothCurveCmd(PyObject *self, PyObject *args)
+//---------------------
+// pyMath_smooth_curve
+//---------------------
+//
+PyDoc_STRVAR(pyMath_smooth_curve_doc,
+  "smooth_curve(kernel)                                    \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
+
+static PyObject *
+pyMath_smooth_curve(PyObject *self, PyObject *args)
 {
+  auto api = SvPyUtilApiFunction("Oiii", PyRunTimeErr, __func__);
   int numInterpPoints = 0;
   int closed = 0;
   int numModes = 0;
 
   PyObject *pointsArg;
-  if (!PyArg_ParseTuple(args,"Oiii",  &pointsArg,
-      &closed,&numModes,&numInterpPoints))
-  {
-      PyErr_SetString(MathErr, "Could not import 1 tuple and 3 int: termsArg,closed,numModes,numInterpPoints");
-      return NULL;
+  if (!PyArg_ParseTuple(args, api.format,  &pointsArg, &closed, &numModes, &numInterpPoints)) {
+      return api.argsError();
   }
 
-
-  // Do work of command
-  if (!PyList_Check(pointsArg)){
-    PyErr_SetString( MathErr, "pointsArg is not a list");
-    
+  // Get an array of points from the pointsArgs list.
+  int dim = 3;
+  auto pts = GetPointsFromList(api, pointsArg, dim, "points");
+  if (pts == nullptr) {
+      return nullptr;
   }
   int nlistpts = PyList_Size(pointsArg);
-  if (nlistpts < 0)   return NULL;
-  int npts = 0;
 
-  int i;
-  cvMath *mathobj = new cvMath();
-  double **pts = mathobj->createArray(nlistpts,3);
-
-  for (i = 0; i < nlistpts; i++) {
-    PyObject *temp=PyList_GetItem(pointsArg,i);
-    if (temp!=NULL)
-    {
-      for (int j=0;j<3;j++)
-      {
-        pts[i][j] = PyFloat_AsDouble(PyList_GetItem(temp,j));
-      }
-    }
-  }
-
+  // Smooth the curve.
+  //
+  auto mathObj = cvMath();
   double **outPts = NULL;
-  if ((mathobj->smoothCurve(pts, nlistpts, closed, numModes, numInterpPoints, &outPts)) == SV_ERROR) {
-     PyErr_SetString( MathErr, "error in smoothing curve");
-     mathobj->deleteArray(pts,nlistpts,3);
-     delete mathobj;
-     
+  if (mathObj.smoothCurve(pts, nlistpts, closed, numModes, numInterpPoints, &outPts) == SV_ERROR) {
+      mathObj.deleteArray(pts,nlistpts,dim);
+      api.error("Error soothing the curve.");
+      return nullptr;
   }
 
   // create result string
   char r[2048];
   PyObject *pylist=PyList_New(numInterpPoints);
-  if(pylist!=NULL)
-  {
-  for (i = 0; i < numInterpPoints; i++) {
-    r[0] = '\0';
-    sprintf(r,"%.6le %.6le %.6le",outPts[i][0],outPts[i][1],outPts[i][2]);
-    PyObject *rr=PyBytes_FromString(r);
-    if(!rr)
-    {
-      Py_DECREF(pylist);
-      return NULL;
-    }
-    PyList_SET_ITEM(pylist, i, rr);
-    }
+  for (int i = 0; i < numInterpPoints; i++) {
+      r[0] = '\0';
+      sprintf(r,"%.6le %.6le %.6le",outPts[i][0],outPts[i][1],outPts[i][2]);
+      PyObject *rr=PyBytes_FromString(r);
+      PyList_SET_ITEM(pylist, i, rr);
   }
-  // clean up
-  mathobj->deleteArray(pts,nlistpts,3);
-  mathobj->deleteArray(outPts,numInterpPoints,3);
-  delete mathobj;
+
+  mathObj.deleteArray(pts,nlistpts,dim);
+  mathObj.deleteArray(outPts,numInterpPoints,dim);
 
   return pylist;
 }
-//All functions listed and initiated as pyMath_methods declared here
-// --------------------
-// pyImage_methods
-// --------------------
+
+
+////////////////////////////////////////////////////////
+//          M o d u l e  D e f i n i t i o n          //
+////////////////////////////////////////////////////////
+
+//---------------------
+// Math module methods
+//---------------------
+//
 static PyMethodDef pyMath_methods[] = {
-   {"FFT", pyMath_FFTCmd, METH_VARARGS,NULL},
-   {"InverseFFT", pyMath_inverseFFTCmd, METH_VARARGS,NULL},
-   {"ComputeWomersley", pyMath_computeWomersleyCmd, METH_VARARGS,NULL},
-   {"LinearInterp", pyMath_linearInterpCmd, METH_VARARGS,NULL},
-   {"CurveLength", pyMath_curveLengthCmd, METH_VARARGS,NULL},
-   {"LinearInterpCurve", pyMath_linearInterpolateCurveCmd, METH_VARARGS,NULL},
-   {"FitLeastSquares", pyMath_fitLeastSquaresCmd, METH_VARARGS,NULL},
-   {"SmoothCurve", pyMath_smoothCurveCmd, METH_VARARGS,NULL},
+
+   {"compute_womersley", pyMath_compute_womersley, METH_VARARGS, pyMath_compute_womersley_doc},
+
+   {"curve_length", pyMath_curve_length, METH_VARARGS, pyMath_curve_length_doc},
+
+   {"fft", pyMath_fft, METH_VARARGS, pyMath_fft_doc},
+
+   {"fit_least_squares", pyMath_fit_least_squares, METH_VARARGS, pyMath_fit_least_squares_doc},
+
+   {"inverse_fft", pyMath_inverse_fft, METH_VARARGS, pyMath_inverse_fft_doc},
+
+   {"linear_interpolate", pyMath_linear_interpolate, METH_VARARGS, pyMath_linear_interpolate_doc},
+
+   {"linear_interpolate_curve", pyMath_linear_interpolate_curve, METH_VARARGS, pyMath_linear_interpolate_curve_doc},
+
+   {"smooth_curve", pyMath_smooth_curve, METH_VARARGS, pyMath_smooth_curve_doc},
+
   {NULL,       NULL},
   };
 
+
+//-----------------------
+// Initialize the module
+//-----------------------
+// Define the initialization function called by the Python 
+// interpreter when the module is loaded.
+
+static char* MODULE_NAME = "math";
+
+PyDoc_STRVAR(MathModule_doc, "math module functions");
+
+
+//---------------------------------------------------------------------------
+//                           PYTHON_MAJOR_VERSION 3                         
+//---------------------------------------------------------------------------
+
 #if PYTHON_MAJOR_VERSION == 3
+
+// Size of per-interpreter state of the module.
+// Set to -1 if the module keeps state in global variables. 
+static int perInterpreterStateSize = -1;
+
+// Always initialize this to PyModuleDef_HEAD_INIT.
+static PyModuleDef_Base m_base = PyModuleDef_HEAD_INIT;
+
+// Define the module definition struct which holds all information 
+// needed to create a module object. 
 static struct PyModuleDef pyMathmodule = {
-   PyModuleDef_HEAD_INIT,
-   "pyMath",   /* name of module */
-   "pyMath module", /* module documentation, may be NULL */
-   -1,       /* size of per-interpreter state of the module,
-                or -1 if the module keeps state in global variables. */
+   m_base,
+   MODULE_NAME,  
+   MathModule_doc, 
+   perInterpreterStateSize, 
    pyMath_methods
 };
+
+//---------------
+// PyInit_pyMath 
+//---------------
+// The initialization function called by the Python interpreter when the module is loaded.
+//
+PyMODINIT_FUNC 
+PyInit_pyMath(void)
+{
+  auto module = PyModule_Create(&pyMathmodule);
+  if (module == NULL) {
+    printf("Error creating Python math module!\n");
+    return NULL;
+  }
+
+  // Add math.MathException exception.
+  //
+  PyRunTimeErr = PyErr_NewException("math.MathException", NULL, NULL);
+  Py_INCREF(PyRunTimeErr);
+  PyModule_AddObject(module,"MathException", PyRunTimeErr);
+
+  Py_INCREF(module);
+
+  return module;
+}
+
 #endif
-// --------------------
-// initpyImage
-// --------------------
+
+//---------------------------------------------------------------------------
+//                           PYTHON_MAJOR_VERSION 2                         
+//---------------------------------------------------------------------------
+
 #if PYTHON_MAJOR_VERSION == 2
+
+//-------------
+// initpyMath 
+//-------------
 PyMODINIT_FUNC
 initpyMath(void)
 {
@@ -760,30 +708,10 @@ PyObject *pyMth;
 pyMth = Py_InitModule("pyMath",pyMath_methods);
 
 
-MathErr = PyErr_NewException("pyMath.error",NULL,NULL);
-Py_INCREF(MathErr);
-PyModule_AddObject(pyMth,"error",MathErr);
+PyRunTimeErr = PyErr_NewException("pyMath.error",NULL,NULL);
+Py_INCREF(PyRunTimeErr );
+PyModule_AddObject(pyMth, "error", PyRunTimeErr);
 
 }
 #endif
 
-#if PYTHON_MAJOR_VERSION == 3
-PyMODINIT_FUNC PyInit_pyMath(void)
-{
-  PyObject *pyMth;
-
-  pyMth = PyModule_Create(&pyMathmodule);
-  printf("PyModule_Create called\n");
-  if (pyMth==NULL) {
-    printf("Error Creating Python module!\n");
-    return NULL;
-  }
-
-MathErr = PyErr_NewException("pyMath.error",NULL,NULL);
-Py_INCREF(MathErr);
-PyModule_AddObject(pyMth,"error",MathErr);
-Py_INCREF(pyMth);
-return pyMth;
-
-}
-#endif

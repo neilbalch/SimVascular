@@ -29,18 +29,16 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __SV4GUI_VIS_INIT_PY_H
-#define __SV4GUI_VIS_INIT_PY_H
+#ifndef SV4GUI_DMG_INIT_PY_H
+#define SV4GUI_DMG_INIT_PY_H
 
 #include "SimVascular.h"
 #include "Python.h"
 
-extern "C" int GUI_pyInit();
-
 #if PYTHON_MAJOR_VERSION == 2
-PyMODINIT_FUNC initpyGUI();
+PyMODINIT_FUNC initpyDmg();
 #elif PYTHON_MAJOR_VERSION == 3
-PyMODINIT_FUNC PyInit_pyGUI();
+PyMODINIT_FUNC PyInit_pyDmg();
 #endif
 
-#endif // __SV4GUI_VIS_INIT_PY_H     
+#endif 

@@ -42,7 +42,7 @@
 #include "SimVascular.h"
 #include "SimVascular_python.h"
 
-#include "sv4gui_Vis_init_py.h"
+#include "sv4gui_dmg_init_py.h"
 #include "sv_Repository.h"
 #include "sv_PolyData.h"
 #include "sv_StrPts.h"
@@ -541,7 +541,7 @@ GetDataStorage(SvPyUtilApiFunction& api)
   if (context) {
       dsServiceRef = context->getServiceReference<mitk::IDataStorageService>();
   } else {
-      api.error("Could not get the active data storgage.");
+      api.error("Could not get the active data storgage. A project must be active.");
       return dataStorage; 
   }
 
@@ -551,7 +551,7 @@ GetDataStorage(SvPyUtilApiFunction& api)
   }
     
   if (!dss) {
-      api.error("Could not get the active data storgage.");
+      api.error("Could not get the active data storgage. A project must be active.");
       return dataStorage; 
   }
     
@@ -781,9 +781,9 @@ Dmg_import_unstructured_grid_from_repository(PyObject* self, PyObject* args)
     return SV_PYTHON_OK;
 }
 
-// ------------------
-//  GUI_ExportModelToRepos
-// ------------------
+//--------------------------------
+// Dmg_export_model_to_repository 
+//--------------------------------
 //
 PyDoc_STRVAR(Dmg_export_model_to_repository_doc,
   "export_model_to_repository(kernel)                                    \n\ 
@@ -1416,7 +1416,7 @@ Dmg_remove_data_node(PyObject* self, PyObject* args)
 // dmg module methods
 //--------------------
 //
-PyMethodDef pyGUI_methods[] =
+PyMethodDef pyDmg_methods[] =
 {
     {"export_contour_to_repository", Dmg_export_contour_to_repository, METH_VARARGS, Dmg_export_contour_to_repository_doc},
 
@@ -1470,34 +1470,34 @@ static PyModuleDef_Base m_base = PyModuleDef_HEAD_INIT;
 // Define the module definition struct which holds all information 
 // needed to create a module object. 
 
-static struct PyModuleDef pyGUImodule = {
+static struct PyModuleDef pyDmgmodule = {
    m_base,
    MODULE_NAME, 
    DmgModule_doc, 
    perInterpreterStateSize,  
-   pyGUI_methods
+   pyDmg_methods
 };
 
 //--------------
-// PyInit_pyGUI
+// PyInit_pyDmg
 //--------------
 //
 PyMODINIT_FUNC 
-PyInit_pyGUI(void)
+PyInit_pyDmg(void)
 {
-  PyObject *pyGUI;
-  pyGUI = PyModule_Create(&pyGUImodule);
+  PyObject *pyDmg;
+  pyDmg = PyModule_Create(&pyDmgmodule);
 
   if ( gRepository == NULL ) {
     gRepository = new cvRepository();
-    fprintf( stdout, "gRepository created from pyGUI\n" );
+    fprintf( stdout, "gRepository created from pyDmg\n" );
   }
   
-  PyRunTimeErr = PyErr_NewException("pyGUI.error",NULL,NULL);
+  PyRunTimeErr = PyErr_NewException("pyDmg.error",NULL,NULL);
   Py_INCREF(PyRunTimeErr);
-  PyModule_AddObject(pyGUI,"error",PyRunTimeErr);
+  PyModule_AddObject(pyDmg,"error",PyRunTimeErr);
   
-  return pyGUI;
+  return pyDmg;
 
 }
 #endif
@@ -1507,26 +1507,26 @@ PyInit_pyGUI(void)
 //---------------------------------------------------------------------------
 
 //------------------
-//  initpyGUI
+//  initpyDmg
 //------------------
 #if PYTHON_MAJOR_VERSION == 2
-PyMODINIT_FUNC initpyGUI(void)
+PyMODINIT_FUNC initpyDmg(void)
 
 {
 
-  PyObject *pyGUI;
+  PyObject *pyDmg;
   
   if ( gRepository == NULL ) {
     gRepository = new cvRepository();
-    fprintf( stdout, "gRepository created from pyGUI\n" );
+    fprintf( stdout, "gRepository created from pyDmg\n" );
     return;
   }
   
-  pyGUI = Py_InitModule("pyGUI",pyGUI_methods);
+  pyDmg = Py_InitModule("pyDmg",pyDmg_methods);
 
   PyRunTimeErr = PyErr_NewException("dmg.DmgException",NULL,NULL);
   Py_INCREF(PyRunTimeErr);
-  PyModule_AddObject(pyGUI,"DmgException",PyRunTimeErr);
+  PyModule_AddObject(pyDmg,"DmgException",PyRunTimeErr);
 
 }
 
