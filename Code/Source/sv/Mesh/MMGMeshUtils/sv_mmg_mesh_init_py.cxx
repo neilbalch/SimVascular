@@ -75,35 +75,30 @@ PyObject* PyRunTimeErr;
 static PyObject * 
 MMG_remesh(PyObject* self, PyObject* args)
 {
-  std::string functionName = svPyUtilGetFunctionName(__func__);
-  std::string msgp = svPyUtilGetMsgPrefix(functionName);
-  std::string format = "ss|ddddd:" + functionName;
-
+  auto api = SvPyUtilApiFunction("ss|ddddd", PyRunTimeErr, __func__);
   char *srcName, *dstName;
-  double hmax = 0.1;
   double hmin = 0.1;
+  double hmax = 0.1;
   double angle = 45.0;
   double hgrad = 1.1;
   double hausd = 0.01;
 
-  if (!PyArg_ParseTuple(args, format.c_str(), &srcName, &dstName, &hmin, &hmax, &angle, &hgrad, &hausd)) {
-      return svPyUtilResetException(PyRunTimeErr);
+  if (!PyArg_ParseTuple(args, api.format, &srcName, &dstName, &hmin, &hmax, &angle, &hgrad, &hausd)) {
+   return api.argsError();
   }
 
   // Check that the source Polydata object is in the
   // repository and that it is the correct type.
   //
-  auto src = gRepository->GetObject( srcName );
+  auto src = gRepository->GetObject(srcName);
   if (src == NULL) {
-      auto msg = msgp + "The Mesh object '" + srcName + "' is not in the repository.";
-      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      api.error("The Mesh object '" + std::string(srcName) + "' is not the repository.");
       return nullptr;
   }
 
   auto type = src->GetType();
   if (type != POLY_DATA_T) {
-      auto msg = msgp + "'" + srcName + "' is not a Polydata object.";
-      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      api.error("'" + std::string(srcName) + "' is not a polydata object.");
       return nullptr;
   }
 
@@ -113,8 +108,7 @@ MMG_remesh(PyObject* self, PyObject* args)
   //   Can't it just  be overwritten?
   //
   if (gRepository->Exists(dstName)) {
-      auto msg = msgp + "The destination Mesh object '" + dstName + "' is already in the repository.";
-      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      api.error("The Mesh object '" + std::string(dstName) + "' is already in the repository.");
       return nullptr;
   }
 
@@ -129,22 +123,19 @@ MMG_remesh(PyObject* self, PyObject* args)
   vtkDoubleArray *meshSizingFunction = NULL;
 
   if (MMGUtils_SurfaceRemeshing(surfPolydata, hmin, hmax, hausd, angle, hgrad, useSizingFunction, meshSizingFunction, numAddedRefines) != SV_OK) {
-      auto msg = msgp + "Error remeshing object '" + srcName + "'.";
-      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      api.error("Error remeshing object '" + std::string(srcName) + "'.");
       return nullptr;
   }
 
   auto dst = new cvPolyData(surfPolydata);
   if (dst == NULL) {
-      auto msg = msgp + "Error creating polydata from the remeshed object '" + dstName + "'.";
-      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      api.error("Error creating polydata from the remeshed object '" + std::string(dstName) + "'.");
       return nullptr;
   }
 
   if (!gRepository->Register(dstName, dst)) {
       delete dst;
-      auto msg = msgp + "Error adding the remeshed object '" + dstName + "' to the repository.";
-      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      api.error("Error adding the remeshed object '" + std::string(dstName) + "' to the repository.");
       return nullptr;
   }
 
@@ -157,15 +148,9 @@ MMG_remesh(PyObject* self, PyObject* args)
 
 PyMethodDef Mmgmesh_methods[] =
 {
-  {"remesh", 
-      MMG_remesh,
-      METH_VARARGS,
-      NULL
-  },
-
+  {"remesh", MMG_remesh, METH_VARARGS, NULL },
   {NULL,NULL}
 };
-
 
 //-----------------------
 // Initialize the module
@@ -175,8 +160,7 @@ PyMethodDef Mmgmesh_methods[] =
 
 static char* MODULE_NAME = "mesh_util";
 
-PyDoc_STRVAR(Contour_doc,
-  "mesh_util functions");
+PyDoc_STRVAR(MeshUtil_doc, "mesh_util functions");
 
 //---------------------------------------------------------------------------
 //                           PYTHON_MAJOR_VERSION 3                         
@@ -187,7 +171,7 @@ PyDoc_STRVAR(Contour_doc,
 static struct PyModuleDef pyMeshUtilmodule = {
    PyModuleDef_HEAD_INIT,
    MODULE_NAME,  
-   "", /* module documentation, may be NULL */
+   MeshUtil_doc,
    -1,       /* size of per-interpreter state of the module,
                 or -1 if the module keeps state in global variables. */
    Mmgmesh_methods

@@ -29,6 +29,11 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+// The functions defined here implement the SV Python API VMTK utils module. 
+//
+// The module name is 'vmtk_utils'. 
+//
+
 #include "SimVascular.h"
 #include "SimVascular_python.h"
 
@@ -41,6 +46,7 @@
 #include "sv_vmtk_utils.h"
 #include "sv_SolidModel.h"
 #include "sv_vtk_utils.h"
+#include "sv_PyUtils.h"
 #include "Python.h"
 #include "vtkSmartPointer.h"
 
@@ -49,218 +55,129 @@
 #undef GetObject
 #endif
 
-// Globals:
-// --------
-
 #include "sv2_globals.h"
 
+// Exception type used by PyErr_SetString() to set the for the error indicator.
+static PyObject * PyRunTimeErr;
 
-// Prototypes:
-// -----------
-#ifdef SV_USE_VMTK
-PyObject* PyRunTimeErr;
-#if PYTHON_MAJOR_VERSION == 2
-PyMODINIT_FUNC initpyVMTKUtils();
-#elif PYTHON_MAJOR_VERSION == 3
-PyMODINIT_FUNC PyInit_pyVMTKUtils();
-#endif
-
-
-PyObject* Geom_CenterlinesCmd( PyObject* self, PyObject* args);
-
-PyObject* Geom_DistanceToCenterlinesCmd( PyObject* self, PyObject* args);
-
-PyObject* Geom_GroupPolyDataCmd( PyObject* self, PyObject* args);
-
-PyObject* Geom_SeparateCenterlinesCmd( PyObject* self, PyObject* args);
-
-PyObject* Geom_MergeCenterlinesCmd( PyObject* self, PyObject* args);
-
-PyObject* Geom_CapCmd( PyObject* self, PyObject* args);
-
-PyObject* Geom_CapWIdsCmd( PyObject* self, PyObject* args);
-
-PyObject* Geom_MapAndCorrectIdsCmd( PyObject* self, PyObject* args);
-#endif
-
-// Helper functions
-// ----------------
-
-
-// ---------
-// Vmtkutils_Init
-// ---------
-
-int Vmtkutils_pyInit()
+//-------------------
+// GetRepositoryData 
+//-------------------
+// Get repository data of the given type. 
+//
+static cvRepositoryData *
+GetRepositoryData(SvPyUtilApiFunction& api, char* name, RepositoryDataT dataType)
 {
-#if PYTHON_MAJOR_VERSION == 2
-  initpyVMTKUtils();
-#elif PYTHON_MAJOR_VERSION == 3
-  PyInit_pyVMTKUtils();
-#endif
-  return SV_OK;
-}
-
-//-----------------
-//VMTKUtils_methods
-//-----------------
-PyMethodDef VMTKUtils_methods[]=
-{
-#ifdef SV_USE_VMTK
-  { "Centerlines", Geom_CenterlinesCmd, METH_VARARGS,NULL},
-  { "Grouppolydata", Geom_GroupPolyDataCmd, METH_VARARGS,NULL},
-  { "Distancetocenterlines", Geom_DistanceToCenterlinesCmd, METH_VARARGS,NULL},
-  { "Separatecenterlines", Geom_SeparateCenterlinesCmd, METH_VARARGS,NULL},
-  { "Mergecenterlines", Geom_MergeCenterlinesCmd, METH_VARARGS,NULL},
-  { "Cap", Geom_CapCmd, METH_VARARGS,NULL},
-  { "Cap_with_ids", Geom_CapWIdsCmd, METH_VARARGS,NULL},
-  { "Mapandcorrectids", Geom_MapAndCorrectIdsCmd, METH_VARARGS,NULL},
-#endif
-  {NULL,NULL}
-};
-
-#if PYTHON_MAJOR_VERSION == 3
-static struct PyModuleDef pyVMTKUtilsmodule = {
-   PyModuleDef_HEAD_INIT,
-   "pyVMTKUtils",   /* name of module */
-   "", /* module documentation, may be NULL */
-   -1,       /* size of per-interpreter state of the module,
-                or -1 if the module keeps state in global variables. */
-   VMTKUtils_methods
-};
-#endif
-//------------------
-//initpyVMTKUtils
-//------------------
-#if PYTHON_MAJOR_VERSION == 2
-PyMODINIT_FUNC initpyVMTKUtils()
-{
-  PyObject* pythonC;
-  pythonC=Py_InitModule("pyVMTKUtils",VMTKUtils_methods);
-
-  if (pythonC==NULL)
-  {
-    fprintf(stdout,"Error initializing pyVMTKUtils.\n");
-    return;
-
+  auto data = gRepository->GetObject(name);
+  if (data == NULL) {
+      api.error("'"+std::string(name)+"' is not in the repository.");
+      return nullptr;
   }
-  PyRunTimeErr=PyErr_NewException("pyVMTKUtils.error",NULL,NULL);
-  PyModule_AddObject(pythonC,"error",PyRunTimeErr);
-  return;
-}
-#endif
-
-#if PYTHON_MAJOR_VERSION == 3
-PyMODINIT_FUNC PyInit_pyVMTKUtils()
-{
-  PyObject* pythonC;
-
-  pythonC = PyModule_Create(&pyVMTKUtilsmodule);
-  if (pythonC==NULL)
-  {
-    fprintf(stdout,"Error initializing pyVMTKUtils.\n");
-    return SV_PYTHON_ERROR;
+  if (gRepository->GetType(name) != dataType) { 
+      auto typeStr = std::string(RepositoryDataT_EnumToStr(dataType));
+      api.error("'" + std::string(name) + "' does not have type '" + typeStr + "'.");
+      return nullptr;
   }
-  PyRunTimeErr=PyErr_NewException("pyVMTKUtils.error",NULL,NULL);
-  PyModule_AddObject(pythonC,"error",PyRunTimeErr);
 
-  return pythonC;
+  return data; 
 }
 
-#endif
-//--------------------
-//Geom_CenterlinesCmd
-//--------------------
+//////////////////////////////////////////////////////
+//          M o d u l e  F u n c t i o n s          //
+//////////////////////////////////////////////////////
+//
+// Python API functions. 
+
 #ifdef SV_USE_VMTK
-PyObject* Geom_CenterlinesCmd( PyObject* self, PyObject* args)
+
+//------------------
+// Geom_centerlines 
+//------------------
+//
+PyDoc_STRVAR(Geom_centerlines_doc,
+  " Geom_centerlines(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args:                                    \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject * 
+Geom_centerlines(PyObject* self, PyObject* args)
 {
-  char *usage;
+  auto api = SvPyUtilApiFunction("sOOss", PyRunTimeErr, __func__);
+  char *geomName;
   PyObject* sourceList;
   PyObject* targetList;
   char *linesName;
   char *voronoiName;
-  char *geomName;
-  cvRepositoryData *geomSrc;
+ 
+  char *usage;
   cvRepositoryData *linesDst = NULL;
   cvRepositoryData *voronoiDst = NULL;
   RepositoryDataT type;
 
-  if (!PyArg_ParseTuple(args,"sOOss",&geomName,&sourceList,&targetList,
-	&linesName, &voronoiName))
-  {
-    PyErr_SetString(PyRunTimeErr,
-	"Could not import three chars and two list, geomName, sourceList,"
-	"targetList, linesName, voronoiName");
-    
+  if (!PyArg_ParseTuple(args, api.format, &geomName,&sourceList,&targetList, &linesName, &voronoiName)) {
+      return api.argsError();
   }
 
-  // Retrieve source object:
-  geomSrc = gRepository->GetObject( geomName );
-  if ( geomSrc == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object" );
-    
-  }
-
-  type = geomSrc->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr, " obj not of type cvPolyData");
-    
+  auto geomSrc = GetRepositoryData(api, geomName, POLY_DATA_T);
+  if (geomSrc == nullptr) {
+    return nullptr; 
   }
 
   // Make sure the specified dst object does not exist:
-  if ( gRepository->Exists( linesName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    
+  if (gRepository->Exists(linesName)) {
+    api.error("The object '"+std::string(linesName)+"' is already in the repository.");
+    return nullptr; 
   }
 
-  if ( gRepository->Exists( voronoiName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    
+  if (gRepository->Exists(voronoiName)) {
+    api.error("The object '"+std::string(voronoiName)+"' is already in the repository.");
+    return nullptr; 
   }
 
+  // [TODO:DaveP] should this be an error?
+  //
   int nsources = PyList_Size(sourceList);
   int ntargets = PyList_Size(targetList);
-  if (nsources==0||ntargets==0)
-  {
+  if (nsources==0||ntargets==0) {
     return SV_PYTHON_OK;
   }
 
-  int *sources = new int[nsources];
-  int *targets = new int[ntargets];
+  // Get the source and target IDs?
+  //
+  std::vector<int> sources;
+  std::vector<int> targets;
 
-  for (int i=0;i<nsources;i++)
-  {
-    sources[i]=PyLong_AsLong(PyList_GetItem(sourceList,i));
-  }
-  for (int j=0;j<ntargets;j++)
-  {
-    targets[j]=PyLong_AsLong(PyList_GetItem(targetList,j));
-  }
-  // Do work of command:
-
-  if ( sys_geom_centerlines( (cvPolyData*)geomSrc, sources, nsources, targets, ntargets, (cvPolyData**)(&linesDst), (cvPolyData**)(&voronoiDst))
-       != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr,"error creating centerlines");
-    
+  for (int i=0;i<nsources;i++) {
+    sources.push_back(PyLong_AsLong(PyList_GetItem(sourceList,i)));
   }
 
-  delete [] sources;
-  delete [] targets;
-
-  if ( !( gRepository->Register( linesName, linesDst ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
-    delete linesDst;
-    delete voronoiDst;
-    
+  for (int j=0;j<ntargets;j++) {
+    targets.push_back(PyLong_AsLong(PyList_GetItem(targetList,j)));
   }
 
-  if ( !( gRepository->Register( voronoiName, voronoiDst ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
-    delete linesDst;
-    delete voronoiDst;
-    
+  if (sys_geom_centerlines(geomSrc, sources.data(), nsources, targets.data(), ntargets, &linesDst, &voronoiDst) 
+    != SV_OK ) {
+    api.error("Error creating centerlines.");
+    return nullptr; 
   }
 
+  if (!gRepository->Register(linesName, linesDst)) {
+      delete linesDst;
+      delete voronoiDst;
+      api.error("Error adding the lines data '" + std::string(linesName) + "' to the repository.");
+      return nullptr;
+  }
+
+  if (!gRepository->Register(voronoiName, voronoiDst)) {
+      delete linesDst;
+      delete voronoiDst;
+      api.error("Error adding the voronoi data '" + std::string(voronoiName) + "' to the repository.");
+      return nullptr;
+  }
 
   return Py_BuildValue("s",linesDst->GetName());
 }
@@ -268,6 +185,8 @@ PyObject* Geom_CenterlinesCmd( PyObject* self, PyObject* args)
 //------------------
 //Geom_GroupPolyDataCmd
 //------------------
+
+
 PyObject* Geom_GroupPolyDataCmd( PyObject* self, PyObject* args)
 {
   char *usage;
@@ -688,3 +607,125 @@ PyObject* Geom_MapAndCorrectIdsCmd( PyObject* self, PyObject* args)
   return Py_BuildValue("s",geomDst->GetName()) ;
 }
 #endif
+
+
+////////////////////////////////////////////////////////
+//          M o d u l e  D e f i n i t i o n          //
+////////////////////////////////////////////////////////
+
+#if PYTHON_MAJOR_VERSION == 2
+PyMODINIT_FUNC initpyVMTKUtils();
+#elif PYTHON_MAJOR_VERSION == 3
+PyMODINIT_FUNC PyInit_pyVMTKUtils();
+#endif
+
+//----------------
+// Vmtkutils_Init
+//----------------
+//
+int Vmtkutils_pyInit()
+{
+#if PYTHON_MAJOR_VERSION == 2
+  initpyVMTKUtils();
+#elif PYTHON_MAJOR_VERSION == 3
+  PyInit_pyVMTKUtils();
+#endif
+  return SV_OK;
+}
+
+//-------------------
+// VMTKUtils_methods
+//-------------------
+//
+PyMethodDef VMTKUtils_methods[]=
+{
+#ifdef SV_USE_VMTK
+
+  { "centerlines", Geom_centerlines, METH_VARARGS, Geom_centerlines_doc},
+
+  { "Grouppolydata", Geom_GroupPolyDataCmd, METH_VARARGS,NULL},
+
+  { "Distancetocenterlines", Geom_DistanceToCenterlinesCmd, METH_VARARGS,NULL},
+
+  { "Separatecenterlines", Geom_SeparateCenterlinesCmd, METH_VARARGS,NULL},
+
+  { "Mergecenterlines", Geom_MergeCenterlinesCmd, METH_VARARGS,NULL},
+
+  { "Cap", Geom_CapCmd, METH_VARARGS,NULL},
+
+  { "Cap_with_ids", Geom_CapWIdsCmd, METH_VARARGS,NULL},
+
+  { "Mapandcorrectids", Geom_MapAndCorrectIdsCmd, METH_VARARGS,NULL},
+
+#endif
+
+  {NULL,NULL}
+};
+
+//-----------------------
+// Initialize the module
+//-----------------------
+// Define the initialization function called by the Python interpreter 
+// when the module is loaded.
+
+static char* MODULE_NAME = "vmtk_utils";
+
+PyDoc_STRVAR(VmtkUtils_doc, "vmtk_utils module functions");
+
+//---------------------------------------------------------------------------
+//                           PYTHON_MAJOR_VERSION 3                         
+//---------------------------------------------------------------------------
+
+#if PYTHON_MAJOR_VERSION == 3
+
+static struct PyModuleDef pyVMTKUtilsmodule = {
+   PyModuleDef_HEAD_INIT,
+   MODULE_NAME, 
+   VmtkUtils_doc, 
+   -1,       /* size of per-interpreter state of the module,
+                or -1 if the module keeps state in global variables. */
+   VMTKUtils_methods
+};
+
+PyMODINIT_FUNC 
+PyInit_pyVMTKUtils()
+{
+  auto module = PyModule_Create(&pyVMTKUtilsmodule);
+  if (module == NULL) {
+    fprintf(stdout,"Error initializing pyVMTKUtils.\n");
+    return SV_PYTHON_ERROR;
+  }
+
+  PyRunTimeErr = PyErr_NewException("pyVMTKUtils.error",NULL,NULL);
+  PyModule_AddObject(module,"error",PyRunTimeErr);
+
+  return module;
+}
+
+#endif
+
+//---------------------------------------------------------------------------
+//                           PYTHON_MAJOR_VERSION 2                         
+//---------------------------------------------------------------------------
+
+//------------------
+//initpyVMTKUtils
+//------------------
+#if PYTHON_MAJOR_VERSION == 2
+PyMODINIT_FUNC initpyVMTKUtils()
+{
+  PyObject* pythonC;
+  pythonC=Py_InitModule("pyVMTKUtils",VMTKUtils_methods);
+
+  if (pythonC==NULL)
+  {
+    fprintf(stdout,"Error initializing pyVMTKUtils.\n");
+    return;
+
+  }
+  PyRunTimeErr=PyErr_NewException("pyVMTKUtils.error",NULL,NULL);
+  PyModule_AddObject(pythonC,"error",PyRunTimeErr);
+  return;
+}
+#endif
+

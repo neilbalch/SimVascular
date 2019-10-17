@@ -129,7 +129,7 @@ void SimVascular_pyInit()
 
 #ifdef SV_USE_TETGEN
   PyImport_AppendInittab("mesh",PyInit_pyMeshObject);
-  PyImport_AppendInittab("pyMeshTetgen",PyInit_pyMeshTetgen);
+  PyImport_AppendInittab("tetgen_mesh",PyInit_pyMeshTetgen);
 #endif
 
 #ifdef SV_USE_MMG
@@ -143,7 +143,7 @@ void SimVascular_pyInit()
 
 #ifdef SV_USE_TETGEN_ADAPTOR
   PyImport_AppendInittab("mesh_adapt",PyInit_pyMeshAdapt);
-  PyImport_AppendInittab("pyTetGenAdapt",PyInit_pyTetGenAdapt);
+  PyImport_AppendInittab("tetgen_adapt",PyInit_pyTetGenAdapt);
 #endif
 
 }

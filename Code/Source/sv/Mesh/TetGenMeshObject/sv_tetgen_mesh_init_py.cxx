@@ -65,14 +65,14 @@ static PyObject* PyRunTimeErr;
 //
 // Python API functions. 
 
-//-------------------------
-// TetGenMesh_AvailableCmd
-//-------------------------
+//----------------------
+// TetGenMesh_available
+//----------------------
 // 
 static PyObject * 
-TetGenMesh_AvailableCmd(PyObject* self, PyObject* args)
+TetGenMesh_available(PyObject* self, PyObject* args)
 {
-  return Py_BuildValue("s", "TetGen Mesh Module Available");
+  return Py_BuildValue("s", "TetGen Mesh module is available.");
 }
 
 ////////////////////////////////////////////////////////
@@ -91,11 +91,7 @@ PyMODINIT_FUNC PyInit_pyMeshTetgen();
 
 PyMethodDef MeshTetgen_methods[]=
 {
-  {"Available",
-      TetGenMesh_AvailableCmd,
-      METH_NOARGS,
-      NULL
-  },
+  {"available", TetGenMesh_available, METH_NOARGS, NULL },
 
   {NULL,NULL}
 };
@@ -106,27 +102,28 @@ PyMethodDef MeshTetgen_methods[]=
 // Define the initialization function called by the Python 
 // interpreter when the module is loaded.
 
-static char* MODULE_NAME = "pyMeshTetgen";
+static char* MODULE_NAME = "tetgen_mesh";
 
-PyDoc_STRVAR(TetgenMesh_doc,
-  "tetgenmesh functions");
+PyDoc_STRVAR(TetgenMesh_doc, "tetgen_mesh functions");
 
 #if PYTHON_MAJOR_VERSION == 3
+
 static struct PyModuleDef pyMeshTetgenmodule = {
    PyModuleDef_HEAD_INIT,
    MODULE_NAME, 
-   "", /* module documentation, may be NULL */
+   TetgenMesh_doc, 
    -1,       /* size of per-interpreter state of the module,
                 or -1 if the module keeps state in global variables. */
    MeshTetgen_methods
 };
 #endif
 
-// ----------
+//-----------------
 // Tetgenmesh_Init
-// ----------
-
-PyObject* Tetgenmesh_pyInit()
+//-----------------
+//
+PyObject * 
+Tetgenmesh_pyInit()
 {
 
 #ifdef TETGEN151
@@ -140,8 +137,7 @@ PyObject* Tetgenmesh_pyInit()
   // Associate the mesh registrar with the Tcl interpreter so it can be
   // retrieved by the DLLs.
 
-	MeshKernelRegistryMethodPtr pMeshKernelRegistryMethod =
-    (MeshKernelRegistryMethodPtr) PySys_GetObject("MeshSystemRegistrar");
+  MeshKernelRegistryMethodPtr pMeshKernelRegistryMethod = (MeshKernelRegistryMethodPtr) PySys_GetObject("MeshSystemRegistrar");
 
   if (pMeshKernelRegistryMethod != NULL) {
     cvMeshSystem* tetGenSystem = new cvTetGenMeshSystem();

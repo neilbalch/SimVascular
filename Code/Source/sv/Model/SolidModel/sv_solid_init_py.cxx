@@ -109,6 +109,7 @@ static PyObject * PyRunTimeErr;
 // it is defined so we need to define its prototype here.
 pySolidModel * createSolidModelType();
 
+//-----------------
 // CheckSolidModel
 //-----------------
 // Check if a solid model is in the repository
@@ -3860,401 +3861,138 @@ SolidModel_remesh_face(pySolidModel* self, PyObject* args)
 
 static PyMethodDef pySolidModel_methods[] = {
 
-  { "apply4x4",
-      (PyCFunction)SolidModel_apply4x4,
-      METH_VARARGS,
-      SolidModel_apply4x4_doc
+  { "apply4x4", (PyCFunction)SolidModel_apply4x4, METH_VARARGS, SolidModel_apply4x4_doc },
+
+  { "box2d", (PyCFunction)SolidModel_box2d, METH_VARARGS, SolidModel_box2d_doc },
+
+  { "box3d", (PyCFunction)SolidModel_box3d, METH_VARARGS, SolidModel_box3d_doc },
+
+  { "cap_surface_to_solid", (PyCFunction)SolidModel_cap_surface_to_solid, METH_VARARGS,     SolidModel_cap_surface_to_solid_doc },
+
+  { "check", (PyCFunction)SolidModel_check, METH_VARARGS, SolidModel_check_doc },
+
+  { "circle", (PyCFunction)SolidModel_circle, METH_VARARGS, SolidModel_circle_doc },
+
+  { "classify_point", (PyCFunction)SolidModel_classify_point, METH_VARARGS,   SolidModel_classify_point_doc },
+
+  { "clear_label", (PyCFunction)SolidModel_clear_label, METH_VARARGS, SolidModel_clear_label_doc },
+
+  { "combine_faces", (PyCFunction)SolidModel_combine_faces, METH_VARARGS, SolidModel_combine_faces_doc },
+
+  { "copy", (PyCFunction)SolidModel_copy, METH_VARARGS, SolidModel_copy_doc },
+
+  { "create_edge_blend", (PyCFunction)SolidModel_create_edge_blend, METH_VARARGS, SolidModel_create_edge_blend_doc },
+
+  { "cylinder", (PyCFunction)SolidModel_cylinder, METH_VARARGS, SolidModel_cylinder_doc },
+
+  { "delete_faces", (PyCFunction)SolidModel_delete_faces, METH_VARARGS, SolidModel_delete_faces_doc },
+
+  { "delete_region", (PyCFunction)SolidModel_delete_region, METH_VARARGS, SolidModel_delete_region_doc },
+
+  { "distance", (PyCFunction)SolidModel_distance, METH_VARARGS, SolidModel_distance_doc },
+
+  { "ellipse", (PyCFunction)SolidModel_ellipse, METH_VARARGS, SolidModel_ellipse_doc },
+
+  { "ellipsoid", (PyCFunction)SolidModel_ellipsoid, METH_VARARGS, SolidModel_ellipsoid_doc },
+
+  { "extrude", (PyCFunction)SolidModel_extrude, METH_VARARGS, SolidModel_extrude_doc },
+
+  { "extrude_z", (PyCFunction)SolidModel_extrude_z, METH_VARARGS, SolidModel_extrude_z_doc },
+
+  { "find_centroid", (PyCFunction)SolidModel_find_centroid, METH_VARARGS, SolidModel_find_centroid_doc },
+
+  { "find_extent", (PyCFunction)SolidModel_find_extent, METH_VARARGS, SolidModel_find_extent_doc },
+
+  { "get_axial_isoparametric_curve", (PyCFunction)SolidModel_get_axial_isoparametric_curve, METH_VARARGS, SolidModel_get_axial_isoparametric_curve_doc },
+
+  { "get_boundary_faces", (PyCFunction)SolidModel_get_boundary_faces, METH_VARARGS,     SolidModel_get_boundary_faces_doc },
+
+  { "get_class_name", (PyCFunction)SolidModel_get_class_name, METH_NOARGS, SolidModel_get_class_name_doc },
+
+  { "get_discontinuities", (PyCFunction)SolidModel_get_discontinuities, METH_VARARGS, SolidModel_get_discontinuities_doc },
+
+  { "get_face_attribute", (PyCFunction)SolidModel_get_face_attribute, METH_VARARGS, SolidModel_get_face_attribute_doc },
+
+  { "get_face_ids", (PyCFunction)SolidModel_get_face_ids, METH_NOARGS, SolidModel_get_face_ids_doc },
+
+  { "get_face_normal", (PyCFunction)SolidModel_get_face_normal, METH_VARARGS,     SolidModel_get_face_normal_doc },
+
+  { "get_face_polydata", (PyCFunction)SolidModel_get_face_polydata, METH_VARARGS, SolidModel_get_face_polydata_doc
   },
 
-  { "box2d", 
-      (PyCFunction)SolidModel_box2d,
-      METH_VARARGS,
-      SolidModel_box2d_doc
-  },
-
-  { "box3d", 
-      (PyCFunction)SolidModel_box3d,
-      METH_VARARGS,
-      SolidModel_box3d_doc
-  },
-
-  { "cap_surface_to_solid", 
-      (PyCFunction)SolidModel_cap_surface_to_solid,
-      METH_VARARGS,     
-      SolidModel_cap_surface_to_solid_doc
-  },
-
-  { "check", 
-      (PyCFunction)SolidModel_check,
-      METH_VARARGS,
-      SolidModel_check_doc
-  },
-
-  { "circle", 
-      (PyCFunction)SolidModel_circle,
-      METH_VARARGS,
-      SolidModel_circle_doc
-  },
-
-  { "classify_point",
-      (PyCFunction)SolidModel_classify_point,
-      METH_VARARGS,   
-      SolidModel_classify_point_doc
-  },
-
-  { "clear_label", 
-      (PyCFunction)SolidModel_clear_label,
-      METH_VARARGS,
-      SolidModel_clear_label_doc
-  },
-
-  { "combine_faces",
-      (PyCFunction)SolidModel_combine_faces,
-      METH_VARARGS,
-      SolidModel_combine_faces_doc
-  },
-
-  { "copy", 
-      (PyCFunction)SolidModel_copy,
-      METH_VARARGS,
-      SolidModel_copy_doc
-  },
-
-  { "create_edge_blend",
-      (PyCFunction)SolidModel_create_edge_blend,
-      METH_VARARGS,
-      SolidModel_create_edge_blend_doc
-  },
-
-  { "cylinder", 
-      (PyCFunction)SolidModel_cylinder,
-      METH_VARARGS,
-      SolidModel_cylinder_doc
-  },
-
-  { "delete_faces",
-      (PyCFunction)SolidModel_delete_faces,
-      METH_VARARGS,
-      SolidModel_delete_faces_doc
-  },
-
-  { "delete_region",
-      (PyCFunction)SolidModel_delete_region,
-      METH_VARARGS,
-      SolidModel_delete_region_doc
-  },
-
-  { "distance",
-      (PyCFunction)SolidModel_distance,
-      METH_VARARGS,
-      SolidModel_distance_doc
-   },
-
-  { "ellipse", 
-      (PyCFunction)SolidModel_ellipse,
-      METH_VARARGS,
-      SolidModel_ellipse_doc
-  },
-
-  { "ellipsoid", 
-      (PyCFunction)SolidModel_ellipsoid,
-      METH_VARARGS,
-      SolidModel_ellipsoid_doc
-  },
-
-  { "extrude", 
-      (PyCFunction)SolidModel_extrude,
-      METH_VARARGS,
-      SolidModel_extrude_doc
-  },
-
-  { "extrude_z", 
-      (PyCFunction)SolidModel_extrude_z,
-      METH_VARARGS,
-      SolidModel_extrude_z_doc
-  },
-
-  { "find_centroid",
-      (PyCFunction)SolidModel_find_centroid,
-      METH_VARARGS,
-      SolidModel_find_centroid_doc
-   },
-
-  { "find_extent", 
-      (PyCFunction)SolidModel_find_extent,
-      METH_VARARGS,
-      SolidModel_find_extent_doc
-   },
-
-  { "get_axial_isoparametric_curve",
-      (PyCFunction)SolidModel_get_axial_isoparametric_curve,
-      METH_VARARGS,
-      SolidModel_get_axial_isoparametric_curve_doc
-  },
-
-  { "get_boundary_faces",
-      (PyCFunction)SolidModel_get_boundary_faces,
-      METH_VARARGS,     
-      SolidModel_get_boundary_faces_doc
-  },
-
-  { "get_class_name", 
-      (PyCFunction)SolidModel_get_class_name,
-      METH_NOARGS,
-      SolidModel_get_class_name_doc
-  },
-
-  { "get_discontinuities",
-      (PyCFunction)SolidModel_get_discontinuities,
-      METH_VARARGS,
-      SolidModel_get_discontinuities_doc
-  },
-
-  { "get_face_attribute",
-      (PyCFunction)SolidModel_get_face_attribute,
-      METH_VARARGS,
-      SolidModel_get_face_attribute_doc
-  },
-
-  { "get_face_ids", 
-      (PyCFunction)SolidModel_get_face_ids,
-      METH_NOARGS,
-      SolidModel_get_face_ids_doc
-  },
-
-  { "get_face_normal",
-      (PyCFunction)SolidModel_get_face_normal,
-      METH_VARARGS,     
-      SolidModel_get_face_normal_doc
-  },
-
-  { "get_face_polydata",
-      (PyCFunction)SolidModel_get_face_polydata,
-      METH_VARARGS,
-      SolidModel_get_face_polydata_doc
-  },
-
-  { "get_kernel",
-      (PyCFunction)SolidModel_get_kernel,
-      METH_VARARGS,
-      SolidModel_get_kernel_doc
-  },
-
-  { "get_label", 
-      (PyCFunction)SolidModel_get_label,
-      METH_VARARGS,
-      SolidModel_get_label_doc
-  },
-
-  { "get_label_keys",
-      (PyCFunction)SolidModel_get_label_keys,
-      METH_VARARGS,
-      SolidModel_get_label_keys_doc
-  },
-
-  { "get_model", 
-      (PyCFunction)SolidModel_get_model, 
-      METH_VARARGS, 
-      SolidModel_get_model_doc
-  },
-
-  { "get_polydata",
-      (PyCFunction)SolidModel_get_polydata,
-      METH_VARARGS,
-      SolidModel_get_polydata_doc
-  },
-
-  { "get_region_attribute",
-      (PyCFunction)SolidModel_get_region_attribute,
-      METH_VARARGS,
-      SolidModel_get_region_attribute_doc
-  },
-
-  { "get_region_ids",
-      (PyCFunction)SolidModel_get_region_ids,
-      METH_VARARGS,     
-      SolidModel_get_region_ids_doc
-  },
-
-  { "get_spatial_dimension",
-      (PyCFunction)SolidModel_get_spatial_dimension,
-      METH_VARARGS,
-      SolidModel_get_spatial_dimension_doc
-  },
-
-  { "get_topological_dimension",
-      (PyCFunction)SolidModel_get_topological_dimension,
-      METH_VARARGS,     
-      SolidModel_get_topological_dimension_doc
-   },
-
-  { "intersect", 
-      (PyCFunction)SolidModel_intersect,
-      METH_VARARGS,
-      SolidModel_intersect_doc
-  },
-
-  { "make_approximate_curve_loop",
-      (PyCFunction)SolidModel_make_approximate_curve_loop,
-      METH_VARARGS,
-      SolidModel_make_approximate_curve_loop_doc
-  },
-
-  { "make_interpolated_curve_loop",
-      (PyCFunction)SolidModel_make_interpolated_curve_loop,
-      METH_VARARGS,
-      SolidModel_make_interpolated_curve_loop_doc
-  },
-
-  { "make_lofted_surface", 
-      (PyCFunction)SolidModel_make_lofted_surface,
-      METH_VARARGS,
-      SolidModel_make_lofted_surface_doc
-  },
-
-  { "new_object", 
-      (PyCFunction)SolidModel_new_object,
-      METH_VARARGS,
-      SolidModel_new_object_doc
-  },
-
-  { "polygon",
-      (PyCFunction)SolidModel_polygon,
-      METH_VARARGS,
-      SolidModel_polygon_doc
-  },
-
-  { "poly3d_solid", 
-      (PyCFunction)SolidModel_poly3d_solid,
-      METH_VARARGS,
-      SolidModel_poly3d_solid_doc
-  },
-
-  { "poly3d_surface", 
-      (PyCFunction)SolidModel_poly3d_surface,
-      METH_VARARGS,
-      SolidModel_poly3d_surface_doc
-  },
-
-  { "polygon_points", 
-      (PyCFunction)SolidModel_polygon_points,
-      METH_VARARGS,
-      SolidModel_polygon_points_doc
-  },
-
-  { "print", 
-      (PyCFunction)SolidModel_print,
-      METH_VARARGS,
-      SolidModel_print_doc
-   },
-
-  { "read_native", 
-      (PyCFunction)SolidModel_read_native,
-      METH_VARARGS,
-      SolidModel_read_native_doc
-  },
-
-  { "reflect",
-      (PyCFunction)SolidModel_reflect,
-      METH_VARARGS,
-      SolidModel_reflect_doc
-  },
-
-  { "remesh_face",
-      (PyCFunction)SolidModel_remesh_face,
-      METH_VARARGS,
-      SolidModel_remesh_face_doc
-  },
-
-  { "rotate",
-      (PyCFunction)SolidModel_rotate,
-      METH_VARARGS,
-      SolidModel_rotate_doc
-  },
-
-  { "scale",
-      (PyCFunction)SolidModel_scale,
-      METH_VARARGS,
-      SolidModel_scale_doc
-  },
-
-  { "set_face_attribute",
-      (PyCFunction)SolidModel_set_face_attribute,
-      METH_VARARGS,
-      SolidModel_set_face_attribute_doc
-  },
-
-  { "set_label",
-      (PyCFunction)SolidModel_set_label,
-      METH_VARARGS,
-      SolidModel_set_label_doc
-  },
-
-  { "set_region_attribute", 
-      (PyCFunction)SolidModel_set_region_attribute,
-      METH_VARARGS,
-      SolidModel_set_region_attribute_doc
-  },
-
-  { "set_vtk_polydata",
-      (PyCFunction)SolidModel_set_vtk_polydata,
-      METH_VARARGS,
-      SolidModel_set_vtk_polydata_doc
-  },
-
-  { "sphere", 
-      (PyCFunction)SolidModel_sphere,
-      METH_VARARGS,
-      SolidModel_sphere_doc
-  },
-
-  { "subtract", 
-      (PyCFunction)SolidModel_subtract,
-      METH_VARARGS,
-      SolidModel_subtract_doc
-  },
-
-  { "torus", 
-      (PyCFunction)SolidModel_torus,
-      METH_VARARGS,
-      SolidModel_torus_doc
-  },
-
-  { "translate", 
-      (PyCFunction)SolidModel_translate,
-      METH_VARARGS,
-      SolidModel_translate_doc
-  },
-
-  { "truncated_cone", 
-      (PyCFunction)SolidModel_truncated_cone,
-      METH_VARARGS,
-      SolidModel_truncated_cone_doc
-  },
-
-  { "union", 
-      (PyCFunction)SolidModel_union,
-      METH_VARARGS,
-      SolidModel_union_doc
-  },
-
-  { "write_geom_sim", 
-      (PyCFunction)SolidModel_write_geom_sim,
-      METH_VARARGS,
-      SolidModel_write_geom_sim_doc
-   },
-
-  { "write_native",
-      (PyCFunction)SolidModel_write_native,
-      METH_VARARGS,
-      SolidModel_write_native_doc
-   },
-
-  { "write_vtk_polydata",
-      (PyCFunction)SolidModel_write_vtk_polydata,
-      METH_VARARGS,
-      SolidModel_write_vtk_polydata_doc
-   },
+  { "get_kernel", (PyCFunction)SolidModel_get_kernel, METH_VARARGS, SolidModel_get_kernel_doc },
+
+  { "get_label", (PyCFunction)SolidModel_get_label, METH_VARARGS, SolidModel_get_label_doc },
+
+  { "get_label_keys", (PyCFunction)SolidModel_get_label_keys, METH_VARARGS, SolidModel_get_label_keys_doc },
+
+  { "get_model", (PyCFunction)SolidModel_get_model, METH_VARARGS, SolidModel_get_model_doc },
+
+  { "get_polydata", (PyCFunction)SolidModel_get_polydata, METH_VARARGS, SolidModel_get_polydata_doc },
+
+  { "get_region_attribute", (PyCFunction)SolidModel_get_region_attribute, METH_VARARGS, SolidModel_get_region_attribute_doc },
+
+  { "get_region_ids", (PyCFunction)SolidModel_get_region_ids, METH_VARARGS,     SolidModel_get_region_ids_doc },
+
+  { "get_spatial_dimension", (PyCFunction)SolidModel_get_spatial_dimension, METH_VARARGS, SolidModel_get_spatial_dimension_doc },
+
+  { "get_topological_dimension", (PyCFunction)SolidModel_get_topological_dimension, METH_VARARGS,     SolidModel_get_topological_dimension_doc },
+
+  { "intersect", (PyCFunction)SolidModel_intersect, METH_VARARGS, SolidModel_intersect_doc },
+
+  { "make_approximate_curve_loop", (PyCFunction)SolidModel_make_approximate_curve_loop, METH_VARARGS, SolidModel_make_approximate_curve_loop_doc },
+
+  { "make_interpolated_curve_loop", (PyCFunction)SolidModel_make_interpolated_curve_loop, METH_VARARGS, SolidModel_make_interpolated_curve_loop_doc },
+
+  { "make_lofted_surface", (PyCFunction)SolidModel_make_lofted_surface, METH_VARARGS, SolidModel_make_lofted_surface_doc },
+
+  { "new_object", (PyCFunction)SolidModel_new_object, METH_VARARGS, SolidModel_new_object_doc },
+
+  { "polygon", (PyCFunction)SolidModel_polygon, METH_VARARGS, SolidModel_polygon_doc },
+
+  { "poly3d_solid", (PyCFunction)SolidModel_poly3d_solid, METH_VARARGS, SolidModel_poly3d_solid_doc },
+
+  { "poly3d_surface", (PyCFunction)SolidModel_poly3d_surface, METH_VARARGS, SolidModel_poly3d_surface_doc },
+
+  { "polygon_points", (PyCFunction)SolidModel_polygon_points, METH_VARARGS, SolidModel_polygon_points_doc },
+
+  { "print", (PyCFunction)SolidModel_print, METH_VARARGS, SolidModel_print_doc },
+
+  { "read_native", (PyCFunction)SolidModel_read_native, METH_VARARGS, SolidModel_read_native_doc },
+
+  { "reflect", (PyCFunction)SolidModel_reflect, METH_VARARGS, SolidModel_reflect_doc },
+
+  { "remesh_face", (PyCFunction)SolidModel_remesh_face, METH_VARARGS, SolidModel_remesh_face_doc },
+
+  { "rotate", (PyCFunction)SolidModel_rotate, METH_VARARGS, SolidModel_rotate_doc },
+
+  { "scale", (PyCFunction)SolidModel_scale, METH_VARARGS, SolidModel_scale_doc },
+
+  { "set_face_attribute", (PyCFunction)SolidModel_set_face_attribute, METH_VARARGS, SolidModel_set_face_attribute_doc },
+
+  { "set_label", (PyCFunction)SolidModel_set_label, METH_VARARGS, SolidModel_set_label_doc },
+
+  { "set_region_attribute", (PyCFunction)SolidModel_set_region_attribute, METH_VARARGS, SolidModel_set_region_attribute_doc },
+
+  { "set_vtk_polydata", (PyCFunction)SolidModel_set_vtk_polydata, METH_VARARGS, SolidModel_set_vtk_polydata_doc },
+
+  { "sphere", (PyCFunction)SolidModel_sphere, METH_VARARGS, SolidModel_sphere_doc },
+
+  { "subtract", (PyCFunction)SolidModel_subtract, METH_VARARGS, SolidModel_subtract_doc },
+
+  { "torus", (PyCFunction)SolidModel_torus, METH_VARARGS, SolidModel_torus_doc },
+
+  { "translate", (PyCFunction)SolidModel_translate, METH_VARARGS, SolidModel_translate_doc },
+
+  { "truncated_cone", (PyCFunction)SolidModel_truncated_cone, METH_VARARGS, SolidModel_truncated_cone_doc },
+
+  { "union", (PyCFunction)SolidModel_union, METH_VARARGS, SolidModel_union_doc },
+
+  { "write_geom_sim", (PyCFunction)SolidModel_write_geom_sim, METH_VARARGS, SolidModel_write_geom_sim_doc },
+
+  { "write_native", (PyCFunction)SolidModel_write_native, METH_VARARGS, SolidModel_write_native_doc },
+
+  { "write_vtk_polydata", (PyCFunction)SolidModel_write_vtk_polydata, METH_VARARGS, SolidModel_write_vtk_polydata_doc },
 
   {NULL,NULL}
 };
@@ -4339,23 +4077,11 @@ pySolidModel * createSolidModelType()
 //
 static PyMethodDef pySolid_methods[] = {
 
-  {"list_registrars", 
-      (PyCFunction)Solid_list_registrars,
-      METH_NOARGS,
-      Solid_list_registrars_doc
-  },
+  {"list_registrars", (PyCFunction)Solid_list_registrars, METH_NOARGS, Solid_list_registrars_doc },
 
-  { "set_kernel", 
-      (PyCFunction)Solid_set_kernel,
-      METH_VARARGS, 
-      NULL
-  },
+  { "set_kernel", (PyCFunction)Solid_set_kernel, METH_VARARGS, NULL },
 
-  { "get_kernel", 
-      (PyCFunction)Solid_get_kernel,
-      METH_NOARGS,
-      Solid_get_kernel_doc
-  },
+  { "get_kernel", (PyCFunction)Solid_get_kernel, METH_NOARGS, Solid_get_kernel_doc },
 
   {NULL, NULL}
 };

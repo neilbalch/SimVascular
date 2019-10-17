@@ -1488,162 +1488,57 @@ pyMeshObject_init(pyMeshObject* self, PyObject* args)
 
 static PyMethodDef pyMeshObject_methods[] = {
 
-  { "adapt",  
-      (PyCFunction)Mesh_adapt,
-      METH_VARARGS,
-      Mesh_adapt_doc
-  },
+  { "adapt",  (PyCFunction)Mesh_adapt, METH_VARARGS, Mesh_adapt_doc },
 
-  { "generate_mesh", 
-      (PyCFunction)Mesh_generate_mesh,
-      METH_VARARGS,
-      Mesh_generate_mesh_doc
-  },
+  { "generate_mesh", (PyCFunction)Mesh_generate_mesh, METH_VARARGS, Mesh_generate_mesh_doc },
 
-  { "get_boundary_faces",
-      (PyCFunction)Mesh_get_boundary_faces,
-      METH_VARARGS,
-      Mesh_get_boundary_faces_doc
-  },
+  { "get_boundary_faces", (PyCFunction)Mesh_get_boundary_faces, METH_VARARGS, Mesh_get_boundary_faces_doc },
 
-  { "get_face_polydata", 
-      (PyCFunction)Mesh_get_face_polydata,
-      METH_VARARGS,
-      Mesh_get_face_polydata_doc
-  },
+  { "get_face_polydata", (PyCFunction)Mesh_get_face_polydata, METH_VARARGS, Mesh_get_face_polydata_doc },
 
-  { "get_kernel", 
-      (PyCFunction)Mesh_get_kernel,
-      METH_VARARGS,
-      Mesh_get_kernel_doc
-  },
+  { "get_kernel", (PyCFunction)Mesh_get_kernel, METH_VARARGS, Mesh_get_kernel_doc },
 
-  {"get_mesh", 
-      (PyCFunction)Mesh_get_mesh, 
-      METH_VARARGS, 
-      Mesh_get_mesh_doc
-  },
+  {"get_mesh", (PyCFunction)Mesh_get_mesh, METH_VARARGS, Mesh_get_mesh_doc },
 
-  { "get_model_face_info",
-      (PyCFunction)Mesh_get_model_face_info,
-      METH_VARARGS,
-      Mesh_get_model_face_info_doc
-  },
+  { "get_model_face_info", (PyCFunction)Mesh_get_model_face_info, METH_VARARGS, Mesh_get_model_face_info_doc },
 
-  { "get_polydata", 
-      (PyCFunction)Mesh_get_polydata,
-      METH_VARARGS,
-      Mesh_get_polydata_doc
-   },
+  { "get_polydata", (PyCFunction)Mesh_get_polydata, METH_VARARGS, Mesh_get_polydata_doc },
 
-  { "get_solid", 
-      (PyCFunction)Mesh_get_solid,
-      METH_VARARGS,
-      Mesh_get_solid_doc
-  },
+  { "get_solid", (PyCFunction)Mesh_get_solid, METH_VARARGS, Mesh_get_solid_doc },
 
-  { "get_unstructured_grid", 
-      (PyCFunction)Mesh_get_unstructured_grid,
-      METH_VARARGS,
-      Mesh_get_unstructured_grid_doc
-  },
+  { "get_unstructured_grid", (PyCFunction)Mesh_get_unstructured_grid, METH_VARARGS, Mesh_get_unstructured_grid_doc },
 
-  { "load_mesh", 
-      (PyCFunction)Mesh_load_mesh,
-      METH_VARARGS,
-      Mesh_load_mesh_doc
-  },
+  { "load_mesh", (PyCFunction)Mesh_load_mesh, METH_VARARGS, Mesh_load_mesh_doc },
 
-  { "load_model", 
-      (PyCFunction)Mesh_load_model,
-      METH_VARARGS,
-      Mesh_load_model_doc
-  },
+  { "load_model", (PyCFunction)Mesh_load_model, METH_VARARGS, Mesh_load_model_doc },
 
-  { "new_mesh", 
-      (PyCFunction)Mesh_new_mesh,
-      METH_VARARGS,
-      Mesh_new_mesh_doc
-  },
+  { "new_mesh", (PyCFunction)Mesh_new_mesh, METH_VARARGS, Mesh_new_mesh_doc },
 
-  {"new_object", 
-      (PyCFunction)Mesh_new_object,
-      METH_VARARGS,
-      Mesh_new_object_doc
-  },
+  {"new_object", (PyCFunction)Mesh_new_object, METH_VARARGS, Mesh_new_object_doc },
 
-  { "print",
-      (PyCFunction)Mesh_print,
-       METH_VARARGS,
-       Mesh_print_doc
-  },
+  { "print", (PyCFunction)Mesh_print, METH_VARARGS, Mesh_print_doc },
 
-  { "set_boundary_layer", 
-      (PyCFunction)Mesh_set_boundary_layer,
-       METH_VARARGS,
-       NULL
-  },
+  { "set_boundary_layer", (PyCFunction)Mesh_set_boundary_layer, METH_VARARGS, NULL },
 
-  { "set_cylinder_refinement", 
-      (PyCFunction)Mesh_set_cylinder_refinement,
-      METH_VARARGS,
-      Mesh_set_cylinder_refinement_doc
-  },
+  { "set_cylinder_refinement", (PyCFunction)Mesh_set_cylinder_refinement, METH_VARARGS, Mesh_set_cylinder_refinement_doc },
 
-  { "set_meshing_options", 
-      (PyCFunction)Mesh_set_meshing_options,
-      METH_VARARGS,
-      Mesh_set_meshing_options_doc
-  },
+  { "set_meshing_options", (PyCFunction)Mesh_set_meshing_options, METH_VARARGS, Mesh_set_meshing_options_doc },
 
-  { "set_size_function_based_mesh", 
-      (PyCFunction)Mesh_set_size_function_based_mesh,
-      METH_VARARGS,
-      Mesh_set_size_function_based_mesh_doc
-  },
+  { "set_size_function_based_mesh", (PyCFunction)Mesh_set_size_function_based_mesh, METH_VARARGS, Mesh_set_size_function_based_mesh_doc },
 
-  { "set_solid_kernel", 
-      (PyCFunction)Mesh_set_solid_kernel,
-      METH_VARARGS,
-      Mesh_set_solid_kernel_doc
-  },
+  { "set_solid_kernel", (PyCFunction)Mesh_set_solid_kernel, METH_VARARGS, Mesh_set_solid_kernel_doc },
 
-  { "set_sphere_refinement",
-      (PyCFunction)Mesh_set_sphere_refinement,
-      METH_VARARGS,
-      Mesh_set_sphere_refinement_doc
-  },
+  { "set_sphere_refinement", (PyCFunction)Mesh_set_sphere_refinement, METH_VARARGS, Mesh_set_sphere_refinement_doc },
 
-  { "set_vtk_polydata",
-      (PyCFunction)Mesh_set_vtk_polydata,
-      METH_VARARGS,
-      Mesh_set_vtk_polydata_doc
-  },
+  { "set_vtk_polydata", (PyCFunction)Mesh_set_vtk_polydata, METH_VARARGS, Mesh_set_vtk_polydata_doc },
 
-  { "set_walls", 
-      (PyCFunction)Mesh_set_walls,
-      METH_VARARGS,
-      Mesh_set_walls_doc
-  },
+  { "set_walls", (PyCFunction)Mesh_set_walls, METH_VARARGS, Mesh_set_walls_doc },
 
-  { "write_mesh", 
-      (PyCFunction)Mesh_write,
-      METH_VARARGS,
-      Mesh_write_doc
-  },
+  { "write_mesh", (PyCFunction)Mesh_write, METH_VARARGS, Mesh_write_doc },
 
-  { "write_metis_adjacency", 
-      (PyCFunction)Mesh_write_metis_adjacency,
-      METH_VARARGS,
-      Mesh_write_metis_adjacency_doc
-   },
+  { "write_metis_adjacency", (PyCFunction)Mesh_write_metis_adjacency, METH_VARARGS, Mesh_write_metis_adjacency_doc },
 
-
-  { "write_stats",
-      (PyCFunction)Mesh_write_stats,
-      METH_VARARGS,
-      Mesh_write_stats_doc
-  },
+  { "write_stats", (PyCFunction)Mesh_write_stats, METH_VARARGS, Mesh_write_stats_doc },
 
   {NULL,NULL}
 };
@@ -1688,6 +1583,8 @@ static PyTypeObject pyMeshObjectType = {
   0,                         /* tp_alloc */
   0,                  /* tp_new */
 };
+
+
 static PyMethodDef pyMeshObjectModule_methods[] =
 {
   //{"mesh_newObject", (PyCFunction)cvMesh_NewObjectCmd,METH_VARARGS,NULL},
@@ -1800,6 +1697,10 @@ PyMODINIT_FUNC PyInit_pyMeshObject()
 }
 
 #endif
+
+//---------------------------------------------------------------------------
+//                           PYTHON_MAJOR_VERSION 2                         
+//---------------------------------------------------------------------------
 
 //----------------
 //initpyMeshObject
