@@ -34,7 +34,7 @@
 #include "sv_utils_init.h"
 #include "sv_math_init_py.h"
 
-/*
+/* [TODO:DaveP] What is this for?
 int Utils_pyInit()
 {
   Math_pyInit();

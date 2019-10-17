@@ -29,14 +29,22 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// The functions defined here implement the SV Python API mesh_adapt module. 
+// The functions defined here implement the SV Python API mesh adapt module. 
+// This module is used for TetGen adaptive meshing.
 //
 // The module name is 'mesh_adapt'. The module defines an 'Adapt' class used
 // to store mesh data. 
 //
+// Two Python types are defined
+//
+//   1) Apapt - Defined by pyAdaptObjectType.
+//
+//   2) pyAdaptObjectRegistrarType
+//
 #include "SimVascular.h"
 #include "SimVascular_python.h"
 
+#include <map>
 #include <stdio.h>
 #include <string.h>
 #include "sv_Repository.h"
@@ -48,6 +56,7 @@
 #include "sv_PolyData.h"
 #include "sv_sys_geom.h"
 #include "vtkPythonUtil.h"
+#include "sv_PyUtils.h"
 
 #include "sv_FactoryRegistrar.h"
 
@@ -59,104 +68,33 @@
 
 #include "sv2_globals.h"
 
-typedef struct
-{
-  PyObject_HEAD
-  cvAdaptObject* geom;
-}pyAdaptObject;
-
-static void pyAdaptObject_dealloc(pyAdaptObject* self)
-{
-  Py_XDECREF(self->geom);
-  Py_TYPE(self)->tp_free((PyObject*)self);
-}
-
-static void AdaptPrintMethods();
-void DeleteAdapt( pyAdaptObject* self );
-
 // Exception type used by PyErr_SetString() to set the for the error indicator.
 PyObject* PyRunTimeErr;
 
-//////////////////////////////////////////////////////
-//          M o d u l e  F u n c t i o n s          //
-//////////////////////////////////////////////////////
-//
-// Python API functions. 
-
-//-------------------------
-// Adapt_RegistrarsListCmd
-//-------------------------
-// This routine is used for debugging the registrar/factory system.
-//
-static PyObject * 
-Adapt_RegistrarsListCmd( PyObject* self, PyObject* args)
+// Define a map between meshing kernel name and enum type.
+static std::map<std::string,KernelType> kernelNameTypeMap =
 {
-  cvFactoryRegistrar *adaptObjectRegistrar = (cvFactoryRegistrar *) PySys_GetObject( "AdaptObjectRegistrar");
+    {"MeshSim", KERNEL_MESHSIM},
+    {"TetGen", KERNEL_TETGEN}
+};
+static std::string validKernelNames = "Valid adaptive meshing kernel names are: MeshSim or TetGen."; 
 
-  char result[255];
-  sprintf( result, "Adapt object registrar ptr -> %p\n", adaptObjectRegistrar );
-  PyObject* pyList=PyList_New(6);
-  PyList_SetItem(pyList,0,PyBytes_FromFormat(result));
-  for (int i = 0; i < 5; i++) {
-    sprintf( result, "GetFactoryMethodPtr(%i) = %p\n",
-      i, (adaptObjectRegistrar->GetFactoryMethodPtr(i)));
-    PyList_SetItem(pyList,i+1,PyBytes_FromFormat(result));
-  }
-
-  return pyList;
-}
-
-static PyObject * 
-cvAdapt_NewObjectCmd( pyAdaptObject* self, PyObject* args)
+//----------------------
+// Define pyAdaptObject
+//----------------------
+//
+class pyAdaptObject 
 {
-  char *resultName = NULL;
+  public:
+      PyObject_HEAD
+      cvAdaptObject* adapt;
+      std::string name;
+}; 
 
-  char *kernelName;
-  if(!(PyArg_ParseTuple(args,"s",&resultName)))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one char, resultname.");
-  }
-
-  // Do work of command:
-
-  // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( resultName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    
-  }
-
-  KernelType meshType = KERNEL_INVALID;
-  kernelName = cvMeshSystem::GetCurrentKernelName();
-  // Instantiate the new mesh:
-  cvAdaptObject *adaptor = NULL;
-  if (!strcmp(kernelName,"TetGen")) {
-    meshType = KERNEL_TETGEN;
-    cvAdaptObject::gCurrentKernel = KERNEL_TETGEN;
-  } else if (!strcmp(kernelName,"MeshSim")) {
-    meshType = KERNEL_MESHSIM;
-    cvAdaptObject::gCurrentKernel = KERNEL_MESHSIM;
-  } else {
-    PyErr_SetString(PyRunTimeErr, "invalid kernel name");
-    
-  }
-  fprintf(stdout, kernelName );
-  adaptor = cvAdaptObject::DefaultInstantiateAdaptObject(meshType);
-
-  if ( adaptor == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "adaptor is NULL");
-  }
-
-  // Register the solid:
-  if ( !( gRepository->Register( resultName, adaptor ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository" );
-    delete adaptor;
-    
-  }
-
-  Py_INCREF(adaptor);
-  self->geom=adaptor;
-  Py_DECREF(adaptor);
-  return SV_PYTHON_OK;
+pyAdaptObject_dealloc(pyAdaptObject* self)
+{
+  Py_XDECREF(self->adapt);
+  Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
 // -------------
@@ -164,521 +102,873 @@ cvAdapt_NewObjectCmd( pyAdaptObject* self, PyObject* args)
 // -------------
 // This is the deletion call-back for cvAdaptObject object commands.
 
+/* [TODO:DaveP] is this used?
 void DeleteAdapt( pyAdaptObject* self ) {
     cvAdaptObject *geom = self->geom;
 
     gRepository->UnRegister( geom->GetName() );
 }
+*/
 
-// ------------
-// AdaptPrintMethods
-// ------------
 
-static void AdaptPrintMethods()
+//////////////////////////////////////////////////////
+//              U t i l i t i e s                   //
+//////////////////////////////////////////////////////
+
+
+//----------------
+// CheckAdaptMesh
+//----------------
+// Check if an adapt mesh object has been created. 
+//
+static cvAdaptObject *
+CheckAdaptMesh(SvPyUtilApiFunction& api, pyAdaptObject* self)
 {
-
-  PySys_WriteStdout( "CreateInternalMeshObject\n");
-  PySys_WriteStdout( "LoadModel\n");
-  PySys_WriteStdout( "LoadMesh\n");
-  PySys_WriteStdout( "LoadSolutionFromFile\n");
-  PySys_WriteStdout( "LoadYbarFromFile\n");
-  PySys_WriteStdout( "LoadAvgSpeedFromFile\n");
-  PySys_WriteStdout( "LoadHessianFromFile\n");
-  PySys_WriteStdout( "ReadSolutionFromMesh\n");
-  PySys_WriteStdout( "ReadYbarFromMesh\n");
-  PySys_WriteStdout( "ReadAvgSpeedFromMesh\n");
-  PySys_WriteStdout( "SetAdaptOptions\n");
-  PySys_WriteStdout( "CheckOptions\n");
-  PySys_WriteStdout( "SetMetric\n");
-  PySys_WriteStdout( "SetupMesh\n");
-  PySys_WriteStdout( "RunAdaptor\n");
-  PySys_WriteStdout( "PrintStats\n");
-  PySys_WriteStdout( "TransferSolution\n");
-  PySys_WriteStdout( "TransferRegions\n");
-  PySys_WriteStdout( "WriteAdaptedModel\n");
-  PySys_WriteStdout( "WriteAdaptedMesh\n");
-  PySys_WriteStdout( "WriteAdaptedSolution\n");
-
-  return;
+  auto name = self->name;
+  auto adapt = self->adapt;
+  if (adapt == NULL) {
+      api.error("An adapt mesh object has not been created for '" + std::string(name) + "'.");
+      return nullptr;
+  }
+  return adapt;
 }
 
-// ----------------
-// cvAdapt_CreateInternalMeshObjectMtd
-// ----------------
-static PyObject* cvAdapt_CreateInternalMeshObjectMtd( pyAdaptObject* self, PyObject* args)
+//////////////////////////////////////////////////////
+//          M o d u l e  F u n c t i o n s          //
+//////////////////////////////////////////////////////
+//
+// Python API functions. 
+
+//------------------
+// Adapt_registrars
+//------------------
+// This routine is used for debugging the registrar/factory system.
+//
+PyDoc_STRVAR(Adapt_registrars_doc,
+" registrars()  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+");
+
+static PyObject * 
+Adapt_registrars(PyObject* self, PyObject* args)
 {
+  cvFactoryRegistrar *adaptObjectRegistrar = (cvFactoryRegistrar *) PySys_GetObject( "AdaptObjectRegistrar");
+
+  char result[255];
+  sprintf( result, "Adapt object registrar ptr -> %p\n", adaptObjectRegistrar );
+  PyObject* pyList = PyList_New(6);
+  PyList_SetItem(pyList,0,PyBytes_FromFormat(result));
+
+  for (int i = 0; i < 5; i++) {
+    sprintf( result, "GetFactoryMethodPtr(%i) = %p\n", i, (adaptObjectRegistrar->GetFactoryMethodPtr(i)));
+    PyList_SetItem(pyList,i+1,PyBytes_FromFormat(result));
+  }
+
+  return pyList;
+}
+
+//--------------------
+// cvAdapt_new_object
+//--------------------
+//
+// [TODO:DaveP] pass in meshing kernel name. 
+//
+PyDoc_STRVAR(cvAdapt_new_object_doc,
+  " new_object()  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+");
+
+static PyObject * 
+cvAdapt_new_object(pyAdaptObject* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  char *resultName = NULL;
+
+  if (!PyArg_ParseTuple(args, api.format,&resultName)) {
+      return api.argsError();
+  }
+
+  // Make sure the specified result object does not exist:
+  if (gRepository->Exists(resultName)) {
+      api.error("The Mesh object '" + std::string(resultName) + "' is already in the repository.");
+      return nullptr;
+  }
+
+  // Set the meshing kernel.
+  //
+  // [TODO:DaveP] get rid of using global.
+  auto meshType = KERNEL_INVALID;
+  auto kernelName = cvMeshSystem::GetCurrentKernelName();
+  try {
+        meshType = kernelNameTypeMap.at(std::string(kernelName));
+  } catch (const std::out_of_range& except) {
+      auto msg = "Invalid adaptive meshing kernel '" + std::string(kernelName) + "'. " + validKernelNames;
+      api.error(msg);
+      return nullptr;
+  }
+
+  // Create the adaptor object.
+  auto adaptor = cvAdaptObject::DefaultInstantiateAdaptObject(meshType);
+  if (adaptor == NULL) {
+    api.error("Error creating the adaptive mesh object '" + std::string(resultName) + "'.");
+    return nullptr;
+  }
+
+  // Register the solid:
+  if (!gRepository->Register(resultName, adaptor)) {
+      delete adaptor;
+      api.error("Error adding the adaptive mesh object '" + std::string(resultName) + "' to the repository.");
+      return nullptr;
+  }
+
+  Py_INCREF(adaptor);
+
+  self->adapt = adaptor;
+  self->name = std::string(resultName);
+
+  Py_DECREF(adaptor);
+  return SV_PYTHON_OK;
+}
+
+//--------------------------------------
+// cvAdapt_create_internal_mesh_object 
+//--------------------------------------
+//
+PyDoc_STRVAR(cvAdapt_create_internal_mesh_object_doc,
+  " create_internal_mesh_object()  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+");
+
+static PyObject * 
+cvAdapt_create_internal_mesh_object(pyAdaptObject* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *meshFileName = NULL;
   char *solidFileName = NULL;
 
-  if(!(PyArg_ParseTuple(args,"ss",&meshFileName,&solidFileName)))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import two chars.");
+  if (!(PyArg_ParseTuple(args,"ss",&meshFileName,&solidFileName))) {
+      return api.argsError();
   }
-  // Do work of command:
 
-  cvAdaptObject *geom =self->geom;
-  if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr,"Adapt object should already be created! It is NULL\n");
-    
+  auto adapt = CheckAdaptMesh(api, self);
+  if (adapt == nullptr) { 
+      return nullptr;
   }
-  if (geom->CreateInternalMeshObject(meshFileName,solidFileName) != SV_OK)
-  {
-    PyErr_SetString(PyRunTimeErr,"Error in creation of internal mesh\n");
-    
+
+  if (adapt->CreateInternalMeshObject(meshFileName,solidFileName) != SV_OK) {
+      api.error("Error creating the internal mesh."); 
+      return nullptr;
   }
 
   return SV_PYTHON_OK;
 }
 
-// ----------------
-// cvAdapt_LoadModelMtd
-// ----------------
-static PyObject* cvAdapt_LoadModelMtd( pyAdaptObject* self, PyObject* args)
+//--------------------
+// cvAdapt_load_model 
+//--------------------
+//
+PyDoc_STRVAR(cvAdapt_load_model_doc,
+  "load_model() \n\ 
+   \n\
+   Create a new mesh object. \n\
+   \n\
+   Args: \n\
+     name (str): Name of the new mesh object to store in the repository. \n\
+");
+
+static PyObject * 
+cvAdapt_load_model(pyAdaptObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *solidFileName = NULL;
 
-  if(!(PyArg_ParseTuple(args,"s",&solidFileName)))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one char, soildFileName.");
+  if (!PyArg_ParseTuple(args, api.format, &solidFileName)) {
+      return api.argsError();
   }
 
-
-  // Do work of command:
-  cvAdaptObject *geom = self->geom;
-  if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr,"Adapt object should already be created! It is NULL\n");
-    
+  auto adapt = CheckAdaptMesh(api, self);
+  if (adapt == nullptr) { 
+      return nullptr;
   }
-  if (geom->LoadModel(solidFileName) != SV_OK)
-  {
-    PyErr_SetString(PyRunTimeErr,"Error in loading of model\n");
-    
-  }//, meshFileName, solidFileName );
+
+  if (adapt->LoadModel(solidFileName) != SV_OK) {
+      api.error("Error loading a model from the file '" + std::string(solidFileName) + "'."); 
+      return nullptr;
+  }
 
   return SV_PYTHON_OK;
 }
 
-// ----------------
-// cvAdapt_LoadMeshMtd
-// ----------------
-static PyObject* cvAdapt_LoadMeshMtd( pyAdaptObject* self, PyObject* args)
+//-------------------
+// cvAdapt_load_mesh 
+//-------------------
+//
+PyDoc_STRVAR(cvAdapt_load_mesh_doc,
+  "load_mesh() \n\ 
+   \n\
+   Create a new mesh object. \n\
+   \n\
+   Args: \n\
+     name (str): Name of the new mesh object to store in the repository. \n\
+");
+
+static PyObject * 
+cvAdapt_load_mesh(pyAdaptObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *meshFileName = NULL;
-  if(!(PyArg_ParseTuple(args,"s",&meshFileName)))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one char, meshFileName");
+
+  if(!(PyArg_ParseTuple(args,"s",&meshFileName))) {
+      return api.argsError();
   }
 
-
-  // Do work of command:
-
-  cvAdaptObject *geom =self->geom;
-  if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr,"Adapt object should already be created! It is NULL\n");
-    
+  auto adapt = CheckAdaptMesh(api, self);
+  if (adapt == nullptr) { 
+      return nullptr;
   }
-  if (geom->LoadMesh(meshFileName) != SV_OK)
-  {
-    PyErr_SetString(PyRunTimeErr,"Error in loading of mesh\n");
-    
+
+  if (adapt->LoadMesh(meshFileName) != SV_OK) {
+      api.error("Error loading a mesh from the file '" + std::string(meshFileName) + "'."); 
+      return nullptr;
   }
 
   return SV_PYTHON_OK;
 }
 
-// ----------------
-// cvAdapt_LoadSolutionFromFileMtd
-// ----------------
-static PyObject* cvAdapt_LoadSolutionFromFileMtd( pyAdaptObject* self, PyObject* args)
+//---------------------------------
+// cvAdapt_load_solution_from_file 
+//---------------------------------
+//
+PyDoc_STRVAR(cvAdapt_load_solution_from_file_doc,
+  "load_solution_from_file() \n\ 
+   \n\
+   Create a new mesh object. \n\
+   \n\
+   Args: \n\
+     name (str): Name of the new mesh object to store in the repository. \n\
+");
+
+static PyObject * 
+cvAdapt_load_solution_from_file(pyAdaptObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *fileName = NULL;
 
-
-  if(!(PyArg_ParseTuple(args,"s",&fileName)))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one char, filename.");
+  if(!(PyArg_ParseTuple(args,"s",&fileName))) {
+      return api.argsError();
   }
 
-  // Do work of command:
-
-  cvAdaptObject *geom = self->geom;
-  if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr,"Adapt object should already be created! It is NULL\n");
-    
+  auto adapt = CheckAdaptMesh(api, self);
+  if (adapt == nullptr) { 
+      return nullptr;
   }
-  if (geom->LoadSolutionFromFile(fileName) != SV_OK)
-  {
-    PyErr_SetString(PyRunTimeErr,"Error in loading of solution\n");
-    
+
+  if (adapt->LoadSolutionFromFile(fileName) != SV_OK) {
+      api.error("Error loading a solution from the file '" + std::string(fileName) + "'."); 
+      return nullptr;
   }
 
   return SV_PYTHON_OK;
 }
 
-// ----------------
-// cvAdapt_LoadYbarFromFileMtd
-// ----------------
-static PyObject* cvAdapt_LoadYbarFromFileMtd( pyAdaptObject* self, PyObject* args)
+//-----------------------------
+// cvAdapt_load_ybar_from_file 
+//-----------------------------
+//
+PyDoc_STRVAR(cvAdapt_load_ybar_from_file_doc,
+  "load_ybar_from_file() \n\ 
+   \n\
+   Create a new mesh object. \n\
+   \n\
+   Args: \n\
+     name (str): Name of the new mesh object to store in the repository. \n\
+");
+
+static PyObject * 
+cvAdapt_load_ybar_from_file(pyAdaptObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *fileName = NULL;
 
-  if(!(PyArg_ParseTuple(args,"s",&fileName)))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one char, fileName.");
+  if(!(PyArg_ParseTuple(args,"s",&fileName))) {
+      return api.argsError();
   }
 
-  // Do work of command:
-
-  cvAdaptObject *geom = self->geom;
-  if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr,"Adapt object should already be created! It is NULL\n");
-    
+  auto adapt = CheckAdaptMesh(api, self);
+  if (adapt == nullptr) { 
+      return nullptr;
   }
-  if (geom->LoadYbarFromFile(fileName) != SV_OK)
-  {
-    PyErr_SetString(PyRunTimeErr,"Error in loading of average speed\n");
-    
+
+  if (adapt->LoadYbarFromFile(fileName) != SV_OK) {
+      api.error("Error loading y bar from the file '" + std::string(fileName) + "'."); 
+      return nullptr;
   }
 
   return SV_PYTHON_OK;
 }
 
-// ----------------
-// cvAdapt_LoadAvgSpeedFromFileMtd
-// ----------------
-static PyObject* cvAdapt_LoadAvgSpeedFromFileMtd( pyAdaptObject* self, PyObject* args)
+//--------------------------
+// load_avg_speed_from_file  
+//--------------------------
+//
+PyDoc_STRVAR(cvAdapt_load_avg_speed_from_file_doc,
+  "load_avg_speed_from_file() \n\ 
+   \n\
+   Create a new mesh object. \n\
+   \n\
+   Args: \n\
+     name (str): Name of the new mesh object to store in the repository. \n\
+");
+
+static PyObject * 
+cvAdapt_load_avg_speed_from_file(pyAdaptObject* self, PyObject* args)
 {
-  char *fileName = NULL;
-  if(!(PyArg_ParseTuple(args,"s",&fileName)))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one char, fileName.");
-  }
-
-  // Do work of command:
-
-  cvAdaptObject *geom = self->geom;
-  if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr,"Adapt object should already be created! It is NULL\n");
-    
-  }
-  if (geom->LoadAvgSpeedFromFile(fileName) != SV_OK)
-  {
-    PyErr_SetString(PyRunTimeErr,"Error in loading of average speed\n");
-    
-  }
-
-  return SV_PYTHON_OK;
-}
-
-// ----------------
-// cvAdapt_LoadHessianFromFileMtd
-// ----------------
-static PyObject* cvAdapt_LoadHessianFromFileMtd( pyAdaptObject* self, PyObject* args)
-{
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *fileName = NULL;
 
-  if(!(PyArg_ParseTuple(args,"s",&fileName)))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one char, fileName.");
+  if(!(PyArg_ParseTuple(args,"s",&fileName))) {
+      return api.argsError();
   }
 
-  // Do work of command:
-
-  cvAdaptObject *geom = self->geom;
-  if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr,"Adapt object should already be created! It is NULL\n");
-    
+  auto adapt = CheckAdaptMesh(api, self);
+  if (adapt == nullptr) { 
+      return nullptr;
   }
-  if (geom->LoadHessianFromFile(fileName) != SV_OK)
-  {
-    PyErr_SetString(PyRunTimeErr,"Error in loading of hessian\n");
-    
+
+  if (adapt->LoadAvgSpeedFromFile(fileName) != SV_OK) {
+      api.error("Error loading the average speed from the file '" + std::string(fileName) + "'."); 
+      return nullptr;
   }
 
   return SV_PYTHON_OK;
 }
 
-// ----------------
-// cvAdapt_ReadSolutionFromMeshMtd
-// ----------------
-static PyObject* cvAdapt_ReadSolutionFromMeshMtd( pyAdaptObject* self, PyObject* args)
-{
-  cvAdaptObject *geom = self->geom;
+//--------------------------------
+// cvAdapt_load_hessian_from_file 
+//--------------------------------
+//
+PyDoc_STRVAR(cvAdapt_load_hessian_from_file_doc,
+  "load_hessian_from_file() \n\ 
+   \n\
+   Create a new mesh object. \n\
+   \n\
+   Args: \n\
+     name (str): Name of the new mesh object to store in the repository. \n\
+");
 
-  if (geom->ReadSolutionFromMesh() == SV_OK) {
-    return SV_PYTHON_OK;
-  } else {
-   PyErr_SetString(PyRunTimeErr, "error reading solution from mesh.");
+static PyObject * 
+cvAdapt_load_hessian_from_file(pyAdaptObject* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  char *fileName = NULL;
+
+  if(!(PyArg_ParseTuple(args,"s",&fileName))) {
+      return api.argsError();
   }
+
+  auto adapt = CheckAdaptMesh(api, self);
+  if (adapt == nullptr) { 
+      return nullptr;
+  }
+
+  if (adapt->LoadHessianFromFile(fileName) != SV_OK) {
+      api.error("Error loading the Hessian from the file '" + std::string(fileName) + "'."); 
+      return nullptr;
+  }
+
   return SV_PYTHON_OK;
 }
 
-// ----------------
-// cvAdapt_ReadYbarFromMeshMtd
-// ----------------
-static PyObject* cvAdapt_ReadYbarFromMeshMtd( pyAdaptObject* self, PyObject* args)
-{
-  cvAdaptObject *geom = self->geom;
+//---------------------------------
+// cvAdapt_read_solution_from_mesh 
+//---------------------------------
+//
+PyDoc_STRVAR(cvAdapt_read_solution_from_mesh_doc,
+  "read_solution_from_mesh() \n\ 
+   \n\
+   Create a new mesh object. \n\
+   \n\
+   Args: \n\
+     name (str): Name of the new mesh object to store in the repository. \n\
+");
 
-  if (geom->ReadYbarFromMesh() == SV_OK) {
-    return SV_PYTHON_OK;
-  } else {
-    PyErr_SetString(PyRunTimeErr, "error reading ybar from mesh.");
+static PyObject * 
+cvAdapt_read_solution_from_mesh(pyAdaptObject* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto adapt = CheckAdaptMesh(api, self);
+  if (adapt == nullptr) { 
+      return nullptr;
   }
+
+  if (adapt->ReadSolutionFromMesh() != SV_OK) {
+      api.error("Error reading the solution from the mesh.'");
+      return nullptr;
+  } 
+
   return SV_PYTHON_OK;
 }
 
-// ----------------
-// cvAdapt_ReadAvgSpeedFromMeshMtd
-// ----------------
-static PyObject* cvAdapt_ReadAvgSpeedFromMeshMtd( pyAdaptObject* self, PyObject* args)
-{
-  cvAdaptObject *geom = self->geom;
+//-----------------------------
+// cvAdapt_read_ybar_from_mesh 
+//-----------------------------
+//
+PyDoc_STRVAR(cvAdapt_read_ybar_from_mesh_doc,
+  "read_ybar_from_mesh() \n\ 
+   \n\
+   Create a new mesh object. \n\
+   \n\
+   Args: \n\
+     name (str): Name of the new mesh object to store in the repository. \n\
+");
 
-  if (geom->ReadAvgSpeedFromMesh() == SV_OK) {
-    return SV_PYTHON_OK;
-  } else {
-    PyErr_SetString(PyRunTimeErr, "error reading avg speed from mesh.");
+static PyObject * 
+cvAdapt_read_ybar_from_mesh(pyAdaptObject* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto adapt = CheckAdaptMesh(api, self);
+  if (adapt == nullptr) { 
+      return nullptr;
   }
+
+  if (adapt->ReadYbarFromMesh() != SV_OK) {
+      api.error("Error reading y bar from the mesh.'");
+      return nullptr;
+  }
+
   return SV_PYTHON_OK;
 }
 
-// ----------------
-// cvAdapt_SetAdaptOptionsMtd
-// ----------------
-static PyObject* cvAdapt_SetAdaptOptionsMtd( pyAdaptObject* self, PyObject* args)
+//----------------------------------
+// cvAdapt_read_avg_speed_from_mesh 
+//----------------------------------
+//
+PyDoc_STRVAR(cvAdapt_read_avg_speed_from_mesh_doc,
+  "read_avg_speed_from_mesh() \n\ 
+   \n\
+   Create a new mesh object. \n\
+   \n\
+   Args: \n\
+     name (str): Name of the new mesh object to store in the repository. \n\
+");
+
+static PyObject * 
+cvAdapt_read_avg_speed_from_mesh(pyAdaptObject* self, PyObject* args)
 {
-  double value=0;
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto adapt = CheckAdaptMesh(api, self);
+  if (adapt == nullptr) { 
+      return nullptr;
+  }
+
+  if (adapt->ReadAvgSpeedFromMesh() == SV_OK) {
+      api.error("Error reading average speed from the mesh.'");
+      return nullptr;
+  }
+
+  return SV_PYTHON_OK;
+}
+
+//---------------------------
+// cvAdapt_set_adapt_options 
+//---------------------------
+//
+PyDoc_STRVAR(cvAdapt_set_adapt_options_doc,
+  "set_adapt_options() \n\ 
+   \n\
+   Create a new mesh object. \n\
+   \n\
+   Args: \n\
+     name (str): Name of the new mesh object to store in the repository. \n\
+");
+
+static PyObject * 
+cvAdapt_set_adapt_options(pyAdaptObject* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("sd", PyRunTimeErr, __func__);
   char *flag = NULL;
+  double value=0;
 
-  if(!(PyArg_ParseTuple(args,"sd",&flag,&value)))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one char and one double, fileName, value");
+  if(!(PyArg_ParseTuple(args, api.format,&flag,&value))) {
+      return api.argsError();
   }
 
-  // Do work of command:
-
-  cvAdaptObject *geom = self->geom;
-  if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr,"Adapt object should already be created! It is NULL\n");
-    
+  auto adapt = CheckAdaptMesh(api, self);
+  if (adapt == nullptr) { 
+      return nullptr;
   }
-  if (geom->SetAdaptOptions(flag,value) != SV_OK)
-  {
-    char msg[200];
-    sprintf(msg, "Error in options settin, %s is not a valid option flag",flag);
-    PyErr_SetString(PyRunTimeErr,msg);
-    
+
+  if (adapt->SetAdaptOptions(flag,value) != SV_OK) {
+      api.error("The options flag '"+ std::string(flag) + "' is not a valid."); 
+      return nullptr;
   }
 
   return SV_PYTHON_OK;
 }
 
-// ----------------
-// cvAdapt_CheckOptionsMtd
-// ----------------
-static PyObject* cvAdapt_CheckOptionsMtd( pyAdaptObject* self, PyObject* args)
-{
-  cvAdaptObject *geom = self->geom;
+//-----------------------
+// cvAdapt_check_options
+//-----------------------
+//
+PyDoc_STRVAR(cvAdapt_check_options_doc,
+  "check_options() \n\ 
+   \n\
+   Create a new mesh object. \n\
+   \n\
+   Args: \n\
+     name (str): Name of the new mesh object to store in the repository. \n\
+");
 
-  if (geom->CheckOptions() == SV_OK) {
-    return SV_PYTHON_OK;
-  } else {
-    PyErr_SetString(PyRunTimeErr, "error check options.");
+static PyObject * 
+cvAdapt_check_options(pyAdaptObject* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto adapt = CheckAdaptMesh(api, self);
+  if (adapt == nullptr) { 
+      return nullptr;
+  }
+
+  if (adapt->CheckOptions() == SV_OK) {
+      api.error("Error checking options.");
+      return nullptr;
   }
 
   return SV_PYTHON_OK;
 }
 
-// ----------------
-// cvAdapt_SetMetricMtd
-// ----------------
-static PyObject* cvAdapt_SetMetricMtd( pyAdaptObject* self, PyObject* args)
+//--------------------
+// cvAdapt_set_metric 
+//--------------------
+//
+PyDoc_STRVAR(cvAdapt_set_metric_doc,
+  "set_metric() \n\ 
+   \n\
+   Create a new mesh object. \n\
+   \n\
+   Args: \n\
+     name (str): Name of the new mesh object to store in the repository. \n\
+");
+
+static PyObject * 
+cvAdapt_set_metric(pyAdaptObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("s|ii", PyRunTimeErr, __func__);
   char *fileName = NULL;
   int option = -1;
   int strategy = -1;
 
-  if(!(PyArg_ParseTuple(args,"s|ii",&fileName, &option,&strategy)))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one char, fileName or two optional int, option stategy");
+  if(!PyArg_ParseTuple(args, api.format,&fileName, &option,&strategy)) {
+      return api.argsError();
   }
 
-  cvAdaptObject *geom = self->geom;
-
-  if (geom->SetMetric(fileName,option,strategy) == SV_OK) {
-    return SV_PYTHON_OK;
-  } else {
-    PyErr_SetString(PyRunTimeErr, "error set metric.");
+  auto adapt = CheckAdaptMesh(api, self);
+  if (adapt == nullptr) { 
+      return nullptr;
   }
 
-  return SV_PYTHON_OK;
-}
-
-// ----------------
-// cvAdapt_SetupMeshMtd
-// ----------------
-static PyObject* cvAdapt_SetupMeshMtd( pyAdaptObject* self, PyObject* args)
-{
-  cvAdaptObject *geom = self->geom;
-
-  if (geom->SetupMesh() == SV_OK) {
-    return SV_PYTHON_OK;
-  } else {
-    PyErr_SetString(PyRunTimeErr, "error setup mesh.");
+  if (adapt->SetMetric(fileName,option,strategy) != SV_OK) {
+      api.error("Error setting metric.");
+      return nullptr;
   }
 
   return SV_PYTHON_OK;
 }
 
-// ----------------
-// cvAdapt_RunAdaptorMtd
-// ----------------
-static PyObject* cvAdapt_RunAdaptorMtd( pyAdaptObject* self, PyObject* args)
-{
-  cvAdaptObject *geom = self->geom;
+//--------------------
+// cvAdapt_setup_mesh 
+//--------------------
+//
+PyDoc_STRVAR(cvAdapt_setup_mesh_doc,
+  "setup_mesh() \n\ 
+   \n\
+   Create a new mesh object. \n\
+   \n\
+   Args: \n\
+     name (str): Name of the new mesh object to store in the repository. \n\
+");
 
-  if (geom->RunAdaptor() == SV_OK) {
-    return SV_PYTHON_OK;
-  } else {
-    PyErr_SetString(PyRunTimeErr, "error run adaptor.");
+static PyObject * 
+cvAdapt_setup_mesh(pyAdaptObject* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+
+  auto adapt = CheckAdaptMesh(api, self);
+  if (adapt == nullptr) { 
+      return nullptr;
+  }
+
+  if (adapt->SetupMesh() != SV_OK) {
+      api.error("Error setting up mesh.");
+      return nullptr;
   }
 
   return SV_PYTHON_OK;
 }
 
-// ----------------
-// cvAdapt_PrintStatsMtd
-// ----------------
-static PyObject* cvAdapt_PrintStatsMtd( pyAdaptObject* self, PyObject* args)
-{
-  cvAdaptObject *geom = self->geom;
+//---------------------
+// cvAdapt_run_adaptor 
+//---------------------
+//
+PyDoc_STRVAR(cvAdapt_run_adaptor_doc,
+  "run_adaptor() \n\ 
+   \n\
+   Create a new mesh object. \n\
+   \n\
+   Args: \n\
+     name (str): Name of the new mesh object to store in the repository. \n\
+");
 
-  if (geom->PrintStats() == SV_OK) {
-    return SV_PYTHON_OK;
-  } else {
-    PyErr_SetString(PyRunTimeErr, "error print stats.");
+static PyObject * 
+cvAdapt_run_adaptor(pyAdaptObject* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+
+  auto adapt = CheckAdaptMesh(api, self);
+  if (adapt == nullptr) { 
+      return nullptr;
   }
+
+  if (adapt->RunAdaptor() != SV_OK) {
+      api.error("Error running adaptor.");
+      return nullptr;
+  }
+
+  return SV_PYTHON_OK;
 }
 
-// ----------------
-// cvAdapt_GetAdaptedMeshMtd
-// ----------------
-PyObject* cvAdapt_GetAdaptedMeshMtd( pyAdaptObject* self, PyObject* args)
+//--------------------------
+// cvAdapt_print_statistics 
+//--------------------------
+//
+PyDoc_STRVAR(cvAdapt_print_statistics_doc,
+  "print_statistics() \n\ 
+   \n\
+   Create a new mesh object. \n\
+   \n\
+   Args: \n\
+     name (str): Name of the new mesh object to store in the repository. \n\
+");
+
+static PyObject * 
+cvAdapt_print_statistics(pyAdaptObject* self, PyObject* args)
 {
-  cvAdaptObject *geom =self->geom;
-  if (geom->GetAdaptedMesh() == SV_OK) {
-    return SV_PYTHON_OK;
-  } else {
-    PyErr_SetString(PyRunTimeErr,"error get adapted mesh.");
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+
+  auto adapt = CheckAdaptMesh(api, self);
+  if (adapt == nullptr) { 
+      return nullptr;
   }
+
+  if (adapt->PrintStats() != SV_OK) {
+      api.error("Error printing statistics.");
+      return nullptr;
+  }
+
+  return SV_PYTHON_OK;
 }
 
-// ----------------
-// cvAdapt_TransferSolutionMtd
-// ----------------
-PyObject* cvAdapt_TransferSolutionMtd( pyAdaptObject* self, PyObject* args)
-{
-  cvAdaptObject *geom = self->geom;
+//--------------------------
+// cvAdapt_get_adapted_mesh 
+//--------------------------
+//
+PyDoc_STRVAR(cvAdapt_get_adapted_mesh_doc,
+  "get_adapted_mesh() \n\ 
+   \n\
+   Create a new mesh object. \n\
+   \n\
+   Args: \n\
+     name (str): Name of the new mesh object to store in the repository. \n\
+");
 
-  if (geom->TransferSolution() == SV_OK) {
-    return SV_PYTHON_OK;
-  } else {
-    PyErr_SetString(PyRunTimeErr,"error transfer solution.");
+static PyObject * 
+cvAdapt_get_adapted_mesh(pyAdaptObject* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+
+  auto adapt = CheckAdaptMesh(api, self);
+  if (adapt == nullptr) { 
+      return nullptr;
   }
+
+  if (adapt->GetAdaptedMesh() != SV_OK) {
+      api.error("Error getting adapted mesh.");
+      return nullptr;
+  }
+
+  return SV_PYTHON_OK;
 }
 
-// ----------------
-// cvAdapt_TransferRegionsMtd
-// ----------------
-PyObject* cvAdapt_TransferRegionsMtd( pyAdaptObject* self, PyObject* args)
-{
-  cvAdaptObject *geom = self->geom;
+//---------------------------
+// cvAdapt_transfer_solution 
+//---------------------------
+//
+PyDoc_STRVAR(cvAdapt_transfer_solution_doc,
+  "transfer_solution() \n\ 
+   \n\
+   Create a new mesh object. \n\
+   \n\
+   Args: \n\
+     name (str): Name of the new mesh object to store in the repository. \n\
+");
 
-  if (geom->TransferRegions() == SV_OK) {
-    return SV_PYTHON_OK;
-  } else {
-    PyErr_SetString(PyRunTimeErr,"error transfer regions.");
+static PyObject * 
+cvAdapt_transfer_solution(pyAdaptObject* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+
+  auto adapt = CheckAdaptMesh(api, self);
+  if (adapt == nullptr) { 
+      return nullptr;
   }
+
+  if (adapt->TransferSolution() != SV_OK) {
+      api.error("Error transferring solution.");
+      return nullptr;
+  }
+
+  return SV_PYTHON_OK;
 }
 
-// ----------------
-// cvAdapt_WriteAdaptedModelMtd
-// ----------------
-static PyObject* cvAdapt_WriteAdaptedModelMtd( pyAdaptObject* self, PyObject* args)
+//--------------------------
+// cvAdapt_transfer_regions 
+//--------------------------
+//
+PyDoc_STRVAR(cvAdapt_transfer_regions_doc,
+  "transfer_regions() \n\ 
+   \n\
+   Create a new mesh object. \n\
+   \n\
+   Args: \n\
+     name (str): Name of the new mesh object to store in the repository. \n\
+");
+
+static PyObject * 
+cvAdapt_transfer_regions(pyAdaptObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+
+  auto adapt = CheckAdaptMesh(api, self);
+  if (adapt == nullptr) { 
+      return nullptr;
+  }
+
+  if (adapt->TransferRegions() != SV_OK) {
+      api.error("Error transferring regions.");
+      return nullptr;
+  }
+
+  return SV_PYTHON_OK;
+}
+
+//-----------------------------
+// cvAdapt_write_adapted_model 
+//-----------------------------
+//
+PyDoc_STRVAR(cvAdapt_write_adapted_model_doc,
+  "_write_adapted_model() \n\ 
+   \n\
+   Create a new mesh object. \n\
+   \n\
+   Args: \n\
+     name (str): Name of the new mesh object to store in the repository. \n\
+");
+
+static PyObject * 
+cvAdapt_write_adapted_model(pyAdaptObject* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *fileName = NULL;
 
-
-  if(!(PyArg_ParseTuple(args,"s",&fileName)))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one char, fileName.");
+  if(!PyArg_ParseTuple(args,api.format,&fileName)) { 
+      return api.argsError();
   }
-  // Do work of command:
 
-  cvAdaptObject *geom = self->geom;
-  if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr,"Adapt object should already be created! It is NULL\n");
-    
+  auto adapt = CheckAdaptMesh(api, self);
+  if (adapt == nullptr) { 
+      return nullptr;
   }
-  if (geom->WriteAdaptedModel(fileName) != SV_OK)
-  {
-    PyErr_SetString(PyRunTimeErr,"Error in writing of model\n");
-    
+
+  if (adapt->WriteAdaptedModel(fileName) != SV_OK) {
+      api.error("Error writing model to the file '" + std::string(fileName) + "'."); 
+      return nullptr;
   }
 
   return SV_PYTHON_OK;
 }
 
-// ----------------
-// cvAdapt_WriteAdaptedMeshMtd
-// ----------------
-static PyObject* cvAdapt_WriteAdaptedMeshMtd( pyAdaptObject* self, PyObject* args)
+//----------------------------
+// cvAdapt_write_adapted_mesh 
+//----------------------------
+//
+PyDoc_STRVAR(cvAdapt_write_adapted_mesh_doc,
+  "write_adapted_mesh() \n\ 
+   \n\
+   Create a new mesh object. \n\
+   \n\
+   Args: \n\
+     name (str): Name of the new mesh object to store in the repository. \n\
+");
+
+static PyObject * 
+cvAdapt_write_adapted_mesh(pyAdaptObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *fileName = NULL;
 
-  if(!(PyArg_ParseTuple(args,"s",&fileName)))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one char, fileName.");
+  if(!PyArg_ParseTuple(args,api.format,&fileName)) {
+      return api.argsError();
   }
-  // Do work of command:
 
-  cvAdaptObject *geom = self->geom;
-  if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr,"Adapt object should already be created! It is NULL\n");
-    
+  auto adapt = CheckAdaptMesh(api, self);
+  if (adapt == nullptr) { 
+      return nullptr;
   }
-  if (geom->WriteAdaptedMesh(fileName) != SV_OK)
-  {
-    PyErr_SetString(PyRunTimeErr,"Error in writing of mesh\n");
-    
+
+  if (adapt->WriteAdaptedMesh(fileName) != SV_OK) {
+      api.error("Error writing adapted mesh to the file '" + std::string(fileName) + "'."); 
+      return nullptr;
   }
 
   return SV_PYTHON_OK;
 }
 
-// ----------------
-// cvAdapt_WriteAdaptedSolutionMtd
-// ----------------
-static PyObject* cvAdapt_WriteAdaptedSolutionMtd( pyAdaptObject* self, PyObject* args)
+//--------------------------------
+// cvAdapt_write_adapted_solution 
+//--------------------------------
+//
+PyDoc_STRVAR(cvAdapt_write_adapted_solution_doc,
+  "write_adapted_solution() \n\ 
+   \n\
+   Create a new mesh object. \n\
+   \n\
+   Args: \n\
+     name (str): Name of the new mesh object to store in the repository. \n\
+");
+
+static PyObject * 
+cvAdapt_write_adapted_solution(pyAdaptObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *fileName = NULL;
 
-  if(!(PyArg_ParseTuple(args,"s",&fileName)))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one char, fileName.");
+  if(!PyArg_ParseTuple(args, api.format, &fileName)) {
+      return api.argsError();
   }
-  // Do work of command:
 
-  cvAdaptObject *geom = self->geom;
-  if ( geom == NULL ) {
-    PyErr_SetString(PyRunTimeErr,"Adapt object should already be created! It is NULL\n");
-    
+  auto adapt = CheckAdaptMesh(api, self);
+  if (adapt == nullptr) { 
+      return nullptr;
   }
-  if (geom->WriteAdaptedSolution(fileName) != SV_OK)
-  {
-    PyErr_SetString(PyRunTimeErr,"Error in writing of solution\n");
-    
+
+  if (adapt->WriteAdaptedSolution(fileName) != SV_OK) {
+      api.error("Error writing adapted solution to the file '" + std::string(fileName) + "'."); 
+      return nullptr;
   }
 
   return SV_PYTHON_OK;
@@ -693,8 +983,6 @@ PyMODINIT_FUNC initpyMeshAdapt();
 #elif PYTHON_MAJOR_VERSION == 3
 PyMODINIT_FUNC PyInit_pyMeshAdapt();
 #endif
-
-
 
 // ----------
 // Adapt_Init
@@ -728,79 +1016,51 @@ static int pyAdaptObject_init(pyAdaptObject* self, PyObject* args)
 //
 static PyMethodDef pyAdaptObject_methods[] = {
 
-  { "CreateInternalMeshObject",
-      (PyCFunction)cvAdapt_CreateInternalMeshObjectMtd, 
-      METH_VARARGS,
-      NULL
-  },
+  { "check_options", (PyCFunction)cvAdapt_check_options,METH_VARARGS,cvAdapt_check_options_doc},
 
+  { "create_internal_mesh_object", (PyCFunction)cvAdapt_create_internal_mesh_object, METH_VARARGS, cvAdapt_create_internal_mesh_object_doc},
 
-  {"NewObject",
-      (PyCFunction)cvAdapt_NewObjectCmd,
-      METH_VARARGS,
-      NULL
-  },
+  { "get_adapted_mesh", (PyCFunction)cvAdapt_get_adapted_mesh,METH_VARARGS,cvAdapt_get_adapted_mesh_doc},
 
-  { "LoadModel", (PyCFunction)cvAdapt_LoadModelMtd,METH_VARARGS,NULL},
+  { "load_avg_speed_from_file", (PyCFunction)cvAdapt_load_avg_speed_from_file,METH_VARARGS,cvAdapt_load_avg_speed_from_file_doc},
 
-  { "LoadMesh",(PyCFunction)cvAdapt_LoadMeshMtd,METH_VARARGS,NULL},
+  { "load_hessian_from_file", (PyCFunction)cvAdapt_load_hessian_from_file,METH_VARARGS,cvAdapt_load_hessian_from_file_doc},
 
-  { "LoadSolutionFromFile",
-    (PyCFunction)cvAdapt_LoadSolutionFromFileMtd,METH_VARARGS,NULL},
+  { "load_model", (PyCFunction)cvAdapt_load_model,METH_VARARGS,cvAdapt_load_model_doc},
 
-  { "LoadYbarFromFile",
-    (PyCFunction)cvAdapt_LoadYbarFromFileMtd,METH_VARARGS,NULL},
+  { "load_mesh", (PyCFunction)cvAdapt_load_mesh, METH_VARARGS, cvAdapt_load_mesh_doc},
 
-  { "LoadAvgSpeedFromFile",
-    (PyCFunction)cvAdapt_LoadAvgSpeedFromFileMtd,METH_VARARGS,NULL},
+  { "load_solution_from_file", (PyCFunction)cvAdapt_load_solution_from_file, METH_VARARGS, cvAdapt_load_solution_from_file_doc},
 
-  { "LoadHessianFromFile",
-    (PyCFunction)cvAdapt_LoadHessianFromFileMtd,METH_VARARGS,NULL},
+  { "load_ybar_from_file", (PyCFunction)cvAdapt_load_ybar_from_file,METH_VARARGS,cvAdapt_load_ybar_from_file_doc},
 
-  { "ReadSolutionFromMesh",
-    (PyCFunction)cvAdapt_ReadSolutionFromMeshMtd,METH_VARARGS,NULL},
+  {"new_object", (PyCFunction)cvAdapt_new_object, METH_VARARGS, cvAdapt_new_object_doc},
 
-  { "ReadYbarFromMesh",
-    (PyCFunction)cvAdapt_ReadYbarFromMeshMtd,METH_VARARGS,NULL},
+  { "print_statistics", (PyCFunction)cvAdapt_print_statistics,METH_VARARGS,cvAdapt_print_statistics_doc},
 
-  { "ReadAvgSpeedFromMesh",
-    (PyCFunction)cvAdapt_ReadAvgSpeedFromMeshMtd,METH_VARARGS,NULL},
+  { "read_solution_from_mesh", (PyCFunction)cvAdapt_read_solution_from_mesh,METH_VARARGS,cvAdapt_read_solution_from_mesh_doc},
 
-  { "SetAdaptOptions",
-    (PyCFunction)cvAdapt_SetAdaptOptionsMtd,METH_VARARGS,NULL},
+  { "read_ybar_from_mesh", (PyCFunction)cvAdapt_read_ybar_from_mesh,METH_VARARGS,cvAdapt_read_ybar_from_mesh_doc},
 
-  { "CheckOptions",
-    (PyCFunction)cvAdapt_CheckOptionsMtd,METH_VARARGS,NULL},
+  { "read_avg_speed_from_mesh", (PyCFunction)cvAdapt_read_avg_speed_from_mesh,METH_VARARGS,cvAdapt_read_avg_speed_from_mesh_doc},
 
-  { "SetMetric",
-    (PyCFunction)cvAdapt_SetMetricMtd,METH_VARARGS,NULL},
+  { "run_adaptor", (PyCFunction)cvAdapt_run_adaptor,METH_VARARGS,cvAdapt_run_adaptor_doc},
 
-  { "SetupMesh",
-    (PyCFunction)cvAdapt_SetupMeshMtd,METH_VARARGS,NULL},
+  { "set_adapt_options", (PyCFunction)cvAdapt_set_adapt_options,METH_VARARGS,cvAdapt_set_adapt_options_doc},
 
-  { "RunAdaptor",
-    (PyCFunction)cvAdapt_RunAdaptorMtd,METH_VARARGS,NULL},
+  { "set_metric", (PyCFunction)cvAdapt_set_metric,METH_VARARGS,cvAdapt_set_metric_doc},
 
-  { "PrintStats",
-    (PyCFunction)cvAdapt_PrintStatsMtd,METH_VARARGS,NULL},
+  { "setup_mesh", (PyCFunction)cvAdapt_setup_mesh,METH_VARARGS,cvAdapt_setup_mesh_doc},
 
-  { "GetAdaptedMesh",
-    (PyCFunction)cvAdapt_GetAdaptedMeshMtd,METH_VARARGS,NULL},
+  { "transfer_solution", (PyCFunction)cvAdapt_transfer_solution,METH_VARARGS,cvAdapt_transfer_solution_doc},
 
-  { "TransferSolution",
-    (PyCFunction)cvAdapt_TransferSolutionMtd,METH_VARARGS,NULL},
+  { "transfer_regions", (PyCFunction)cvAdapt_transfer_regions,METH_VARARGS,cvAdapt_transfer_regions_doc},
 
-  { "TransferRegions",
-    (PyCFunction)cvAdapt_TransferRegionsMtd,METH_VARARGS,NULL},
+  { "write_adapted_model", (PyCFunction)cvAdapt_write_adapted_model,METH_VARARGS,cvAdapt_write_adapted_model_doc},
 
-  { "WriteAdaptedModel",
-    (PyCFunction)cvAdapt_WriteAdaptedModelMtd,METH_VARARGS,NULL},
+  { "write_adapted_mesh", (PyCFunction)cvAdapt_write_adapted_mesh,METH_VARARGS,cvAdapt_write_adapted_mesh_doc},
 
-  { "WriteAdaptedMesh",
-    (PyCFunction)cvAdapt_WriteAdaptedMeshMtd,METH_VARARGS,NULL},
-
-  { "WriteAdaptedSolution",
-    (PyCFunction)cvAdapt_WriteAdaptedSolutionMtd,METH_VARARGS,NULL},
+  { "write_adapted_solution", (PyCFunction)cvAdapt_write_adapted_solution,METH_VARARGS,cvAdapt_write_adapted_solution_doc},
 
   {NULL}
 
@@ -832,8 +1092,7 @@ static PyTypeObject pyAdaptObjectType = {
   0,                         /* tp_getattro */
   0,                         /* tp_setattro */
   0,                         /* tp_as_buffer */
-  Py_TPFLAGS_DEFAULT |
-      Py_TPFLAGS_BASETYPE,   /* tp_flags */
+  Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,   /* tp_flags */
   "Adapt objects",           /* tp_doc */
   0,                         /* tp_traverse */
   0,                         /* tp_clear */
@@ -841,7 +1100,7 @@ static PyTypeObject pyAdaptObjectType = {
   0,                         /* tp_weaklistoffset */
   0,                         /* tp_iter */
   0,                         /* tp_iternext */
-  pyAdaptObject_methods,             /* tp_methods */
+  pyAdaptObject_methods,     /* tp_methods */
   0,                         /* tp_members */
   0,                         /* tp_getset */
   0,                         /* tp_base */
@@ -855,11 +1114,8 @@ static PyTypeObject pyAdaptObjectType = {
 };
 
 static PyMethodDef pyAdaptMesh_methods[] = {
-  {"Registrars",
-      Adapt_RegistrarsListCmd,
-      METH_NOARGS,
-      NULL
-  },
+
+  {"Registrars", Adapt_registrars, METH_NOARGS, Adapt_registrars_doc},
 
   {NULL, NULL}
 };
@@ -901,10 +1157,9 @@ static PyTypeObject pyAdaptObjectRegistrarType = {
 // Define the initialization function called by the Python 
 // interpreter when the module is loaded.
 
-static char* MODULE_NAME = "adaptmesh";
+static char* MODULE_NAME = "adapt_mesh";
 
-PyDoc_STRVAR(AdaptMesh_doc,
-  "adaptmesh functions");
+PyDoc_STRVAR(AdaptMesh_doc, "adapt_mesh module functions.");
 
 //---------------------------------------------------------------------------
 //                           PYTHON_MAJOR_VERSION 3                         
