@@ -120,7 +120,7 @@ void SimVascular_pyInit()
     //PyImport_AppendInittab("pyGUI",PyInit_pyGUI);
     
 #ifdef SV_USE_VMTK
-   PyImport_AppendInittab("pyVMTKUtils",PyInit_pyVMTKUtils);
+   PyImport_AppendInittab("vmtk_utils",PyInit_pyVMTKUtils);
 #endif
 
 #ifdef SV_USE_OpenCASCADE

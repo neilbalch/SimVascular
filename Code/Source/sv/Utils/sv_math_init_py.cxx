@@ -638,6 +638,8 @@ static PyMethodDef pyMath_methods[] = {
 // interpreter when the module is loaded.
 
 static char* MODULE_NAME = "math";
+static char* MODULE_EXCEPTION = "math.MathException";
+static char* MODULE_EXCEPTION_OBJECT = "MathException";
 
 PyDoc_STRVAR(MathModule_doc, "math module functions");
 
@@ -681,9 +683,9 @@ PyInit_pyMath(void)
 
   // Add math.MathException exception.
   //
-  PyRunTimeErr = PyErr_NewException("math.MathException", NULL, NULL);
+  PyRunTimeErr = PyErr_NewException(MODULE_EXCEPTION, NULL, NULL);
   Py_INCREF(PyRunTimeErr);
-  PyModule_AddObject(module,"MathException", PyRunTimeErr);
+  PyModule_AddObject(module, MODULE_EXCEPTION_OBJECT, PyRunTimeErr);
 
   Py_INCREF(module);
 

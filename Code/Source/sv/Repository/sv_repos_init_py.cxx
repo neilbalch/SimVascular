@@ -1119,9 +1119,10 @@ PyMethodDef pyRepository_methods[] = {
 // interpreter when the module is loaded.
 
 static char* MODULE_NAME = "repository";
+static char* MODULE_EXCEPTION = "repository.RepositoryException";
+static char* MODULE_EXCEPTION_OBJECT = "RepositoryException";
 
 PyDoc_STRVAR(Repository_module_doc, "repository module functions");
-
 
 //---------------------------------------------------------------------------
 //                           PYTHON_MAJOR_VERSION 3                         
@@ -1164,12 +1165,11 @@ PyInit_pyRepository(void)
 
   auto module = PyModule_Create(&pyRepositorymodule);
 
-  PyRunTimeErr = PyErr_NewException("repository.RepositoryException",NULL,NULL);
+  PyRunTimeErr = PyErr_NewException(MODULE_EXCEPTION,NULL,NULL);
   Py_INCREF(PyRunTimeErr);
-  PyModule_AddObject(module,"RepositoryException",PyRunTimeErr);
+  PyModule_AddObject(module,MODULE_EXCEPTION_OBJECT,PyRunTimeErr);
   return module;
 }
-
 
 #endif
 

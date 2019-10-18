@@ -38,11 +38,12 @@
 #include "sv3PathExports.h"
 
 
+// [TODO:DaveP] why is this guy exported?
 extern "C" SV_EXPORT_PATH typedef struct
 {
   PyObject_HEAD
-  sv3::PathIO* geom;
-}pyPathIO;
+  sv3::PathIO* pathio;
+} pyPathIO;
 
 #if PYTHON_MAJOR_VERSION == 2
 PyMODINIT_FUNC  initpyPathIO();

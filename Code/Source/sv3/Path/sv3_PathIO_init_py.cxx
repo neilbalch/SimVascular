@@ -28,9 +28,17 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+// The functions defined here implement the SV Python API path i/o module. 
+//
+// The module name is 'pathio'. 
+//
+// [TODO:DavP] is this module ever used?
+//
 #include "SimVascular.h"
 #include "SimVascular_python.h"
 #include "Python.h"
+#include "sv_PyUtils.h"
 
 #include "sv3_PathIO.h"
 #include "sv3_PathIO_init_py.h"
@@ -45,23 +53,249 @@
 #ifdef GetObject
 #undef GetObject
 #endif
-// Globals:
-// --------
-
 #include "sv2_globals.h"
+
 using sv3::PathIO;
 using sv3::PathGroup;
 using sv3::PathElement;
+
+// Exception type used by PyErr_SetString() to set the for the error indicator.
+static PyObject * PyRunTimeErr;
+
+//-----------
+// GetPathIO 
+//-----------
+// Get the pathio object from pyPathIO.
+//
+PathIO * 
+GetPathIO(SvPyUtilApiFunction& api, pyPathIO* self) 
+{
+  auto pathIO = self->pathio;
+  if (pathIO == NULL) {
+      api.error("The pathIO object has not been created.");
+      return nullptr;
+  }
+
+  return pathIO;
+}
+
+//-------------------
+// GetRepositoryData 
+//-------------------
+// Get repository data of the given type. 
+//
+static cvRepositoryData *
+GetRepositoryData(SvPyUtilApiFunction& api, char* name, RepositoryDataT dataType)
+{
+  auto data = gRepository->GetObject(name);
+  if (data == NULL) {
+      api.error("'"+std::string(name)+"' is not in the repository.");
+      return nullptr;
+  }
+  if (gRepository->GetType(name) != dataType) { 
+      auto typeStr = std::string(RepositoryDataT_EnumToStr(dataType));
+      api.error("'" + std::string(name) + "' does not have type '" + typeStr + "'.");
+      return nullptr;
+  }
+
+  return data;
+}
+
+//////////////////////////////////////////////////////
+//          M o d u l e  F u n c t i o n s          //
+//////////////////////////////////////////////////////
+//
+// Python API functions. 
+
+//----------------------
+// sv4PathIO_new_object 
+//----------------------
+//
+PyDoc_STRVAR(sv4PathIO_new_object_doc,
+  "new_object(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args:                                    \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject *
+sv4PathIO_new_object(pyPathIO* self, PyObject* args)
+{
+  PathIO *pathio = new PathIO();
+  Py_INCREF(pathio);
+  self->pathio = pathio;
+  Py_DECREF(pathio);
+  return SV_PYTHON_OK; 
+}
+
+//---------------------------
+// sv4PathIO_read_path_group 
+//---------------------------
+//
+PyDoc_STRVAR(sv4PathIO_read_path_group_doc,
+  "read_path_group(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args:                                    \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject *
+sv4PathIO_read_path_group(pyPathIO* self, PyObject* args)
+{
+    auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
+    char* objName =NULL;
+    char* fn=NULL;
+
+    if (!PyArg_ParseTuple(args,api.format, &objName, &fn)) {
+      return api.argsError();
+    }
+
+    auto pathIO = GetPathIO(api, self);
+    if (pathIO == NULL) {
+      return nullptr;
+    }
+    
+    // Make sure the specified result object does not exist:
+    if (gRepository->Exists(objName)) {
+      api.error("The object '"+std::string(objName)+"' is already in the repository.");
+      return nullptr;
+    }
+
+    // Read a path group file.
+    std::string str(fn);
+    auto pthGrp = pathIO->ReadFile(str);
+    if (pthGrp == NULL) {
+      api.error("Error reading the path group file '"+str+"'.");
+      return nullptr;
+    }
+
+    // Register the object:
+    if (!gRepository->Register(objName, pthGrp)) {
+      delete pthGrp;
+      api.error("Error adding the path group '" + std::string(objName) + "' to the repository.");
+      return nullptr;
+    }
+    
+    Py_INCREF(pathIO);
+    self->pathio=pathIO;
+    Py_DECREF(pathIO);
+    return SV_PYTHON_OK; 
+}
+
+//----------------------------
+// sv4PathIO_write_path_group 
+//----------------------------
+//
+PyDoc_STRVAR(sv4PathIO_write_path_group_doc,
+  "write_path_group(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args:                                    \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject *
+sv4PathIO_write_path_group(pyPathIO* self, PyObject* args)
+{
+    auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
+    char* objName=NULL;
+    char* fn=NULL;
+
+    if (!PyArg_ParseTuple(args, api.format, &objName, &fn)) {
+      return api.argsError();
+    }
+
+    auto pathIO = GetPathIO(api, self);
+    if (pathIO == NULL) {
+      return nullptr;
+    }
+
+    auto rd = GetRepositoryData(api, objName, PATHGROUP_T);
+    if (rd == nullptr) {
+      return nullptr;
+    }
+    auto pathGrp = dynamic_cast<PathGroup*> (rd);
+    
+    // Write path group.
+    std::string str(fn);
+    if(self->pathio->Write(str,pathGrp)==SV_ERROR) {
+      api.error("Error writing the path group file '"+str+"'.");
+      return nullptr;
+    }
+    
+    return SV_PYTHON_OK; 
+}
+
+//----------------------
+// sv4PathIO_write_path 
+//----------------------
+//
+PyDoc_STRVAR(sv4PathIO_write_path_doc,
+  "write_path(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args:                                    \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject *
+sv4PathIO_write_path(pyPathIO* self, PyObject* args)
+{
+    auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
+    char* objName=NULL;
+    char* fn=NULL;
+
+    if (!PyArg_ParseTuple(args,api.format,&objName, &fn)) {
+      return api.argsError();
+    }
+
+    auto pathIO = GetPathIO(api, self);
+    if (pathIO == NULL) {
+      return nullptr;
+    }
+
+    auto rd = GetRepositoryData(api, objName, PATHGROUP_T);
+    if (rd == nullptr) {
+      return nullptr;
+    }
+    auto path = dynamic_cast<PathElement*>(rd);
+    
+    // Write the path group.
+    //
+    auto pathGrp = new PathGroup();
+    pathGrp->Expand(1);
+    pathGrp->SetPathElement(path);
+    std::string str(fn);
+    if(self->pathio->Write(str,pathGrp)==SV_ERROR) {
+      api.error("Error writing the path file '"+str+"'.");
+      return nullptr;
+    }
+    
+    return SV_PYTHON_OK; 
+} 
+
+////////////////////////////////////////////////////////
+//          M o d u l e  D e f i n i t i o n          //
+////////////////////////////////////////////////////////
+
+static char* MODULE_NAME = "pathio";
+static char* MODULE_PATHIO_CLASS = "PathIO";
+static char* MODULE_EXCEPTION = "pathio.PathIOException";
+static char* MODULE_EXCEPTION_OBJECT = "PathIOException";
+
+PyDoc_STRVAR(PathIO_doc, "pathio module functions");
+
 #if PYTHON_MAJOR_VERSION == 2
 PyMODINIT_FUNC initpyPathIO();
 #elif PYTHON_MAJOR_VERSION == 3
 PyMODINIT_FUNC PyInit_pyPathIO();
 #endif
-PyObject* PyRunTimeErrIO;
-PyObject* sv4PathIO_NewObjectCmd( pyPathIO* self, PyObject* args);
-PyObject* sv4PathIO_ReadPathGroupCmd( pyPathIO* self, PyObject* args);
-PyObject* sv4PathIO_WritePathGroupCmd( pyPathIO* self, PyObject* args);
-PyObject* sv4PathIO_WrtiePathCmd( pyPathIO* self, PyObject* args);
 
 int PathIO_pyInit()
 {
@@ -73,23 +307,39 @@ int PathIO_pyInit()
   return SV_OK;
 }
 
-static PyMethodDef pyPathIO_methods[]={
-  {"NewObject", (PyCFunction)sv4PathIO_NewObjectCmd,METH_VARARGS,NULL},
-  {"ReadPathGroup",(PyCFunction)sv4PathIO_ReadPathGroupCmd,METH_VARARGS,NULL},
-  {"WritePathGroup",(PyCFunction)sv4PathIO_WritePathGroupCmd, METH_VARARGS,NULL},
-  {"WritePath",(PyCFunction)sv4PathIO_WrtiePathCmd,METH_VARARGS,NULL},
+//----------------------
+// PathIO class methods
+//----------------------
+//
+static PyMethodDef pyPathIO_methods[] = {
+
+  {"new_object", (PyCFunction)sv4PathIO_new_object,METH_VARARGS,sv4PathIO_new_object_doc},
+
+  {"read_path_group", (PyCFunction)sv4PathIO_read_path_group, METH_VARARGS, sv4PathIO_read_path_group_doc},
+
+  {"write_path", (PyCFunction)sv4PathIO_write_path, METH_VARARGS, sv4PathIO_write_path_doc},
+
+  {"write_path_group", (PyCFunction)sv4PathIO_write_path_group, METH_VARARGS, sv4PathIO_write_path_group_doc},
+
   {NULL,NULL}
+
 };
 
-static int pyPathIO_init(pyPathIO* self, PyObject* args)
+static int 
+pyPathIO_init(pyPathIO* self, PyObject* args)
 {
-  fprintf(stdout,"pyPathIO initialized.\n");
+  //fprintf(stdout,"pyPathIO initialized.\n");
   return SV_OK;
 }
 
+//--------------
+// pyPathIOType
+//--------------
+// Define the PathIO class.
+//
 static PyTypeObject pyPathIOType = {
   PyVarObject_HEAD_INIT(NULL, 0)
-  "pyPathIO.pyPathIO",             /* tp_name */
+  "pathio.PathIO",            /* tp_name */
   sizeof(pyPathIO),             /* tp_basicsize */
   0,                         /* tp_itemsize */
   0,                         /* tp_dealloc */
@@ -107,9 +357,8 @@ static PyTypeObject pyPathIOType = {
   0,                         /* tp_getattro */
   0,                         /* tp_setattro */
   0,                         /* tp_as_buffer */
-  Py_TPFLAGS_DEFAULT |
-      Py_TPFLAGS_BASETYPE,   /* tp_flags */
-  "pyPathIO  objects",           /* tp_doc */
+  Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,   /* tp_flags */
+  "PathIO  objects",           /* tp_doc */
   0,                         /* tp_traverse */
   0,                         /* tp_clear */
   0,                         /* tp_richcompare */
@@ -129,21 +378,78 @@ static PyTypeObject pyPathIOType = {
   0,                  /* tp_new */
 };
 
+//-----------------------
+// pathio module methods
+//-----------------------
+//
 static PyMethodDef pyPathIOModule_methods[] =
 {
     {NULL,NULL}
 };
 
+//---------------------------------------------------------------------------
+//                           PYTHON_MAJOR_VERSION 3                         
+//---------------------------------------------------------------------------
+
 #if PYTHON_MAJOR_VERSION == 3
+
+// Size of per-interpreter state of the module.
+// Set to -1 if the module keeps state in global variables. 
+static int perInterpreterStateSize = -1;
+
+// Always initialize this to PyModuleDef_HEAD_INIT.
+static PyModuleDef_Base m_base = PyModuleDef_HEAD_INIT;
+
+// Define the module definition struct which holds all information 
+// needed to create a module object. 
 static struct PyModuleDef pyPathIOModule = {
-   PyModuleDef_HEAD_INIT,
-   "pyPathIO",   /* name of module */
-   "", /* module documentation, may be NULL */
-   -1,       /* size of per-interpreter state of the module,
-                or -1 if the module keeps state in global variables. */
+   m_base,
+   MODULE_NAME, 
+   PathIO_doc, 
+   perInterpreterStateSize, 
    pyPathIOModule_methods
 };
+
+//-----------------
+// PyInit_pyPathIO
+//-----------------
+//
+PyMODINIT_FUNC PyInit_pyPathIO()
+{
+  if (gRepository==NULL) {
+    gRepository = new cvRepository();
+    fprintf(stdout,"New gRepository created from sv3_PathIO_init\n");
+  }
+
+  // Initialize
+  pyPathIOType.tp_new=PyType_GenericNew;
+  if (PyType_Ready(&pyPathIOType)<0) {
+    fprintf(stdout,"Error in pyPathIOType\n");
+    return SV_PYTHON_ERROR;
+  }
+
+  auto module = PyModule_Create(&pyPathIOModule);
+  if (module == NULL) {
+    fprintf(stdout,"Error in initializing pyPathIO\n");
+    return SV_PYTHON_ERROR;
+  }
+
+  // Add an exception for this module.
+  PyRunTimeErr = PyErr_NewException(MODULE_EXCEPTION, NULL, NULL);
+  PyModule_AddObject(module, MODULE_EXCEPTION_OBJECT,PyRunTimeErr);
+
+  // Add the PathIO class.
+  Py_INCREF(&pyPathIOType);
+  PyModule_AddObject(module, MODULE_PATHIO_CLASS, (PyObject*)&pyPathIOType);
+
+  return module;
+}
+
 #endif
+
+//---------------------------------------------------------------------------
+//                           PYTHON_MAJOR_VERSION 2                         
+//---------------------------------------------------------------------------
 
 //----------------
 //initpyPathIO
@@ -174,8 +480,8 @@ PyMODINIT_FUNC initpyPathIO()
     fprintf(stdout,"Error in initializing pyPathIO\n");
     return;
   }
-  PyRunTimeErrIO = PyErr_NewException("pyPathIO.error",NULL,NULL);
-  PyModule_AddObject(pythonC,"error",PyRunTimeErrIO);
+  PyRunTimeErr = PyErr_NewException("pyPathIO.error",NULL,NULL);
+  PyModule_AddObject(pythonC,"error",PyRunTimeErr);
   Py_INCREF(&pyPathIOType);
   PyModule_AddObject(pythonC,"pyPathIO",(PyObject*)&pyPathIOType);
   return ;
@@ -183,226 +489,3 @@ PyMODINIT_FUNC initpyPathIO()
 }
 #endif
 
-#if PYTHON_MAJOR_VERSION == 3
-//----------------
-//PyInit_pyPathIO
-//----------------
-PyMODINIT_FUNC PyInit_pyPathIO()
-
-{
-
-  if (gRepository==NULL)
-  {
-    gRepository = new cvRepository();
-    fprintf(stdout,"New gRepository created from sv3_PathIO_init\n");
-  }
-
-  // Initialize
-  pyPathIOType.tp_new=PyType_GenericNew;
-  if (PyType_Ready(&pyPathIOType)<0)
-  {
-    fprintf(stdout,"Error in pyPathIOType\n");
-    return SV_PYTHON_ERROR;
-  }
-  PyObject* pythonC;
-  pythonC = PyModule_Create(&pyPathIOModule);
-  if(pythonC==NULL)
-  {
-    fprintf(stdout,"Error in initializing pyPathIO\n");
-    return SV_PYTHON_ERROR;
-  }
-  PyRunTimeErrIO = PyErr_NewException("pyPathIO.error",NULL,NULL);
-  PyModule_AddObject(pythonC,"error",PyRunTimeErrIO);
-  Py_INCREF(&pyPathIOType);
-  PyModule_AddObject(pythonC,"pyPathIO",(PyObject*)&pyPathIOType);
-  return pythonC;
-
-}
-#endif
-
-// --------------------
-// sv4PathIO_NewObjectCmd
-// --------------------
-PyObject* sv4PathIO_NewObjectCmd( pyPathIO* self, PyObject* args)
-{
-  // Instantiate the new mesh:
-  PathIO *geom = new PathIO();
-
-  Py_INCREF(geom);
-  self->geom=geom;
-  Py_DECREF(geom);
-  return SV_PYTHON_OK; 
-
-}
-
-// --------------------
-// sv4PathIO_ReadPathGroupCmd
-// --------------------
-
-PyObject* sv4PathIO_ReadPathGroupCmd( pyPathIO* self, PyObject* args)
-{
-
-    char* objName =NULL;
-    char* fn=NULL;
-    if(!PyArg_ParseTuple(args,"ss",&objName,&fn))
-    {
-        PyErr_SetString(PyRunTimeErrIO,"Could not import two chars, objName, fn");
-        
-    }
-    
-    // Make sure the specified result object does not exist:
-    if ( gRepository->Exists( objName ) ) {
-        PyErr_SetString(PyRunTimeErrIO, "object already exists.");
-        
-    }
-
-    PathIO* pathIO = self->geom;
-    if (pathIO==NULL)
-    {
-        PyErr_SetString(PyRunTimeErrIO,"PathIO does not exist.");
-        
-    }
-    
-    std::string str(fn);
-    PathGroup* pthGrp = pathIO->ReadFile(str);
-    if(pthGrp==NULL)
-    {
-        PyErr_SetString(PyRunTimeErrIO,"Error reading file");
-        
-    }
-
-    // Register the object:
-    if ( !( gRepository->Register( objName, pthGrp ) ) ) {
-        PyErr_SetString(PyRunTimeErrIO, "error registering obj in repository");
-        delete pthGrp;
-        
-    }
-    
-    Py_INCREF(pathIO);
-    self->geom=pathIO;
-    Py_DECREF(pathIO);
-    return SV_PYTHON_OK; 
-    
-}
-
-// --------------------
-// sv4PathIO_WritePathGroupCmd
-// --------------------
-
-PyObject* sv4PathIO_WritePathGroupCmd( pyPathIO* self, PyObject* args)
-{
-    char* fn=NULL;
-    char* objName=NULL;
-    RepositoryDataT type;
-    cvRepositoryData *rd;
-    PathGroup *pathGrp;
-    
-    if(!PyArg_ParseTuple(args,"ss",&objName, &fn))
-    {
-        PyErr_SetString(PyRunTimeErrIO,"Could not import two chars, objName, fn");
-        
-    }
-
-    // Do work of command:
-    
-    // Retrieve source object:
-    rd = gRepository->GetObject( objName );
-    char r[2048];
-    if ( rd == NULL )
-    {
-        r[0] = '\0';
-        sprintf(r, "couldn't find object %s", objName);
-        PyErr_SetString(PyRunTimeErrIO,r);
-        
-    }
-    
-    type = rd->GetType();
-    
-    if ( type != PATHGROUP_T )
-    {
-        r[0] = '\0';
-        sprintf(r, "%s not a path group object", objName);
-        PyErr_SetString(PyRunTimeErrIO,r);
-        
-    }
-    
-    pathGrp = dynamic_cast<PathGroup*> (rd);
-    
-    if (self->geom==NULL)
-    {
-        PyErr_SetString(PyRunTimeErrIO,"PathIO does not exist.");
-        
-    }
-    
-    std::string str(fn);
-    if(self->geom->Write(str,pathGrp)==SV_ERROR)
-    {
-        PyErr_SetString(PyRunTimeErrIO, "Could not write path.");
-        
-    }
-    
-    return SV_PYTHON_OK; 
-    
-}
-
-//----------------------------
-// sv4PathIO_WrtiePathCmd
-//----------------------------
-PyObject* sv4PathIO_WrtiePathCmd(pyPathIO* self, PyObject* args)
-{
-    char* fn=NULL;
-    char* objName=NULL;
-    RepositoryDataT type;
-    cvRepositoryData *rd;
-    PathElement *path;
-    
-    if(!PyArg_ParseTuple(args,"ss",&objName, &fn))
-    {
-        PyErr_SetString(PyRunTimeErrIO,"Could not import two chars, objName, fn");
-        
-    }
-
-    // Do work of command:
-    
-    // Retrieve source object:
-    rd = gRepository->GetObject( objName );
-    char r[2048];
-    if ( rd == NULL )
-    {
-        r[0] = '\0';
-        sprintf(r, "couldn't find object %s", objName);
-        PyErr_SetString(PyRunTimeErrIO,r);
-        
-    }
-    
-    type = rd->GetType();
-    
-    if ( type != PATH_T )
-    {
-        r[0] = '\0';
-        sprintf(r, "%s not a path object", objName);
-        PyErr_SetString(PyRunTimeErrIO,r);
-        
-    }
-    
-    path = dynamic_cast<PathElement*> (rd);
-    
-    if (self->geom==NULL)
-    {
-        PyErr_SetString(PyRunTimeErrIO,"PathIO does not exist.");
-        
-    }
-    
-    PathGroup* pathGrp = new PathGroup();
-    pathGrp->Expand(1);
-    pathGrp->SetPathElement(path);
-    
-    std::string str(fn);
-    if(self->geom->Write(str,pathGrp)==SV_ERROR)
-    {
-        PyErr_SetString(PyRunTimeErrIO, "Could not write path.");
-        
-    }
-    
-    return SV_PYTHON_OK; 
-} 

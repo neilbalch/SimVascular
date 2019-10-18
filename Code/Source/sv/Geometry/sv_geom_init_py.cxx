@@ -3855,6 +3855,8 @@ PyMethodDef pyGeom_methods[] =
 // interpreter when the module is loaded.
 
 static char* MODULE_NAME = "geometry";
+static char* MODULE_EXCEPTION = "geometry.GeometryException";
+static char* MODULE_EXCEPTION_OBJECT = "GeometryException";
 
 PyDoc_STRVAR(GeometryModule_doc, "geometry module functions");
 
@@ -3898,9 +3900,9 @@ PyInit_pyGeom(void)
   auto module = PyModule_Create(&pyGeomModule);
 
   // Add contour.ContourException exception.
-  PyRunTimeErr = PyErr_NewException("pyGeom.error",NULL,NULL);
+  PyRunTimeErr = PyErr_NewException(MODULE_EXCEPTION,NULL,NULL);
   Py_INCREF(PyRunTimeErr);
-  PyModule_AddObject(module, "error",PyRunTimeErr);
+  PyModule_AddObject(module, MODULE_EXCEPTION_OBJECT, PyRunTimeErr);
 
   return module;
 }

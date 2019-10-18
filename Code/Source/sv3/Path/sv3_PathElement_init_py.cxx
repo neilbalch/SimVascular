@@ -873,9 +873,11 @@ static PyMethodDef pyPathModule_methods[] =
 // interpreter when the module is loaded.
 
 static char* MODULE_NAME = "path";
+static char* MODULE_PATH_CLASS = "Path";
+static char* MODULE_EXCEPTION = "path.PathException";
+static char* MODULE_EXCEPTION_OBJECT = "PathException";
 
-PyDoc_STRVAR(Path_doc,
-  "Path functions");
+PyDoc_STRVAR(Path_doc, "path module functions");
 
 //---------------------------------------------------------------------------
 //                           PYTHON_MAJOR_VERSION 3                         
@@ -939,11 +941,11 @@ PyMODINIT_FUNC PyInit_pyPath()
   // This can be used in a 'try' statement with an 'except' clause 
   //     'except sv.path.PathException:'
   // 
-  PyRunTimeErr = PyErr_NewException("path.PathException", NULL, NULL);
-  PyModule_AddObject(module, "PathException", PyRunTimeErr);
+  PyRunTimeErr = PyErr_NewException(MODULE_EXCEPTION, NULL, NULL);
+  PyModule_AddObject(module, MODULE_EXCEPTION_OBJECT, PyRunTimeErr);
 
   Py_INCREF(&pyPathType);
-  PyModule_AddObject(module, "Path", (PyObject*)&pyPathType);
+  PyModule_AddObject(module, MODULE_PATH_CLASS, (PyObject*)&pyPathType);
   return module;
 }
 

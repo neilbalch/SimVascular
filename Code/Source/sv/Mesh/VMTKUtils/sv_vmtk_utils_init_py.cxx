@@ -182,436 +182,410 @@ Geom_centerlines(PyObject* self, PyObject* args)
   return Py_BuildValue("s",linesDst->GetName());
 }
 
-//------------------
-//Geom_GroupPolyDataCmd
-//------------------
+//---------------------
+// Geom_group_polydata 
+//---------------------
+//
+PyDoc_STRVAR(Geom_group_polydata_doc,
+  "group_polydata(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args:                                    \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-
-PyObject* Geom_GroupPolyDataCmd( PyObject* self, PyObject* args)
+static PyObject *
+Geom_group_polydata(PyObject* self, PyObject* args)
 {
-  char *usage;
+  auto api = SvPyUtilApiFunction("sss", PyRunTimeErr, __func__);
   char *geomName;
   char *linesName;
   char *groupedName;
-  cvRepositoryData *geomSrc;
-  cvRepositoryData *linesSrc;
+
+  if (!PyArg_ParseTuple(args, api.format, &geomName, &linesName, &groupedName)) {
+      return api.argsError();
+  }
+
+  // Get repository data.
+  //
+  auto geomSrc = GetRepositoryData(api, geomName, POLY_DATA_T);
+  if (geomSrc == nullptr) {
+      return nullptr;
+  }
+
+  auto linesSrc = GetRepositoryData(api, linesName, POLY_DATA_T);
+  if (linesSrc == NULL) {
+      return nullptr;
+  }
+
+  // Perform group polydata operation.
+  //
   cvRepositoryData *groupedDst = NULL;
-  RepositoryDataT type;
-
-  if (!PyArg_ParseTuple(args,"sss",&geomName,
-	&linesName, &groupedName))
-  {
-    PyErr_SetString(PyRunTimeErr,
-	"Could not import three chars, geomName,linesName, groupedName");
-    
-  }
-  // Retrieve source object:
-  geomSrc = gRepository->GetObject( geomName );
-  if ( geomSrc == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object ");
-    
+  if (sys_geom_grouppolydata(geomSrc, linesSrc, &groupedDst) != SV_OK) {
+      api.error("Error grouping polydata.");
+      return nullptr; 
   }
 
-  type = geomSrc->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr, "obj not of type cvPolyData");
-    
+  if (!gRepository->Register(groupedName, groupedDst)) {
+      delete groupedDst;
+      api.error("Error adding the grouped polydata '" + std::string(groupedName) + "' to the repository.");
+      return nullptr;
   }
-
-  // Retrieve source object:
-  linesSrc = gRepository->GetObject( linesName );
-  if ( linesSrc == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object ");
-    
-  }
-
-  type = linesSrc->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr, "obj not of type cvPolyData");
-    
-  }
-
-  // Do work of command:
-
-  if ( sys_geom_grouppolydata( (cvPolyData*)geomSrc, (cvPolyData*)linesSrc, (cvPolyData**)(&groupedDst) )
-       != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "error getting grouped polydata" );
-    
-  }
-
-  if ( !( gRepository->Register( groupedName, groupedDst ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
-    delete groupedDst;
-    
-  }
-
 
   return Py_BuildValue("s",groupedDst->GetName()) ;
 }
 
-PyObject* Geom_DistanceToCenterlinesCmd( PyObject* self, PyObject* args)
+//------------------------------
+// Geom_distance_to_centerlines
+//------------------------------
+//
+PyDoc_STRVAR(Geom_distance_to_centerlines_doc,
+  "distance_to_centerlines(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args:                                    \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject *
+Geom_distance_to_centerlines(PyObject* self, PyObject* args)
 {
-  char *usage;
+  auto api = SvPyUtilApiFunction("sss", PyRunTimeErr, __func__);
   char *geomName;
   char *linesName;
   char *distanceName;
-  cvRepositoryData *geomSrc;
-  cvRepositoryData *linesSrc;
+
+  if (!PyArg_ParseTuple(args, api.format,&geomName, &linesName, &distanceName)) {
+      return api.argsError();
+  }
+
+  // Get repository data.
+  //
+  auto geomSrc = GetRepositoryData(api, geomName, POLY_DATA_T);
+  if (geomSrc == nullptr) {
+      return nullptr;
+  }
+
+  auto linesSrc = GetRepositoryData(api, linesName, POLY_DATA_T);
+  if (linesSrc == NULL) {
+      return nullptr;
+  }
+
+  // Perform distance to lines operation.
   cvRepositoryData *distanceDst = NULL;
-  RepositoryDataT type;
-  if (!PyArg_ParseTuple(args,"sss",&geomName,
-	&linesName, &distanceName))
-  {
-    PyErr_SetString(PyRunTimeErr,
-	"Could not import three chars, geomName,linesName, distanceName");
-    
+  if (sys_geom_distancetocenterlines(geomSrc, linesSrc, &distanceDst) != SV_OK) {
+      api.error("Error getting distance to centerlines.");
+      return nullptr; 
   }
 
-  // Retrieve source object:
-  geomSrc = gRepository->GetObject( geomName );
-  if ( geomSrc == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object" );
-    
+  if (!gRepository->Register(distanceName, distanceDst)) {
+      delete distanceDst;
+      api.error("Error adding the distance to centerlines '" + std::string(distanceName) + "' to the repository.");
+      return nullptr;
   }
-
-  type = geomSrc->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr, "obj not of type cvPolyData");
-    
-  }
-
-  // Retrieve source object:
-  linesSrc = gRepository->GetObject( linesName );
-  if ( linesSrc == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object ");
-    
-  }
-
-  type = linesSrc->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr, "obj not of type cvPolyData");
-    
-  }
-
-  // Do work of command:
-
-  if ( sys_geom_distancetocenterlines( (cvPolyData*)geomSrc, (cvPolyData*)linesSrc, (cvPolyData**)(&distanceDst) )
-       != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "error getting distance to centerlines" );
-    
-  }
-
-  if ( !( gRepository->Register( distanceName, distanceDst ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
-    delete distanceDst;
-    
-  }
-
 
   return Py_BuildValue("s", distanceDst->GetName()) ;
 }
 
-PyObject* Geom_SeparateCenterlinesCmd( PyObject* self, PyObject* args)
+//---------------------------
+// Geom_separate_centerlines
+//---------------------------
+//
+PyDoc_STRVAR(Geom_separate_centerlines_doc,
+  "separate_centerlines_doc(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args:                                    \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject *
+Geom_separate_centerlines(PyObject* self, PyObject* args)
 {
-  char *usage;
+  auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *linesName;
   char *separateName;
-  cvRepositoryData *linesSrc;
+
+  if (!PyArg_ParseTuple(args, api.format, &linesName, &separateName)) {
+      return api.argsError();
+  }
+
+  auto linesSrc = GetRepositoryData(api, linesName, POLY_DATA_T);
+  if (linesSrc == NULL) {
+      return nullptr;
+  }
+
+  // Perform separate centerlines operation.
+  //
   cvRepositoryData *separateDst = NULL;
-  RepositoryDataT type;
-
-  if (!PyArg_ParseTuple(args,"ss",&linesName, &separateName))
-  {
-    PyErr_SetString(PyRunTimeErr,
-	"Could not import two chars,linesName, separateName");
-    
-  }
-  // Retrieve source object:
-  linesSrc = gRepository->GetObject( linesName );
-  if ( linesSrc == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object " );
-    
+  if (sys_geom_separatecenterlines(linesSrc, &separateDst) != SV_OK) {
+      api.error("Error creating separate centerlines.");
+      return nullptr; 
   }
 
-  type = linesSrc->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr, "obj not of type cvPolyData");
-    
-  }
-
-  // Do work of command:
-
-  if ( sys_geom_separatecenterlines( (cvPolyData*)linesSrc, (cvPolyData**)(&separateDst) )
-       != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "error grouping centerlines" );
-    
-  }
-
-  if ( !( gRepository->Register( separateName, separateDst ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
-    delete separateDst;
-    
+  if (!gRepository->Register(separateName, separateDst)) {
+      delete separateDst;
+      api.error("Error adding the separated centerlaines '" + std::string(separateName) + "' to the repository.");
+      return nullptr;
   }
 
   return Py_BuildValue("s",separateDst->GetName()) ;
 }
 
-PyObject* Geom_MergeCenterlinesCmd( PyObject* self, PyObject* args)
+//------------------------
+// Geom_merge_centerlines
+//------------------------
+//
+PyDoc_STRVAR(Geom_merge_centerlines_doc,
+  "merge_centerlines(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args:                                    \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject *
+Geom_merge_centerlines(PyObject* self, PyObject* args)
 {
-  char *usage;
+  auto api = SvPyUtilApiFunction("ssi", PyRunTimeErr, __func__);
   char *linesName;
   char *mergeName;
   int mergeblanked = 1;
-  cvRepositoryData *linesSrc;
+
+  if (!PyArg_ParseTuple(args, api.format,&linesName, &mergeName, &mergeblanked)) {
+      return api.argsError();
+  }
+
+  // Get repository data.
+  auto linesSrc = GetRepositoryData(api, linesName, POLY_DATA_T);
+  if (linesSrc == NULL) {
+      return nullptr;
+  }
+
+  // Perform merge centerline operation.
+  //
   cvRepositoryData *mergeDst = NULL;
-  RepositoryDataT type;
-
-  if (!PyArg_ParseTuple(args,"ssi",&linesName,
-	&mergeName, &mergeblanked))
-  {
-    PyErr_SetString(PyRunTimeErr,
-	"Could not import two chars and one int, linesName,mergeName, mergeblanked");
-    
-  }
-  // Retrieve source object:
-  linesSrc = gRepository->GetObject( linesName );
-  if ( linesSrc == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object " );
-    
+  if (sys_geom_mergecenterlines(linesSrc, mergeblanked, &mergeDst) != SV_OK) {
+      api.error("Error merging centerlines.");
+      return nullptr; 
   }
 
-  type = linesSrc->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr, "obj not of type cvPolyData");
-    
+  if (!gRepository->Register(mergeName, mergeDst)) {
+      delete mergeDst;
+      api.error("Error adding the merging centerlines '" + std::string(mergeName) + "' to the repository.");
+      return nullptr;
   }
-
-  // Do work of command:
-
-  if ( sys_geom_mergecenterlines( (cvPolyData*)linesSrc, mergeblanked, (cvPolyData**)(&mergeDst) )
-       != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "error merging centerlines" );
-    
-  }
-
-  if ( !( gRepository->Register( mergeName, mergeDst ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
-    delete mergeDst;
-    
-  }
-
 
   return Py_BuildValue("s", mergeDst->GetName());
 }
 
+//-----------
+// Geom_cap
+//-----------
+//
+PyDoc_STRVAR(Geom_cap_doc,
+  "cap_doc(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args:                                    \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-PyObject* Geom_CapCmd( PyObject* self, PyObject* args)
+static PyObject *
+Geom_cap(PyObject* self, PyObject* args)
 {
-  int numIds;
-  int *ids;
-  int captype;
-  char *usage;
-  char *cappedName;
+  auto api = SvPyUtilApiFunction("ssi", PyRunTimeErr, __func__);
   char *geomName;
-  char idstring[256];
-  cvRepositoryData *geomSrc;
-  cvRepositoryData *cappedDst = NULL;
-  RepositoryDataT type;
+  char *cappedName;
+  int captype;
 
-  if (!PyArg_ParseTuple(args,"sss",&geomName,
-	&cappedName, &captype))
-  {
-    PyErr_SetString(PyRunTimeErr,
-	"Could not import three chars, geomName,cappedName, captype");
-    
-  }
-  // Retrieve source object:
-  geomSrc = gRepository->GetObject( geomName );
-  if ( geomSrc == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object " );
-    
+  if (!PyArg_ParseTuple(args, api.format, &geomName, &cappedName, &captype)) {
+      return api.argsError();
   }
 
-  type = geomSrc->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr, "obj not of type cvPolyData");
-    
+  // Get repository data.
+  auto geomSrc = GetRepositoryData(api, geomName, POLY_DATA_T);
+  if (geomSrc == nullptr) {
+      return nullptr;
   }
 
   // Make sure the specified dst object does not exist:
-  if ( gRepository->Exists( cappedName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists" );
-    
+  if (gRepository->Exists(cappedName)) {
+    api.error("The object '"+std::string(cappedName)+"' is already in the repository.");
+    return nullptr; 
   }
 
-  // Do work of command:
-
-  if ( sys_geom_cap( (cvPolyData*)geomSrc, (cvPolyData**)(&cappedDst), &numIds,&ids,captype )
-       != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr,"error capping model" );
-    
+  // Perform cap operation.
+  //
+  cvRepositoryData *cappedDst = NULL;
+  int numIds, *ids;
+  if (sys_geom_cap(geomSrc, &cappedDst, &numIds, &ids, captype) != SV_OK) {
+    api.error("Error capping model.");
+    return nullptr; 
   }
 
-  if ( !( gRepository->Register( cappedName, cappedDst ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
-    delete cappedDst;
-    
+  if (!gRepository->Register(cappedName, cappedDst)) {
+      delete cappedDst;
+      api.error("Error adding the capped model '" + std::string(cappedName) + "' to the repository.");
+      return nullptr;
   }
 
-//  Tcl_SetResult( interp, cappedDst->GetName() );
-
-  if (numIds == 0)
-  {
-    PyErr_SetString(PyRunTimeErr, "No Ids Found" );
-    
+ // [TODO:DaveP] what are the IDs that were not found?
+  if (numIds == 0) {
+      api.error("No cap IDs were found."); 
+      return nullptr;
   }
-  PyObject* pyList=PyList_New(numIds);
+
+  // Build return list of IDs.
+  //
+  PyObject* pyList = PyList_New(numIds);
   for (int i = 0; i < numIds; i++) {
-	sprintf(idstring, "%i", ids[i]);
-    PyList_SetItem(pyList,i,PyBytes_FromFormat(idstring));
-	idstring[0]='\n';
+      PyObject* pint = Py_BuildValue("i", ids[i]);
+      PyList_SetItem(pyList, i, pint);
   }
+
   delete [] ids;
 
   return pyList;
 }
 
-PyObject* Geom_CapWIdsCmd( PyObject* self, PyObject* args)
+//-------------------
+// Geom_cap_with_ids
+//-------------------
+//
+PyDoc_STRVAR(Geom_cap_with_ids_doc,
+  "cap_with_ids(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args:                                    \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject *
+Geom_cap_with_ids(PyObject* self, PyObject* args)
 {
-  int fillId;
-  char *usage;
-  char *cappedName;
+  auto api = SvPyUtilApiFunction("ssii", PyRunTimeErr, __func__);
   char *geomName;
-  int num_filled = 0;
+  char *cappedName;
+  int fillId;
   int filltype = 0;
-  cvRepositoryData *geomSrc;
-  cvRepositoryData *cappedDst = NULL;
-  RepositoryDataT type;
 
-  if (!PyArg_ParseTuple(args,"ssii",&geomName,
-	&cappedName, &fillId,&filltype))
-  {
-    PyErr_SetString(PyRunTimeErr,
-	"Could not import two chars and two ints, geomName,cappedName, fillId,filltype");
-    
-  }
-  // Retrieve source object:
-  geomSrc = gRepository->GetObject( geomName );
-  if ( geomSrc == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object ");
-    return nullptr;
+  if (!PyArg_ParseTuple(args, api.format, &geomName, &cappedName, &fillId, &filltype)) {
+      return api.argsError();
   }
 
-  type = geomSrc->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr,"obj not of type cvPolyData");
-    return nullptr;
-    
+  // Get repository data.
+  auto geomSrc = GetRepositoryData(api, geomName, POLY_DATA_T);
+  if (geomSrc == nullptr) {
+      return nullptr;
   }
 
   // Make sure the specified dst object does not exist:
-  if ( gRepository->Exists( cappedName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
+  if (gRepository->Exists(cappedName)) {
+    api.error("The object '"+std::string(cappedName)+"' is already in the repository.");
     return nullptr;
-    
   }
 
-  // Do work of command:
-
-  if ( sys_geom_cap_with_ids( (cvPolyData*)geomSrc, (cvPolyData**)(&cappedDst)
-	,fillId,num_filled,filltype)
-       != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "error capping model" );
+  // Perform cap operation.
+  //
+  // [TODO:DaveP] The 'num_filled' argument is not passed back from
+  // this function, it will always be 0.
+  //
+  int num_filled = 0;
+  cvRepositoryData *cappedDst = NULL;
+  if (sys_geom_cap_with_ids(geomSrc, &cappedDst, fillId, num_filled, filltype) != SV_OK) {
+    api.error("Error creating cap with ids.");
     return nullptr;
-    
   }
 
-  if ( !( gRepository->Register( cappedName, cappedDst ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
-    delete cappedDst;
-    return nullptr;
-    
+  if (!gRepository->Register(cappedName, cappedDst)) {
+      delete cappedDst;
+      api.error("Error adding the capped ids '" + std::string(cappedName) + "' to the repository.");
+      return nullptr;
   }
 
-  return Py_BuildValue("i",num_filled);
+  return Py_BuildValue("i", num_filled);
 }
 
-PyObject* Geom_MapAndCorrectIdsCmd( PyObject* self, PyObject* args)
+//--------------------------
+// Geom_map_and_correct_ids
+//--------------------------
+//
+PyDoc_STRVAR(Geom_map_and_correct_ids_doc,
+  "map_and_correct_ids(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args:                                    \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject *
+Geom_map_and_correct_ids(PyObject* self, PyObject* args)
 {
-  char *usage;
+  auto api = SvPyUtilApiFunction("sssss", PyRunTimeErr, __func__);
   char *originalName;
   char *newName;
   char *resultName;
   char *originalArray;
   char *newArray;
-  cvRepositoryData *geomSrc;
-  cvRepositoryData *geomNew;
-  cvRepositoryData *geomDst = NULL;
-  RepositoryDataT type;
 
-  if (!PyArg_ParseTuple(args,"sssss",&originalName,
-	&newName, &resultName,&originalArray,&newArray))
-  {
-    PyErr_SetString(PyRunTimeErr,
-	"Could not import five chars, originalName,newName, resultName"
-	"originalArray, newArray");
-    
-  }
-  // Retrieve source object:
-  geomSrc = gRepository->GetObject( originalName );
-  if ( geomSrc == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object " );
-    
+  if (!PyArg_ParseTuple(args,api.format, &originalName, &newName, &resultName, &originalArray, &newArray)) {
+      return api.argsError();
   }
 
-  // Retrieve source object:
-  geomNew = gRepository->GetObject( newName );
-  if ( geomNew == NULL ) {
-    PyErr_SetString(PyRunTimeErr, "couldn't find object ");
-    
+  // Get repository data.
+  //
+  auto geomSrc = GetRepositoryData(api, originalName, POLY_DATA_T);
+  if (geomSrc == nullptr) {
+      return nullptr;
   }
-
-  type = geomSrc->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr, "obj not of type cvPolyData");
-    
-  }
-
-  type = geomNew->GetType();
-  if ( type != POLY_DATA_T ) {
-    PyErr_SetString(PyRunTimeErr, "obj not of type cvPolyData");
-    
+  auto geomNew = GetRepositoryData(api, newName, POLY_DATA_T);
+  if (geomNew == nullptr) {
+      return nullptr;
   }
 
   // Make sure the specified dst object does not exist:
-  if ( gRepository->Exists( resultName ) ) {
-    PyErr_SetString(PyRunTimeErr, "object already exists");
-    
+  if (gRepository->Exists(resultName)) {
+      api.error("The object '"+std::string(resultName)+"' is already in the repository.");
+      return nullptr; 
   }
 
-  // Do work of command:
-
-  if ( sys_geom_mapandcorrectids( (cvPolyData*)geomSrc, (cvPolyData*)geomNew, (cvPolyData**)(&geomDst), originalArray,newArray )
-       != SV_OK ) {
-    PyErr_SetString(PyRunTimeErr, "error correcting ids" );
-    
+  // Perform map and correct IDs operation.
+  //
+  cvRepositoryData *geomDst = NULL;
+  if (sys_geom_mapandcorrectids(geomSrc, geomNew, &geomDst, originalArray, newArray) != SV_OK) {
+    api.error("Error mapping and correcing ids.");
+    return nullptr;
   }
 
-  if ( !( gRepository->Register( resultName, geomDst ) ) ) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
-    delete geomDst;
-    
+  if (!gRepository->Register(resultName, geomDst)) {
+      delete geomDst;
+      api.error("Error adding the mapped and corrected ids '" + std::string(resultName) + "' to the repository.");
+      return nullptr;
   }
-
 
   return Py_BuildValue("s",geomDst->GetName()) ;
 }
+
 #endif
 
 
 ////////////////////////////////////////////////////////
 //          M o d u l e  D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
+
+static char* MODULE_NAME = "vmtk_utils";
+static char* MODULE_EXCEPTION = "vmtk_utils.VmtkUtilsModelException";
+static char* MODULE_EXCEPTION_OBJECT = "VmtkUtilsModelException";
+
+PyDoc_STRVAR(VmtkUtils_doc, "vmtk_utils module functions");
 
 #if PYTHON_MAJOR_VERSION == 2
 PyMODINIT_FUNC initpyVMTKUtils();
@@ -643,19 +617,19 @@ PyMethodDef VMTKUtils_methods[]=
 
   { "centerlines", Geom_centerlines, METH_VARARGS, Geom_centerlines_doc},
 
-  { "Grouppolydata", Geom_GroupPolyDataCmd, METH_VARARGS,NULL},
+  { "group_polydata", Geom_group_polydata, METH_VARARGS, Geom_group_polydata_doc},
 
-  { "Distancetocenterlines", Geom_DistanceToCenterlinesCmd, METH_VARARGS,NULL},
+  { "distance_to_centerlines", Geom_distance_to_centerlines, METH_VARARGS, Geom_distance_to_centerlines_doc},
 
-  { "Separatecenterlines", Geom_SeparateCenterlinesCmd, METH_VARARGS,NULL},
+  { "separate_centerlines", Geom_separate_centerlines, METH_VARARGS, Geom_separate_centerlines_doc},
 
-  { "Mergecenterlines", Geom_MergeCenterlinesCmd, METH_VARARGS,NULL},
+  { "merge_centerlines", Geom_merge_centerlines, METH_VARARGS, Geom_merge_centerlines_doc},
 
-  { "Cap", Geom_CapCmd, METH_VARARGS,NULL},
+  { "cap", Geom_cap, METH_VARARGS, Geom_cap_doc},
 
-  { "Cap_with_ids", Geom_CapWIdsCmd, METH_VARARGS,NULL},
+  { "cap_with_ids", Geom_cap_with_ids, METH_VARARGS, Geom_cap_with_ids_doc},
 
-  { "Mapandcorrectids", Geom_MapAndCorrectIdsCmd, METH_VARARGS,NULL},
+  { "map_and_correct_ids", Geom_map_and_correct_ids, METH_VARARGS, Geom_map_and_correct_ids_doc},
 
 #endif
 
@@ -668,22 +642,27 @@ PyMethodDef VMTKUtils_methods[]=
 // Define the initialization function called by the Python interpreter 
 // when the module is loaded.
 
-static char* MODULE_NAME = "vmtk_utils";
-
-PyDoc_STRVAR(VmtkUtils_doc, "vmtk_utils module functions");
-
 //---------------------------------------------------------------------------
 //                           PYTHON_MAJOR_VERSION 3                         
 //---------------------------------------------------------------------------
 
 #if PYTHON_MAJOR_VERSION == 3
 
+// Size of per-interpreter state of the module.
+// Set to -1 if the module keeps state in global variables. 
+static int perInterpreterStateSize = -1;
+
+// Always initialize this to PyModuleDef_HEAD_INIT.
+static PyModuleDef_Base m_base = PyModuleDef_HEAD_INIT;
+
+// Define the module definition struct which holds all information 
+// needed to create a module object. 
+
 static struct PyModuleDef pyVMTKUtilsmodule = {
-   PyModuleDef_HEAD_INIT,
+   m_base,
    MODULE_NAME, 
    VmtkUtils_doc, 
-   -1,       /* size of per-interpreter state of the module,
-                or -1 if the module keeps state in global variables. */
+   perInterpreterStateSize, 
    VMTKUtils_methods
 };
 
@@ -696,8 +675,8 @@ PyInit_pyVMTKUtils()
     return SV_PYTHON_ERROR;
   }
 
-  PyRunTimeErr = PyErr_NewException("pyVMTKUtils.error",NULL,NULL);
-  PyModule_AddObject(module,"error",PyRunTimeErr);
+  PyRunTimeErr = PyErr_NewException(MODULE_EXCEPTION, NULL, NULL);
+  PyModule_AddObject(module, MODULE_EXCEPTION_OBJECT, PyRunTimeErr);
 
   return module;
 }
@@ -717,13 +696,12 @@ PyMODINIT_FUNC initpyVMTKUtils()
   PyObject* pythonC;
   pythonC=Py_InitModule("pyVMTKUtils",VMTKUtils_methods);
 
-  if (pythonC==NULL)
-  {
+  if (pythonC==NULL) {
     fprintf(stdout,"Error initializing pyVMTKUtils.\n");
     return;
-
   }
-  PyRunTimeErr=PyErr_NewException("pyVMTKUtils.error",NULL,NULL);
+
+  PyRunTimeErr = PyErr_NewException("pyVMTKUtils.error",NULL,NULL);
   PyModule_AddObject(pythonC,"error",PyRunTimeErr);
   return;
 }

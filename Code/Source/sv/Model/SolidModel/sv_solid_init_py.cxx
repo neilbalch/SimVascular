@@ -4117,9 +4117,9 @@ static PyTypeObject pycvFactoryRegistrarType = {
 // when the module is loaded.
 
 static char* MODULE_NAME = "solid";
-static char* SOLID_MODEL_CLASS_NAME = "SolidModel";
-static char* MODULE_EXCEPTION_NAME = "solid.SolidModelException";
-static char* SOLID_MODEL_EXCEPTION_NAME = "SolidModelException";
+static char* MODULE_SOLID_MODEL_CLASS = "SolidModel";
+static char* MODULE_EXCEPTION = "solid.SolidModelException";
+static char* MODEL_EXCEPTION_OBJECT = "SolidModelException";
 
 PyDoc_STRVAR(Solid_module_doc, "solid module functions");
 
@@ -4197,12 +4197,12 @@ PyInit_pySolid(void)
 
   // Add solid.SolidModelException exception.
   //
-  PyRunTimeErr = PyErr_NewException(MODULE_EXCEPTION_NAME, NULL, NULL);
-  PyModule_AddObject(module, SOLID_MODEL_EXCEPTION_NAME, PyRunTimeErr);
+  PyRunTimeErr = PyErr_NewException(MODULE_EXCEPTION, NULL, NULL);
+  PyModule_AddObject(module, MODEL_EXCEPTION_OBJECT, PyRunTimeErr);
 
   // Add the 'SolidModel' class.
   Py_INCREF(&pySolidModelType);
-  PyModule_AddObject(module, SOLID_MODEL_CLASS_NAME, (PyObject *)&pySolidModelType);
+  PyModule_AddObject(module, MODULE_SOLID_MODEL_CLASS, (PyObject *)&pySolidModelType);
 
   Py_INCREF(&pycvFactoryRegistrarType);
   PyModule_AddObject(module, "pyCvFactoryRegistrar", (PyObject *)&pycvFactoryRegistrarType);

@@ -451,7 +451,11 @@ int sys_geom_cap( cvPolyData *polydata,cvPolyData **cappedpolydata,int *numcente
 /* -------------- */
 /* sys_geom_cap_with_ids */
 /* -------------- */
-
+//
+// [TODO:DaveP] The 'filledholes' argument is not declared correctly to 
+// pass back the number of filled holes. There is also mixing up of arguments 
+// that return a value and those that don't.
+//
 /** @author Adam Updegrove
  *  @author updega2@gmail.com
  *  @author UC Berkeley

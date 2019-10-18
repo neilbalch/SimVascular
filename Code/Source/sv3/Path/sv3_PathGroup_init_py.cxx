@@ -541,10 +541,12 @@ static PyMethodDef pyPathGroupModule_methods[] =
 // Define the initialization function called by the Python 
 // interpreter when the module is loaded.
 
-static char* MODULE_NAME = "pathgroup";
+static char* MODULE_NAME = "path_group";
+static char* MODULE_PATH_GROUP_CLASS = "PathGroup";
+static char* MODULE_EXCEPTION = "path_group.PathGroupException";
+static char* MODULE_EXCEPTION_OBJECT = "PathGroupException";
 
-PyDoc_STRVAR(pathgroup_doc,
-  "pathgroup functions");
+PyDoc_STRVAR(pathgroup_doc, "path_group functions");
 
 //---------------------------------------------------------------------------
 //                           PYTHON_MAJOR_VERSION 3                         
@@ -604,10 +606,10 @@ PyMODINIT_FUNC PyInit_pyPathGroup()
   // This defines a Python exception named sv.pathgroup.PathGroupException.
   // This can be used in a 'try' statement with an 'except' clause 'except sv.pathgroup.PathGroupExceptions:'
   // 
-  PyRunTimeErrPg = PyErr_NewException("pathgroup.PathGroupException", NULL, NULL);
-  PyModule_AddObject(module, "PathGroupException", PyRunTimeErrPg);
+  PyRunTimeErrPg = PyErr_NewException(MODULE_EXCEPTION, NULL, NULL);
+  PyModule_AddObject(module, MODULE_EXCEPTION_OBJECT, PyRunTimeErrPg);
   Py_INCREF(&pyPathGroupType);
-  PyModule_AddObject(module,"PathGroup",(PyObject*)&pyPathGroupType);
+  PyModule_AddObject(module,MODULE_PATH_GROUP_CLASS,(PyObject*)&pyPathGroupType);
   return module;
 }
 

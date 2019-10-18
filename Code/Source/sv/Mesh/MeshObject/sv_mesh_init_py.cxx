@@ -1616,7 +1616,9 @@ static PyMethodDef pyMeshObjectModule_methods[] =
 // interpreter when the module is loaded.
 
 static char* MODULE_NAME = "mesh";
-static char* MODULE_MESH_OBJECT_NAME = "Mesh";
+static char* MODULE_MESH_CLASS = "Mesh";
+static char* MODULE_EXCEPTION = "mesh.MeshException";
+static char* MODULE_EXCEPTION_OBJECT = "MeshException";
 
 PyDoc_STRVAR(Mesh_module_doc, "mesh module functions");
 
@@ -1686,12 +1688,12 @@ PyMODINIT_FUNC PyInit_pyMeshObject()
   }
 
   // Add mesh.MeshException exception.
-  PyRunTimeErr = PyErr_NewException("mesh.MeshException", NULL, NULL);
-  PyModule_AddObject(module, "MeshException", PyRunTimeErr);
+  PyRunTimeErr = PyErr_NewException(MODULE_EXCEPTION, NULL, NULL);
+  PyModule_AddObject(module, MODULE_EXCEPTION_OBJECT, PyRunTimeErr);
 
   // Add 'Mesh' object.
   Py_INCREF(&pyMeshObjectType);
-  PyModule_AddObject(module, MODULE_MESH_OBJECT_NAME, (PyObject*)&pyMeshObjectType);
+  PyModule_AddObject(module, MODULE_MESH_CLASS, (PyObject*)&pyMeshObjectType);
 
   return module;
 }

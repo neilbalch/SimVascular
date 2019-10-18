@@ -29,6 +29,10 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+// The functions defined here implement the SV Python API image module. 
+//
+// The module name is 'image'. 
+
 #include "SimVascular.h"
 
 #include <stdio.h>
@@ -46,13 +50,15 @@
 #include "sv2_DistanceMap.h"
 #include "sv2_mask_image_in_place.h"
 #include "sv2_image_init_py.h"
+#include <iostream>
+#include <cstdarg>
 
 #ifdef SV_USE_PYTHON
 #include "Python.h"
 #include "vtkPythonUtil.h"
 #include "vtkSmartPointer.h"
+#include "sv_PyUtils.h"
 #endif
-
 
 // The following is needed for Windows
 #ifdef GetObject
@@ -61,56 +67,62 @@
 
 #include "sv2_globals.h"
 
-PyObject *ImgErr;
-PyObject *Image_ReadHeaderCmd(PyObject *self, PyObject *args);
-PyObject *Image_DecodeCmd(PyObject *self, PyObject *args);
-PyObject *Image_CalcCorrectionEqnCmd(PyObject *self, PyObject *args);
-PyObject *Image_CalcCorrectionEqnAutoCmd(PyObject *self, PyObject *args);
-PyObject *Image_ComputeStructuredCoordCmd(PyObject *self, PyObject *args);
-PyObject *Image_ThresholdCmd(PyObject* self, PyObject* args);
-PyObject *Image_CreateDistanceMapCmd(PyObject *self, PyObject *args);
-PyObject *Image_FindPathCmd(PyObject *self, PyObject *args);
-PyObject *Image_MaskInPlaceCmd(PyObject *self, PyObject *args);
-#if PYTHON_MAJOR_VERSION == 2
-PyMODINIT_FUNC
-initpyImage(void);
-#elif PYTHON_MAJOR_VERSION == 3
-PyMODINIT_FUNC
-PyInit_pyImage(void);
-#endif
+// Exception type used by PyErr_SetString() to set the for the error indicator.
+static PyObject * PyRunTimeErr;
 
-// ----------
-// Image_Init
-// ----------
-int Image_pyInit()
+static void
+AddFloats(PyObject *pylist, const std::string& format, ...)
+//AddFloats(PyObject *pylist, std::string& format, float arg1, float arg2 = 0.0, float arg3 = 0.0)
 {
+  va_list arguments; 
+  double sum = 0;
+  va_start(arguments, format);     
 
-#if PYTHON_MAJOR_VERSION == 2
-  initpyImage();
-#elif PYTHON_MAJOR_VERSION == 3
-  PyInit_pyImage();
-#endif
+  //char tmpStr[1024];
+  //sprintf(tmpStr, format, arguments);
 
+  while (*fmt != '\0') {
+      if (*fmt == 'd') {
+          int i = va_arg(args, int);
+          std::cout << i << '\n';
+      } else if (*fmt == 's') {
+          char * s = va_arg(args, char*);
+          std::cout << s << '\n';
+      }
+      ++fmt;
+  }
 
-  return SV_OK;
-
+  va_end(args);
 }
 
+//////////////////////////////////////////////////////
+//          M o d u l e  F u n c t i o n s          //
+//////////////////////////////////////////////////////
+//
+// Python API functions. 
 
-// --------------------
-// Image_ReadHeaderCmd
-// --------------------
+//----------------------
+// Image_read_header_5x 
+//----------------------
+//
+PyDoc_STRVAR(Image_read_header_5x_doc,
+  "read_header_5x(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args:                                    \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-PyObject *Image_ReadHeaderCmd(PyObject *self, PyObject *args)
+static PyObject *
+Image_read_header_5x(PyObject *self, PyObject *args)
 {
- // char *usage;
-
+  auto api = SvPyUtilApiFunction("s|i", PyRunTimeErr, __func__);
   char *filename;
   int readProtected = 0;
-  if (!PyArg_ParseTuple(args,"s|i", &filename,&readProtected))
-  {
-    PyErr_SetString(ImgErr, "Could not import 1 char and 1 int, filename, readProtected ");
-    
+
+  if (!PyArg_ParseTuple(args, api.format, &filename, &readProtected)) {
+    return api.argsError();
   }
 
   // Do work of command
@@ -121,17 +133,9 @@ PyObject *Image_ReadHeaderCmd(PyObject *self, PyObject *args)
   int venc;
   float vencscale;
   int vas_collapse;
-  float user2;
-  float user5;
-  float user6;
-  float user7;
-  float user8;
-  float user9;
-  float user12;
-  float user13;
-  float user14;
-  // these string sizes need to match those contained in the image
-  // header
+  float user2, user5, user6, user7, user8, user9, user12, user13, user14;
+
+  // These string sizes need to match those contained in the image header.
   char patid[13];
   char patname[25];
   char psdname[33];
@@ -143,6 +147,8 @@ PyObject *Image_ReadHeaderCmd(PyObject *self, PyObject *args)
   int im_no;
   int im_seno;
 
+  // [TODO:DaveP] This is hideous! Could we possibly 
+  // use that c++ class thingy?
   int status = mrRead_Header (filename, &vdims_x, &vdims_y,
                               &dim_x, &dim_y, &file_hdr_size,
                               ul, ur, br,&venc,&vencscale,
@@ -153,20 +159,28 @@ PyObject *Image_ReadHeaderCmd(PyObject *self, PyObject *args)
                               &magWeightFlag, &examNumber, nrm_RAS,
                               &acquisitionTime,&heart_rate,&im_no,&im_seno);
   char tmpStr[1024];
-  if ( status == SV_ERROR ) {
-    sprintf(tmpStr,"Problem reading header for ", filename );
-    PyErr_SetString( ImgErr, tmpStr);
-    
+
+  if (status == SV_ERROR) {
+    api.error("Error reading header information from the file '"+std::string(filename)+"'.");
+    return nullptr;
   }
-  PyObject *pylist=PyList_New(0);
+
+  // Return header information.
+  //
+  PyObject *pylist = PyList_New(0);
+
   tmpStr[0]='\0';
   sprintf(tmpStr,"extent {%i %i}",dim_x,dim_y);
-  PyObject* pyStr= PyString_FromString(tmpStr);
+  PyObject* pyStr = PyString_FromString(tmpStr);
   PyList_Append( pylist,  pyStr );
+
   tmpStr[0]='\0';
   sprintf(tmpStr,"voxel_dims {%.8f %.8f}",vdims_x,vdims_y);
   pyStr= PyString_FromString(tmpStr);
   PyList_Append( pylist,  pyStr );
+
+  AddFloats(pylist, "voxel_dims {%.8f %.8f}", vdims_x, vdims_y); 
+
   tmpStr[0]='\0';
   sprintf(tmpStr,"file_hdr_size %i",file_hdr_size);
   pyStr= PyString_FromString(tmpStr);
@@ -288,6 +302,7 @@ PyObject *Image_ReadHeaderCmd(PyObject *self, PyObject *args)
 
 PyObject* Image_DecodeCmd(PyObject *self, PyObject *args)
 {
+  auto api = SvPyUtilApiFunction("sOOss", PyRunTimeErr, __func__);
   char *usage;
 
   char *magname;
@@ -299,8 +314,8 @@ PyObject* Image_DecodeCmd(PyObject *self, PyObject *args)
 
   if (!PyArg_ParseTuple(args,"ssdd|s",&phasename,&result,&venc,&vencscale,&magname))
   {
-    PyErr_SetString(ImgErr, "Could not import 2 char and 2 doubles or one optional char: phasename,result,venc,vencscale,magname");
-    
+    PyErr_SetString(PyRunTimeErr, "Could not import 2 char and 2 doubles or one optional char: phasename,result,venc,vencscale,magname");
+    return api.argsError();
   }
 
   // Do work of command
@@ -317,7 +332,7 @@ PyObject* Image_DecodeCmd(PyObject *self, PyObject *args)
     img = gRepository->GetObject( magname );
     if ( img == NULL ) {
       sprintf(tmpStr,"couldn't find object ", magname );
-      PyErr_SetString( ImgErr, tmpStr );
+      PyErr_SetString( PyRunTimeErr, tmpStr );
       tmpStr[0]='\0';
       
     }
@@ -327,7 +342,7 @@ PyObject* Image_DecodeCmd(PyObject *self, PyObject *args)
     if ( type != STRUCTURED_PTS_T ) {
       sprintf(tmpStr,"error: object ", magname,
 	  	      "not of type StructuredPts");
-      PyErr_SetString( ImgErr, tmpStr );
+      PyErr_SetString( PyRunTimeErr, tmpStr );
       tmpStr[0]='\0';
       
     }
@@ -339,7 +354,7 @@ PyObject* Image_DecodeCmd(PyObject *self, PyObject *args)
   img = gRepository->GetObject( phasename );
   if ( img == NULL ) {
     sprintf(tmpStr,"couldn't find object ", phasename );
-    PyErr_SetString( ImgErr, tmpStr );
+    PyErr_SetString( PyRunTimeErr, tmpStr );
     tmpStr[0]='\0';
     
   }
@@ -349,7 +364,7 @@ PyObject* Image_DecodeCmd(PyObject *self, PyObject *args)
   if ( type != STRUCTURED_PTS_T ) {
     sprintf(tmpStr,"error: object ", phasename,
     "not of type StructuredPts" );
-    PyErr_SetString( ImgErr, tmpStr );
+    PyErr_SetString( PyRunTimeErr, tmpStr );
     tmpStr[0]='\0';
     
   }
@@ -361,7 +376,7 @@ PyObject* Image_DecodeCmd(PyObject *self, PyObject *args)
   if ( gRepository->Exists( result ) ) {
     sprintf(tmpStr,"object ", result, " already exists",
 		      (char *)NULL);
-    PyErr_SetString( ImgErr, tmpStr );
+    PyErr_SetString( PyRunTimeErr, tmpStr );
     tmpStr[0]='\0';
 
     
@@ -378,7 +393,7 @@ PyObject* Image_DecodeCmd(PyObject *self, PyObject *args)
   if ( status == SV_ERROR ) {
     sprintf(tmpStr,"Problem decoding ", magname, " and ",phasename,(char *)NULL ,
     (char *)NULL);
-    PyErr_SetString( ImgErr, tmpStr );
+    PyErr_SetString( PyRunTimeErr, tmpStr );
     tmpStr[0]='\0';
     
   }
@@ -388,7 +403,7 @@ PyObject* Image_DecodeCmd(PyObject *self, PyObject *args)
   if ( !( gRepository->Register( sp->GetName(), sp ) ) ) {
     sprintf(tmpStr,"error registering obj ", result,
     " in repository");
-    PyErr_SetString( ImgErr, tmpStr );
+    PyErr_SetString( PyRunTimeErr, tmpStr );
     tmpStr[0]='\0';
     delete sp;
     
@@ -405,6 +420,7 @@ PyObject* Image_DecodeCmd(PyObject *self, PyObject *args)
 
 PyObject*  Image_CalcCorrectionEqnCmd(PyObject *self, PyObject *args)
 {
+  auto api = SvPyUtilApiFunction("sOOss", PyRunTimeErr, __func__);
   char *usage;
   int i;
   int order = 0;
@@ -414,7 +430,8 @@ PyObject*  Image_CalcCorrectionEqnCmd(PyObject *self, PyObject *args)
   PyObject *imagesArg;
   if (!PyArg_ParseTuple(args,"OOi",&regionsArg,&imagesArg,&order))
   {
-    PyErr_SetString(ImgErr,"Could not import 2 tuples, and 1 int: regionsArg,imagesArg,order");
+    PyErr_SetString(PyRunTimeErr,"Could not import 2 tuples, and 1 int: regionsArg,imagesArg,order");
+    return api.argsError();
     
   }
 
@@ -424,7 +441,7 @@ PyObject*  Image_CalcCorrectionEqnCmd(PyObject *self, PyObject *args)
   // check for valid order
   if (order < 0 || order > 3) {
         sprintf(tmpStr,"order must be 0,1, or 2");
-        PyErr_SetString( ImgErr, tmpStr );
+        PyErr_SetString( PyRunTimeErr, tmpStr );
         tmpStr[0]='\0';
         
   }
@@ -434,14 +451,14 @@ PyObject*  Image_CalcCorrectionEqnCmd(PyObject *self, PyObject *args)
 
   if (numRegions == 0) {
     sprintf(tmpStr,"empty list of regions" );
-    PyErr_SetString( ImgErr, tmpStr );
+    PyErr_SetString( PyRunTimeErr, tmpStr );
     tmpStr[0]='\0';
     
   }
 
   if (numImages == 0) {
     sprintf(tmpStr,"empty list of images" );
-    PyErr_SetString( ImgErr, tmpStr );
+    PyErr_SetString( PyRunTimeErr, tmpStr );
     tmpStr[0]='\0';
     
   }
@@ -459,7 +476,7 @@ PyObject*  Image_CalcCorrectionEqnCmd(PyObject *self, PyObject *args)
       if ( pd == NULL )
       {
         sprintf(tmpStr,"couldn't find object ", PyString_AsString(PyList_GetItem(regionsArg,i))  );
-        PyErr_SetString( ImgErr, tmpStr );
+        PyErr_SetString( PyRunTimeErr, tmpStr );
         tmpStr[0]='\0';
         delete [] listPd;
         delete [] listImg;
@@ -472,7 +489,7 @@ PyObject*  Image_CalcCorrectionEqnCmd(PyObject *self, PyObject *args)
       {
         sprintf(tmpStr,"error: object ", PyString_AsString(PyList_GetItem(regionsArg,i)) ,
         "not of type cvPolyData" );
-        PyErr_SetString( ImgErr, tmpStr );
+        PyErr_SetString( PyRunTimeErr, tmpStr );
         tmpStr[0]='\0';
         delete [] listPd;
         delete [] listImg;
@@ -483,7 +500,7 @@ PyObject*  Image_CalcCorrectionEqnCmd(PyObject *self, PyObject *args)
     else
     {
       sprintf(tmpStr,"NULL region pointer encountered ");
-      PyErr_SetString( ImgErr, tmpStr );
+      PyErr_SetString( PyRunTimeErr, tmpStr );
       tmpStr[0]='\0';
       delete [] listPd;
       delete [] listImg;
@@ -500,7 +517,7 @@ PyObject*  Image_CalcCorrectionEqnCmd(PyObject *self, PyObject *args)
       if ( img == NULL )
       {
         sprintf(tmpStr,"couldn't find object ", PyString_AsString(PyList_GetItem(imagesArg,i)));
-        PyErr_SetString( ImgErr, tmpStr );
+        PyErr_SetString( PyRunTimeErr, tmpStr );
         tmpStr[0]='\0';
         delete [] listPd;
         delete [] listImg;
@@ -513,7 +530,7 @@ PyObject*  Image_CalcCorrectionEqnCmd(PyObject *self, PyObject *args)
       {
         sprintf(tmpStr,"error: object ", PyString_AsString(PyList_GetItem(imagesArg,i)),
         "not of type StructuredPts");
-        PyErr_SetString( ImgErr, tmpStr );
+        PyErr_SetString( PyRunTimeErr, tmpStr );
         tmpStr[0]='\0';
         delete [] listPd;
         delete [] listImg;
@@ -525,7 +542,7 @@ PyObject*  Image_CalcCorrectionEqnCmd(PyObject *self, PyObject *args)
     else
     {
       sprintf(tmpStr,"NULL image pointer encountered ");
-      PyErr_SetString( ImgErr, tmpStr );
+      PyErr_SetString( PyRunTimeErr, tmpStr );
       tmpStr[0]='\0';
       delete [] listPd;
       delete [] listImg;
@@ -554,7 +571,7 @@ PyObject*  Image_CalcCorrectionEqnCmd(PyObject *self, PyObject *args)
   if ( status == SV_ERROR )
   {
     sprintf(tmpStr,"error finding correction equation ");
-    PyErr_SetString( ImgErr, tmpStr );
+    PyErr_SetString( PyRunTimeErr, tmpStr );
     tmpStr[0]='\0';
     
   }
@@ -592,6 +609,7 @@ PyObject*  Image_CalcCorrectionEqnCmd(PyObject *self, PyObject *args)
 
 PyObject *Image_CalcCorrectionEqnAutoCmd(PyObject *self, PyObject *args )
 {
+  auto api = SvPyUtilApiFunction("sOOss", PyRunTimeErr, __func__);
   int i;
   PyObject *regionsArg;
   PyObject *imagesArg;
@@ -604,7 +622,8 @@ PyObject *Image_CalcCorrectionEqnAutoCmd(PyObject *self, PyObject *args )
   if (!PyArg_ParseTuple(args,"OOids",&regionsArg,&imagesArg,
             &order,&factor,&objName))
   {
-    PyErr_SetString(ImgErr,"Could not import 2 tuples, 1 int, 1 double and 1 char: regionsArg,imagesArg,order,factor,objname");
+    PyErr_SetString(PyRunTimeErr,"Could not import 2 tuples, 1 int, 1 double and 1 char: regionsArg,imagesArg,order,factor,objname");
+    return api.argsError();
   }
 
   // Do work of command
@@ -614,7 +633,7 @@ PyObject *Image_CalcCorrectionEqnAutoCmd(PyObject *self, PyObject *args )
   if (order < 0 || order > 3)
   {
     sprintf(tmpStr,"order must be 0,1, or 2");
-    PyErr_SetString( ImgErr, tmpStr );
+    PyErr_SetString( PyRunTimeErr, tmpStr );
     tmpStr[0]='\0';
         
   }
@@ -623,7 +642,7 @@ PyObject *Image_CalcCorrectionEqnAutoCmd(PyObject *self, PyObject *args )
   if (numImages == 0)
   {
     sprintf(tmpStr,"empty list of images" );
-    PyErr_SetString( ImgErr, tmpStr );
+    PyErr_SetString( PyRunTimeErr, tmpStr );
     tmpStr[0]='\0';
     
   }
@@ -636,7 +655,7 @@ PyObject *Image_CalcCorrectionEqnAutoCmd(PyObject *self, PyObject *args )
   if ( gRepository->Exists( objName ) )
   {
     sprintf(tmpStr,"object ", objName, " already exists");
-    PyErr_SetString( ImgErr, tmpStr );
+    PyErr_SetString( PyRunTimeErr, tmpStr );
     tmpStr[0]='\0';
     
   }
@@ -656,7 +675,7 @@ PyObject *Image_CalcCorrectionEqnAutoCmd(PyObject *self, PyObject *args )
       if ( img == NULL )
       {
         sprintf(tmpStr,"couldn't find object ", PyString_AsString(PyList_GetItem(imagesArg,i)));
-        PyErr_SetString( ImgErr, tmpStr );
+        PyErr_SetString( PyRunTimeErr, tmpStr );
         tmpStr[0]='\0';
         delete [] listImg;
         
@@ -668,7 +687,7 @@ PyObject *Image_CalcCorrectionEqnAutoCmd(PyObject *self, PyObject *args )
       {
         sprintf(tmpStr,"error: object ", PyString_AsString(PyList_GetItem(imagesArg,i)),
         "not of type StructuredPts");
-        PyErr_SetString( ImgErr, tmpStr );
+        PyErr_SetString( PyRunTimeErr, tmpStr );
         tmpStr[0]='\0';
         delete [] listImg;
         
@@ -679,7 +698,7 @@ PyObject *Image_CalcCorrectionEqnAutoCmd(PyObject *self, PyObject *args )
     else
     {
       sprintf(tmpStr, "NULL image pointer encountered ");
-      PyErr_SetString( ImgErr, tmpStr );
+      PyErr_SetString( PyRunTimeErr, tmpStr );
       tmpStr[0]='\0';
       delete [] listImg;
       
@@ -698,7 +717,7 @@ PyObject *Image_CalcCorrectionEqnAutoCmd(PyObject *self, PyObject *args )
         if ( pd == NULL )
         {
           sprintf(tmpStr, "couldn't find object ", PyString_AsString(PyList_GetItem(regionsArg,i)));
-          PyErr_SetString( ImgErr, tmpStr );
+          PyErr_SetString( PyRunTimeErr, tmpStr );
           tmpStr[0]='\0';
           delete [] listPd;
           delete [] listImg;
@@ -710,7 +729,7 @@ PyObject *Image_CalcCorrectionEqnAutoCmd(PyObject *self, PyObject *args )
         if ( type != POLY_DATA_T )
         {
           sprintf(tmpStr, "error: object ", PyString_AsString(PyList_GetItem(regionsArg,i)),"not of type cvPolyData");
-          PyErr_SetString( ImgErr, tmpStr );
+          PyErr_SetString( PyRunTimeErr, tmpStr );
           tmpStr[0]='\0';
           delete [] listPd;
           delete [] listImg;
@@ -721,7 +740,7 @@ PyObject *Image_CalcCorrectionEqnAutoCmd(PyObject *self, PyObject *args )
       else
       {
       sprintf(tmpStr, "NULL region pointer encountered " );
-      PyErr_SetString( ImgErr, tmpStr );
+      PyErr_SetString( PyRunTimeErr, tmpStr );
       tmpStr[0]='\0';
       delete [] listPd;
       delete [] listImg;
@@ -753,7 +772,7 @@ PyObject *Image_CalcCorrectionEqnAutoCmd(PyObject *self, PyObject *args )
   if ( status == SV_ERROR )
   {
     sprintf(tmpStr, "error finding correction equation ");
-    PyErr_SetString( ImgErr, tmpStr );
+    PyErr_SetString( PyRunTimeErr, tmpStr );
     tmpStr[0]='\0';
     
   }
@@ -790,7 +809,7 @@ PyObject *Image_CalcCorrectionEqnAutoCmd(PyObject *self, PyObject *args )
   {
     sprintf(tmpStr, "error registering obj ", objName,
     " in repository");
-    PyErr_SetString( ImgErr, tmpStr );
+    PyErr_SetString( PyRunTimeErr, tmpStr );
     tmpStr[0]='\0';
     delete sp;
     
@@ -806,6 +825,7 @@ PyObject *Image_CalcCorrectionEqnAutoCmd(PyObject *self, PyObject *args )
 // ------------------
 PyObject* Image_ThresholdCmd(PyObject* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("sOOss", PyRunTimeErr, __func__);
 
   char *imagename;
   imagename = NULL;
@@ -818,7 +838,8 @@ PyObject* Image_ThresholdCmd(PyObject* self, PyObject* args)
 
   if (!PyArg_ParseTuple(args,"ssddi", &imagename,&result,&thrMin,&thrMax,&max_num_pts))
   {
-    PyErr_SetString(ImgErr, "Could not import 2 chars, 2 doubles and 1 int, imagename, result, thrMin, thrMax, max_num_pts");
+    PyErr_SetString(PyRunTimeErr, "Could not import 2 chars, 2 doubles and 1 int, imagename, result, thrMin, thrMax, max_num_pts");
+    return api.argsError();
     
   }
 
@@ -837,7 +858,7 @@ PyObject* Image_ThresholdCmd(PyObject* self, PyObject* args)
     if ( img == NULL )
     {
       sprintf(tmpStr, "couldn't find object %s", imagename);
-      PyErr_SetString( ImgErr, tmpStr );
+      PyErr_SetString( PyRunTimeErr, tmpStr );
       tmpStr[0]='\0';
       
     }
@@ -847,7 +868,7 @@ PyObject* Image_ThresholdCmd(PyObject* self, PyObject* args)
     if ( type != STRUCTURED_PTS_T )
     {
       sprintf(tmpStr, "error: object %s not of type StructuredPts", imagename);
-      PyErr_SetString( ImgErr, tmpStr );
+      PyErr_SetString( PyRunTimeErr, tmpStr );
       tmpStr[0]='\0';
       
     }
@@ -859,7 +880,7 @@ PyObject* Image_ThresholdCmd(PyObject* self, PyObject* args)
   if ( gRepository->Exists( result ) )
   {
     sprintf(tmpStr, "object %s already exists",result);
-    PyErr_SetString( ImgErr, tmpStr );
+    PyErr_SetString( PyRunTimeErr, tmpStr );
     tmpStr[0]='\0';
     
   }
@@ -870,7 +891,7 @@ PyObject* Image_ThresholdCmd(PyObject* self, PyObject* args)
   if ( status == SV_ERROR || obj == NULL)
   {
     sprintf(tmpStr, "Problem thresholding %s", imagename);
-    PyErr_SetString( ImgErr, tmpStr );
+    PyErr_SetString( PyRunTimeErr, tmpStr );
     tmpStr[0]='\0';
     
   }
@@ -880,7 +901,7 @@ PyObject* Image_ThresholdCmd(PyObject* self, PyObject* args)
   {
    //if (!(gRepository->Register(result,polydataObj))){
     sprintf(tmpStr, "error registering obj %s in repository", result);
-    PyErr_SetString( ImgErr, tmpStr );
+    PyErr_SetString( PyRunTimeErr, tmpStr );
     tmpStr[0]='\0';
     delete obj;
     
@@ -902,6 +923,7 @@ PyObject* Image_ThresholdCmd(PyObject* self, PyObject* args)
 
 PyObject* Image_ComputeStructuredCoordCmd(PyObject *self, PyObject *args )
 {
+  auto api = SvPyUtilApiFunction("sOOss", PyRunTimeErr, __func__);
 
   char *imagename;
   PyObject* ptList;
@@ -910,7 +932,8 @@ PyObject* Image_ComputeStructuredCoordCmd(PyObject *self, PyObject *args )
 
   if (!PyArg_ParseTuple(args,"sO",&imagename, &ptList))
   {
-    PyErr_SetString(ImgErr,"Could not import one char and one tuple,imagename,ptList");
+    PyErr_SetString(PyRunTimeErr,"Could not import one char and one tuple,imagename,ptList");
+    return api.argsError();
     
   }
 
@@ -921,7 +944,7 @@ PyObject* Image_ComputeStructuredCoordCmd(PyObject *self, PyObject *args )
     pt[i]=PyFloat_AsDouble(PyList_GetItem(ptList,i));
     if (PyErr_Occurred())
     {
-      PyErr_SetString( ImgErr, "Error parsing ptlist!" );
+      PyErr_SetString( PyRunTimeErr, "Error parsing ptlist!" );
       
     }
   }
@@ -940,7 +963,7 @@ PyObject* Image_ComputeStructuredCoordCmd(PyObject *self, PyObject *args )
     if ( img == NULL )
     {
       sprintf(tmpStr, "couldn't find object ", imagename);
-      PyErr_SetString( ImgErr, tmpStr );
+      PyErr_SetString( PyRunTimeErr, tmpStr );
       tmpStr[0]='\0';
       
     }
@@ -951,7 +974,7 @@ PyObject* Image_ComputeStructuredCoordCmd(PyObject *self, PyObject *args )
     {
       sprintf(tmpStr,  "error: object ", imagename,
       "not of type StructuredPts" );
-      PyErr_SetString( ImgErr, tmpStr );
+      PyErr_SetString( PyRunTimeErr, tmpStr );
       tmpStr[0]='\0';
       
     }
@@ -1003,6 +1026,7 @@ PyObject* Image_ComputeStructuredCoordCmd(PyObject *self, PyObject *args )
 
 PyObject *Image_CreateDistanceMapCmd(PyObject *self, PyObject *args)
 {
+  auto api = SvPyUtilApiFunction("sOOss", PyRunTimeErr, __func__);
   //char *usage;
 
   char *srcName;
@@ -1017,7 +1041,8 @@ PyObject *Image_CreateDistanceMapCmd(PyObject *self, PyObject *args)
   if (!PyArg_ParseTuple(args,"sOds|i",&srcName,&startList,
           &thr,&dstName,&useCityBlock))
   {
-    PyErr_SetString(ImgErr,"Could not import 1 char, 1 tuple, 1 double, 1 char and 1 int(bool): srcName,startList,thr, dstName,useCityBlock");
+    PyErr_SetString(PyRunTimeErr,"Could not import 1 char, 1 tuple, 1 double, 1 char and 1 int(bool): srcName,startList,thr, dstName,useCityBlock");
+    return api.argsError();
     
   }
 
@@ -1034,7 +1059,7 @@ PyObject *Image_CreateDistanceMapCmd(PyObject *self, PyObject *args)
   if ( img == NULL )
   {
     sprintf(tmpStr,  "couldn't find object ", srcName  );
-    PyErr_SetString( ImgErr, tmpStr );
+    PyErr_SetString( PyRunTimeErr, tmpStr );
     tmpStr[0]='\0';
     
   }
@@ -1045,7 +1070,7 @@ PyObject *Image_CreateDistanceMapCmd(PyObject *self, PyObject *args)
   {
     sprintf(tmpStr,  "error: object ", srcName,
     "not of type StructuredPts");
-    PyErr_SetString( ImgErr, tmpStr );
+    PyErr_SetString( PyRunTimeErr, tmpStr );
     tmpStr[0]='\0';
     
   }
@@ -1062,7 +1087,7 @@ PyObject *Image_CreateDistanceMapCmd(PyObject *self, PyObject *args)
     start[i]=PyInt_AsLong(PyList_GetItem(startList,i));
     if (PyErr_Occurred()||PyList_Size(startList)!=3)
     {
-      PyErr_SetString( ImgErr, "Error parsing coordinate lists!" );
+      PyErr_SetString( PyRunTimeErr, "Error parsing coordinate lists!" );
       
     }
   }
@@ -1072,7 +1097,7 @@ PyObject *Image_CreateDistanceMapCmd(PyObject *self, PyObject *args)
   {
     sprintf(tmpStr,  "object ", dstName, " already exists",
     (char *)NULL);
-    PyErr_SetString( ImgErr, tmpStr );
+    PyErr_SetString( PyRunTimeErr, tmpStr );
     tmpStr[0]='\0';
     
   }
@@ -1090,7 +1115,7 @@ PyObject *Image_CreateDistanceMapCmd(PyObject *self, PyObject *args)
   if ( status == SV_ERROR )
   {
     sprintf(tmpStr, "Problem creating distance map for ", srcName);
-    PyErr_SetString( ImgErr, tmpStr );
+    PyErr_SetString( PyRunTimeErr, tmpStr );
     tmpStr[0]='\0';
     
   }
@@ -1103,7 +1128,7 @@ PyObject *Image_CreateDistanceMapCmd(PyObject *self, PyObject *args)
   {
     sprintf(tmpStr, "error registering obj ", dstName,
     " in repository"  );
-    PyErr_SetString( ImgErr, tmpStr );
+    PyErr_SetString( PyRunTimeErr, tmpStr );
     tmpStr[0]='\0';
     delete repossp;
     
@@ -1120,6 +1145,7 @@ PyObject *Image_CreateDistanceMapCmd(PyObject *self, PyObject *args)
 
 PyObject *Image_FindPathCmd( PyObject *self, PyObject *args )
 {
+  auto api = SvPyUtilApiFunction("sOOss", PyRunTimeErr, __func__);
  // char *usage;
 
   char *srcName;
@@ -1134,7 +1160,8 @@ PyObject *Image_FindPathCmd( PyObject *self, PyObject *args )
   if (!PyArg_ParseTuple(args,"sOs|iii",&srcName,&stopList,
           &dstName,&useCityBlock,&maxIter,&minqstop))
   {
-    PyErr_SetString(ImgErr,"Could not import 2 chars, 1 tuple or 3 optional int: srcName,stopList,dstName, useCityBlock,maIter,minqstop");
+    PyErr_SetString(PyRunTimeErr,"Could not import 2 chars, 1 tuple or 3 optional int: srcName,stopList,dstName, useCityBlock,maIter,minqstop");
+    return api.argsError();
     
   }
   // Do work of command
@@ -1150,7 +1177,7 @@ PyObject *Image_FindPathCmd( PyObject *self, PyObject *args )
   if ( img == NULL )
   {
     sprintf(tmpStr, "couldn't find object ", srcName  );
-    PyErr_SetString( ImgErr, tmpStr );
+    PyErr_SetString( PyRunTimeErr, tmpStr );
     tmpStr[0]='\0';
     
   }
@@ -1161,7 +1188,7 @@ PyObject *Image_FindPathCmd( PyObject *self, PyObject *args )
   {
     sprintf(tmpStr, "error: object ", srcName,
     "not of type StructuredPts"  );
-    PyErr_SetString( ImgErr, tmpStr );
+    PyErr_SetString( PyRunTimeErr, tmpStr );
     tmpStr[0]='\0';
     
   }
@@ -1178,7 +1205,7 @@ PyObject *Image_FindPathCmd( PyObject *self, PyObject *args )
     stop[i]=PyInt_AsLong(PyList_GetItem(stopList,i));
     if (PyErr_Occurred()||PyList_Size(stopList)!=3)
     {
-      PyErr_SetString( ImgErr, "Error parsing coordinate lists!" );
+      PyErr_SetString( PyRunTimeErr, "Error parsing coordinate lists!" );
       
     }
   }
@@ -1186,7 +1213,7 @@ PyObject *Image_FindPathCmd( PyObject *self, PyObject *args )
   // Make sure the specified result object does not exist:
   if ( gRepository->Exists( dstName ) ) {
     sprintf(tmpStr, "object ", dstName, " already exists");
-    PyErr_SetString( ImgErr, tmpStr );
+    PyErr_SetString( PyRunTimeErr, tmpStr );
     tmpStr[0]='\0';
     
   }
@@ -1207,7 +1234,7 @@ PyObject *Image_FindPathCmd( PyObject *self, PyObject *args )
 
   if ( pd == NULL ) {
     sprintf(tmpStr, "Problem finding path for ", srcName);
-    PyErr_SetString( ImgErr, tmpStr );
+    PyErr_SetString( PyRunTimeErr, tmpStr );
     tmpStr[0]='\0';
     
   }
@@ -1219,7 +1246,7 @@ PyObject *Image_FindPathCmd( PyObject *self, PyObject *args )
   {
     sprintf(tmpStr, "error registering obj ", dstName,
     " in repository" );
-    PyErr_SetString( ImgErr, tmpStr );
+    PyErr_SetString( PyRunTimeErr, tmpStr );
     tmpStr[0]='\0';
     delete dst;
     
@@ -1239,6 +1266,7 @@ PyObject *Image_FindPathCmd( PyObject *self, PyObject *args )
 PyObject* Image_MaskInPlaceCmd( PyObject *self, PyObject *args)
 {
 
+  auto api = SvPyUtilApiFunction("sOOss", PyRunTimeErr, __func__);
   char *objName;
   char *maskName;
 
@@ -1247,7 +1275,8 @@ PyObject* Image_MaskInPlaceCmd( PyObject *self, PyObject *args)
 
   if (!PyArg_ParseTuple(args,"ss|di",&objName,&maskName,&replaceVal,&notval))
   {
-    PyErr_SetString(ImgErr,"Could not import 2 chars or 1 optional double, 1 optional int: objName,maskName,replaceVal, notval");
+    PyErr_SetString(PyRunTimeErr,"Could not import 2 chars or 1 optional double, 1 optional int: objName,maskName,replaceVal, notval");
+    return api.argsError();
     
   }
 
@@ -1264,7 +1293,7 @@ PyObject* Image_MaskInPlaceCmd( PyObject *self, PyObject *args)
   if ( img == NULL )
   {
     sprintf(tmpStr, "couldn't find object ", objName  );
-    PyErr_SetString( ImgErr, tmpStr );
+    PyErr_SetString( PyRunTimeErr, tmpStr );
     tmpStr[0]='\0';
     
   }
@@ -1275,7 +1304,7 @@ PyObject* Image_MaskInPlaceCmd( PyObject *self, PyObject *args)
   {
     sprintf(tmpStr, "error: object ", objName,
     "not of type StructuredPts"  );
-    PyErr_SetString( ImgErr, tmpStr );
+    PyErr_SetString( PyRunTimeErr, tmpStr );
     tmpStr[0]='\0';
     
   }
@@ -1286,7 +1315,7 @@ PyObject* Image_MaskInPlaceCmd( PyObject *self, PyObject *args)
   if ( mask == NULL )
   {
     sprintf(tmpStr, "couldn't find object ", maskName   );
-    PyErr_SetString( ImgErr, tmpStr );
+    PyErr_SetString( PyRunTimeErr, tmpStr );
     tmpStr[0]='\0';
     
   }
@@ -1297,7 +1326,7 @@ PyObject* Image_MaskInPlaceCmd( PyObject *self, PyObject *args)
   {
     sprintf(tmpStr, "error: object ", maskName,
     "not of type StructuredPts" );
-    PyErr_SetString( ImgErr, tmpStr );
+    PyErr_SetString( PyRunTimeErr, tmpStr );
     tmpStr[0]='\0';
     
   }
@@ -1313,7 +1342,7 @@ PyObject* Image_MaskInPlaceCmd( PyObject *self, PyObject *args)
   if ( status == SV_ERROR )
   {
     sprintf(tmpStr, "Problem masking in place for ", objName );
-    PyErr_SetString( ImgErr, tmpStr );
+    PyErr_SetString( PyRunTimeErr, tmpStr );
     tmpStr[0]='\0';
     
   }
@@ -1322,34 +1351,105 @@ PyObject* Image_MaskInPlaceCmd( PyObject *self, PyObject *args)
 
 }
 
+////////////////////////////////////////////////////////
+//          M o d u l e  D e f i n i t i o n          //
+////////////////////////////////////////////////////////
 
-//All functions listed and initiated as pyImage_methods declared here
-// --------------------
+static char* MODULE_NAME = "image";
+static char* MODULE_EXCEPTION = "image.ImageException";
+static char* MODULE_EXCEPTION_OBJECT = "ImageException";
+
+PyDoc_STRVAR(Image_doc, "image module functions");
+
+#if PYTHON_MAJOR_VERSION == 2
+PyMODINIT_FUNC
+initpyImage(void);
+#elif PYTHON_MAJOR_VERSION == 3
+PyMODINIT_FUNC
+PyInit_pyImage(void);
+#endif
+
+// ----------
+// Image_Init
+// ----------
+int Image_pyInit()
+{
+  #if PYTHON_MAJOR_VERSION == 2
+  initpyImage();
+  #elif PYTHON_MAJOR_VERSION == 3
+  PyInit_pyImage();
+  #endif
+  return SV_OK;
+}
+
+//-----------------
 // pyImage_methods
-// --------------------
+//-----------------
+//
 PyMethodDef pyImage_methods[] = {
-  {"ReadHeader_5X", Image_ReadHeaderCmd, METH_VARARGS,NULL},
-  {"Decode", Image_DecodeCmd, METH_VARARGS,NULL},
+
   {"CalcCorrectionEqn", Image_CalcCorrectionEqnCmd, METH_VARARGS,NULL},
+
   {"CalcCorrectionEqnAuto", Image_CalcCorrectionEqnAutoCmd, METH_VARARGS,NULL},
-  {"SetImageThreshold", Image_ThresholdCmd, METH_VARARGS,NULL},
+
   {"ComputeStructuredCoord", Image_ComputeStructuredCoordCmd, METH_VARARGS,NULL},
+
   {"CreateDistanceMap", Image_CreateDistanceMapCmd, METH_VARARGS,NULL},
+
+  {"Decode", Image_DecodeCmd, METH_VARARGS,NULL},
+
   {"FindPath", Image_FindPathCmd, METH_VARARGS,NULL},
+
   {"Mask", Image_MaskInPlaceCmd, METH_VARARGS,NULL},
+
+  {"read_header_5x", Image_read_header_5x, METH_VARARGS, Image_read_header_5x_doc},
+
+  {"SetImageThreshold", Image_ThresholdCmd, METH_VARARGS,NULL},
+
   {NULL, NULL,0,NULL},
-  };
+
+};
+
+//---------------------------------------------------------------------------
+//                           PYTHON_MAJOR_VERSION 3                         
+//---------------------------------------------------------------------------
 
 #if PYTHON_MAJOR_VERSION == 3
+
+// Size of per-interpreter state of the module.
+// Set to -1 if the module keeps state in global variables. 
+static int perInterpreterStateSize = -1;
+
+// Always initialize this to PyModuleDef_HEAD_INIT.
+static PyModuleDef_Base m_base = PyModuleDef_HEAD_INIT;
+
+// Define the module definition struct which holds all information 
+// needed to create a module object. 
 static struct PyModuleDef pyImagemodule = {
-   PyModuleDef_HEAD_INIT,
-   "pyImage",   /* name of module */
-   "", /* module documentation, may be NULL */
-   -1,       /* size of per-interpreter state of the module,
-                or -1 if the module keeps state in global variables. */
+   m_base,
+   MODULE_NAME, 
+   Image_doc, 
+   perInterpreterStateSize, 
    pyImage_methods
 };
+
+PyMODINIT_FUNC
+PyInit_pyImage(void)
+{
+  auto module = PyModule_Create(&pyImagemodule);
+
+  PyRunTimeErr = PyErr_NewException(MODULE_EXCEPTION,NULL,NULL);
+  Py_INCREF(PyRunTimeErr);
+  PyModule_AddObject(module ,MODULE_EXCEPTION_OBJECT,PyRunTimeErr);
+
+  return module;
+}
+
 #endif
+
+//---------------------------------------------------------------------------
+//                           PYTHON_MAJOR_VERSION 2                         
+//---------------------------------------------------------------------------
 
 // --------------------
 // initpyImage
@@ -1363,26 +1463,10 @@ initpyImage(void)
 
   pyIm = Py_InitModule("pyImage",pyImage_methods);
 
-  ImgErr = PyErr_NewException("pyImage.error",NULL,NULL);
-  Py_INCREF(ImgErr);
-  PyModule_AddObject(pyIm,"error",ImgErr);
+  PyRunTimeErr = PyErr_NewException("pyImage.error",NULL,NULL);
+  Py_INCREF(PyRunTimeErr);
+  PyModule_AddObject(pyIm,"error",PyRunTimeErr);
   return;
 
 }
 #endif
-#if PYTHON_MAJOR_VERSION == 3
-PyMODINIT_FUNC
-PyInit_pyImage(void)
-{
-  PyObject *pyIm;
-
-  pyIm = PyModule_Create(&pyImagemodule);
-  ImgErr = PyErr_NewException("pyImage.error",NULL,NULL);
-  Py_INCREF(ImgErr);
-  PyModule_AddObject(pyIm,"error",ImgErr);
-
-  return pyIm;
-}
-#endif
-
-
