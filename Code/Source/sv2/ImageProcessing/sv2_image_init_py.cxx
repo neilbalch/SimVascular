@@ -70,29 +70,97 @@
 // Exception type used by PyErr_SetString() to set the for the error indicator.
 static PyObject * PyRunTimeErr;
 
-static void
-AddFloats(PyObject *pylist, const std::string& format, ...)
-//AddFloats(PyObject *pylist, std::string& format, float arg1, float arg2 = 0.0, float arg3 = 0.0)
+//////////////////////////////////////////////////////
+//        U t i l i t y     F u n c t i o n s       //
+//////////////////////////////////////////////////////
+
+//-------------------
+// GetRepositoryData 
+//-------------------
+// Get repository data of the given type. 
+//
+static cvRepositoryData *
+GetRepositoryData(SvPyUtilApiFunction& api, char* name, RepositoryDataT dataType)
 {
-  va_list arguments; 
-  double sum = 0;
-  va_start(arguments, format);     
-
-  //char tmpStr[1024];
-  //sprintf(tmpStr, format, arguments);
-
-  while (*fmt != '\0') {
-      if (*fmt == 'd') {
-          int i = va_arg(args, int);
-          std::cout << i << '\n';
-      } else if (*fmt == 's') {
-          char * s = va_arg(args, char*);
-          std::cout << s << '\n';
-      }
-      ++fmt;
+  auto data = gRepository->GetObject(name);
+  if (data == NULL) {
+      api.error("'"+std::string(name)+"' is not in the repository.");
+      return nullptr;
+  }
+  if (gRepository->GetType(name) != dataType) {
+      auto typeStr = std::string(RepositoryDataT_EnumToStr(dataType));
+      api.error("'" + std::string(name) + "' does not have type '" + typeStr + "'.");
+      return nullptr;
   }
 
+  return data;
+}
+
+//-----------------------
+// GetRepositoryDataList
+//-----------------------
+// Get a list of repository data objects from a list of names.
+//
+template <typename T> 
+static bool 
+GetRepositoryDataList(SvPyUtilApiFunction& api, PyObject* objNames, RepositoryDataT dataType, const char* argName, std::vector<T>& objects)
+{
+  if (!PyList_Check(objNames)) {
+      api.error("The " + std::string(argName) + " argument is not a Python list.");
+      return false;
+  }
+
+  auto numObjs = PyList_Size(objNames);
+  if (numObjs == 0) {
+      api.error("The " + std::string(argName) + " argument list is empty.");
+      return false;
+  }
+
+  objects.clear();
+
+  // Iterate over the object names getting the objects 
+  // from the repository.
+  //
+  for (int i = 0; i < numObjs; i++ ) {
+      auto name = PyString_AsString(PyList_GetItem(objNames,i));
+      if (name == nullptr) {
+          api.error("The " + std::to_string(i) + "th element of the " + argName + " argument is not defined.");
+          return false;
+      } 
+      auto obj = GetRepositoryData(api, name, dataType);
+      if (obj == nullptr) { 
+          return false;
+      }
+      objects.push_back((T)obj);
+  }
+
+  return true;
+}
+//------------------
+// ValuesToPyString
+//------------------
+//
+PyObject *
+ValuesToPyString(const char *fmt, ...)
+{
+  char buffer[1000];
+  va_list args;
+  va_start(args, fmt);
+  vsnprintf(buffer, sizeof(buffer), fmt, args);
   va_end(args);
+  return PyString_FromString(buffer);
+}
+
+//-----------
+// AddValues
+//-----------
+// Add a variable number of values to a Python list.
+//
+void 
+AddValues(PyObject* pylist, const char *fmt, ...)
+{
+  auto pyStr = ValuesToPyString(fmt);
+  PyList_Append(pylist,  pyStr);
 }
 
 //////////////////////////////////////////////////////
@@ -167,154 +235,68 @@ Image_read_header_5x(PyObject *self, PyObject *args)
 
   // Return header information.
   //
+  // [TODO:DaveP] why not return a dict?
+  //
   PyObject *pylist = PyList_New(0);
+  AddValues(pylist, "extent {%i %i}", dim_x, dim_y);
+  AddValues(pylist, "voxel_dims {%.8f %.8f}", vdims_x, vdims_y); 
+  AddValues(pylist, "file_hdr_size %i", file_hdr_size);
+  AddValues(pylist, "top_left_corner {%.8f %.8f %.8f}",ul[0],ul[1],ul[2]);
+  AddValues(pylist,"top_right_corner {%.8f %.8f %.8f}",ur[0],ur[1],ur[2]);
+  AddValues(pylist,"bottom_right_corner {%.8f %.8f %.8f}",br[0],br[1],br[2]);
+  AddValues(pylist,"venc %i",venc);
+  AddValues(pylist,"vencscale %.8f",vencscale);
+  AddValues(pylist,"vas_collapse %i",vas_collapse);
+  AddValues(pylist,"user2 %f",user2);
+  AddValues(pylist,"user5 %f",user5);
+  AddValues(pylist,"user6 %f",user6);
+  AddValues(pylist,"user7 %f",user7);
+  AddValues(pylist,"user8 %f",user8);
+  AddValues(pylist,"user9 %f",user9);
+  AddValues(pylist,"user12 %f",user12);
+  AddValues(pylist,"user13 %f",user13);
+  AddValues(pylist,"user14 %f",user14);
 
-  tmpStr[0]='\0';
-  sprintf(tmpStr,"extent {%i %i}",dim_x,dim_y);
-  PyObject* pyStr = PyString_FromString(tmpStr);
-  PyList_Append( pylist,  pyStr );
-
-  tmpStr[0]='\0';
-  sprintf(tmpStr,"voxel_dims {%.8f %.8f}",vdims_x,vdims_y);
-  pyStr= PyString_FromString(tmpStr);
-  PyList_Append( pylist,  pyStr );
-
-  AddFloats(pylist, "voxel_dims {%.8f %.8f}", vdims_x, vdims_y); 
-
-  tmpStr[0]='\0';
-  sprintf(tmpStr,"file_hdr_size %i",file_hdr_size);
-  pyStr= PyString_FromString(tmpStr);
-  PyList_Append( pylist,  pyStr );
-  tmpStr[0]='\0';
-  sprintf(tmpStr,"top_left_corner {%.8f %.8f %.8f}",ul[0],ul[1],ul[2]);
-  pyStr= PyString_FromString(tmpStr);
-  PyList_Append( pylist,  pyStr );
-  tmpStr[0]='\0';
-  sprintf(tmpStr,"top_right_corner {%.8f %.8f %.8f}",ur[0],ur[1],ur[2]);
-  pyStr= PyString_FromString(tmpStr);
-  PyList_Append( pylist,  pyStr );
-  tmpStr[0]='\0';
-  sprintf(tmpStr,"bottom_right_corner {%.8f %.8f %.8f}",br[0],br[1],br[2]);
-  pyStr= PyString_FromString(tmpStr);
-  PyList_Append( pylist,  pyStr );
-  tmpStr[0]='\0';
-  sprintf(tmpStr,"venc %i",venc);
-  pyStr= PyString_FromString(tmpStr);
-  PyList_Append( pylist,  pyStr );
-  tmpStr[0]='\0';
-  sprintf(tmpStr,"vencscale %.8f",vencscale);
-  pyStr= PyString_FromString(tmpStr);
-  PyList_Append( pylist,  pyStr );
-  tmpStr[0]='\0';
-  sprintf(tmpStr,"vas_collapse %i",vas_collapse);
-  pyStr= PyString_FromString(tmpStr);
-  PyList_Append( pylist,  pyStr );
-  tmpStr[0]='\0';
-  sprintf(tmpStr,"user2 %f",user2);
-  pyStr= PyString_FromString(tmpStr);
-  PyList_Append( pylist,  pyStr );
-  tmpStr[0]='\0';
-  sprintf(tmpStr,"user5 %f",user5);
-  pyStr= PyString_FromString(tmpStr);
-  PyList_Append( pylist,  pyStr );
-  tmpStr[0]='\0';
-  sprintf(tmpStr,"user6 %f",user6);
-  pyStr= PyString_FromString(tmpStr);
-  PyList_Append( pylist,  pyStr );
-  tmpStr[0]='\0';
-  sprintf(tmpStr,"user7 %f",user7);
-  pyStr= PyString_FromString(tmpStr);
-  PyList_Append( pylist,  pyStr );
-  tmpStr[0]='\0';
-  sprintf(tmpStr,"user8 %f",user8);
-  pyStr= PyString_FromString(tmpStr);
-  PyList_Append( pylist,  pyStr );
-  tmpStr[0]='\0';
-  sprintf(tmpStr,"user9 %f",user9);
-  pyStr= PyString_FromString(tmpStr);
-  PyList_Append( pylist,  pyStr );
-  tmpStr[0]='\0';
-  sprintf(tmpStr,"user12 %f",user12);
-  pyStr= PyString_FromString(tmpStr);
-  PyList_Append( pylist,  pyStr );
-  tmpStr[0]='\0';
-  sprintf(tmpStr,"user13 %f",user13);
-  pyStr= PyString_FromString(tmpStr);
-  PyList_Append( pylist,  pyStr );
-  tmpStr[0]='\0';
-  sprintf(tmpStr,"user14 %f",user14);
-  pyStr= PyString_FromString(tmpStr);
-  PyList_Append( pylist,  pyStr );
   if (readProtected != 0) {
-    tmpStr[0]='\0';
-    sprintf(tmpStr,"patient_id {%s}",patid);
-    pyStr= PyString_FromString(tmpStr);
-    PyList_Append( pylist,  pyStr );
-    tmpStr[0]='\0';
-    sprintf(tmpStr,"patient_name {%s}",patname);
-    pyStr= PyString_FromString(tmpStr);
-    PyList_Append( pylist,  pyStr );
+    AddValues(pylist,"patient_id {%s}",patid);
+    AddValues(pylist,"patient_name {%s}",patname);
+    AddValues(pylist,"exam_number %i",examNumber);
+    AddValues(pylist,"acquisition_time %i",acquisitionTime);
   }
-  tmpStr[0]='\0';
-  sprintf(tmpStr,"psdname {%s}",psdname);
-  pyStr= PyString_FromString(tmpStr);
-  PyList_Append( pylist,  pyStr );
-  tmpStr[0]='\0';
-  sprintf(tmpStr,"mag_weight_flag %i",magWeightFlag);
-  pyStr= PyString_FromString(tmpStr);
-  PyList_Append( pylist,  pyStr );
-  if (readProtected != 0) {
-    tmpStr[0]='\0';
-    sprintf(tmpStr,"exam_number %i",examNumber);
-    pyStr= PyString_FromString(tmpStr);
-    PyList_Append( pylist,  pyStr );
-  }
-  tmpStr[0]='\0';
-  sprintf(tmpStr,"normal_to_plane {%.8f %.8f %.8f}",nrm_RAS[0],nrm_RAS[1],nrm_RAS[2]);
-  pyStr= PyString_FromString(tmpStr);
-  PyList_Append( pylist,  pyStr );
-  if (readProtected != 0) {
-    tmpStr[0]='\0';
-    sprintf(tmpStr,"acquisition_time %i",acquisitionTime);
-    pyStr= PyString_FromString(tmpStr);
-    PyList_Append( pylist,  pyStr );
-  }
-  tmpStr[0]='\0';
-  sprintf(tmpStr,"heart_rate_bpm %i",heart_rate);
-  pyStr= PyString_FromString(tmpStr);
-  PyList_Append( pylist,  pyStr );
-  tmpStr[0]='\0';
-  sprintf(tmpStr,"im_no %i",im_no);
-  pyStr= PyString_FromString(tmpStr);
-  PyList_Append( pylist,  pyStr );
-  tmpStr[0]='\0';
-  sprintf(tmpStr,"im_seno %i",im_seno);
-  pyStr= PyString_FromString(tmpStr);
-  PyList_Append( pylist,  pyStr );
+
+  AddValues(pylist,"psdname {%s}",psdname);
+  AddValues(pylist,"mag_weight_flag %i",magWeightFlag);
+  AddValues(pylist,"normal_to_plane {%.8f %.8f %.8f}",nrm_RAS[0],nrm_RAS[1],nrm_RAS[2]);
+  AddValues(pylist,"heart_rate_bpm %i",heart_rate);
+  AddValues(pylist,"im_no %i",im_no);
+  AddValues(pylist,"im_seno %i",im_seno);
 
   return pylist;
 }
 
+//--------------
+// Image_decode 
+//--------------
+//
+PyDoc_STRVAR(Image_decode_doc,
+  "decode(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args:                                    \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-// ---------------
-// Image_DecodeCmd
-// ---------------
-
-PyObject* Image_DecodeCmd(PyObject *self, PyObject *args)
+static PyObject *
+Image_decode(PyObject *self, PyObject *args)
 {
-  auto api = SvPyUtilApiFunction("sOOss", PyRunTimeErr, __func__);
-  char *usage;
-
-  char *magname;
-  magname = NULL;
+  auto api = SvPyUtilApiFunction("ssdd|s", PyRunTimeErr, __func__);
   char *phasename;
   char *result;
   double venc,vencscale;
-  int mag_weight_flag = 0;
+  char *magname = NULL;
 
-  if (!PyArg_ParseTuple(args,"ssdd|s",&phasename,&result,&venc,&vencscale,&magname))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import 2 char and 2 doubles or one optional char: phasename,result,venc,vencscale,magname");
+  if (!PyArg_ParseTuple(args, api.format, &phasename, &result, &venc, &vencscale, &magname)) {
     return api.argsError();
   }
 
@@ -325,61 +307,28 @@ PyObject* Image_DecodeCmd(PyObject *self, PyObject *args)
   RepositoryDataT type;
   cvRepositoryData *img;
   vtkStructuredPoints *vtkspMag, *vtkspPhase;
+  int mag_weight_flag = 0;
 
   if (magname != NULL) {
     mag_weight_flag = 1;
-    // Look up given image object:
-    img = gRepository->GetObject( magname );
-    if ( img == NULL ) {
-      sprintf(tmpStr,"couldn't find object ", magname );
-      PyErr_SetString( PyRunTimeErr, tmpStr );
-      tmpStr[0]='\0';
-      
+    img = GetRepositoryData(api, magname, STRUCTURED_PTS_T);
+    if (img == NULL) {
+      return nullptr;
     }
-
-    // Make sure image is of type STRUCTURED_PTS_T:
-    type = img->GetType();
-    if ( type != STRUCTURED_PTS_T ) {
-      sprintf(tmpStr,"error: object ", magname,
-	  	      "not of type StructuredPts");
-      PyErr_SetString( PyRunTimeErr, tmpStr );
-      tmpStr[0]='\0';
-      
-    }
-    // Retrive geometric information:
     vtkspMag = ((cvStrPts*)img)->GetVtkStructuredPoints();
   }
 
   // Look up given image object:
-  img = gRepository->GetObject( phasename );
-  if ( img == NULL ) {
-    sprintf(tmpStr,"couldn't find object ", phasename );
-    PyErr_SetString( PyRunTimeErr, tmpStr );
-    tmpStr[0]='\0';
-    
+  img = GetRepositoryData(api, phasename, STRUCTURED_PTS_T);
+  if (img == NULL) {
+      return nullptr;
   }
-
-  // Make sure image is of type STRUCTURED_PTS_T:
-  type = img->GetType();
-  if ( type != STRUCTURED_PTS_T ) {
-    sprintf(tmpStr,"error: object ", phasename,
-    "not of type StructuredPts" );
-    PyErr_SetString( PyRunTimeErr, tmpStr );
-    tmpStr[0]='\0';
-    
-  }
-
-  // Retrive geometric information:
   vtkspPhase = ((cvStrPts*)img)->GetVtkStructuredPoints();
 
   // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( result ) ) {
-    sprintf(tmpStr,"object ", result, " already exists",
-		      (char *)NULL);
-    PyErr_SetString( PyRunTimeErr, tmpStr );
-    tmpStr[0]='\0';
-
-    
+  if (gRepository->Exists(result)) {
+    api.error("The object '"+std::string(result)+"' is already in the repository.");
+    return nullptr;
   }
 
   vtkStructuredPoints *obj;
@@ -390,841 +339,453 @@ PyObject* Image_DecodeCmd(PyObject *self, PyObject *args)
     status = mr_decode_masked (vtkspMag,vtkspPhase,venc,vencscale,&obj);
   }
 
-  if ( status == SV_ERROR ) {
-    sprintf(tmpStr,"Problem decoding ", magname, " and ",phasename,(char *)NULL ,
-    (char *)NULL);
-    PyErr_SetString( PyRunTimeErr, tmpStr );
-    tmpStr[0]='\0';
-    
+  if (status == SV_ERROR) {
+    api.error("Error decoding '" +std::string(magname)+ "' and '" + std::string(magname)+"'."); 
+    return nullptr;
   }
 
   cvStrPts *sp = new cvStrPts( obj );
-  sp->SetName( result );
-  if ( !( gRepository->Register( sp->GetName(), sp ) ) ) {
-    sprintf(tmpStr,"error registering obj ", result,
-    " in repository");
-    PyErr_SetString( PyRunTimeErr, tmpStr );
-    tmpStr[0]='\0';
+  sp->SetName(result);
+
+  if (!gRepository->Register(sp->GetName(), sp)) {
+    api.error("Error adding the decoded image '" + std::string(sp->GetName()) + "' to the repository.");
     delete sp;
-    
+    return nullptr;
   }
 
   return Py_BuildValue("s",sp->GetName());
-
 }
 
+//-------------------------------------
+// Image_calculate_correction_equation 
+//-------------------------------------
+//
+PyDoc_STRVAR(Image_calculate_correction_equation_doc,
+  "calculate_correction_equation(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args:                                    \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-// --------------------------
-// Image_CalcCorrectionEqnCmd
-// --------------------------
-
-PyObject*  Image_CalcCorrectionEqnCmd(PyObject *self, PyObject *args)
+static PyObject *
+Image_calculate_correction_equation(PyObject *self, PyObject *args)
 {
-  auto api = SvPyUtilApiFunction("sOOss", PyRunTimeErr, __func__);
-  char *usage;
-  int i;
-  int order = 0;
-  RepositoryDataT type;
-
+  auto api = SvPyUtilApiFunction("OOi", PyRunTimeErr, __func__);
   PyObject *regionsArg;
   PyObject *imagesArg;
-  if (!PyArg_ParseTuple(args,"OOi",&regionsArg,&imagesArg,&order))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import 2 tuples, and 1 int: regionsArg,imagesArg,order");
+  int order = 0;
+
+  if (!PyArg_ParseTuple(args, api.format, &regionsArg, &imagesArg, &order)) {
     return api.argsError();
-    
   }
 
-  // Do work of command
-  char tmpStr[1024];
-  tmpStr[0]='\0';
-  // check for valid order
+  // Check for valid order.
   if (order < 0 || order > 3) {
-        sprintf(tmpStr,"order must be 0,1, or 2");
-        PyErr_SetString( PyRunTimeErr, tmpStr );
-        tmpStr[0]='\0';
-        
+    api.error("The order argument must be 0, 1 or 3.");
+    return nullptr;
   }
 
-  int numRegions = PyList_Size(regionsArg);
-  int numImages = PyList_Size(imagesArg);
+  // Get a list of region polydata objects from the repository.
+  std::vector<vtkPolyData*> regionObjects;
+  if (!GetRepositoryDataList(api, regionsArg, POLY_DATA_T, "regions", regionObjects)) {
+    return nullptr;
+  } 
+  int numRegions = regionObjects.size(); 
 
-  if (numRegions == 0) {
-    sprintf(tmpStr,"empty list of regions" );
-    PyErr_SetString( PyRunTimeErr, tmpStr );
-    tmpStr[0]='\0';
-    
-  }
+  // Get a list of image objects from the repository.
+  std::vector<vtkStructuredPoints*> imageObjects;
+  if (!GetRepositoryDataList(api, imagesArg, STRUCTURED_PTS_T, "image", imageObjects)) {
+    return nullptr;
+  } 
+  int numImages = imageObjects.size(); 
 
-  if (numImages == 0) {
-    sprintf(tmpStr,"empty list of images" );
-    PyErr_SetString( PyRunTimeErr, tmpStr );
-    tmpStr[0]='\0';
-    
-  }
-
-
-  // find the corresponding repository objects to each name
-  cvRepositoryData *pd,*img;
-  vtkPolyData **listPd = new vtkPolyData* [numRegions];
-  vtkStructuredPoints **listImg = new vtkStructuredPoints* [numImages];
-  for (i = 0; i < numRegions; i++)
-  {
-    if (PyString_AsString(PyList_GetItem(regionsArg,i))  != NULL)
-    {
-      pd = gRepository->GetObject( PyString_AsString(PyList_GetItem(regionsArg,i)) );
-      if ( pd == NULL )
-      {
-        sprintf(tmpStr,"couldn't find object ", PyString_AsString(PyList_GetItem(regionsArg,i))  );
-        PyErr_SetString( PyRunTimeErr, tmpStr );
-        tmpStr[0]='\0';
-        delete [] listPd;
-        delete [] listImg;
-        
-      }
-
-      // Make sure region is of type POLYDATA_T:
-      type = pd->GetType();
-      if ( type != POLY_DATA_T )
-      {
-        sprintf(tmpStr,"error: object ", PyString_AsString(PyList_GetItem(regionsArg,i)) ,
-        "not of type cvPolyData" );
-        PyErr_SetString( PyRunTimeErr, tmpStr );
-        tmpStr[0]='\0';
-        delete [] listPd;
-        delete [] listImg;
-        
-      }
-      listPd[i] = ((cvPolyData*)pd)->GetVtkPolyData();
-    }
-    else
-    {
-      sprintf(tmpStr,"NULL region pointer encountered ");
-      PyErr_SetString( PyRunTimeErr, tmpStr );
-      tmpStr[0]='\0';
-      delete [] listPd;
-      delete [] listImg;
-      
-    }
-  }
-
-  // find the corresponding repository objects to each name
-  for (i = 0; i < numImages; i++)
-  {
-    if (PyString_AsString(PyList_GetItem(imagesArg,i))  != NULL)
-    {
-      img = gRepository->GetObject( PyString_AsString(PyList_GetItem(imagesArg,i)) );
-      if ( img == NULL )
-      {
-        sprintf(tmpStr,"couldn't find object ", PyString_AsString(PyList_GetItem(imagesArg,i)));
-        PyErr_SetString( PyRunTimeErr, tmpStr );
-        tmpStr[0]='\0';
-        delete [] listPd;
-        delete [] listImg;
-        
-      }
-
-      // Make sure image is of type POLYDATA_T:
-      type = img->GetType();
-      if ( type != STRUCTURED_PTS_T )
-      {
-        sprintf(tmpStr,"error: object ", PyString_AsString(PyList_GetItem(imagesArg,i)),
-        "not of type StructuredPts");
-        PyErr_SetString( PyRunTimeErr, tmpStr );
-        tmpStr[0]='\0';
-        delete [] listPd;
-        delete [] listImg;
-        
-      }
-      listImg[i] = ((cvStrPts*)img)->GetVtkStructuredPoints();
-
-    }
-    else
-    {
-      sprintf(tmpStr,"NULL image pointer encountered ");
-      PyErr_SetString( PyRunTimeErr, tmpStr );
-      tmpStr[0]='\0';
-      delete [] listPd;
-      delete [] listImg;
-      
-    }
-  }
-
-  // debug info
-  for (i = 0; i < numRegions; i++)
-  {
-      fprintf(stdout,"region %i: %s %p\n",i,PyString_AsString(PyList_GetItem(regionsArg,i)),listPd[i]);
-  }
-  for (i = 0; i < numImages; i++)
-  {
-      fprintf(stdout,"images %i: %s %p\n",i,PyString_AsString(PyList_GetItem(imagesArg,i)),listImg[i]);
-  }
-
-  // classify points and calculate correction equation
+  // Classify points and calculate correction equation.
   double results[6];
-  int status = img_calcCorrectionEqn(numRegions,listPd,numImages,listImg,order,results);
-
-  // clean up
-  delete [] listPd;
-  delete [] listImg;
-
-  if ( status == SV_ERROR )
-  {
-    sprintf(tmpStr,"error finding correction equation ");
-    PyErr_SetString( PyRunTimeErr, tmpStr );
-    tmpStr[0]='\0';
-    
+  int status = img_calcCorrectionEqn(numRegions, regionObjects.data(), numImages, imageObjects.data(), order, results);
+  if (status == SV_ERROR) {
+    api.error("Error finding correction equation.");
+    return nullptr;
   }
 
   // return a string with the correction equation
   char r[2048];
   r[0] = '\0';
-  if (order == 0)
-  {
+  if (order == 0) {
       sprintf(r,"%le",results[0]);
+
+  } else if (order == 1) {
+      sprintf(r,"%le %s %le %s %le %s",results[0], " + ", results[1], "*$x + ", results[2], "*$y");
+
+  } else if (order == 2) {
+      sprintf(r,"%le %s %le %s %le %s %le %s %le %s %le %s", results[0]," + ",results[1],"*$x + ",results[2],
+             "*$y + ",results[3],"*$x*$x + ",results[4], "*$y*$y + ",results[5],"*$x*$y");
   }
-  else if (order == 1)
-  {
-      sprintf(r,"%le %s %le %s %le %s",results[0],
-         " + ", results[1], "*$x + ", results[2], "*$y");
-  }
-  else if (order == 2)
-  {
-      sprintf(r,"%le %s %le %s %le %s %le %s %le %s %le %s",
-             results[0]," + ",results[1],"*$x + ",results[2],
-             "*$y + ",results[3],"*$x*$x + ",results[4],
-             "*$y*$y + ",results[5],"*$x*$y");
-  }
+
   fprintf(stdout,r);
   fprintf(stdout,"\n");
 
   return Py_BuildValue("s",r);
-
 }
 
+//------------------------------------------
+// Image_calculate_correction_equation_auto 
+//------------------------------------------
+//
+// [TODO:DaveP] maybe just call this from the method above
+// if the 'automatic' argument is set.
+//
+PyDoc_STRVAR(Image_calculate_correction_equation_auto_doc,
+  "calculate_correction_equation_auto(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args:                                    \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-// ------------------------------
-// Image_CalcCorrectionEqnAutoCmd
-// ------------------------------
-
-PyObject *Image_CalcCorrectionEqnAutoCmd(PyObject *self, PyObject *args )
+static PyObject *
+Image_calculate_correction_equation_auto(PyObject *self, PyObject *args )
 {
-  auto api = SvPyUtilApiFunction("sOOss", PyRunTimeErr, __func__);
-  int i;
+  auto api = SvPyUtilApiFunction("OOids", PyRunTimeErr, __func__);
   PyObject *regionsArg;
   PyObject *imagesArg;
   int order = 0;
   double factor = 0;
-  RepositoryDataT type;
   char *objName;
 
-
-  if (!PyArg_ParseTuple(args,"OOids",&regionsArg,&imagesArg,
-            &order,&factor,&objName))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import 2 tuples, 1 int, 1 double and 1 char: regionsArg,imagesArg,order,factor,objname");
+  if (!PyArg_ParseTuple(args, api.format, &regionsArg, &imagesArg, &order, &factor, &objName)) {
     return api.argsError();
   }
 
-  // Do work of command
-  char tmpStr[1024];
-  tmpStr[0]='\0';
-  // check for valid order
-  if (order < 0 || order > 3)
-  {
-    sprintf(tmpStr,"order must be 0,1, or 2");
-    PyErr_SetString( PyRunTimeErr, tmpStr );
-    tmpStr[0]='\0';
-        
+  // Check for valid order.
+  if (order < 0 || order > 3) {
+    api.error("The order argument must be 0, 1 or 3.");
+    return nullptr;
   }
-
-  int numImages = PyList_Size(imagesArg);
-  if (numImages == 0)
-  {
-    sprintf(tmpStr,"empty list of images" );
-    PyErr_SetString( PyRunTimeErr, tmpStr );
-    tmpStr[0]='\0';
-    
-  }
-
-  int numRegions =PyList_Size(regionsArg);
-  fprintf(stdout,"numRegions from UI: %i\n",numRegions);
-  fflush(stdout);
 
   // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( objName ) )
-  {
-    sprintf(tmpStr,"object ", objName, " already exists");
-    PyErr_SetString( PyRunTimeErr, tmpStr );
-    tmpStr[0]='\0';
-    
+  if (gRepository->Exists( objName ) ) {
+    api.error("The '" + std::string(objName) + "' is already in the repository.");
+    return nullptr;
   }
 
+  // Get a list of region polydata objects from the repository.
+  std::vector<vtkPolyData*> regionObjects;
+  if (!GetRepositoryDataList(api, regionsArg, POLY_DATA_T, "regions", regionObjects)) {
+    return nullptr;
+  } 
+  int numRegions = regionObjects.size(); 
 
-  // find the corresponding repository objects to each name
-  cvRepositoryData *pd,*img;
-
-  vtkStructuredPoints **listImg = new vtkStructuredPoints* [numImages];
-
-  // find the corresponding repository objects to each name
-  for (i = 0; i < numImages; i++)
-  {
-    if (PyString_AsString(PyList_GetItem(imagesArg,i))!= NULL)
-    {
-      img = gRepository->GetObject( PyString_AsString(PyList_GetItem(imagesArg,i)));
-      if ( img == NULL )
-      {
-        sprintf(tmpStr,"couldn't find object ", PyString_AsString(PyList_GetItem(imagesArg,i)));
-        PyErr_SetString( PyRunTimeErr, tmpStr );
-        tmpStr[0]='\0';
-        delete [] listImg;
-        
-      }
-
-      // Make sure image is of type POLYDATA_T:
-      type = img->GetType();
-      if ( type != STRUCTURED_PTS_T )
-      {
-        sprintf(tmpStr,"error: object ", PyString_AsString(PyList_GetItem(imagesArg,i)),
-        "not of type StructuredPts");
-        PyErr_SetString( PyRunTimeErr, tmpStr );
-        tmpStr[0]='\0';
-        delete [] listImg;
-        
-      }
-      listImg[i] = ((cvStrPts*)img)->GetVtkStructuredPoints();
-
-    }
-    else
-    {
-      sprintf(tmpStr, "NULL image pointer encountered ");
-      PyErr_SetString( PyRunTimeErr, tmpStr );
-      tmpStr[0]='\0';
-      delete [] listImg;
-      
-    }
+  // Get a list of image objects from the repository.
+  std::vector<vtkStructuredPoints*> imageObjects;
+  if (!GetRepositoryDataList(api, imagesArg, STRUCTURED_PTS_T, "image", imageObjects)) {
+    return nullptr;
   }
+  int numImages = imageObjects.size();
 
-  vtkPolyData **listPd = NULL;
-  if (numRegions > 0)
-  {
-    listPd = new vtkPolyData* [numRegions];
-    for (i = 0; i < numRegions; i++)
-    {
-      if (PyString_AsString(PyList_GetItem(regionsArg,i))!= NULL)
-      {
-        pd = gRepository->GetObject( PyString_AsString(PyList_GetItem(regionsArg,i)));
-        if ( pd == NULL )
-        {
-          sprintf(tmpStr, "couldn't find object ", PyString_AsString(PyList_GetItem(regionsArg,i)));
-          PyErr_SetString( PyRunTimeErr, tmpStr );
-          tmpStr[0]='\0';
-          delete [] listPd;
-          delete [] listImg;
-          
-        }
-
-      // Make sure region is of type POLYDATA_T:
-        type = pd->GetType();
-        if ( type != POLY_DATA_T )
-        {
-          sprintf(tmpStr, "error: object ", PyString_AsString(PyList_GetItem(regionsArg,i)),"not of type cvPolyData");
-          PyErr_SetString( PyRunTimeErr, tmpStr );
-          tmpStr[0]='\0';
-          delete [] listPd;
-          delete [] listImg;
-          
-        }
-        listPd[i] = ((cvPolyData*)pd)->GetVtkPolyData();
-      }
-      else
-      {
-      sprintf(tmpStr, "NULL region pointer encountered " );
-      PyErr_SetString( PyRunTimeErr, tmpStr );
-      tmpStr[0]='\0';
-      delete [] listPd;
-      delete [] listImg;
-      
-      }
-    }
-  }
-
-  // debug info
-  for (i = 0; i < numRegions; i++)
-  {
-      fprintf(stdout,"region %i: %s %p\n",i,PyString_AsString(PyList_GetItem(regionsArg,i)),listPd[i]);
-  }
-  for (i = 0; i < numImages; i++)
-  {
-      fprintf(stdout,"images %i: %s %p\n",i,PyString_AsString(PyList_GetItem(imagesArg,i)),listImg[i]);
-  }
-
-  // classify points and calculate correction equation
+  // Classify points and calculate correction equation.
   double results[6];
   vtkStructuredPoints* maskImg = NULL;
-  int status = img_calcCorrectionEqnAuto(numRegions,listPd,numImages,listImg,order,factor,results,&maskImg);
+  int status = img_calcCorrectionEqnAuto(numRegions, regionObjects.data(), numImages, imageObjects.data(), order, factor, results, &maskImg);
+  if (status == SV_ERROR) {
+    api.error("Error finding correction equation.");
+    return nullptr;
+  }
 
-  // clean up
-  if (numRegions != 0)
-   delete [] listPd;
-  delete [] listImg;
-
-  if ( status == SV_ERROR )
-  {
-    sprintf(tmpStr, "error finding correction equation ");
-    PyErr_SetString( PyRunTimeErr, tmpStr );
-    tmpStr[0]='\0';
-    
+  // Register the image
+  cvStrPts *sp = new cvStrPts(maskImg);
+  if (!gRepository->Register(objName, sp)) {
+    delete sp;
+    api.error("Error adding the image '" + std::string(objName) + "' to the repository.");
+    return nullptr;
   }
 
   // return a string with the correction equation
   char r[2048];
   r[0] = '\0';
-  if (order == 0)
-  {
+  if (order == 0) {
       sprintf(r,"%le",results[0]);
+  } else if (order == 1) {
+      sprintf(r,"%le %s %le %s %le %s",results[0], " + ", results[1], "*$x + ", results[2], "*$y");
+  } else if (order == 2) {
+      sprintf(r,"%le %s %le %s %le %s %le %s %le %s %le %s", results[0]," + ",results[1],"*$x + ",results[2],
+             "*$y + ",results[3],"*$x*$x + ",results[4], "*$y*$y + ",results[5],"*$x*$y");
   }
-  else if (order == 1)
-  {
-      sprintf(r,"%le %s %le %s %le %s",results[0],
-         " + ", results[1], "*$x + ", results[2], "*$y");
-  }
-  else if (order == 2)
-  {
-      sprintf(r,"%le %s %le %s %le %s %le %s %le %s %le %s",
-             results[0]," + ",results[1],"*$x + ",results[2],
-             "*$y + ",results[3],"*$x*$x + ",results[4],
-             "*$y*$y + ",results[5],"*$x*$y");
-  }
+
   fprintf(stdout,r);
   fprintf(stdout,"\n");
 
-  sprintf(tmpStr, r);
-  tmpStr[0]='\0';
-
-  cvStrPts *sp = new cvStrPts(maskImg);
-
-  // Register the image
-  if ( !( gRepository->Register( objName, sp ) ) )
-  {
-    sprintf(tmpStr, "error registering obj ", objName,
-    " in repository");
-    PyErr_SetString( PyRunTimeErr, tmpStr );
-    tmpStr[0]='\0';
-    delete sp;
-    
-  }
-
   return Py_BuildValue("s",r);
-
 }
 
+//---------------------------
+// Image_set_image_threshold 
+//---------------------------
+//
+PyDoc_STRVAR(Image_set_image_threshold_doc,
+  "set_image_threshold(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args:                                    \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-// ------------------
-// Image_ThresholdCmd
-// ------------------
-PyObject* Image_ThresholdCmd(PyObject* self, PyObject* args)
+static PyObject *
+Image_set_image_threshold(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sOOss", PyRunTimeErr, __func__);
-
-  char *imagename;
-  imagename = NULL;
-  char *result;
-  result = NULL;
-
+  auto api = SvPyUtilApiFunction("ssddi", PyRunTimeErr, __func__);
+  char *imageName = NULL;
+  char *result = NULL;
   double thrMin,thrMax;
   int max_num_pts;
 
-
-  if (!PyArg_ParseTuple(args,"ssddi", &imagename,&result,&thrMin,&thrMax,&max_num_pts))
-  {
-    PyErr_SetString(PyRunTimeErr, "Could not import 2 chars, 2 doubles and 1 int, imagename, result, thrMin, thrMax, max_num_pts");
+  if (!PyArg_ParseTuple(args, api.format, &imageName, &result, &thrMin, &thrMax, &max_num_pts)) {
     return api.argsError();
-    
   }
 
-  // Do work of command
-  char tmpStr[1024];
-  tmpStr[0]='\0';
-
-  RepositoryDataT type;
-  cvRepositoryData *img;
-  vtkStructuredPoints *vtksp;
-
-  if (imagename != NULL)
-  {
-    // Look up given image object:
-    img = gRepository->GetObject( imagename );
-    if ( img == NULL )
-    {
-      sprintf(tmpStr, "couldn't find object %s", imagename);
-      PyErr_SetString( PyRunTimeErr, tmpStr );
-      tmpStr[0]='\0';
-      
-    }
-
-    // Make sure image is of type STRUCTURED_PTS_T:
-    type = img->GetType();
-    if ( type != STRUCTURED_PTS_T )
-    {
-      sprintf(tmpStr, "error: object %s not of type StructuredPts", imagename);
-      PyErr_SetString( PyRunTimeErr, tmpStr );
-      tmpStr[0]='\0';
-      
-    }
-    // Retrive geometric information:
-    vtksp = ((cvStrPts*)img)->GetVtkStructuredPoints();
+  auto img = GetRepositoryData(api, imageName, STRUCTURED_PTS_T);
+  if (img == NULL) {
+    return nullptr;
   }
+  auto vtksp = ((cvStrPts*)img)->GetVtkStructuredPoints();
 
   // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( result ) )
-  {
-    sprintf(tmpStr, "object %s already exists",result);
-    PyErr_SetString( PyRunTimeErr, tmpStr );
-    tmpStr[0]='\0';
-    
+  if (gRepository->Exists(result))  {
+    api.error("The '" + std::string(result) + "' is already in the repository.");
+    return nullptr;
   }
 
   cvPolyData *obj = NULL;
   int status = img_threshold(vtksp, thrMin, thrMax, max_num_pts, &obj);
 
-  if ( status == SV_ERROR || obj == NULL)
-  {
-    sprintf(tmpStr, "Problem thresholding %s", imagename);
-    PyErr_SetString( PyRunTimeErr, tmpStr );
-    tmpStr[0]='\0';
-    
+  if ((status == SV_ERROR) || (obj == NULL)) {
+    api.error("Error in the threshold operation for the image '" + std::string(imageName) + "'.");
+    return nullptr;
   }
 
-  obj->SetName( result );
-  if ( !( gRepository->Register( obj->GetName(), obj ) ) )
-  {
-   //if (!(gRepository->Register(result,polydataObj))){
-    sprintf(tmpStr, "error registering obj %s in repository", result);
-    PyErr_SetString( PyRunTimeErr, tmpStr );
-    tmpStr[0]='\0';
+  obj->SetName(result);
+  if (!gRepository->Register(obj->GetName(), obj)) {
     delete obj;
-    
+    api.error("Error adding the threshold image '" + std::string(result) + "' to the repository.");
+    return nullptr;
   }
 
-  vtkSmartPointer<vtkPolyData> polydataObj =
-  vtkSmartPointer<vtkPolyData>::New();
+  // [TODO:DaveP] this is the first time seeing this kind of return.
+  vtkSmartPointer<vtkPolyData> polydataObj = vtkSmartPointer<vtkPolyData>::New();
   polydataObj = obj->GetVtkPolyData();
-  //instead of exporting the object name, output the vtkPolydata object
-  PyObject* pyVtkObj=vtkPythonUtil::GetObjectFromPointer(polydataObj);
+  PyObject* pyVtkObj = vtkPythonUtil::GetObjectFromPointer(polydataObj);
   return pyVtkObj;
-
 }
 
+//--------------------------------------
+// Image_compute_structured_coordinates 
+//--------------------------------------
+//
+PyDoc_STRVAR(Image_compute_structured_coordinates_doc,
+  "compute_structured_coordinates(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args:                                    \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-// -------------------------------
-// Image_ComputeStructuredCoordCmd
-// -------------------------------
-
-PyObject* Image_ComputeStructuredCoordCmd(PyObject *self, PyObject *args )
+static PyObject *
+Image_compute_structured_coordinates(PyObject *self, PyObject *args )
 {
-  auto api = SvPyUtilApiFunction("sOOss", PyRunTimeErr, __func__);
-
-  char *imagename;
+  auto api = SvPyUtilApiFunction("sO", PyRunTimeErr, __func__);
+  char *imagename = NULL;
   PyObject* ptList;
 
-  imagename = NULL;
-
-  if (!PyArg_ParseTuple(args,"sO",&imagename, &ptList))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import one char and one tuple,imagename,ptList");
+  if (!PyArg_ParseTuple(args, api.format, &imagename, &ptList)) {
     return api.argsError();
-    
   }
 
   double pt[3];
-
-  for (int i = 0; i < 3; i++)
-  {
-    pt[i]=PyFloat_AsDouble(PyList_GetItem(ptList,i));
-    if (PyErr_Occurred())
-    {
-      PyErr_SetString( PyRunTimeErr, "Error parsing ptlist!" );
-      
-    }
+  std::string emsg;
+  if (!svPyUtilGetPointData(ptList, emsg, pt)) {
+      api.error("The point argument " + emsg);
+      return nullptr;
   }
-  char tmpStr[1024];
-  tmpStr[0]='\0';
-  // Do work of command
-
-  RepositoryDataT type;
-  cvRepositoryData *img;
-  vtkStructuredPoints *vtksp;
-
-  if (imagename != NULL)
-  {
-    // Look up given image object:
-    img = gRepository->GetObject( imagename );
-    if ( img == NULL )
-    {
-      sprintf(tmpStr, "couldn't find object ", imagename);
-      PyErr_SetString( PyRunTimeErr, tmpStr );
-      tmpStr[0]='\0';
-      
-    }
-
-    // Make sure image is of type STRUCTURED_PTS_T:
-    type = img->GetType();
-    if ( type != STRUCTURED_PTS_T )
-    {
-      sprintf(tmpStr,  "error: object ", imagename,
-      "not of type StructuredPts" );
-      PyErr_SetString( PyRunTimeErr, tmpStr );
-      tmpStr[0]='\0';
-      
-    }
-    // Retrive geometric information:
-    vtksp = ((cvStrPts*)img)->GetVtkStructuredPoints();
-  }
-
-  vtkFloatingPointType x[3];
-  int ijk[3];
-  vtkFloatingPointType pcoords[3];
-
-  char rtnstr[2048];
-  rtnstr[0]='\0';
-  x[0]=pt[0];x[1]=pt[1];x[2]=pt[2];
-
-  if ( (vtksp->ComputeStructuredCoordinates(x, ijk, pcoords)) == 0)
-  {
-      return Py_BuildValue("s",rtnstr);
-  }
-  PyObject *pylist=PyList_New(3);
-  // return ijk
-  rtnstr[0]='\0';
-  sprintf(rtnstr,"%i %i %i",ijk[0],ijk[1],ijk[2]);
-  PyObject* pyStr = PyString_FromString(rtnstr);
-  PyList_SetItem( pylist, 0, pyStr );
-
-  // return pcoords
-  rtnstr[0]='\0';
-  sprintf(rtnstr,"%.6e %.6e %.6e",pcoords[0],pcoords[1],pcoords[2]);
-  pyStr = PyString_FromString(rtnstr);
-  PyList_SetItem( pylist, 1, pyStr );
-
-  // return intensity for convenience
-  vtkFloatingPointType intensity = 0.0;
-  intensity = vtksp->GetPointData()->GetScalars()->GetTuple1(vtksp->ComputePointId(ijk));
-  rtnstr[0]='\0';
-  sprintf(rtnstr,"%f",intensity);
-  pyStr = PyString_FromString(rtnstr);
-  PyList_SetItem( pylist, 2, pyStr );
-
-  return Py_BuildValue("s",pylist);
-
-}
-
-
-// --------------------------
-// Image_CreateDistanceMapCmd
-// --------------------------
-
-PyObject *Image_CreateDistanceMapCmd(PyObject *self, PyObject *args)
-{
-  auto api = SvPyUtilApiFunction("sOOss", PyRunTimeErr, __func__);
-  //char *usage;
-
-  char *srcName;
-  PyObject* startList;
-
-  double thr;
-  char *dstName;
-
-  int useCityBlock = 1;
-
-
-  if (!PyArg_ParseTuple(args,"sOds|i",&srcName,&startList,
-          &thr,&dstName,&useCityBlock))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import 1 char, 1 tuple, 1 double, 1 char and 1 int(bool): srcName,startList,thr, dstName,useCityBlock");
-    return api.argsError();
-    
-  }
-
-  // Do work of command
-  char tmpStr[1024];
-  tmpStr[0]='\0';
-
-  RepositoryDataT type;
-  cvRepositoryData *img;
-  vtkStructuredPoints *sp;
 
   // Look up given image object:
-  img = gRepository->GetObject( srcName );
-  if ( img == NULL )
-  {
-    sprintf(tmpStr,  "couldn't find object ", srcName  );
-    PyErr_SetString( PyRunTimeErr, tmpStr );
-    tmpStr[0]='\0';
-    
+  auto img = GetRepositoryData(api, imagename, STRUCTURED_PTS_T);
+  if (img == NULL) {
+      return nullptr;
+  }
+  auto vtksp = ((cvStrPts*)img)->GetVtkStructuredPoints();
+
+  // Compute the structured coordinates, whatever that is.
+  //
+  int ijk[3];
+  vtkFloatingPointType pcoords[3];
+  char rtnstr[2048];
+  vtkFloatingPointType x[3] = {pt[0], pt[1], pt[2]};
+
+  if ( (vtksp->ComputeStructuredCoordinates(x, ijk, pcoords)) == 0) {
+      return Py_BuildValue("s",rtnstr);
   }
 
-  // Make sure image is of type STRUCTURED_PTS_T:
-  type = img->GetType();
-  if ( type != STRUCTURED_PTS_T )
-  {
-    sprintf(tmpStr,  "error: object ", srcName,
-    "not of type StructuredPts");
-    PyErr_SetString( PyRunTimeErr, tmpStr );
-    tmpStr[0]='\0';
-    
+  // Return results as a Python string.
+  //
+  // [TODO:DaveP] why not return a list of numbers or a dict?
+  //
+  // ijk.
+  PyObject *pylist = PyList_New(3);
+  auto pyStr = ValuesToPyString("%i %i %i", ijk[0], ijk[1], ijk[2]);
+  PyList_SetItem(pylist, 0, pyStr);
+
+  // pcoords.
+  pyStr = ValuesToPyString("%.6e %.6e %.6e", pcoords[0], pcoords[1], pcoords[2]);
+  PyList_SetItem(pylist, 1, pyStr);
+
+  // intensity.
+  auto intensity = vtksp->GetPointData()->GetScalars()->GetTuple1(vtksp->ComputePointId(ijk));
+  pyStr = ValuesToPyString("%f", intensity); 
+  PyList_SetItem(pylist, 2, pyStr);
+
+  return Py_BuildValue("s",pylist);
+}
+
+//---------------------------
+// Image_create_distance_map 
+//---------------------------
+//
+PyDoc_STRVAR(Image_create_distance_map_doc,
+  "create_distance_map(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args:                                    \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject *
+Image_create_distance_map(PyObject *self, PyObject *args)
+{
+  auto api = SvPyUtilApiFunction("sOds|i", PyRunTimeErr, __func__);
+  char *srcName;
+  PyObject* startList;
+  double thr;
+  char *dstName;
+  int useCityBlock = 1;
+
+  if (!PyArg_ParseTuple(args, api.format, &srcName, &startList, &thr, &dstName, &useCityBlock)) {
+    return api.argsError();
   }
 
-  // Retrive geometric information:
-  sp = ((cvStrPts*)img)->GetVtkStructuredPoints();
+  // Get the structured points data for the image.
+  auto img = GetRepositoryData(api, srcName, STRUCTURED_PTS_T);
+  if (img == NULL) {
+    return nullptr;
+  }
+  auto sp = ((cvStrPts*)img)->GetVtkStructuredPoints();
 
-  int nstart;
+  // Get coordinate.
+  //
   int start[3];
-
-  // Parse coordinate lists:
-  for (int i = 0; i < 3; i++)
-  {
-    start[i]=PyInt_AsLong(PyList_GetItem(startList,i));
-    if (PyErr_Occurred()||PyList_Size(startList)!=3)
-    {
-      PyErr_SetString( PyRunTimeErr, "Error parsing coordinate lists!" );
-      
-    }
+  std::string emsg;
+  if (!svPyUtilGetPointData(startList, emsg, start)) {
+    api.error("The start point argument " + emsg);
+    return nullptr;
   }
 
   // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( dstName ) )
-  {
-    sprintf(tmpStr,  "object ", dstName, " already exists",
-    (char *)NULL);
-    PyErr_SetString( PyRunTimeErr, tmpStr );
-    tmpStr[0]='\0';
-    
+  if (gRepository->Exists(dstName)) {
+    api.error("The '" + std::string(dstName) + "' is already in the repository.");
+    return nullptr;
   }
 
+  // Calculate the distance map. 
+  //
   vtkStructuredPoints *mapsp = NULL;
   vtkFloatingPointType thrval = thr;
-
   cvDistanceMap* distmap = new cvDistanceMap();
-  if (useCityBlock== 0)
-  {
+
+  if (useCityBlock== 0) {
       distmap->setUse26ConnectivityDistance();
   }
-  int status = distmap->createDistanceMap(sp,thrval,start);
 
-  if ( status == SV_ERROR )
-  {
-    sprintf(tmpStr, "Problem creating distance map for ", srcName);
-    PyErr_SetString( PyRunTimeErr, tmpStr );
-    tmpStr[0]='\0';
-    
+  if (distmap->createDistanceMap(sp,thrval,start) == SV_ERROR) {
+    api.error("Error in the distance map calculation for the image '" + std::string(srcName) + "'.");
+    return nullptr;
   }
 
   cvStrPts *repossp = new cvStrPts( distmap->getDistanceMap() );
   delete distmap;
 
-  repossp->SetName( dstName );
-  if ( !( gRepository->Register( repossp->GetName(), repossp ) ) )
-  {
-    sprintf(tmpStr, "error registering obj ", dstName,
-    " in repository"  );
-    PyErr_SetString( PyRunTimeErr, tmpStr );
-    tmpStr[0]='\0';
+  repossp->SetName(dstName);
+  auto repoName = repossp->GetName();
+  if (!gRepository->Register(repoName, repossp)) {
+    api.error("Error adding the distance map data '" + std::string(repoName) + "' to the repository.");
     delete repossp;
-    
+    return nullptr;
   }
 
-  return Py_BuildValue("s", repossp->GetName());
-
+  return Py_BuildValue("s", repoName); 
 }
 
+//-----------------
+// Image_find_path 
+//-----------------
+//
+PyDoc_STRVAR(Image_find_path_doc,
+  "find_path(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args:                                    \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-// -----------------
-// Image_FindPathCmd
-// -----------------
-
-PyObject *Image_FindPathCmd( PyObject *self, PyObject *args )
+static PyObject *
+Image_find_path(PyObject *self, PyObject *args )
 {
-  auto api = SvPyUtilApiFunction("sOOss", PyRunTimeErr, __func__);
- // char *usage;
-
+  auto api = SvPyUtilApiFunction("sOs|iii", PyRunTimeErr, __func__);
   char *srcName;
-  char *dstName;
-
   PyObject* stopList;
+  char *dstName;
   int useCityBlock = 1;
   int maxIter = -1;
   int minqstop = 0;
 
-
-  if (!PyArg_ParseTuple(args,"sOs|iii",&srcName,&stopList,
-          &dstName,&useCityBlock,&maxIter,&minqstop))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import 2 chars, 1 tuple or 3 optional int: srcName,stopList,dstName, useCityBlock,maIter,minqstop");
+  if (!PyArg_ParseTuple(args, api.format, &srcName, &stopList,  &dstName, &useCityBlock, &maxIter, &minqstop)) {
     return api.argsError();
-    
-  }
-  // Do work of command
-  char tmpStr[1024];
-  tmpStr[0]='\0';
-
-  RepositoryDataT type;
-  cvRepositoryData *img;
-  vtkStructuredPoints *sp;
-
-  // Look up given image object:
-  img = gRepository->GetObject( srcName );
-  if ( img == NULL )
-  {
-    sprintf(tmpStr, "couldn't find object ", srcName  );
-    PyErr_SetString( PyRunTimeErr, tmpStr );
-    tmpStr[0]='\0';
-    
   }
 
-  // Make sure image is of type STRUCTURED_PTS_T:
-  type = img->GetType();
-  if ( type != STRUCTURED_PTS_T )
-  {
-    sprintf(tmpStr, "error: object ", srcName,
-    "not of type StructuredPts"  );
-    PyErr_SetString( PyRunTimeErr, tmpStr );
-    tmpStr[0]='\0';
-    
+  // Get the structured points data for the image.
+  auto img = GetRepositoryData(api, srcName, STRUCTURED_PTS_T);
+  if (img == NULL) {
+    return nullptr;
   }
+  auto sp = ((cvStrPts*)img)->GetVtkStructuredPoints();
 
-  // Retrive geometric information:
-  sp = ((cvStrPts*)img)->GetVtkStructuredPoints();
-
-  int nstart;
+  // Get stop coordinates.
+  //
   int stop[3];
-
-  // Parse coordinate lists:
-  for (int i = 0; i < 3; i++)
-  {
-    stop[i]=PyInt_AsLong(PyList_GetItem(stopList,i));
-    if (PyErr_Occurred()||PyList_Size(stopList)!=3)
-    {
-      PyErr_SetString( PyRunTimeErr, "Error parsing coordinate lists!" );
-      
-    }
+  std::string emsg;
+  if (!svPyUtilGetPointData(stopList, emsg, stop)) {
+    api.error("The stop point argument " + emsg);
+    return nullptr;
   }
 
   // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( dstName ) ) {
-    sprintf(tmpStr, "object ", dstName, " already exists");
-    PyErr_SetString( PyRunTimeErr, tmpStr );
-    tmpStr[0]='\0';
-    
+  if (gRepository->Exists(dstName)) {
+    api.error("The '" + std::string(dstName) + "' is already in the repository.");
+    return nullptr;
   }
 
-  vtkStructuredPoints *mapsp = NULL;
-
-  cvDistanceMap* distmap = new cvDistanceMap();
+  // Calculate distance map.
+  //
+  auto distmap = new cvDistanceMap();
   distmap->setDistanceMap(sp);
   if (useCityBlock ==0) {
       distmap->setUse26ConnectivityDistance();
   }
+
   vtkPolyData *pd;
   if (maxIter < 0) {
     pd = distmap->getPath(stop,minqstop);
@@ -1232,123 +793,79 @@ PyObject *Image_FindPathCmd( PyObject *self, PyObject *args )
     pd = distmap->getPathByThinning(stop,minqstop,maxIter);
   }
 
-  if ( pd == NULL ) {
-    sprintf(tmpStr, "Problem finding path for ", srcName);
-    PyErr_SetString( PyRunTimeErr, tmpStr );
-    tmpStr[0]='\0';
-    
+  if (pd == NULL) {
+    api.error("Error in finding a path for the image '" + std::string(srcName) + "'.");
+    return nullptr;
   }
 
-  cvPolyData *dst = new cvPolyData (pd);
-
+  // Add polydata to the repository.
+  //
+  auto dst = new cvPolyData (pd);
   dst->SetName( dstName );
-  if ( !( gRepository->Register( dst->GetName(), dst ) ) )
-  {
-    sprintf(tmpStr, "error registering obj ", dstName,
-    " in repository" );
-    PyErr_SetString( PyRunTimeErr, tmpStr );
-    tmpStr[0]='\0';
+  auto repoName = dst->GetName();
+  if (!gRepository->Register(repoName, dst)) {
+    api.error("Error adding the distance map data '" + std::string(repoName) + "' to the repository.");
     delete dst;
-    
+    return nullptr;
   }
 
-  //instead of exporting the object name, output the vtkPolydata object
-  PyObject* pyVtkObj=vtkPythonUtil::GetObjectFromPointer(pd);
+  // Instead of exporting the object name, output the vtkPolydata object
+  //
+  // [TODO:DaveP] why is this implemented differently than most api functions?
+  //
+  PyObject* pyVtkObj = vtkPythonUtil::GetObjectFromPointer(pd);
   return pyVtkObj;
-
 }
 
+//------------
+// Image_mask 
+//------------
+//
+PyDoc_STRVAR(Image_mask_doc,
+  "mask(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args:                                    \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
 
-// --------------------
-// Image_MaskInPlaceCmd
-// --------------------
-
-PyObject* Image_MaskInPlaceCmd( PyObject *self, PyObject *args)
+static PyObject *
+Image_mask(PyObject *self, PyObject *args)
 {
-
-  auto api = SvPyUtilApiFunction("sOOss", PyRunTimeErr, __func__);
+  auto api = SvPyUtilApiFunction("ss|di", PyRunTimeErr, __func__);
   char *objName;
   char *maskName;
-
   double replaceVal = 0;
   int notval = 0;
 
-  if (!PyArg_ParseTuple(args,"ss|di",&objName,&maskName,&replaceVal,&notval))
-  {
-    PyErr_SetString(PyRunTimeErr,"Could not import 2 chars or 1 optional double, 1 optional int: objName,maskName,replaceVal, notval");
+  if (!PyArg_ParseTuple(args, api.format, &objName, &maskName, &replaceVal, &notval)) {
     return api.argsError();
-    
   }
 
-  // Do work of command
-  char tmpStr[1024];
-  tmpStr[0]='\0';
-
-  RepositoryDataT type;
-  cvRepositoryData *img, *mask;
-  vtkStructuredPoints *imgsp, *masksp;
-
-  // Look up given image object:
-  img = gRepository->GetObject( objName );
-  if ( img == NULL )
-  {
-    sprintf(tmpStr, "couldn't find object ", objName  );
-    PyErr_SetString( PyRunTimeErr, tmpStr );
-    tmpStr[0]='\0';
-    
+  // Get the structured points data for the image and mask.
+  auto img = GetRepositoryData(api, objName, STRUCTURED_PTS_T);
+  if (img == NULL) {
+    return nullptr;
   }
+  auto imgsp = ((cvStrPts*)img)->GetVtkStructuredPoints();
 
-  // Make sure image is of type STRUCTURED_PTS_T:
-  type = img->GetType();
-  if ( type != STRUCTURED_PTS_T )
-  {
-    sprintf(tmpStr, "error: object ", objName,
-    "not of type StructuredPts"  );
-    PyErr_SetString( PyRunTimeErr, tmpStr );
-    tmpStr[0]='\0';
-    
+  // Get the structured points data for the image.
+  auto mask = GetRepositoryData(api, maskName, STRUCTURED_PTS_T);
+  if (mask == NULL) {
+    return nullptr;
   }
+  auto masksp = ((cvStrPts*)mask)->GetVtkStructuredPoints();
 
-
-  // Look up given mask object:
-  mask = gRepository->GetObject( maskName );
-  if ( mask == NULL )
-  {
-    sprintf(tmpStr, "couldn't find object ", maskName   );
-    PyErr_SetString( PyRunTimeErr, tmpStr );
-    tmpStr[0]='\0';
-    
-  }
-
-  // Make sure mask is of type STRUCTURED_PTS_T:
-  type = mask->GetType();
-  if ( type != STRUCTURED_PTS_T )
-  {
-    sprintf(tmpStr, "error: object ", maskName,
-    "not of type StructuredPts" );
-    PyErr_SetString( PyRunTimeErr, tmpStr );
-    tmpStr[0]='\0';
-    
-  }
-
-
-  // Retrive geometric information:
-  imgsp = ((cvStrPts*)img)->GetVtkStructuredPoints();
-  masksp = ((cvStrPts*)mask)->GetVtkStructuredPoints();
-
+  // Calculate the mask.
+  //
   bool notvalBool = (notval!=0);
-  int status = MaskImageInPlace(imgsp,masksp,replaceVal,notvalBool);
-
-  if ( status == SV_ERROR )
-  {
-    sprintf(tmpStr, "Problem masking in place for ", objName );
-    PyErr_SetString( PyRunTimeErr, tmpStr );
-    tmpStr[0]='\0';
-    
+  if (MaskImageInPlace(imgsp,masksp,replaceVal,notvalBool) == SV_ERROR) {
+    api.error("Error in the mask calculation for the image '" + std::string(objName) + "'.");
+    return nullptr;
   }
 
   return Py_BuildValue("s",img->GetName());
-
 }
 
 ////////////////////////////////////////////////////////
@@ -1388,23 +905,23 @@ int Image_pyInit()
 //
 PyMethodDef pyImage_methods[] = {
 
-  {"CalcCorrectionEqn", Image_CalcCorrectionEqnCmd, METH_VARARGS,NULL},
+  {"calculate_correction_equation", Image_calculate_correction_equation, METH_VARARGS, Image_calculate_correction_equation_doc},
 
-  {"CalcCorrectionEqnAuto", Image_CalcCorrectionEqnAutoCmd, METH_VARARGS,NULL},
+  {"calculate_correction_equation_auto", Image_calculate_correction_equation_auto, METH_VARARGS, Image_calculate_correction_equation_auto_doc},
 
-  {"ComputeStructuredCoord", Image_ComputeStructuredCoordCmd, METH_VARARGS,NULL},
+  {"compute_structured_coordinates", Image_compute_structured_coordinates, METH_VARARGS, Image_compute_structured_coordinates_doc},
 
-  {"CreateDistanceMap", Image_CreateDistanceMapCmd, METH_VARARGS,NULL},
+  {"create_distance_map", Image_create_distance_map, METH_VARARGS, Image_create_distance_map_doc},
 
-  {"Decode", Image_DecodeCmd, METH_VARARGS,NULL},
+  {"decode", Image_decode, METH_VARARGS, Image_decode_doc},
 
-  {"FindPath", Image_FindPathCmd, METH_VARARGS,NULL},
+  {"find_path", Image_find_path, METH_VARARGS, Image_find_path_doc},
 
-  {"Mask", Image_MaskInPlaceCmd, METH_VARARGS,NULL},
+  {"mask", Image_mask, METH_VARARGS, Image_mask_doc},
 
   {"read_header_5x", Image_read_header_5x, METH_VARARGS, Image_read_header_5x_doc},
 
-  {"SetImageThreshold", Image_ThresholdCmd, METH_VARARGS,NULL},
+  {"set_image_threshold", Image_set_image_threshold, METH_VARARGS, Image_set_image_threshold_doc},
 
   {NULL, NULL,0,NULL},
 

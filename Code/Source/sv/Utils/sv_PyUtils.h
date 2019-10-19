@@ -62,6 +62,11 @@ void svPyUtilSetupApiFunction(const char* functionName, std::string& format, std
 
 void svPyUtilSetErrorMsg(PyObject* pyRunTimeErr, std::string& msgp, std::string msg);
 
-bool svPyUtilGetPointData(PyObject *pyPoint, std::string& msg, double point[3]);
+template <typename T>
+bool svPyUtilGetPointData(PyObject* pyPoint, std::string& msg, T point[3]);
+
+bool svPyUtilConvertPointData(PyObject* data, int index, std::string& msg, double point[3]);
+bool svPyUtilConvertPointData(PyObject* data, int index, std::string& msg, int point[3]);
+
 
 #endif 

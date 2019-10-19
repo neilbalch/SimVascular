@@ -2276,7 +2276,7 @@ Geom_classify(PyObject* self, PyObject* args)
 
   double pt[3];
   std::string emsg;
-  if (!svPyUtilGetPointData(ptList, emsg, pt)) {
+  if (!svPyUtilGetPointData<double>(ptList, emsg, pt)) {
       api.error("The point argument " + emsg);
       return nullptr;
   }

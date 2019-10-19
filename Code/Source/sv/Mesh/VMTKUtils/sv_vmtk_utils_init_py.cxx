@@ -159,8 +159,8 @@ Geom_centerlines(PyObject* self, PyObject* args)
     targets.push_back(PyLong_AsLong(PyList_GetItem(targetList,j)));
   }
 
-  if (sys_geom_centerlines(geomSrc, sources.data(), nsources, targets.data(), ntargets, &linesDst, &voronoiDst) 
-    != SV_OK ) {
+  if (sys_geom_centerlines((cvPolyData*)geomSrc, sources.data(), nsources, targets.data(), ntargets, (cvPolyData**)&linesDst, 
+    (cvPolyData**)&voronoiDst) != SV_OK ) {
     api.error("Error creating centerlines.");
     return nullptr; 
   }
@@ -222,7 +222,7 @@ Geom_group_polydata(PyObject* self, PyObject* args)
   // Perform group polydata operation.
   //
   cvRepositoryData *groupedDst = NULL;
-  if (sys_geom_grouppolydata(geomSrc, linesSrc, &groupedDst) != SV_OK) {
+  if (sys_geom_grouppolydata((cvPolyData*)geomSrc, (cvPolyData*)linesSrc, (cvPolyData**)&groupedDst) != SV_OK) {
       api.error("Error grouping polydata.");
       return nullptr; 
   }
@@ -275,7 +275,7 @@ Geom_distance_to_centerlines(PyObject* self, PyObject* args)
 
   // Perform distance to lines operation.
   cvRepositoryData *distanceDst = NULL;
-  if (sys_geom_distancetocenterlines(geomSrc, linesSrc, &distanceDst) != SV_OK) {
+  if (sys_geom_distancetocenterlines((cvPolyData*)geomSrc, (cvPolyData*)linesSrc, (cvPolyData**)&distanceDst) != SV_OK) {
       api.error("Error getting distance to centerlines.");
       return nullptr; 
   }
@@ -321,7 +321,7 @@ Geom_separate_centerlines(PyObject* self, PyObject* args)
   // Perform separate centerlines operation.
   //
   cvRepositoryData *separateDst = NULL;
-  if (sys_geom_separatecenterlines(linesSrc, &separateDst) != SV_OK) {
+  if (sys_geom_separatecenterlines((cvPolyData*)linesSrc, (cvPolyData**)&separateDst) != SV_OK) {
       api.error("Error creating separate centerlines.");
       return nullptr; 
   }
@@ -369,7 +369,7 @@ Geom_merge_centerlines(PyObject* self, PyObject* args)
   // Perform merge centerline operation.
   //
   cvRepositoryData *mergeDst = NULL;
-  if (sys_geom_mergecenterlines(linesSrc, mergeblanked, &mergeDst) != SV_OK) {
+  if (sys_geom_mergecenterlines((cvPolyData*)linesSrc, mergeblanked, (cvPolyData**)&mergeDst) != SV_OK) {
       api.error("Error merging centerlines.");
       return nullptr; 
   }
@@ -424,7 +424,7 @@ Geom_cap(PyObject* self, PyObject* args)
   //
   cvRepositoryData *cappedDst = NULL;
   int numIds, *ids;
-  if (sys_geom_cap(geomSrc, &cappedDst, &numIds, &ids, captype) != SV_OK) {
+  if (sys_geom_cap((cvPolyData*)geomSrc, (cvPolyData**)(&cappedDst), &numIds, &ids, captype) != SV_OK) {
     api.error("Error capping model.");
     return nullptr; 
   }
@@ -499,7 +499,7 @@ Geom_cap_with_ids(PyObject* self, PyObject* args)
   //
   int num_filled = 0;
   cvRepositoryData *cappedDst = NULL;
-  if (sys_geom_cap_with_ids(geomSrc, &cappedDst, fillId, num_filled, filltype) != SV_OK) {
+  if (sys_geom_cap_with_ids((cvPolyData*)geomSrc, (cvPolyData**)(&cappedDst), fillId, num_filled, filltype) != SV_OK) {
     api.error("Error creating cap with ids.");
     return nullptr;
   }
@@ -560,7 +560,7 @@ Geom_map_and_correct_ids(PyObject* self, PyObject* args)
   // Perform map and correct IDs operation.
   //
   cvRepositoryData *geomDst = NULL;
-  if (sys_geom_mapandcorrectids(geomSrc, geomNew, &geomDst, originalArray, newArray) != SV_OK) {
+  if (sys_geom_mapandcorrectids((cvPolyData*)geomSrc, (cvPolyData*)geomNew, (cvPolyData**)(&geomDst), originalArray, newArray) != SV_OK) {
     api.error("Error mapping and correcing ids.");
     return nullptr;
   }

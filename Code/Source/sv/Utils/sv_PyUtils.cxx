@@ -148,17 +148,44 @@ bool svPyUtilCheckPointData(PyObject *pointData, std::string& msg)
   return true;
 }
 
+//--------------------------
+// svPyUtilConvertPointData
+//--------------------------
+// Convert a Python object to a double and store it into the given
+// position in an array.
+//
+bool svPyUtilConvertPointData(PyObject* data, int index, std::string& msg, double point[3])
+{
+  if (!PyFloat_Check(data) && !PyLong_Check(data)) {
+      msg = "data at " + std::to_string(index) + " in the list is not a float.";
+      return false;
+  }
+  point[index] = PyFloat_AsDouble(data);
+  return true;
+}
+
+bool svPyUtilConvertPointData(PyObject* data, int index, std::string& msg, int point[3])
+{
+  if (!PyLong_Check(data)) {
+      msg = "data at " + std::to_string(index) + " in the list is not an integer.";
+      return false;
+  }
+  point[index] = PyLong_AsLong(data);
+  return true;
+}
+
 //----------------------
 // svPyUtilGetPointData 
-//-----------------------
-// Get an array of three floats. 
+//----------------------
+// Get an array of three float or int valuess. 
 //
-// The data is a list [x,y,z] of three floats.
+// The data is a list [x,y,z] of three values.
 //
 // If there is a problem with the data then the function returns false and
 // a string describing the problem.
 //
-bool svPyUtilGetPointData(PyObject *pyPoint, std::string& msg, double point[3])
+template <typename T>
+bool svPyUtilGetPointData(PyObject* pyPoint, std::string& msg, T point[3])
 {
   if (!PyList_Check(pyPoint)) {
       msg = "is not a Python list.";
@@ -171,16 +198,18 @@ bool svPyUtilGetPointData(PyObject *pyPoint, std::string& msg, double point[3])
   }
 
   for (int i = 0; i < 3; i++) {
-      if (!PyFloat_Check(PyList_GetItem(pyPoint,i))) {
-          msg = "data at " + std::to_string(i) + " in the list is not a float.";
+      auto data = PyList_GetItem(pyPoint,i);
+      if (!svPyUtilConvertPointData(data, i, msg, point)) {
           return false;
       }
-      point[i] = PyFloat_AsDouble(PyList_GetItem(pyPoint,i));
   }
 
   return true;
 }
 
+// Needed for linking.
+template bool svPyUtilGetPointData(PyObject* pyPoint, std::string& msg, double point[3]);
+template bool svPyUtilGetPointData(PyObject* pyPoint, std::string& msg, int point[3]);
 
 //-----------------------------
 // svPyUtilCheckPointDataList

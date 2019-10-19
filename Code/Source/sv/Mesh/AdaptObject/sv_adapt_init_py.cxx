@@ -91,7 +91,7 @@ class pyAdaptObject
       std::string name;
 }; 
 
-pyAdaptObject_dealloc(pyAdaptObject* self)
+void pyAdaptObject_dealloc(pyAdaptObject* self)
 {
   Py_XDECREF(self->adapt);
   Py_TYPE(self)->tp_free((PyObject*)self);
