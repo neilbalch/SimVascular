@@ -1,0 +1,13 @@
+//
+PyDoc_STRVAR(Mesh_new_object_doc,
+  "new_object(name, mesh_file_name, solid_file_name) \n\ 
+   \n\
+   Create a new mesh object. \n\
+   \n\
+   Args: \n\
+     name (str): Name of the new mesh object to store in the repository. \n\
+");
+
+static PyObject *
+
+

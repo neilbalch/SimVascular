@@ -28,15 +28,24 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/*
- * sv3_ITKUtils_init.cxx
- *
- *  Created on: May 29, 2014
- *      Author: jmerkow
- */
 
+// The functions defined here implement the SV Python API itk utils module. 
+//
+// The module name is 'itk_utils'. The module defines a 'Mesh' class used
+// to store mesh data. The 'Mesh' class cannot be imported and must
+// be used prefixed by the module name. For example
+//
+//     mesh = mesh.Mesh()
+//
+// A Python exception sv.mesh.MeshException is defined for this module. 
+// The exception can be used in a Python 'try' statement with an 'except' clause 
+// like this
+//
+//    except sv.mesh.MeshException:
+//
 #include "SimVascular.h"
 #include "Python.h"
+#include "sv_PyUtils.h"
 #include "vtkPythonUtil.h"
 #include "sv3_ITKLSet_PYTHON_Macros.h"
 #include <stdio.h>
@@ -51,7 +60,6 @@
 #include "itkVersion.h"
 
 #include "sv3_ITKLset_ITKUtils.h"
-
 #include "sv3_ITKUtils_init_py.h"
 
 // The following is needed for Windows
@@ -59,71 +67,648 @@
 #undef GetObject
 #endif
 
-//!  C++/TCL bindings for ITK Utils.
-/*!
-  This file provides C++/Tcl bindings for itk Utils
-*/
-
-// Globals:
-// --------
-
 #include "sv2_globals.h"
 
-// -----------
-// Prototypes:
-// -----------
+// Exception type used by PyErr_SetString() to set the for the error indicator.
+PyObject *PyRunTimeErr;
 
-//! Generate a polydata cirlce with a specified radius and location
-/*! (Requires VTK Only) A more elaborate description... TBD
-*/
-static PyObject* itkutils_GenerateCircleCmd( CXX_PYTHON_STDARGS );
+//////////////////////////////////////////////////////
+//        U t i l i t y     F u n c t i o n s       //
+//////////////////////////////////////////////////////
 
-//! Converts a polydata to a 2D image
-/*! (Requires VTK Only) A more elaborate description... TBD
-*/
-static PyObject* itkutils_PdToImgCmd( CXX_PYTHON_STDARGS );
+//-------------------
+// GetRepositoryData 
+//-------------------
+// Get repository data of the given type. 
+//
+static cvRepositoryData *
+GetRepositoryData(SvPyUtilApiFunction& api, char* name, RepositoryDataT dataType)
+{
+  auto data = gRepository->GetObject(name);
+  if (data == NULL) {
+      api.error("'"+std::string(name)+"' is not in the repository.");
+      return nullptr;
+  }
+  if (gRepository->GetType(name) != dataType) {
+      auto typeStr = std::string(RepositoryDataT_EnumToStr(dataType));
+      api.error("'" + std::string(name) + "' does not have type '" + typeStr + "'.");
+      return nullptr;
+  }
 
-//! Converts a  3D polydata to a 3D image volume
-/*! (Requires VTK Only) A more elaborate description... TBD
-*/
-static PyObject* itkutils_PdToVolCmd( CXX_PYTHON_STDARGS );
+  return data;
+}
 
-//! Write an image to vtk format
-/*! (Requires VTK Only) A more elaborate description... TBD
-*/
-static PyObject* itkutils_WriteImageCmd( CXX_PYTHON_STDARGS );
+
+//////////////////////////////////////////////////////
+//          M o d u l e  F u n c t i o n s          //
+//////////////////////////////////////////////////////
+//
+// Python API functions. 
+
+//--------------------------
+// itkutils_generate_circle
+//--------------------------
+// Generate a polydata circle with a specified radius and location.
+//
+PyDoc_STRVAR(itkutils_generate_circle_doc,
+  "generate_circle(name, mesh_file_name, solid_file_name) \n\ 
+   \n\
+   Create a new mesh object. \n\
+   \n\
+   Args: \n\
+     name (str): Name of the new mesh object to store in the repository. \n\
+");
+
+static PyObject * 
+itkutils_generate_circle( PyObject *self, PyObject *args )
+{
+  auto api = SvPyUtilApiFunction("sdddd", PyRunTimeErr, __func__);
+  char *result;
+  double r=1.0, x, y, z;
+
+  if (!PyArg_ParseTuple(args, api.format, &result, &r, &x, &y, &z)) {
+    return api.argsError();
+  }
+
+  // Check that the new Contour object does not already exist.
+  if (gRepository->Exists(result)) {
+      api.error("The object '" + std::string(result) + "' is already in the repository.");
+      return nullptr;
+  }
+
+  int loc[3];
+  loc[0] = x;
+  loc[1] = y;
+  loc[2] = z;
+  double center[3];
+  center[0] = x;
+  center[1] = y;
+  center[2] = z;
+
+  // Create a circle.
+  //
+  cvPolyData *obj = NULL;
+  cvITKLSUtil::vtkGenerateCircle(r, center, 50, &obj);
+  if (obj == NULL) {
+      api.error("Error creating the circle object named '" + std::string(result) + "'.");
+      return nullptr;
+  }
+
+  //Save Result
+  obj->SetName( result );
+  if (!gRepository->Register(obj->GetName(), obj)) {
+      delete obj;
+      api.error("Error adding the cicle '" + std::string(result) + "' to the repository.");
+      return nullptr;
+  }
+
+  vtkSmartPointer<vtkPolyData> polydataObj = vtkSmartPointer<vtkPolyData>::New();
+  polydataObj = obj->GetVtkPolyData();
+  PyObject* pyVtkObj=vtkPythonUtil::GetObjectFromPointer(polydataObj);
+  return pyVtkObj;
+}
+
+//----------------------------
+// itkutils_polydata_to_image 
+//----------------------------
+// Convert polydata to a 2D image.
+//
+PyDoc_STRVAR(itkutils_polydata_to_image_doc,
+  "polydata_to_image(name, mesh_file_name, solid_file_name) \n\ 
+   \n\
+   Create a new mesh object. \n\
+   \n\
+   Args: \n\
+     name (str): Name of the new mesh object to store in the repository. \n\
+");
+
+static PyObject * 
+itkutils_polydata_to_image(PyObject *self, PyObject *args )
+{
+  auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
+  char *inputPdName;
+  char *result;
+
+  if (!PyArg_ParseTuple(args, api.format, &inputPdName, &result)) {
+    return api.argsError();
+  }
+
+  // [TODO:DaveP] can this happen?
+  if (inputPdName != NULL) {
+      api.error("The polydata argument is null.");
+      return nullptr;
+  }
+
+  // Look up given polydata object:
+  auto pd = GetRepositoryData(api, inputPdName, POLY_DATA_T);
+  if (pd == NULL) {
+      return nullptr;
+  }
+  auto vtkpd = ((cvPolyData*)pd)->GetVtkPolyData();
+
+  // Check that the new Contour object does not already exist.
+  if (gRepository->Exists(result)) {
+      api.error("The object '" + std::string(result) + "' is already in the repository.");
+      return nullptr;
+  }
+
+  // Do work of command
+  cvStrPts *obj = NULL;
+  ImgInfo tempInfo;
+  cvITKLSUtil::DefaultImgInfo.Print(std::cout);
+
+  //tempInfo.Print(std::cout);
+  cvITKLSUtil::vtkPolyDataTo2DImage(vtkpd,&obj,&tempInfo);
+
+  //Save Result
+  obj->SetName( result );
+  if (!gRepository->Register(obj->GetName(), obj)) {
+      delete obj;
+      api.error("Error adding the image '" + std::string(result) + "' to the repository.");
+      return nullptr;
+  }
+
+  return Py_BuildValue("s", obj->GetName());
+}
+
+//-----------------------------
+// itkutils_polydata_to_volume
+//-----------------------------
+// Converts a  3D polydata to a 3D image volume
+//
+// [TODO:DaveP] the argument ording is odd, should 
+// be: input, ref, result.
+//
+PyDoc_STRVAR(itkutils_polydata_to_volume_doc,
+  "polydata_to_volume_doc(name, mesh_file_name, solid_file_name) \n\ 
+   \n\
+   Create a new mesh object. \n\
+   \n\
+   Args: \n\
+     name (str): Name of the new mesh object to store in the repository. \n\
+");
+
+static PyObject * 
+itkutils_polydata_to_volume( PyObject *self, PyObject *args )
+{
+  auto api = SvPyUtilApiFunction("sss", PyRunTimeErr, __func__);
+  char *inputPdName;
+  char *result;
+  char *refName;
+
+  if (!PyArg_ParseTuple(args, api.format, &inputPdName, &result, &refName)) {
+    return api.argsError();
+  }
+
+  // Make sure the specified result object does not exist:
+  CVPYTHONRepositoryExistsMacro(result,PyRunTimeErr)
+
+  // [TODO:DaveP] can this happen?
+  if (&refName != NULL) {
+      api.error("The reference argument is null.");
+      return nullptr;
+  }
+
+  // Look up given polydata object:
+  auto pd = GetRepositoryData(api, inputPdName, POLY_DATA_T);
+  if (pd == NULL) {
+      return nullptr;
+  }
+  auto vtkpd = ((cvPolyData*)pd)->GetVtkPolyData();
+
+  // Look up given image object:
+  auto ref = GetRepositoryData(api, refName, STRUCTURED_PTS_T);
+  if (pd == NULL) {
+      return nullptr;
+  }
+  auto vtkref = (vtkStructuredPoints*)((cvStrPts*)ref)->GetVtkPtr();
+
+  // Convert polydata to volume data.
+  //
+  cvStrPts *obj = NULL;
+  ImgInfo tempInfo = ImgInfo(vtkref);
+  vtkref->Delete();
+  cvITKLSUtil::vtkPolyDataToVolume(vtkpd,&obj,&tempInfo);
+
+  //Save Result
+  obj->SetName( result );
+  if (!gRepository->Register(obj->GetName(), obj)) {
+      delete obj;
+      api.error("Error adding the volume '" + std::string(result) + "' to the repository.");
+      return nullptr;
+  }
+
+  return Py_BuildValue("s",obj->GetName());
+}
+
+//----------------------
+// itkutils_write_image
+//----------------------
+// Write an image to vtk format
+//
+PyDoc_STRVAR(itkutils_write_image_doc,
+  "write_image(name, mesh_file_name, solid_file_name) \n\ 
+   \n\
+   Create a new mesh object. \n\
+   \n\
+   Args: \n\
+     name (str): Name of the new mesh object to store in the repository. \n\
+");
+
+static PyObject * 
+itkutils_write_image(PyObject *self, PyObject *args)
+{
+  auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
+  char *inputImgName;
+  char *fname;
+
+  if (!PyArg_ParseTuple(args, api.format, &inputImgName, &fname)) { 
+    return api.argsError();
+  }
+
+  // Look up given image object:
+  auto image = GetRepositoryData(api, inputImgName, STRUCTURED_PTS_T);
+  if (image == NULL) {
+      return nullptr;
+  }
+  auto vtksp = ((cvStrPts*)image)->GetVtkStructuredPoints();
+
+  // Write the image to a file.
+  //
+  // [TODO:DaveP] can this fail?
+  //
+  std::string sfname(fname);
+  cvITKLSUtil::WritePerciseVtkImage(vtksp,sfname);
+
+  return Py_BuildValue("s",fname);
+}
 
 //! Computer the gradient magnitude of a vtk image, after a gaussian blur
 /*! (Requires VTK and ITK) A more elaborate description... TBD
 */
-static PyObject* itkutils_GradientMagnitudeGaussianCmd( CXX_PYTHON_STDARGS );
+PyObject* itkutils_GradientMagnitudeGaussianCmd( PyObject *self, PyObject *args )
+{
+  //std::cout << "Command: GradientMagnitudeGaussian" << std::endl;
+  auto api = SvPyUtilApiFunction("s|ss", PyRunTimeErr, __func__);
+  char *usage;
+  char *inputImgName;
+  char *result;
+  double sigma = 1;
 
-static PyObject* itkutils_GaussianCmd( CXX_PYTHON_STDARGS );
-static PyObject* itkutils_DistanceImageCmd( CXX_PYTHON_STDARGS );
-static PyObject* itkutils_ThresholdImageCmd( CXX_PYTHON_STDARGS );
+  if (!PyArg_ParseTuple(args,"sss",&inputImgName,&result,&sigma))
+  {
+  	PyErr_SetString(PyRunTimeErr,"Could not import 3 chars");
+    return api.argsError();
+  	
+  }
 
-//static PyObject* itkutils_SetExternalImgInfoCmd( CXX_PYTHON_STDARGS );
 
-static PyObject* itkutils_FractEdgeProximity3DCmd( CXX_PYTHON_STDARGS );
-PyObject *PyRunTimeErrU;
+  // Get the input image from the repository
+  RepositoryDataT type;
+  cvRepositoryData *img;
+  vtkStructuredPoints *vtksp;
+  if (inputImgName != NULL) {
+  	// Look up given image object:
+  	img = gRepository->GetObject( inputImgName );
+  	if ( img == NULL ) {
+  		PyErr_SetString(PyRunTimeErr, "couldn't find object " );
+  		
+  	}
+
+  	// Make sure image is of type STRUCTURED_PTS_T:
+  	type = img->GetType();
+  	if ( type != STRUCTURED_PTS_T ) {
+  		PyErr_SetString(PyRunTimeErr, "error: object not of type StructuredPts" );
+  		
+  	}
+  	// Retrive geometric information:
+  	vtksp = ((cvStrPts*)img)->GetVtkStructuredPoints();
+  }
+
+  // Make sure the specified result object does not exist:
+  CVPYTHONRepositoryExistsMacro(result,PyRunTimeErr)
+
+  //std::cout << "Sigma: " << sigma <<std::endl;
+  // Do work of command
+  vtkStructuredPoints* vtkout = vtkStructuredPoints::New();
+  ImgInfo itkinfo;
+  itkinfo.SetExtent(vtksp->GetExtent());
+  //itkinfo.Print(std::cout);
+  cvITKLSUtil::vtkGenerateFeatureImage
+  <cvITKLSUtil::ITKFloat2DImageType,cvITKLSUtil::ITKShort2DImageType>(vtksp,vtkout,&itkinfo,sigma);
+
+  // Save Result
+  cvStrPts* obj = new cvStrPts(vtkout);
+  obj->SetName( result );
+  if ( !( gRepository->Register( obj->GetName(), obj ) ) ) {
+  	PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
+  	delete obj;
+  	
+  }
+
+  // Return Name
+  return Py_BuildValue("s",obj->GetName());
+
+}
+
+PyObject* itkutils_GaussianCmd( PyObject *self, PyObject *args )
+{
+  //std::cout << "Command: GradientMagnitudeGaussian" << std::endl;
+  auto api = SvPyUtilApiFunction("s|ss", PyRunTimeErr, __func__);
+  char *usage;
+  char *inputImgName;
+  char *result;
+  double sigma = 1;
+
+  if (!PyArg_ParseTuple(args,"sss",&inputImgName,&result,&sigma))
+  {
+  	PyErr_SetString(PyRunTimeErr,"Could not import 3 chars");
+    return api.argsError();
+  	
+  }
+
+
+  // Get the input image from the repository
+  RepositoryDataT type;
+  cvRepositoryData *img;
+  vtkStructuredPoints *vtksp;
+  if (inputImgName != NULL) {
+  	// Look up given image object:
+  	img = gRepository->GetObject( inputImgName );
+  	if ( img == NULL ) {
+  		PyErr_SetString(PyRunTimeErr, "couldn't find object ");
+  		
+  	}
+
+  	// Make sure image is of type STRUCTURED_PTS_T:
+  	type = img->GetType();
+  	if ( type != STRUCTURED_PTS_T ) {
+  		PyErr_SetString(PyRunTimeErr, "error: object not of type StructuredPts");
+  		
+  	}
+  	// Retrive geometric information:
+  	vtksp = ((cvStrPts*)img)->GetVtkStructuredPoints();
+  }
+
+  // Make sure the specified result object does not exist:
+  CVPYTHONRepositoryExistsMacro(result,PyRunTimeErr)
+
+  //std::cout << "Sigma: " << sigma <<std::endl;
+  // Do work of command
+  vtkStructuredPoints* vtkout = vtkStructuredPoints::New();
+  ImgInfo itkinfo;
+  itkinfo.SetExtent(vtksp->GetExtent());
+  //itkinfo.Print(std::cout);
+  cvITKLSUtil::vtkGenerateFeatureImageNoGrad
+  <cvITKLSUtil::ITKFloat2DImageType,cvITKLSUtil::ITKShort2DImageType>(vtksp,vtkout,&itkinfo,sigma);
+
+  // Save Result
+  cvStrPts* obj = new cvStrPts(vtkout);
+  obj->SetName( result );
+  if ( !( gRepository->Register( obj->GetName(), obj ) ) ) {
+  	PyErr_SetString(PyRunTimeErr, "error registering obj in repository" );
+  	delete obj;
+  	
+  }
+
+  // Return Name
+  return Py_BuildValue("s",obj->GetName());
+
+}
+
+PyObject* itkutils_DistanceImageCmd( PyObject *self, PyObject *args )
+{
+  //std::cout << "Command: GradientMagnitudeGaussian" << std::endl;
+  auto api = SvPyUtilApiFunction("s|ss", PyRunTimeErr, __func__);
+  char *usage;
+  char *inputImgName;
+  char *result;
+  double thres = .5;
+
+  if (!PyArg_ParseTuple(args,"sss",&inputImgName,&result,&thres))
+  {
+  	PyErr_SetString(PyRunTimeErr,"Could not import 3 chars");
+    return api.argsError();
+  	
+  }
+
+
+  // Get the input image from the repository
+  RepositoryDataT type;
+  cvRepositoryData *img;
+  vtkStructuredPoints *vtksp;
+  if (inputImgName != NULL) {
+  	// Look up given image object:
+  	img = gRepository->GetObject( inputImgName );
+  	if ( img == NULL ) {
+  		PyErr_SetString(PyRunTimeErr, "couldn't find object ");
+  		
+  	}
+
+  	// Make sure image is of type STRUCTURED_PTS_T:
+  	type = img->GetType();
+  	if ( type != STRUCTURED_PTS_T ) {
+  		PyErr_SetString(PyRunTimeErr, "error: object not of type StructuredPts");
+  		
+  	}
+  	// Retrive geometric information:
+  	vtksp = ((cvStrPts*)img)->GetVtkStructuredPoints();
+  }
+
+  // Make sure the specified result object does not exist:
+  CVPYTHONRepositoryExistsMacro(result,PyRunTimeErr)
+
+  //std::cout << "Sigma: " << sigma <<std::endl;
+  // Do work of command
+  vtkStructuredPoints* vtkout = vtkStructuredPoints::New();
+  ImgInfo itkinfo;
+  itkinfo.SetExtent(vtksp->GetExtent());
+  //itkinfo.Print(std::cout);
+  cvITKLSUtil::vtkGenerateFeatureImageDistance
+  <cvITKLSUtil::ITKFloat2DImageType,cvITKLSUtil::ITKShort2DImageType>(vtksp,vtkout,&itkinfo,thres);
+
+  // Save Result
+  cvStrPts* obj = new cvStrPts(vtkout);
+  obj->SetName( result );
+  if ( !( gRepository->Register( obj->GetName(), obj ) ) ) {
+  	PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
+  	delete obj;
+  	
+  }
+
+  // Return Name
+  return Py_BuildValue("s",obj->GetName());
+
+}
+
+
+PyObject* itkutils_ThresholdImageCmd( PyObject *self, PyObject *args )
+{
+  //std::cout << "Command: GradientMagnitudeGaussian" << std::endl;
+  auto api = SvPyUtilApiFunction("s|ss", PyRunTimeErr, __func__);
+  char *usage;
+  char *inputImgName;
+  char *result;
+  double thres = .5;
+
+
+  if (!PyArg_ParseTuple(args,"sss",&inputImgName,&result,&thres))
+  {
+  	PyErr_SetString(PyRunTimeErr,"Could not import 3 chars");
+  auto api = SvPyUtilApiFunction("s|ss", PyRunTimeErr, __func__);
+    return api.argsError();
+  	
+  }
+
+  // Get the input image from the repository
+  RepositoryDataT type;
+  cvRepositoryData *img;
+  vtkStructuredPoints *vtksp;
+  if (inputImgName != NULL) {
+  	// Look up given image object:
+  	img = gRepository->GetObject( inputImgName );
+  	if ( img == NULL ) {
+  		PyErr_SetString(PyRunTimeErr, "couldn't find object " );
+  		
+  	}
+
+  	// Make sure image is of type STRUCTURED_PTS_T:
+  	type = img->GetType();
+  	if ( type != STRUCTURED_PTS_T ) {
+  		PyErr_SetString(PyRunTimeErr, "error: object not of type StructuredPts");
+  		
+  	}
+  	// Retrive geometric information:
+  	vtksp = ((cvStrPts*)img)->GetVtkStructuredPoints();
+  }
+
+  // Make sure the specified result object does not exist:
+  CVPYTHONRepositoryExistsMacro(result,PyRunTimeErr)
+
+  //std::cout << "Sigma: " << sigma <<std::endl;
+  // Do work of command
+  vtkStructuredPoints* vtkout = vtkStructuredPoints::New();
+  ImgInfo itkinfo;
+  itkinfo.SetExtent(vtksp->GetExtent());
+  //itkinfo.Print(std::cout);
+  cvITKLSUtil::vtkGenerateFeatureImageThreshold
+  <cvITKLSUtil::ITKFloat2DImageType,cvITKLSUtil::ITKShort2DImageType>(vtksp,vtkout,&itkinfo,thres);
+
+  // Save Result
+  cvStrPts* obj = new cvStrPts(vtkout);
+  obj->SetName( result );
+  if ( !( gRepository->Register( obj->GetName(), obj ) ) ) {
+  	PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
+  	delete obj;
+  	
+  }
+
+  // Return Name
+  return Py_BuildValue("s",obj->GetName());
+
+}
+
+//TODO: Template this better. Replace with redesign.
+PyObject* itkutils_FractEdgeProximity3DCmd( PyObject *self, PyObject *args )
+{
+  //std::cout << "Command: GradientMagnitudeGaussian" << std::endl;
+  auto api = SvPyUtilApiFunction("s|ss", PyRunTimeErr, __func__);
+  char *usage;
+  char *inputImgName;
+  char *result;
+  double sigma = 1, kappa=5, exponent=5;
+
+  if (!PyArg_ParseTuple(args,"ssddd",&inputImgName,&result,&sigma,&kappa,&exponent))
+  {
+  	PyErr_SetString(PyRunTimeErr,"Could not import 2 chars and 3 doubles");
+  auto api = SvPyUtilApiFunction("s|ss", PyRunTimeErr, __func__);
+    return api.argsError();
+  	
+  }
+
+
+  // Get the input image from the repository
+  RepositoryDataT type;
+  cvRepositoryData *img;
+  vtkStructuredPoints *vtksp;
+  if (inputImgName != NULL) {
+  	// Look up given image object:
+  	img = gRepository->GetObject( inputImgName );
+  	if ( img == NULL ) {
+  		PyErr_SetString(PyRunTimeErr, "couldn't find object ");
+  		
+  	}
+
+  	// Make sure image is of type STRUCTURED_PTS_T:
+  	type = img->GetType();
+  	if ( type != STRUCTURED_PTS_T ) {
+  		PyErr_SetString(PyRunTimeErr, "error: object not of type StructuredPts" );
+  		
+  	}
+  	// Retrive geometric information:
+  	vtksp = ((cvStrPts*)img)->GetVtkStructuredPoints();
+  }
+
+  // Make sure the specified result object does not exist:
+  CVPYTHONRepositoryExistsMacro(result,PyRunTimeErr)
+
+  //std::cout << "Sigma: " << sigma <<std::endl;
+  // Do work of command
+  vtkStructuredPoints* vtkout = vtkStructuredPoints::New();
+  ImgInfo itkinfo = ImgInfo(vtksp);
+  itkinfo.SetExtent(vtksp->GetExtent());
+  itkinfo.SetMaxValue(255);
+  itkinfo.SetMinValue(0);
+  //itkinfo.Print(std::cout);
+  typedef cvITKLSUtil::ITKFloat3DImageType IT1;
+  typedef cvITKLSUtil::ITKShort3DImageType IT2;
+  cvITKLSUtil::vtkGenerateEdgeProxImage<IT1,IT2>(vtksp,vtkout,&itkinfo,sigma,kappa,exponent);
+
+  // Save Result
+  cvStrPts* obj = new cvStrPts(vtkout);
+  obj->SetName( result );
+  if ( !( gRepository->Register( obj->GetName(), obj ) ) ) {
+  	PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
+  	delete obj;
+  	
+  }
+
+  // Return Name
+  return Py_BuildValue("s",obj->GetName());
+
+}
+
+////////////////////////////////////////////////////////
+//          M o d u l e  D e f i n i t i o n          //
+////////////////////////////////////////////////////////
+
 // -------------
 // Itkutils_Init
 // -------------
-//! Initializes C++/Tcl bindings
-/*! A more elaborate description... TBD
-*/
+
 PyMethodDef Itkutils_methods[] = {
-	{"GenerateCircle", itkutils_GenerateCircleCmd, METH_VARARGS,NULL},
-	{"PdToImg", itkutils_PdToImgCmd, METH_VARARGS,NULL},
-	{"PdToVol", itkutils_PdToVolCmd, METH_VARARGS,NULL},
-	{"WriteImage", itkutils_WriteImageCmd, METH_VARARGS,NULL},
-	{"GradientMagnitudeGaussian",itkutils_GradientMagnitudeGaussianCmd,METH_VARARGS,NULL},
-	{"GaussianBlur", itkutils_GaussianCmd, METH_VARARGS,NULL},
-	{"DistanceImage",itkutils_DistanceImageCmd,METH_VARARGS,NULL},
-	{"ThresholdImage",itkutils_ThresholdImageCmd,METH_VARARGS,NULL},
-	{"FractEdgeProximity3D",itkutils_FractEdgeProximity3DCmd,METH_VARARGS,NULL},
-	{NULL, NULL,0,NULL},
-	};
+
+  {"DistanceImage",itkutils_DistanceImageCmd,METH_VARARGS,NULL},
+
+  {"FractEdgeProximity3D",itkutils_FractEdgeProximity3DCmd,METH_VARARGS,NULL},
+
+  {"GaussianBlur", itkutils_GaussianCmd, METH_VARARGS,NULL},
+
+  {"generate_circle", itkutils_generate_circle, METH_VARARGS, itkutils_generate_circle_doc},
+
+  {"GradientMagnitudeGaussian",itkutils_GradientMagnitudeGaussianCmd,METH_VARARGS,NULL},
+
+  {"polydata_to_image", itkutils_polydata_to_image, METH_VARARGS, itkutils_polydata_to_image_doc},
+
+  {"polydata_to_volume", itkutils_polydata_to_volume, METH_VARARGS, itkutils_polydata_to_volume_doc},
+
+  {"ThresholdImage",itkutils_ThresholdImageCmd,METH_VARARGS,NULL},
+
+  {"write_image", itkutils_write_image, METH_VARARGS, itkutils_write_image_doc},
+
+  {NULL, NULL,0,NULL},
+
+};
 
 #if PYTHON_MAJOR_VERSION == 3
 static struct PyModuleDef Itkutilsmodule = {
@@ -138,7 +723,7 @@ static struct PyModuleDef Itkutilsmodule = {
 
 PyObject*  Itkutils_pyInit( ){
 
-	printf("  %-12s %s\n","Itk:", itk::Version::GetITKVersion());
+  printf("  %-12s %s\n","Itk:", itk::Version::GetITKVersion());
 
     PyObject *pyItklsUtils;
 #if PYTHON_MAJOR_VERSION == 2
@@ -146,578 +731,9 @@ PyObject*  Itkutils_pyInit( ){
 #elif PYTHON_MAJOR_VERSION == 3
     pyItklsUtils= PyModule_Create(&Itkutilsmodule);
 #endif
-    PyRunTimeErrU = PyErr_NewException("Itkutils.error",NULL,NULL);
-    PyModule_AddObject(pyItklsUtils,"error",PyRunTimeErrU);
+    PyRunTimeErr = PyErr_NewException("Itkutils.error",NULL,NULL);
+    PyModule_AddObject(pyItklsUtils,"error",PyRunTimeErr);
 
-	return pyItklsUtils;
-
-}
-
-
-static PyObject* itkutils_GenerateCircleCmd( CXX_PYTHON_STDARGS )
-{
-	char *usage;
-	char *result;
-	double r=1.0, x, y, z;
-
- /*	int table_size = 5;
-	ARG_Entry arg_table[] = {
-			{ "-result", STRING_Type, &result, NULL, REQUIRED, 0, { 0 } },
-			{ "-r", DOUBLE_Type, &r, NULL, REQUIRED, 0, { 0 } },
-			{ "-x", DOUBLE_Type, &x, NULL, REQUIRED, 0, { 0 } },
-			{ "-y", DOUBLE_Type, &y, NULL, REQUIRED, 0, { 0 } },
-			{ "-z", DOUBLE_Type, &z, NULL, REQUIRED, 0, { 0 } },
-	};
-
-	usage = ARG_GenSyntaxStr( 1, argv, table_size, arg_table );
-
-	CVPYTHONTestArgsMacro(1)
-	CVPYTHONParseTclStrMacro(1)*/
-	if (!PyArg_ParseTuple(args,"sdddd",&result,&r,&x,&y,&z))
-	{
-		PyErr_SetString(PyRunTimeErrU,"Could not import 1 char and 4 doubles");
-		
-	}
-	// Make sure the specified result object does not exist:
-	CVPYTHONRepositoryExistsMacro(result,PyRunTimeErrU)
-
-	cvPolyData *obj = NULL;
-	int loc[3];
-	loc[0] = x;
-	loc[1] = y;
-	loc[2] = z;
-	double center[3];
-	center[0] = x;
-	center[1] = y;
-	center[2] = z;
-	// Do work of command
-	cvITKLSUtil::vtkGenerateCircle(r,center,50,&obj);
-
-    if (obj == NULL) {
-        PyErr_SetString( PyRunTimeErrU, "Problem generating circle" );
-        
-    }
-	//Save Result
-	obj->SetName( result );
-	if ( !( gRepository->Register( obj->GetName(), obj ) ) ) {
-		PyErr_SetString(PyRunTimeErrU,"Error registering obj in repository.");
-
-		delete obj;
-		
-	}
-
-    vtkSmartPointer<vtkPolyData> polydataObj =
-    vtkSmartPointer<vtkPolyData>::New();
-    polydataObj = obj->GetVtkPolyData();
-    //instead of exporting the object name, output the vtkPolydata object
-    PyObject* pyVtkObj=vtkPythonUtil::GetObjectFromPointer(polydataObj);
-    return pyVtkObj;
-}
-
-static PyObject* itkutils_PdToImgCmd( CXX_PYTHON_STDARGS )
-{
-	//std::cout << "Command: PdToImg" << std::endl;
-	char *inputPdName;
-	char *result;
-
-	if (!PyArg_ParseTuple(args,"ss",&inputPdName,&result))
-	{
-		PyErr_SetString(PyRunTimeErrU,"Could not import 2 chars");
-		
-	}
-	//Get the input image from the repository
-	RepositoryDataT type;
-	cvRepositoryData *pd;
-	vtkPolyData *vtkpd;
-	if (inputPdName != NULL) {
-		// Look up given image object:
-		pd = gRepository->GetObject( inputPdName );
-		if ( pd == NULL ) {
-
-			PyErr_SetString(PyRunTimeErrU,"couldn't find object." );
-			
-		}
-		// Make sure image is of type STRUCTURED_PTS_T:
-		type = pd->GetType();
-		if ( type != POLY_DATA_T ) {
-			PyErr_SetString(PyRunTimeErrU,"error: object not of type PolyData");
-			
-		}
-		// Retrive geometric information:
-		vtkpd = ((cvPolyData*)pd)->GetVtkPolyData();
-	}
-
-	// Make sure the specified result object does not exist:
-	CVPYTHONRepositoryExistsMacro(result,PyRunTimeErrU)
-
-	// Do work of command
-	cvStrPts *obj = NULL;
-	ImgInfo tempInfo;
-
-	cvITKLSUtil::DefaultImgInfo.Print(std::cout);
-
-	//tempInfo.Print(std::cout);
-	cvITKLSUtil::vtkPolyDataTo2DImage(vtkpd,&obj,&tempInfo);
-
-	//Save Result
-	obj->SetName( result );
-	if ( !( gRepository->Register( obj->GetName(), obj ) ) ) {
-		PyErr_SetString(PyRunTimeErrU,"error registering obj in repository");
-		delete obj;
-		
-	}
-
-	// Return name
-	return Py_BuildValue("s", obj->GetName());
-}
-
-
-static PyObject* itkutils_PdToVolCmd( CXX_PYTHON_STDARGS )
-{
-	//std::cout << "Command: PdToVol" << std::endl;
-	char *usage;
-	char *inputPdName;
-	char *refName;
-	char *result;
-	if (!PyArg_ParseTuple(args,"sss",&inputPdName,&result,&refName))
-    {
-		PyErr_SetString(PyRunTimeErrU,"Could not import 3 chars");
-		
-	}
-	//Get the input image from the repository
-	RepositoryDataT type;
-	cvRepositoryData *pd;
-	vtkPolyData *vtkpd;
-	if (inputPdName != NULL) {
-		// Look up given image object:
-		pd = gRepository->GetObject( inputPdName );
-		if ( pd == NULL ) {
-
-			PyErr_SetString(PyRunTimeErrU,"couldn't find object." );
-			
-		}
-		// Make sure image is of type STRUCTURED_PTS_T:
-		type = pd->GetType();
-		if ( type != POLY_DATA_T ) {
-			 PyErr_SetString(PyRunTimeErrU,"error: object not of type PolyData");
-			
-		}
-		// Retrive geometric information:
-		vtkpd = ((cvPolyData*)pd)->GetVtkPolyData();
-	}
-
-	cvRepositoryData *ref;
-	vtkStructuredPoints *vtkref;
-	if (refName != NULL) {
-		// Look up given image object:
-		ref = gRepository->GetObject( refName );
-		if ( ref == NULL ) {
-			PyErr_SetString(PyRunTimeErrU,"couldn't find object ");
-			
-		}
-		// Make sure image is of type STRUCTURED_PTS_T:
-		type = ref->GetType();
-		if ( type != STRUCTURED_PTS_T ) {
-			PyErr_SetString(PyRunTimeErrU, "error: object not of type StructuredPts");
-			
-		}
-		// Retrive geometric information:
-		vtkref = (vtkStructuredPoints*)((cvStrPts*)ref)->GetVtkPtr();
-	}
-
-	// Make sure the specified result object does not exist:
-	CVPYTHONRepositoryExistsMacro(result,PyRunTimeErrU)
-
-	// Do work of command
-	cvStrPts *obj = NULL;
-	ImgInfo tempInfo = ImgInfo(vtkref);
-	vtkref->Delete();
-	//tempInfo.Print(std::cout);
-	cvITKLSUtil::vtkPolyDataToVolume(vtkpd,&obj,&tempInfo);
-
-	//Save Result
-	obj->SetName( result );
-	if ( !( gRepository->Register( obj->GetName(), obj ) ) ) {
-		PyErr_SetString(PyRunTimeErrU,"error registering obj in repository");
-		delete obj;
-		
-	}
-
-	//Return Name
-	return Py_BuildValue("s",obj->GetName());
-
-}
-
-static PyObject* itkutils_WriteImageCmd(CXX_PYTHON_STDARGS)
-{
-	std::cout << "Command: WriteImage" << std::endl;
-	char *usage;
-	char *inputImgName;
-	char *fname;
-
-	if (!PyArg_ParseTuple(args,"ss",&inputImgName,&fname))
-	{
-		PyErr_SetString(PyRunTimeErrU,"Could not import 2 chars");
-		
-	}
-
-	/*
-	int table_size = 2;
-	ARG_Entry arg_table[] = {
-			{ "-src", STRING_Type, &inputImgName, NULL, REQUIRED, 0, { 0 } },
-			{ "-fname", STRING_Type, &fname, NULL, REQUIRED, 0, { 0 } },
-	};
-	usage = ARG_GenSyntaxStr( 1, argv, table_size, arg_table );
-
-	CVPYTHONTestArgsMacro(1)
-	CVPYTHONParseTclStrMacro(1)
-	*/
-	//Get the input image from the repository
-	RepositoryDataT type;
-	cvRepositoryData *img;
-	vtkStructuredPoints *vtksp;
-	if (inputImgName != NULL) {
-		// Look up given image object:
-		img = gRepository->GetObject( inputImgName );
-		if ( img == NULL ) {
-			PyErr_SetString(PyRunTimeErrU, "couldn't find object ");
-			
-		}
-		// Make sure image is of type STRUCTURED_PTS_T:
-		type = img->GetType();
-		if ( type != STRUCTURED_PTS_T ) {
-			PyErr_SetString(PyRunTimeErrU, "error: object not of type StructuredPts" );
-			
-		}
-		// Retrive geometric information:
-		vtksp = ((cvStrPts*)img)->GetVtkStructuredPoints();
-	}
-
-	// Do work of command
-	std::string sfname(fname);
-	cvITKLSUtil::WritePerciseVtkImage(vtksp,sfname);
-
-
-	return Py_BuildValue("s",fname);
-
-}
-
-PyObject* itkutils_GradientMagnitudeGaussianCmd( CXX_PYTHON_STDARGS )
-{
-	//std::cout << "Command: GradientMagnitudeGaussian" << std::endl;
-	char *usage;
-	char *inputImgName;
-	char *result;
-	double sigma = 1;
-
-	if (!PyArg_ParseTuple(args,"sss",&inputImgName,&result,&sigma))
-	{
-		PyErr_SetString(PyRunTimeErrU,"Could not import 3 chars");
-		
-	}
-
-
-	// Get the input image from the repository
-	RepositoryDataT type;
-	cvRepositoryData *img;
-	vtkStructuredPoints *vtksp;
-	if (inputImgName != NULL) {
-		// Look up given image object:
-		img = gRepository->GetObject( inputImgName );
-		if ( img == NULL ) {
-			PyErr_SetString(PyRunTimeErrU, "couldn't find object " );
-			
-		}
-
-		// Make sure image is of type STRUCTURED_PTS_T:
-		type = img->GetType();
-		if ( type != STRUCTURED_PTS_T ) {
-			PyErr_SetString(PyRunTimeErrU, "error: object not of type StructuredPts" );
-			
-		}
-		// Retrive geometric information:
-		vtksp = ((cvStrPts*)img)->GetVtkStructuredPoints();
-	}
-
-	// Make sure the specified result object does not exist:
-	CVPYTHONRepositoryExistsMacro(result,PyRunTimeErrU)
-
-	//std::cout << "Sigma: " << sigma <<std::endl;
-	// Do work of command
-	vtkStructuredPoints* vtkout = vtkStructuredPoints::New();
-	ImgInfo itkinfo;
-	itkinfo.SetExtent(vtksp->GetExtent());
-	//itkinfo.Print(std::cout);
-	cvITKLSUtil::vtkGenerateFeatureImage
-	<cvITKLSUtil::ITKFloat2DImageType,cvITKLSUtil::ITKShort2DImageType>(vtksp,vtkout,&itkinfo,sigma);
-
-	// Save Result
-	cvStrPts* obj = new cvStrPts(vtkout);
-	obj->SetName( result );
-	if ( !( gRepository->Register( obj->GetName(), obj ) ) ) {
-		PyErr_SetString(PyRunTimeErrU, "error registering obj in repository");
-		delete obj;
-		
-	}
-
-	// Return Name
-	return Py_BuildValue("s",obj->GetName());
-
-}
-
-PyObject* itkutils_GaussianCmd( CXX_PYTHON_STDARGS )
-{
-	//std::cout << "Command: GradientMagnitudeGaussian" << std::endl;
-	char *usage;
-	char *inputImgName;
-	char *result;
-	double sigma = 1;
-
-	if (!PyArg_ParseTuple(args,"sss",&inputImgName,&result,&sigma))
-	{
-		PyErr_SetString(PyRunTimeErrU,"Could not import 3 chars");
-		
-	}
-
-
-	// Get the input image from the repository
-	RepositoryDataT type;
-	cvRepositoryData *img;
-	vtkStructuredPoints *vtksp;
-	if (inputImgName != NULL) {
-		// Look up given image object:
-		img = gRepository->GetObject( inputImgName );
-		if ( img == NULL ) {
-			PyErr_SetString(PyRunTimeErrU, "couldn't find object ");
-			
-		}
-
-		// Make sure image is of type STRUCTURED_PTS_T:
-		type = img->GetType();
-		if ( type != STRUCTURED_PTS_T ) {
-			PyErr_SetString(PyRunTimeErrU, "error: object not of type StructuredPts");
-			
-		}
-		// Retrive geometric information:
-		vtksp = ((cvStrPts*)img)->GetVtkStructuredPoints();
-	}
-
-	// Make sure the specified result object does not exist:
-	CVPYTHONRepositoryExistsMacro(result,PyRunTimeErrU)
-
-	//std::cout << "Sigma: " << sigma <<std::endl;
-	// Do work of command
-	vtkStructuredPoints* vtkout = vtkStructuredPoints::New();
-	ImgInfo itkinfo;
-	itkinfo.SetExtent(vtksp->GetExtent());
-	//itkinfo.Print(std::cout);
-	cvITKLSUtil::vtkGenerateFeatureImageNoGrad
-	<cvITKLSUtil::ITKFloat2DImageType,cvITKLSUtil::ITKShort2DImageType>(vtksp,vtkout,&itkinfo,sigma);
-
-	// Save Result
-	cvStrPts* obj = new cvStrPts(vtkout);
-	obj->SetName( result );
-	if ( !( gRepository->Register( obj->GetName(), obj ) ) ) {
-		PyErr_SetString(PyRunTimeErrU, "error registering obj in repository" );
-		delete obj;
-		
-	}
-
-	// Return Name
-	return Py_BuildValue("s",obj->GetName());
-
-}
-
-PyObject* itkutils_DistanceImageCmd( CXX_PYTHON_STDARGS )
-{
-	//std::cout << "Command: GradientMagnitudeGaussian" << std::endl;
-	char *usage;
-	char *inputImgName;
-	char *result;
-	double thres = .5;
-
-	if (!PyArg_ParseTuple(args,"sss",&inputImgName,&result,&thres))
-	{
-		PyErr_SetString(PyRunTimeErrU,"Could not import 3 chars");
-		
-	}
-
-
-	// Get the input image from the repository
-	RepositoryDataT type;
-	cvRepositoryData *img;
-	vtkStructuredPoints *vtksp;
-	if (inputImgName != NULL) {
-		// Look up given image object:
-		img = gRepository->GetObject( inputImgName );
-		if ( img == NULL ) {
-			PyErr_SetString(PyRunTimeErrU, "couldn't find object ");
-			
-		}
-
-		// Make sure image is of type STRUCTURED_PTS_T:
-		type = img->GetType();
-		if ( type != STRUCTURED_PTS_T ) {
-			PyErr_SetString(PyRunTimeErrU, "error: object not of type StructuredPts");
-			
-		}
-		// Retrive geometric information:
-		vtksp = ((cvStrPts*)img)->GetVtkStructuredPoints();
-	}
-
-	// Make sure the specified result object does not exist:
-	CVPYTHONRepositoryExistsMacro(result,PyRunTimeErrU)
-
-	//std::cout << "Sigma: " << sigma <<std::endl;
-	// Do work of command
-	vtkStructuredPoints* vtkout = vtkStructuredPoints::New();
-	ImgInfo itkinfo;
-	itkinfo.SetExtent(vtksp->GetExtent());
-	//itkinfo.Print(std::cout);
-	cvITKLSUtil::vtkGenerateFeatureImageDistance
-	<cvITKLSUtil::ITKFloat2DImageType,cvITKLSUtil::ITKShort2DImageType>(vtksp,vtkout,&itkinfo,thres);
-
-	// Save Result
-	cvStrPts* obj = new cvStrPts(vtkout);
-	obj->SetName( result );
-	if ( !( gRepository->Register( obj->GetName(), obj ) ) ) {
-		PyErr_SetString(PyRunTimeErrU, "error registering obj in repository");
-		delete obj;
-		
-	}
-
-	// Return Name
-	return Py_BuildValue("s",obj->GetName());
-
-}
-
-
-PyObject* itkutils_ThresholdImageCmd( CXX_PYTHON_STDARGS )
-{
-	//std::cout << "Command: GradientMagnitudeGaussian" << std::endl;
-	char *usage;
-	char *inputImgName;
-	char *result;
-	double thres = .5;
-
-
-	if (!PyArg_ParseTuple(args,"sss",&inputImgName,&result,&thres))
-	{
-		PyErr_SetString(PyRunTimeErrU,"Could not import 3 chars");
-		
-	}
-
-	// Get the input image from the repository
-	RepositoryDataT type;
-	cvRepositoryData *img;
-	vtkStructuredPoints *vtksp;
-	if (inputImgName != NULL) {
-		// Look up given image object:
-		img = gRepository->GetObject( inputImgName );
-		if ( img == NULL ) {
-			PyErr_SetString(PyRunTimeErrU, "couldn't find object " );
-			
-		}
-
-		// Make sure image is of type STRUCTURED_PTS_T:
-		type = img->GetType();
-		if ( type != STRUCTURED_PTS_T ) {
-			PyErr_SetString(PyRunTimeErrU, "error: object not of type StructuredPts");
-			
-		}
-		// Retrive geometric information:
-		vtksp = ((cvStrPts*)img)->GetVtkStructuredPoints();
-	}
-
-	// Make sure the specified result object does not exist:
-	CVPYTHONRepositoryExistsMacro(result,PyRunTimeErrU)
-
-	//std::cout << "Sigma: " << sigma <<std::endl;
-	// Do work of command
-	vtkStructuredPoints* vtkout = vtkStructuredPoints::New();
-	ImgInfo itkinfo;
-	itkinfo.SetExtent(vtksp->GetExtent());
-	//itkinfo.Print(std::cout);
-	cvITKLSUtil::vtkGenerateFeatureImageThreshold
-	<cvITKLSUtil::ITKFloat2DImageType,cvITKLSUtil::ITKShort2DImageType>(vtksp,vtkout,&itkinfo,thres);
-
-	// Save Result
-	cvStrPts* obj = new cvStrPts(vtkout);
-	obj->SetName( result );
-	if ( !( gRepository->Register( obj->GetName(), obj ) ) ) {
-		PyErr_SetString(PyRunTimeErrU, "error registering obj in repository");
-		delete obj;
-		
-	}
-
-	// Return Name
-	return Py_BuildValue("s",obj->GetName());
-
-}
-
-//TODO: Template this better. Replace with redesign.
-PyObject* itkutils_FractEdgeProximity3DCmd( CXX_PYTHON_STDARGS )
-{
-	//std::cout << "Command: GradientMagnitudeGaussian" << std::endl;
-	char *usage;
-	char *inputImgName;
-	char *result;
-	double sigma = 1, kappa=5, exponent=5;
-
-	if (!PyArg_ParseTuple(args,"ssddd",&inputImgName,&result,&sigma,&kappa,&exponent))
-	{
-		PyErr_SetString(PyRunTimeErrU,"Could not import 2 chars and 3 doubles");
-		
-	}
-
-
-	// Get the input image from the repository
-	RepositoryDataT type;
-	cvRepositoryData *img;
-	vtkStructuredPoints *vtksp;
-	if (inputImgName != NULL) {
-		// Look up given image object:
-		img = gRepository->GetObject( inputImgName );
-		if ( img == NULL ) {
-			PyErr_SetString(PyRunTimeErrU, "couldn't find object ");
-			
-		}
-
-		// Make sure image is of type STRUCTURED_PTS_T:
-		type = img->GetType();
-		if ( type != STRUCTURED_PTS_T ) {
-			PyErr_SetString(PyRunTimeErrU, "error: object not of type StructuredPts" );
-			
-		}
-		// Retrive geometric information:
-		vtksp = ((cvStrPts*)img)->GetVtkStructuredPoints();
-	}
-
-	// Make sure the specified result object does not exist:
-	CVPYTHONRepositoryExistsMacro(result,PyRunTimeErrU)
-
-	//std::cout << "Sigma: " << sigma <<std::endl;
-	// Do work of command
-	vtkStructuredPoints* vtkout = vtkStructuredPoints::New();
-	ImgInfo itkinfo = ImgInfo(vtksp);
-	itkinfo.SetExtent(vtksp->GetExtent());
-	itkinfo.SetMaxValue(255);
-	itkinfo.SetMinValue(0);
-	//itkinfo.Print(std::cout);
-	typedef cvITKLSUtil::ITKFloat3DImageType IT1;
-	typedef cvITKLSUtil::ITKShort3DImageType IT2;
-	cvITKLSUtil::vtkGenerateEdgeProxImage<IT1,IT2>(vtksp,vtkout,&itkinfo,sigma,kappa,exponent);
-
-	// Save Result
-	cvStrPts* obj = new cvStrPts(vtkout);
-	obj->SetName( result );
-	if ( !( gRepository->Register( obj->GetName(), obj ) ) ) {
-		PyErr_SetString(PyRunTimeErrU, "error registering obj in repository");
-		delete obj;
-		
-	}
-
-	// Return Name
-	return Py_BuildValue("s",obj->GetName());
+  return pyItklsUtils;
 
 }
