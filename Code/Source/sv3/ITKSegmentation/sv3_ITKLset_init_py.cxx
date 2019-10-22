@@ -38,6 +38,13 @@
 #include "Python.h"
 PyObject* SegErr;
 
+////////////////////////////////////////////////////////
+//          M o d u l e  D e f i n i t i o n          //
+////////////////////////////////////////////////////////
+
+static char* MODULE_NAME = "itk_level_set";
+
+
 #if PYTHON_MAJOR_VERSION == 2
 PyMODINIT_FUNC initpyItkls(void);
 #elif PYTHON_MAJOR_VERSION == 3
@@ -63,7 +70,7 @@ PyMethodDef pyItkls_methods[] = {
 #if PYTHON_MAJOR_VERSION == 3
 static struct PyModuleDef pyItklsmodule = {
    PyModuleDef_HEAD_INIT,
-   "pyItkls",   /* name of module */
+   MODULE_NAME, 
    "", /* module documentation, may be NULL */
    -1,       /* size of per-interpreter state of the module,
                 or -1 if the module keeps state in global variables. */
