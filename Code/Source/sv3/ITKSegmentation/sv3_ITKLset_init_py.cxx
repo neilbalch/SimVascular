@@ -29,6 +29,10 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+// The code here defines the Python API Itk level set module. 
+//
+// The name of the module is 'itk_levelset'.
+
 #include "SimVascular.h"
 
 #include "sv3_ITKLset_init_py.h"
@@ -36,60 +40,127 @@
 #include "sv3_ITKLset2d_init_py.h"
 #include "sv3_ITKLset3d_init_py.h"
 #include "Python.h"
-PyObject* SegErr;
+
+// Exception type used by PyErr_SetString() to set the for the error indicator.
+static PyObject * PyRunTimeErr;
 
 ////////////////////////////////////////////////////////
 //          M o d u l e  D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
 
-static char* MODULE_NAME = "itk_level_set";
+static char* MODULE_NAME = "itk_levelset";
+static char* MODULE_EXCEPTION = "itk_levelset.ItkLevelSetException";
+static char* MODULE_EXCEPTION_OBJECT = "ItkLevelSetException";
 
+PyDoc_STRVAR(ItkLevelSet_doc, "itk_levelset module functions");
 
-#if PYTHON_MAJOR_VERSION == 2
-PyMODINIT_FUNC initpyItkls(void);
-#elif PYTHON_MAJOR_VERSION == 3
-PyMODINIT_FUNC PyInit_pyItkls(void);
-#endif
-
-int Itklset_pyInit()
-{
-
-#if PYTHON_MAJOR_VERSION == 2
-  initpyItkls();
-#elif PYTHON_MAJOR_VERSION == 3
-  PyInit_pyItkls();
-#endif
-  return SV_OK;
-
-}
-
+// No module methods.
+//
 PyMethodDef pyItkls_methods[] = {
     {NULL, NULL,0,NULL},
 };
 
+//---------------------------------------------------------------------------
+//                           PYTHON_MAJOR_VERSION 3                         
+//---------------------------------------------------------------------------
+
 #if PYTHON_MAJOR_VERSION == 3
+
+PyMODINIT_FUNC PyInit_pyItkls(void);
+
+// Size of per-interpreter state of the module.
+// Set to -1 if the module keeps state in global variables. 
+static int perInterpreterStateSize = -1;
+
+// Always initialize this to PyModuleDef_HEAD_INIT.
+static PyModuleDef_Base m_base = PyModuleDef_HEAD_INIT;
+
+// Define the module definition struct which holds all information 
+// needed to create a module object. 
 static struct PyModuleDef pyItklsmodule = {
-   PyModuleDef_HEAD_INIT,
+   m_base,
    MODULE_NAME, 
-   "", /* module documentation, may be NULL */
-   -1,       /* size of per-interpreter state of the module,
-                or -1 if the module keeps state in global variables. */
+   ItkLevelSet_doc,
+   perInterpreterStateSize,  
    pyItkls_methods
 };
+
+//----------------
+// Itklset_pyInit
+//----------------
+// [TODO:DaveP] what is this function used for?
+//
+int Itklset_pyInit()
+{
+  PyInit_pyItkls();
+  return SV_OK;
+}
+
+//----------------
+// PyInit_pyItkls 
+//----------------
+// The initialization function called by the Python interpreter 
+// when the module is loaded.
+//
+// This function is used in Application/SimVascular_Init_py.cxx.
+//
+PyMODINIT_FUNC
+PyInit_pyItkls(void)
+{
+    // Create the module.
+    auto module = PyModule_Create(&pyItklsmodule);
+
+    // Add itk_levelset.ItkLevelSetException exception.
+    PyRunTimeErr = PyErr_NewException(MODULE_EXCEPTION, NULL, NULL);
+    Py_INCREF(PyRunTimeErr);
+    PyModule_AddObject(module, MODULE_EXCEPTION_OBJECT, PyRunTimeErr);
+
+    // Add sub-modules?
+    //
+    PyObject* pyItkls2D = Itkls2d_pyInit();
+    Py_INCREF(pyItkls2D);
+    PyModule_AddObject(module, "Itkls2d", pyItkls2D);
+
+    PyObject* pyItkls3D = Itkls3d_pyInit();
+    Py_INCREF(pyItkls3D);
+    PyModule_AddObject(module, "Itkls3d", pyItkls3D);
+
+    PyObject* pyItkUtils=Itkutils_pyInit();
+    Py_INCREF(pyItkUtils);
+    PyModule_AddObject(module,"Itkutils",pyItkUtils);
+
+    return module;
+}
 #endif
-// --------------------
-// initpyItkls
-// --------------------
+
+
+//---------------------------------------------------------------------------
+//                           PYTHON_MAJOR_VERSION 2                         
+//---------------------------------------------------------------------------
+
 #if PYTHON_MAJOR_VERSION == 2
+
+PyMODINIT_FUNC initpyItkls(void);
+
+int Itklset_pyInit()
+{
+  initpyItkls();
+  return SV_OK;
+}
+
+//-------------
+// initpyItkls
+//-------------
+//
 PyMODINIT_FUNC
 initpyItkls(void)
 {
     PyObject* pyItklsm;
     pyItklsm=Py_InitModule("pyItkls",pyItkls_methods);
 
-    SegErr = PyErr_NewException("pyItkls.error",NULL,NULL);
-    Py_INCREF(SegErr);
-    PyModule_AddObject(pyItklsm,"error",SegErr);
+    PyRunTimeErr = PyErr_NewException("pyItkls.error",NULL,NULL);
+    Py_INCREF(PyRunTimeErr);
+    PyModule_AddObject(pyItklsm,"error",PyRunTimeErr);
 
     PyObject* pyItkls2D=Itkls2d_pyInit();
     Py_INCREF(pyItkls2D);
@@ -103,30 +174,6 @@ initpyItkls(void)
     Py_INCREF(pyItkUtils);
     PyModule_AddObject(pyItklsm,"Itkutils",pyItkUtils);
 }
+
 #endif
 
-#if PYTHON_MAJOR_VERSION == 3
-PyMODINIT_FUNC
-PyInit_pyItkls(void)
-{
-    PyObject* pyItklsm;
-
-    pyItklsm=PyModule_Create(&pyItklsmodule);
-    SegErr = PyErr_NewException("pyItkls.error",NULL,NULL);
-    Py_INCREF(SegErr);
-    PyModule_AddObject(pyItklsm,"error",SegErr);
-
-    PyObject* pyItkls2D=Itkls2d_pyInit();
-    Py_INCREF(pyItkls2D);
-    PyModule_AddObject(pyItklsm,"Itkls2d",pyItkls2D);
-
-    PyObject* pyItkls3D=Itkls3d_pyInit();
-    Py_INCREF(pyItkls3D);
-    PyModule_AddObject(pyItklsm,"Itkls3d",pyItkls3D);
-
-    PyObject* pyItkUtils=Itkutils_pyInit();
-    Py_INCREF(pyItkUtils);
-    PyModule_AddObject(pyItklsm,"Itkutils",pyItkUtils);
-    return pyItklsm;
-}
-#endif

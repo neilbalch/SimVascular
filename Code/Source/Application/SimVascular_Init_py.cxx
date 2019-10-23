@@ -98,14 +98,23 @@
 //--------------------
 // SimVascular_pyInit
 //--------------------
+// Initialize the SV Python C API modules.
+//
+// The module names and initialization functions are implemented 
+// in *init_py.{cxx,h} files for most sv pipeline functionality:
+// Mesh, Path, Model, etc.
 //
 void SimVascular_pyInit()
 {
+    //-----------------
+    // Primary modules
+    //-----------------
+    //
     printf("Loading Python Modules ...\n");
     PyImport_AppendInittab("repository", PyInit_pyRepository);
     PyImport_AppendInittab("math_utils",PyInit_pyMath);
     PyImport_AppendInittab("geometry", PyInit_pyGeom);
-    PyImport_AppendInittab("pyImage",PyInit_pyImage);
+    PyImport_AppendInittab("image", PyInit_pyImage);
     PyImport_AppendInittab("path", PyInit_pyPath);
     PyImport_AppendInittab("contour", PyInit_pyContour);
     PyImport_AppendInittab("pyThresholdContour", PyInit_pyThresholdContour);
@@ -119,32 +128,37 @@ void SimVascular_pyInit()
     // [TODO:DaveP] why is pyGUI not loaded here?
     //PyImport_AppendInittab("pyGUI",PyInit_pyGUI);
     
-#ifdef SV_USE_VMTK
-   PyImport_AppendInittab("vmtk_utils",PyInit_pyVMTKUtils);
-#endif
+    //------------------
+    // Optional modules
+    //------------------
 
-#ifdef SV_USE_OpenCASCADE
-   PyImport_AppendInittab("pySolidOCCT",PyInit_pySolidOCCT);
-#endif
+    #ifdef SV_USE_VMTK
+    PyImport_AppendInittab("vmtk_utils",PyInit_pyVMTKUtils);
+    #endif
 
-#ifdef SV_USE_TETGEN
-  PyImport_AppendInittab("mesh",PyInit_pyMeshObject);
-  PyImport_AppendInittab("tetgen_mesh",PyInit_pyMeshTetgen);
-#endif
+    #ifdef SV_USE_OpenCASCADE
+    PyImport_AppendInittab("pySolidOCCT",PyInit_pySolidOCCT);
+    #endif
 
-#ifdef SV_USE_MMG
-  PyImport_AppendInittab("mesh",PyInit_pyMeshObject);
-  PyImport_AppendInittab("mesh_util",PyInit_pyMeshUtil);
-#endif
+    #ifdef SV_USE_TETGEN
+    PyImport_AppendInittab("mesh", PyInit_pyMeshObject);
+    PyImport_AppendInittab("tetgen_mesh", PyInit_pyMeshTetgen);
+    #endif
 
-#ifdef SV_USE_ITK
-  PyImport_AppendInittab("pyItkls",PyInit_pyItkls);
-#endif
+    #ifdef SV_USE_MMG
+    PyImport_AppendInittab("mesh", PyInit_pyMeshObject);
+    PyImport_AppendInittab("mesh_util", PyInit_pyMeshUtil);
+    #endif
 
-#ifdef SV_USE_TETGEN_ADAPTOR
-  PyImport_AppendInittab("mesh_adapt",PyInit_pyMeshAdapt);
-  PyImport_AppendInittab("tetgen_adapt",PyInit_pyTetGenAdapt);
-#endif
+    #ifdef SV_USE_ITK
+    // [TODO:DaveP] don't expose this for now.
+    //PyImport_AppendInittab("itk_levelset", PyInit_pyItkls);
+    #endif
+
+    #ifdef SV_USE_TETGEN_ADAPTOR
+    PyImport_AppendInittab("mesh_adapt",PyInit_pyMeshAdapt);
+    PyImport_AppendInittab("tetgen_adapt",PyInit_pyTetGenAdapt);
+    #endif
 
 }
 #endif
