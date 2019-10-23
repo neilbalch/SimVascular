@@ -743,83 +743,42 @@ Contour_get_polydata(pyContour* self, PyObject* args)
 //          M o d u l e  D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
 
+static char* MODULE_NAME = "contour";
+static char* MODULE_CONTOUR_CLASS = "Contour";
+static char* MODULE_EXCEPTION = "contour.ContourException";
+static char* MODULE_EXCEPTION_OBJECT = "ContourException";
+
+PyDoc_STRVAR(Contour_doc, "contour module functions");
+
 //----------------------------
 // Define API function names
 //----------------------------
 
 static PyMethodDef pyContour_methods[] = {
 
-  { "area", 
-       (PyCFunction)Contour_get_area,
-       METH_NOARGS,
-       Contour_get_area_doc
-  },
+  { "area", (PyCFunction)Contour_get_area, METH_NOARGS, Contour_get_area_doc },
 
-  { "new_object", 
-       (PyCFunction)Contour_new_object,
-        METH_VARARGS,
-        Contour_new_object_doc
-   },
+  {"center", (PyCFunction)Contour_get_center, METH_NOARGS, Contour_get_center_doc }, 
 
-  {"get_object", 
-      (PyCFunction)Contour_get_object,
-      METH_VARARGS,
-      Contour_get_object_doc
-  },
+  {"create", (PyCFunction)Contour_create, METH_NOARGS,    Contour_create_doc, },
 
-  {"create", 
-      (PyCFunction)Contour_create,
-      METH_NOARGS,    
-     Contour_create_doc, 
-   },
+  {"create_smooth_contour", (PyCFunction)Contour_create_smooth_contour, METH_VARARGS, Contour_create_smooth_contour_doc },
 
+  {"get_object", (PyCFunction)Contour_get_object, METH_VARARGS, Contour_get_object_doc },
 
-  {"perimeter", 
-      (PyCFunction)Contour_get_perimeter,
-      METH_NOARGS,
-      Contour_get_perimeter_doc
-  },
+  {"get_polydata", (PyCFunction)Contour_get_polydata, METH_VARARGS, Contour_get_polydata_doc },
 
-  {"center", (PyCFunction)Contour_get_center, 
-      METH_NOARGS,
-      Contour_get_center_doc
-  },
+  { "new_object", (PyCFunction)Contour_new_object, METH_VARARGS, Contour_new_object_doc },
 
-  {"set_control_points", 
-      (PyCFunction)Contour_set_control_points, 
-      METH_VARARGS, 
-      Contour_set_control_points_doc
-  },
+  {"perimeter", (PyCFunction)Contour_get_perimeter, METH_NOARGS, Contour_get_perimeter_doc },
 
-  {"set_control_points_by_radius", 
-      (PyCFunction)Contour_set_control_points_by_radius, 
-      METH_VARARGS, 
-      Contour_set_control_points_by_radius_doc
-  },
+  {"set_control_points", (PyCFunction)Contour_set_control_points, METH_VARARGS, Contour_set_control_points_doc },
 
-  {"set_threshold_value", 
-      (PyCFunction)Contour_set_threshold_value, 
-      METH_VARARGS, 
-      Contour_set_threshold_value_doc
-  },
+  {"set_control_points_by_radius", (PyCFunction)Contour_set_control_points_by_radius, METH_VARARGS, Contour_set_control_points_by_radius_doc },
 
-  {"create_smooth_contour", 
-      (PyCFunction)Contour_create_smooth_contour, 
-      METH_VARARGS, 
-      Contour_create_smooth_contour_doc
-  },
+  {"set_image", (PyCFunction)Contour_set_image, METH_VARARGS, Contour_set_image_doc },
 
-  {"set_image", 
-      (PyCFunction)Contour_set_image, 
-      METH_VARARGS,
-      Contour_set_image_doc
-  },
-
-  {"get_polydata", 
-      (PyCFunction)Contour_get_polydata, 
-      METH_VARARGS,
-      Contour_get_polydata_doc
-  },
+  {"set_threshold_value", (PyCFunction)Contour_set_threshold_value, METH_VARARGS, Contour_set_threshold_value_doc },
 
   {NULL,NULL}
 };
@@ -936,13 +895,6 @@ static PyMethodDef pyContourModule_methods[] =
 //-----------------------
 // Define the initialization function called by the Python 
 // interpreter when the module is loaded.
-
-static char* MODULE_NAME = "contour";
-static char* MODULE_CONTOUR_CLASS = "Contour";
-static char* MODULE_EXCEPTION = "contour.ContourException";
-static char* MODULE_EXCEPTION_OBJECT = "ContourException";
-
-PyDoc_STRVAR(Contour_doc, "contour module functions");
 
 //---------------------------------------------------------------------------
 //                           PYTHON_MAJOR_VERSION 3                         

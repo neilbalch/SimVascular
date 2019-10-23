@@ -1,0 +1,10 @@
+
+PyDoc_STRVAR(splinePolygonContour_available_doc,
+  "available(kernel)                                    \n\ 
+                                                                 \n\
+   Set the computational kernel used to segment image data.       \n\
+                                                                 \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
+

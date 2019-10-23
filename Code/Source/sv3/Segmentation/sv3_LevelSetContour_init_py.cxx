@@ -29,9 +29,10 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// The functions defined here implement the SV Python API LevelSetContour Module. 
+// The functions defined here implement the SV Python API level set contour Module. 
 //
-
+// [TODO:DaveP] what does this api do?
+//
 #include "SimVascular.h"
 #include "sv_misc_utils.h"
 #include "sv3_Contour.h"
@@ -48,28 +49,19 @@
 #include "sv_misc_utils.h"
 
 #include "Python.h"
+#include "sv2_globals.h"
+
 // The following is needed for Windows
 #ifdef GetObject
 #undef GetObject
 #endif
-// Prototypes:
-// -----------
-//
+
 using sv3::levelSetContour;
 
 levelSetContour* CreatelevelSetContour()
 {
-	return new levelSetContour();
+  return new levelSetContour();
 }
-// Globals:
-// --------
-
-#include "sv2_globals.h"
-
-// -----
-// Adapt
-// -----
-
 
 //////////////////////////////////////////////////////
 //          M o d u l e  F u n c t i o n s          //
@@ -77,13 +69,23 @@ levelSetContour* CreatelevelSetContour()
 //
 // Python API functions. 
 
-PyObject*  levelSetContour_AvailableCmd(PyObject* self, PyObject* args)
+//---------------------------
+// levelSetContour_available
+//---------------------------
+//
+static PyObject *  
+levelSetContour_available(PyObject* self, PyObject* args)
 {
   return Py_BuildValue("s","levelSetContour Available");
 
 }
 
-PyObject* levelSetContour_RegistrarsListCmd(PyObject* self, PyObject* args)
+//----------------------------
+// levelSetContour_registrars
+//----------------------------
+//
+static PyObject * 
+levelSetContour_registrars(PyObject* self, PyObject* args)
 {
   PyObject* pyGlobal = PySys_GetObject("ContourObjectRegistrar");
   pyContourFactoryRegistrar* tmp = (pyContourFactoryRegistrar *) pyGlobal;
@@ -108,15 +110,14 @@ PyObject* levelSetContour_RegistrarsListCmd(PyObject* self, PyObject* args)
 ////////////////////////////////////////////////////////
 
 PyMethodDef levelSetContour_methods[] = {
-  {"Available", levelSetContour_AvailableCmd,METH_NOARGS,NULL},
-  {"Registrars", levelSetContour_RegistrarsListCmd,METH_NOARGS,NULL},
+  {"available", levelSetContour_available,METH_NOARGS,NULL},
+  {"registrars", levelSetContour_registrars,METH_NOARGS,NULL},
   {NULL, NULL}
 };
 
-static char* MODULE_NAME = "pylevelSetContour";
+static char* MODULE_NAME = "levelset_contour";
 
-PyDoc_STRVAR(LevelSetContour_doc,
-  "Contour functions");
+PyDoc_STRVAR(LevelSetContour_doc, "levelset_contour");
 
 //---------------------------------------------------------------------------
 //                           PYTHON_MAJOR_VERSION 3                         
@@ -177,6 +178,10 @@ PyInit_pylevelSetContour()
   return pythonC;
 }
 #endif
+
+//---------------------------------------------------------------------------
+//                           PYTHON_MAJOR_VERSION 2                         
+//---------------------------------------------------------------------------
 
 #if PYTHON_MAJOR_VERSION == 2
 PyMODINIT_FUNC

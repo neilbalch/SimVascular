@@ -117,13 +117,13 @@ void SimVascular_pyInit()
     PyImport_AppendInittab("image", PyInit_pyImage);
     PyImport_AppendInittab("path", PyInit_pyPath);
     PyImport_AppendInittab("contour", PyInit_pyContour);
-    PyImport_AppendInittab("pyThresholdContour", PyInit_pyThresholdContour);
-    PyImport_AppendInittab("pylevelSetContour",PyInit_pylevelSetContour);
-    PyImport_AppendInittab("pyCircleContour",PyInit_pyCircleContour);
-    PyImport_AppendInittab("pyPolygonContour",PyInit_pyPolygonContour);
-    PyImport_AppendInittab("pySplinePolygonContour",PyInit_pySplinePolygonContour);
+    PyImport_AppendInittab("threshold_contour", PyInit_pyThresholdContour);
+    PyImport_AppendInittab("levelset_contour",PyInit_pylevelSetContour);
+    PyImport_AppendInittab("circle_contour",PyInit_pyCircleContour);
+    PyImport_AppendInittab("polygon_contour",PyInit_pyPolygonContour);
+    PyImport_AppendInittab("spline_polygon_contour",PyInit_pySplinePolygonContour);
     PyImport_AppendInittab("solid", PyInit_pySolid);
-    PyImport_AppendInittab("pySolidPolydata",PyInit_pySolidPolydata);
+    PyImport_AppendInittab("solid_polydata",PyInit_pySolidPolydata);
 
     // [TODO:DaveP] why is pyGUI not loaded here?
     //PyImport_AppendInittab("pyGUI",PyInit_pyGUI);
@@ -137,7 +137,7 @@ void SimVascular_pyInit()
     #endif
 
     #ifdef SV_USE_OpenCASCADE
-    PyImport_AppendInittab("pySolidOCCT",PyInit_pySolidOCCT);
+    PyImport_AppendInittab("solid_occt",PyInit_pySolidOCCT);
     #endif
 
     #ifdef SV_USE_TETGEN

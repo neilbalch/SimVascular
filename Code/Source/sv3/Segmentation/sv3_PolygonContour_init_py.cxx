@@ -28,13 +28,17 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+// The functions defined here implement the SV Python API polygon countour module. 
+//
+// The module name is 'polygon_contour'. 
+//
 #include "SimVascular.h"
 #include "sv_misc_utils.h"
 #include "sv3_Contour.h"
 #include "sv3_Contour_init_py.h"
 #include "sv3_PolygonContour.h"
 #include "sv3_PolygonContour_init_py.h"
-//#include "sv_adapt_utils.h"
 #include "sv_arg.h"
 
 #include <stdio.h>
@@ -44,83 +48,89 @@
 #include "sv_misc_utils.h"
 
 #include "Python.h"
+#include "sv2_globals.h"
+
 // The following is needed for Windows
 #ifdef GetObject
 #undef GetObject
 #endif
-// Prototypes:
-// -----------
 //
 using sv3::ContourPolygon;
 
 ContourPolygon* CreatePolygonContour()
 {
-	return new ContourPolygon();
+  return new ContourPolygon();
 }
-// Globals:
-// --------
 
-#include "sv2_globals.h"
+//--------------------------
+// polygonContour_available
+//--------------------------
+//
+static PyObject *
+polygonContour_available(PyObject* self, PyObject* args)
+{
+  return Py_BuildValue("s","polygonContour Available");
+}
 
-// -----
-// Adapt
-// -----
+//---------------------------
+// polygonContour_registrars
+//---------------------------
+//
+static PyObject * 
+polygonContour_registrars(PyObject* self, PyObject* args)
+{
+  PyObject* pyGlobal = PySys_GetObject("ContourObjectRegistrar");
+  pyContourFactoryRegistrar* tmp = (pyContourFactoryRegistrar *) pyGlobal;
+  cvFactoryRegistrar* contourObjectRegistrar =tmp->registrar;
 
-PyObject* polygonContour_AvailableCmd(PyObject* self,PyObject* args);
+  char result[255];
+  PyObject* pyPtr=PyList_New(8);
+  sprintf( result, "Contour object registrar ptr -> %p\n", contourObjectRegistrar );
+  PyList_SetItem(pyPtr,0,PyBytes_FromFormat(result));
 
-PyObject* polygonContour_RegistrarsListCmd(PyObject* self, PyObject* args);
+  for (int i = 0; i < 7; i++) {
+      sprintf( result,"GetFactoryMethodPtr(%i) = %p\n",
+      i, (contourObjectRegistrar->GetFactoryMethodPtr(i)));
+      fprintf(stdout,result);
+      PyList_SetItem(pyPtr,i+1,PyBytes_FromFormat(result));
+  }
+  return pyPtr;
+}
+
+////////////////////////////////////////////////////////
+//          M o d u l e  D e f i n i t i o n          //
+////////////////////////////////////////////////////////
+
+static char* MODULE_NAME = "polygon_contour";
+
+PyDoc_STRVAR(Contour_doc, "polygon_contour module functions");
 
 PyMethodDef polygonContour_methods[] = {
-  {"Available", polygonContour_AvailableCmd,METH_NOARGS,NULL},
-  {"Registrars", polygonContour_RegistrarsListCmd,METH_NOARGS,NULL},
+  {"available", polygonContour_available,METH_NOARGS,NULL},
+  {"registrars", polygonContour_registrars,METH_NOARGS,NULL},
   {NULL, NULL}
 };
+
+//-----------------------
+// Initialize the module
+//-----------------------
+// Define the initialization function called by the Python 
+// interpreter when the module is loaded.
+
+//---------------------------------------------------------------------------
+//                           PYTHON_MAJOR_VERSION 3                         
+//---------------------------------------------------------------------------
 
 #if PYTHON_MAJOR_VERSION == 3
 static struct PyModuleDef pyPolygonContourModule = {
    PyModuleDef_HEAD_INIT,
-   "pyPolygonContour",   /* name of module */
+   MODULE_NAME,   
    "", /* module documentation, may be NULL */
    -1,       /* size of per-interpreter state of the module,
                 or -1 if the module keeps state in global variables. */
    polygonContour_methods
 };
-#endif
 
-#if PYTHON_MAJOR_VERSION == 2
-PyMODINIT_FUNC
-initpyPolygonContour()
-{
-  printf("  %-12s %s\n","","polygonContour Enabled");
-
-  // Associate the adapt registrar with the python interpreter so it can be
-  // retrieved by the DLLs.
-  PyObject* pyGlobal = PySys_GetObject("ContourObjectRegistrar");
-  pyContourFactoryRegistrar* tmp = (pyContourFactoryRegistrar *) pyGlobal;
-  cvFactoryRegistrar* contourObjectRegistrar =tmp->registrar;
-
-  if (contourObjectRegistrar != NULL) {
-          // Register this particular factory method with the main app.
-          contourObjectRegistrar->SetFactoryMethodPtr( cKERNEL_POLYGON,
-      (FactoryMethodPtr) &CreatePolygonContour );
-  }
-  else {
-    return;
-  }
-      tmp->registrar = contourObjectRegistrar;
-  PySys_SetObject("ContourObjectRegistrar",(PyObject*)tmp);
-
-  PyObject* pythonC;
-  pythonC = Py_InitModule("pyPolygonContour", polygonContour_methods);
-  if(pythonC==NULL)
-  {
-    fprintf(stdout,"Error in initializing pyPolygonContour\n");
-    return;
-  }
-}
-#endif
-
-#if PYTHON_MAJOR_VERSION == 3
 PyMODINIT_FUNC
 PyInit_pyPolygonContour()
 {
@@ -154,29 +164,40 @@ PyInit_pyPolygonContour()
 }
 #endif
 
-PyObject*  polygonContour_AvailableCmd(PyObject* self, PyObject* args)
-{
-  return Py_BuildValue("s","polygonContour Available");
+//---------------------------------------------------------------------------
+//                           PYTHON_MAJOR_VERSION 2                         
+//---------------------------------------------------------------------------
 
-}
-
-PyObject* polygonContour_RegistrarsListCmd(PyObject* self, PyObject* args)
+#if PYTHON_MAJOR_VERSION == 2
+PyMODINIT_FUNC
+initpyPolygonContour()
 {
+  printf("  %-12s %s\n","","polygonContour Enabled");
+
+  // Associate the adapt registrar with the python interpreter so it can be
+  // retrieved by the DLLs.
   PyObject* pyGlobal = PySys_GetObject("ContourObjectRegistrar");
   pyContourFactoryRegistrar* tmp = (pyContourFactoryRegistrar *) pyGlobal;
   cvFactoryRegistrar* contourObjectRegistrar =tmp->registrar;
 
-  char result[255];
-  PyObject* pyPtr=PyList_New(8);
-  sprintf( result, "Contour object registrar ptr -> %p\n", contourObjectRegistrar );
-  PyList_SetItem(pyPtr,0,PyBytes_FromFormat(result));
-
-  for (int i = 0; i < 7; i++) {
-      sprintf( result,"GetFactoryMethodPtr(%i) = %p\n",
-      i, (contourObjectRegistrar->GetFactoryMethodPtr(i)));
-      fprintf(stdout,result);
-      PyList_SetItem(pyPtr,i+1,PyBytes_FromFormat(result));
+  if (contourObjectRegistrar != NULL) {
+          // Register this particular factory method with the main app.
+          contourObjectRegistrar->SetFactoryMethodPtr( cKERNEL_POLYGON,
+      (FactoryMethodPtr) &CreatePolygonContour );
   }
-  return pyPtr;
+  else {
+    return;
+  }
+      tmp->registrar = contourObjectRegistrar;
+  PySys_SetObject("ContourObjectRegistrar",(PyObject*)tmp);
+
+  PyObject* pythonC;
+  pythonC = Py_InitModule("pyPolygonContour", polygonContour_methods);
+  if(pythonC==NULL)
+  {
+    fprintf(stdout,"Error in initializing pyPolygonContour\n");
+    return;
+  }
 }
+#endif
 

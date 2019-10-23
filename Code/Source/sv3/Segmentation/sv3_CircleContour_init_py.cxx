@@ -29,7 +29,9 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// The functions defined here implement the SV Python API CircleContour Module. 
+// The functions defined here implement the SV Python API circle contour Module. 
+//
+// The module name is 'circle_contour'.
 //
 #include "SimVascular.h"
 #include "sv_misc_utils.h"
@@ -45,8 +47,9 @@
 #include "sv_Repository.h"
 #include "sv_arg.h"
 #include "sv_misc_utils.h"
-
+#include "sv2_globals.h"
 #include "Python.h"
+
 // The following is needed for Windows
 #ifdef GetObject
 #undef GetObject
@@ -59,12 +62,6 @@ circleContour* CreateCircleContour()
   return new circleContour();
 }
 
-// Globals:
-// --------
-
-#include "sv2_globals.h"
-
-
 //////////////////////////////////////////////////////
 //          M o d u l e  F u n c t i o n s          //
 //////////////////////////////////////////////////////
@@ -76,17 +73,17 @@ circleContour* CreateCircleContour()
 //-------------------------
 //
 static PyObject *  
-circleContour_AvailableCmd(PyObject* self, PyObject* args)
+circleContour_available(PyObject* self, PyObject* args)
 {
   return Py_BuildValue("s", "circleContour Available");
 }
 
-//---------------------------------
-// circleContour_RegistrarsListCmd
-//---------------------------------
+//--------------------------
+// circleContour_registrars
+//--------------------------
 //
 static PyObject * 
-circleContour_RegistrarsListCmd(PyObject* self, PyObject* args)
+circleContour_registrars(PyObject* self, PyObject* args)
 {
   PyObject* pyGlobal = PySys_GetObject("ContourObjectRegistrar");
   pyContourFactoryRegistrar* tmp = (pyContourFactoryRegistrar *) pyGlobal;
@@ -111,17 +108,9 @@ circleContour_RegistrarsListCmd(PyObject* self, PyObject* args)
 
 PyMethodDef circleContour_methods[] = {
 
-  {"Available", 
-      circleContour_AvailableCmd,
-      METH_NOARGS,
-      NULL
-  },
+  {"available", circleContour_available, METH_NOARGS, NULL },
 
-  {"Registrars", 
-      circleContour_RegistrarsListCmd,
-      METH_NOARGS,
-      NULL
-  },
+  {"registrars", circleContour_registrars, METH_NOARGS, NULL },
 
   {NULL, NULL}
 };
@@ -132,10 +121,9 @@ PyMethodDef circleContour_methods[] = {
 // Define the initialization function called by the Python 
 // interpreter when the module is loaded.
 
-static char* MODULE_NAME = "pyCircleContour";
+static char* MODULE_NAME = "circle_contour";
 
-PyDoc_STRVAR(CircleContour_doc,
-  "CircleContour functions");
+PyDoc_STRVAR(CircleContour_doc, "circle_contour functions");
 
 //---------------------------------------------------------------------------
 //                           PYTHON_MAJOR_VERSION 3                         

@@ -46,8 +46,10 @@
 #include "sv_Repository.h"
 #include "sv_arg.h"
 #include "sv_misc_utils.h"
+#include "sv2_globals.h"
 
 #include "Python.h"
+
 // The following is needed for Windows
 #ifdef GetObject
 #undef GetObject
@@ -60,23 +62,28 @@ thresholdContour* CreateThresholdContour()
   return new thresholdContour();
 }
 
-#include "sv2_globals.h"
-
-
 //////////////////////////////////////////////////
 //       M o d u l e  F u n c t i o n s         //
 //////////////////////////////////////////////////
 //
 // Python API functions. 
 
+//----------------------------
+// thresholdContour_available
+//----------------------------
+//
 static PyObject *  
-thresholdContour_AvailableCmd(PyObject* self, PyObject* args)
+thresholdContour_available(PyObject* self, PyObject* args)
 {
   return Py_BuildValue("s","thresholdContour Available");
 }
 
+//-----------------------------
+// thresholdContour_registrars
+//-----------------------------
+//
 static PyObject * 
-thresholdContour_RegistrarsListCmd(PyObject* self, PyObject* args)
+thresholdContour_registrars(PyObject* self, PyObject* args)
 {
   PyObject* pyGlobal = PySys_GetObject("ContourObjectRegistrar");
   pyContourFactoryRegistrar* tmp = (pyContourFactoryRegistrar *) pyGlobal;
@@ -102,24 +109,16 @@ thresholdContour_RegistrarsListCmd(PyObject* self, PyObject* args)
 
 PyMethodDef thresholdContour_methods[] = {
 
-  {"Available", 
-      thresholdContour_AvailableCmd,
-      METH_NOARGS,
-      NULL
-  },
+  {"available", thresholdContour_available, METH_NOARGS, NULL },
 
-  {"Registrars", 
-      thresholdContour_RegistrarsListCmd,
-      METH_NOARGS,
-      NULL
-  },
+  {"registrars", thresholdContour_registrars, METH_NOARGS, NULL },
+
   {NULL, NULL}
 };
 
-static char* MODULE_NAME = "pyThresholdContour";
+static char* MODULE_NAME = "Threshold_contour";
 
-PyDoc_STRVAR(ThresholdContour_doc,
-  "ThresholdContour functions");
+PyDoc_STRVAR(ThresholdContour_doc, "threshold_contour functions");
 
 //---------------------------------------------------------------------------
 //                           PYTHON_MAJOR_VERSION 3                         
