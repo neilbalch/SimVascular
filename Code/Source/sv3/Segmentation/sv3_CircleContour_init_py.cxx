@@ -152,35 +152,38 @@ static struct PyModuleDef pyCircleContourModule = {
 #endif
 
 #if PYTHON_MAJOR_VERSION == 3
+
 PyMODINIT_FUNC
 PyInit_pyCircleContour()
 {
-  printf("  %-12s %s\n","","circleContour Enabled");
+  std::cout << "Load 'circle_contour' module." << std::endl;
 
-  // Associate the adapt registrar with the python interpreter so it can be
-  // retrieved by the DLLs.
-  PyObject* pyGlobal = PySys_GetObject("ContourObjectRegistrar");
-  pyContourFactoryRegistrar* tmp = (pyContourFactoryRegistrar *) pyGlobal;
-  cvFactoryRegistrar* contourObjectRegistrar =tmp->registrar;
-  
-  // Register this particular factory method with the main app.
-  if (contourObjectRegistrar != NULL) {
-      contourObjectRegistrar->SetFactoryMethodPtr( cKERNEL_CIRCLE, (FactoryMethodPtr) &CreateCircleContour );
-  } else {
+  // Get the factory registrar.
+  //
+  auto contourFactoryRegistrar = (pyContourFactoryRegistrar*)PySys_GetObject("ContourObjectRegistrar"); 
+  auto contourObjectRegistrar = contourFactoryRegistrar->registrar;
+  if (contourObjectRegistrar == NULL) {
     Py_RETURN_NONE;
   }
   
-  tmp->registrar = contourObjectRegistrar;
-  PySys_SetObject("ContourObjectRegistrar",(PyObject*)tmp);
+  // Register the CircleContour factory method.
+  //
+  contourObjectRegistrar->SetFactoryMethodPtr(cKERNEL_CIRCLE, (FactoryMethodPtr)&CreateCircleContour);
+  //
+  // [TODO:DaveP] I don't quite get what's going on here.
+  // Commenting the following two lines doesn't seem to matter.
+  //
+  //contourFactoryRegistrar->registrar = contourObjectRegistrar;
+  //PySys_SetObject("ContourObjectRegistrar", (PyObject*)contourFactoryRegistrar);
 
-  PyObject* pythonC;
-  pythonC = PyModule_Create(&pyCircleContourModule);
-  if(pythonC==NULL)
-  {
+  // Create the circle_contour module.
+  //
+  auto module = PyModule_Create(&pyCircleContourModule);
+  if(module == NULL) {
     fprintf(stdout,"Error in initializing pyCircleContour\n");
     Py_RETURN_NONE;
   }
-  return pythonC;
+  return module;
 }
 #endif
 
@@ -192,13 +195,15 @@ PyInit_pyCircleContour()
 PyMODINIT_FUNC
 initpyCircleContour()
 {
-  printf("  %-12s %s\n","","circleContour Enabled");
-
   // Associate the adapt registrar with the python interpreter so it can be
   // retrieved by the DLLs.
-  PyObject* pyGlobal = PySys_GetObject("ContourObjectRegistrar");
-  pyContourFactoryRegistrar* tmp = (pyContourFactoryRegistrar *) pyGlobal;
-  cvFactoryRegistrar* contourObjectRegistrar =tmp->registrar;
+
+  //PyObject* pyGlobal = PySys_GetObject("ContourObjectRegistrar");
+  //pyContourFactoryRegistrar* tmp = (pyContourFactoryRegistrar *) pyGlobal;
+
+  pyContourFactoryRegistrar* tmp = (pyContourFactoryRegistrar*)PySys_GetObject("ContourObjectRegistrar"); 
+
+  cvFactoryRegistrar* contourObjectRegistrar = tmp->registrar;
   
   // Register this particular factory method with the main app.
   if (contourObjectRegistrar != NULL) {

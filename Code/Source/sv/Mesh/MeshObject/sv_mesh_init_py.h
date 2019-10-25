@@ -39,11 +39,14 @@
 
 
 extern "C" SV_EXPORT_MESH int Mesh_pyInit();
-extern "C" SV_EXPORT_MESH typedef struct
-{
+
+// [TODO:DaveP] why is this in the header, it is not
+// referenced anywhere else.
+//
+extern "C" SV_EXPORT_MESH typedef struct {
   PyObject_HEAD
   cvMeshObject* geom;
-}pyMeshObject;
+} pyMeshObject;
 
 #if PYTHON_MAJOR_VERSION == 2
 PyMODINIT_FUNC  initpyMeshObject();

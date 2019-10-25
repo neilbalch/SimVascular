@@ -37,12 +37,18 @@
 #include "sv3_PathElement.h"
 #include "sv3PathExports.h"
 
-
+//--------
+// pyPath
+//--------
+//
+// [TODO:DaveP] why is this defined in the
+// header file?
+//
 extern "C" SV_EXPORT_PATH typedef struct
 {
   PyObject_HEAD
   sv3::PathElement* geom;
-}pyPath;
+} pyPath;
 
 #if PYTHON_MAJOR_VERSION == 2
 PyMODINIT_FUNC  initpyPath();

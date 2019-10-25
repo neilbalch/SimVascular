@@ -90,12 +90,16 @@ static std::map<std::string,SolidModel_KernelT> kernelNameTypeMap =
     {"PolyData", SM_KT_POLYDATA}
 };
 
-typedef struct
-{
+//--------------
+// pySolidModel
+//--------------
+//
+typedef struct {
   PyObject_HEAD
   cvSolidModel* geom;
-}pySolidModel;
+} pySolidModel;
 
+// [TODO:DaveP] not used.
 static void pySolidModel_dealloc(pySolidModel* self)
 {
   Py_XDECREF(self->geom);

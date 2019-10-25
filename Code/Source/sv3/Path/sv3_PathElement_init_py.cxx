@@ -718,41 +718,17 @@ int Path_pyInit()
 //
 static PyMethodDef pyPath_methods[] = {
 
-  {"add_control_point",
-      (PyCFunction)sv4Path_add_control_point,
-       METH_VARARGS,
-       sv4Path_add_control_point_doc
-  },
+  {"add_control_point", (PyCFunction)sv4Path_add_control_point, METH_VARARGS, sv4Path_add_control_point_doc },
 
-  {"create",
-      (PyCFunction)sv4Path_create, 
-       METH_NOARGS,
-       sv4Path_create_doc
-  },
+  {"create", (PyCFunction)sv4Path_create, METH_NOARGS, sv4Path_create_doc },
 
-  {"get_control_points",
-      (PyCFunction)sv4Path_get_control_points, 
-       METH_NOARGS, 
-       sv4Path_get_control_points_doc
-  },
+  {"get_control_points", (PyCFunction)sv4Path_get_control_points, METH_NOARGS, sv4Path_get_control_points_doc },
 
-  {"get_curve_points",
-      (PyCFunction)sv4Path_get_curve_points, 
-       METH_NOARGS, 
-       sv4Path_get_curve_points_doc
-  },
+  {"get_curve_points", (PyCFunction)sv4Path_get_curve_points, METH_NOARGS, sv4Path_get_curve_points_doc },
 
-  {"get_num_curve_points",
-      (PyCFunction)sv4Path_get_num_curve_points, 
-       METH_NOARGS, 
-       sv4Path_get_num_curve_points_doc
-  },
+  {"get_num_curve_points", (PyCFunction)sv4Path_get_num_curve_points, METH_NOARGS, sv4Path_get_num_curve_points_doc },
 
-  {"get_polydata",
-      (PyCFunction)sv4Path_get_polydata, 
-       METH_VARARGS,
-       sv4Path_get_polydata_doc
-  },
+  {"get_polydata", (PyCFunction)sv4Path_get_polydata, METH_VARARGS, sv4Path_get_polydata_doc },
 
 
   /* [TODO:DaveP] Remove this or rename.
@@ -763,11 +739,7 @@ static PyMethodDef pyPath_methods[] = {
   },
   */
 
-  {"new_object", 
-      (PyCFunction)sv4Path_new_object,
-      METH_VARARGS,
-      sv4Path_new_object_doc
-  },
+  {"new_object", (PyCFunction)sv4Path_new_object, METH_VARARGS, sv4Path_new_object_doc },
 
 
   /* [TODO:DaveP] Remove this, just use Python to print points.
@@ -778,24 +750,11 @@ static PyMethodDef pyPath_methods[] = {
   },
   */
 
-  {"remove_control_point",
-      (PyCFunction)sv4Path_remove_control_point,
-       METH_VARARGS,
-       sv4Path_remove_control_point_doc
-  },
+  {"remove_control_point", (PyCFunction)sv4Path_remove_control_point, METH_VARARGS, sv4Path_remove_control_point_doc },
 
-  {"replace_control_point",
-      (PyCFunction)sv4Path_replace_control_point,
-       METH_VARARGS,
-       sv4Path_replace_control_point_doc
-  },
+  {"replace_control_point", (PyCFunction)sv4Path_replace_control_point, METH_VARARGS, sv4Path_replace_control_point_doc },
 
-
-  {"smooth",
-      (PyCFunction)sv4Path_smooth, 
-       METH_VARARGS,
-       sv4Path_smooth_doc
-  },
+  {"smooth", (PyCFunction)sv4Path_smooth, METH_VARARGS, sv4Path_smooth_doc },
 
   {NULL,NULL}
 };

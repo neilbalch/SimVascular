@@ -881,11 +881,7 @@ static PyTypeObject pyContourFactoryRegistrarType = {
 //
 static PyMethodDef pyContourModule_methods[] =
 {
-    {"set_contour_kernel", 
-       (PyCFunction)Contour_set_contour_kernel, 
-       METH_VARARGS,
-       Contour_set_contour_kernel_doc
-    },
+    {"set_contour_kernel", (PyCFunction)Contour_set_contour_kernel, METH_VARARGS, Contour_set_contour_kernel_doc },
 
     {NULL,NULL}
 };
@@ -914,7 +910,7 @@ static PyModuleDef_Base m_base = PyModuleDef_HEAD_INIT;
 static struct PyModuleDef pyContourModule = {
    m_base,
    MODULE_NAME,   
-   Contour_doc, /* module documentation, may be NULL */
+   Contour_doc, 
    perInterpreterStateSize,  
    pyContourModule_methods
 };
@@ -962,10 +958,6 @@ PyMODINIT_FUNC PyInit_pyContour()
   }
 
   // Add contour.ContourException exception.
-  //
-  // This defines a Python exception named sv.contour.ContourException.
-  // This can be used in a 'try' statement with an 'except' clause 'except sv.contour.ContourException:'
-  // 
   PyRunTimeErr = PyErr_NewException(MODULE_EXCEPTION, NULL, NULL);
   PyModule_AddObject(module, MODULE_EXCEPTION_OBJECT, PyRunTimeErr);
 
@@ -973,6 +965,7 @@ PyMODINIT_FUNC PyInit_pyContour()
   Py_INCREF(&pyContourType);
   PyModule_AddObject(module, MODULE_CONTOUR_CLASS, (PyObject*)&pyContourType);
 
+  // Add the 'ContourObjectRegistrar' object.
   Py_INCREF(&pyContourFactoryRegistrarType);
   PyModule_AddObject(module, "pyContourFactoryRegistrar", (PyObject *)&pyContourFactoryRegistrarType);
 
