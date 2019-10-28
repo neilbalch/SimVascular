@@ -253,7 +253,12 @@ sv4Path_add_control_point(pyPath* self, PyObject* args)
   point[0] = PyFloat_AsDouble(PyList_GetItem(pointArg,0));
   point[1] = PyFloat_AsDouble(PyList_GetItem(pointArg,1));
   point[2] = PyFloat_AsDouble(PyList_GetItem(pointArg,2));    
-    
+
+  // Check if the control point is already 
+  // defined for the path.
+  //
+  // [TODO:DaveP] Get rid of this '-2'? What about '-1'?
+  //
   if (path->SearchControlPoint(point,0) !=- 2) {
       auto msg = msgp + "The control point (" + std::to_string(point[0]) + ", " + std::to_string(point[1]) + ", " + 
         std::to_string(point[2]) + ") has already been defined for the path.";
@@ -261,15 +266,17 @@ sv4Path_add_control_point(pyPath* self, PyObject* args)
       return nullptr;
   }
 
-  // [TODO:DaveP] What does this do?
+  // Set the path control point by index or by point.
   //
-  if ((index != -1) && (index > path->GetControlPoints().size())) {
-      PyErr_SetString(PyRunTimeErr,"Index exceeds path length");
-      return nullptr;
+  if (index != -2) { 
+      if (index > path->GetControlPoints().size()) {
+          PyErr_SetString(PyRunTimeErr,"Index exceeds path length");
+          return nullptr;
+      }
   } else {
       index = path->GetInsertintIndexByDistance(point);
-      path->InsertControlPoint(index,point);
   }
+  path->InsertControlPoint(index,point);
 
   Py_INCREF(path);
   self->geom = path;
