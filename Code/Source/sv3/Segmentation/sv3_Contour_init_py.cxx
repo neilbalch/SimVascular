@@ -45,10 +45,17 @@
 //
 #include "SimVascular.h"
 #include "SimVascular_python.h"
-#include "sv3_PathElement.h"
+
 #include "sv3_Contour.h"
+#include "sv3_CircleContour.h"
 #include "sv3_LevelSetContour.h"
+#include "sv3_PolygonContour.h"
+#include "sv3_SplinePolygonContour.h"
+#include "sv3_ThresholdContour.h"
 #include "sv3_Contour_init_py.h"
+
+#include "sv3_PathElement.h"
+
 #include "sv3_SegmentationUtils.h"
 #include "vtkPythonUtil.h"
 #include "sv_PyUtils.h"
@@ -57,6 +64,7 @@
 #include <string.h>
 #include <array>
 #include <map>
+#include <functional> 
 #include <iostream>
 #include "sv_Repository.h"
 #include "sv_RepositoryData.h"
@@ -90,6 +98,46 @@ static std::map<std::string,cKernelType> kernelNameTypeMap =
     {"SplinePolygon", cKERNEL_SPLINEPOLYGON},
     {"Threshold", cKERNEL_THRESHOLD}
 };
+
+//----------------
+// ContourCtorMap
+//----------------
+// Define an object factory for Contour derived classes.
+//
+using ContourCtorMapType = std::map<cKernelType, std::function<Contour*()>>;
+
+ContourCtorMapType ContourCtorMap = {
+    {cKernelType::cKERNEL_CIRCLE, []() -> Contour* { return new sv3::circleContour(); } },
+    //{cKernelType::cKERNEL_ELLIPSE, []() -> Contour* { return new sv3::circleContour(); } },
+    {cKernelType::cKERNEL_LEVELSET, []() -> Contour* { return new sv3::levelSetContour(); } },
+    {cKernelType::cKERNEL_POLYGON, []() -> Contour* { return new sv3::ContourPolygon(); } },
+    {cKernelType::cKERNEL_SPLINEPOLYGON, []() -> Contour* { return new sv3::ContourSplinePolygon(); } },
+    {cKernelType::cKERNEL_THRESHOLD, []() -> Contour* { return new sv3::thresholdContour(); } },
+};
+
+//////////////////////////////////////////////////////
+//          U t i l i t y  F u n c t i o n s        //
+//////////////////////////////////////////////////////
+
+//---------------------
+// CreateContourObject
+//---------------------
+// Create a Contour derived object.
+//
+static Contour * 
+CreateContourObject(cKernelType contourType, PathElement::PathPoint pathPoint)
+{
+  Contour* contour = NULL;
+
+  try {
+      contour = ContourCtorMap[contourType]();
+  } catch (const std::bad_function_call& except) {
+      return nullptr;
+  }
+
+  contour->SetPathPoint(pathPoint);
+  return contour;
+}
 
 //////////////////////////////////////////////////////
 //          M o d u l e  F u n c t i o n s          //
@@ -184,7 +232,11 @@ Contour_new_object(pyContour* self, PyObject* args)
         return nullptr;
     }
     
-    auto path = dynamic_cast<PathElement*> (rd);
+    auto path = dynamic_cast<PathElement*>(rd);
+    if (path == nullptr) {
+        api.error("Path element is null.");
+        return nullptr;
+    } 
     int numPathPts = path->GetPathPointNumber();
 
     if (index >= numPathPts) {
@@ -196,24 +248,25 @@ Contour_new_object(pyContour* self, PyObject* args)
     }
 
     // Create a new Contour object.
-    // [TODO:DaveP] We should add a name to the Contour object?
-    Contour *geom = sv3::Contour::DefaultInstantiateContourObject(Contour::gCurrentKernel, path->GetPathPoint(index));
+    std::cout << "####### Create a new Contour object" << std::endl;
+    //Contour *geom = sv3::Contour::DefaultInstantiateContourObject(Contour::gCurrentKernel, path->GetPathPoint(index));
+    auto contour = CreateContourObject(Contour::gCurrentKernel, path->GetPathPoint(index)); 
     
-    if (geom == NULL) {
+    if (contour == NULL) {
         api.error("Failed to create Contour object.");
         return nullptr;
     }
 
     // Add contour to the repository.
-    if (!gRepository->Register(contourName, geom)) {
-        delete geom;
+    if (!gRepository->Register(contourName, contour)) {
+        delete contour;
         api.error("Error adding the Contour object '" + std::string(contourName) + "' to the repository.");
         return nullptr;
     }
     
-    Py_INCREF(geom);
-    self->geom = geom;
-    Py_DECREF(geom);
+    Py_INCREF(contour);
+    self->geom = contour;
+    Py_DECREF(contour);
     return Py_None;
 }
 
@@ -662,7 +715,8 @@ Contour_create_smooth_contour(pyContour* self, PyObject* args)
         return nullptr;
     }
     
-    Contour *newContour = sv3::Contour::DefaultInstantiateContourObject(Contour::gCurrentKernel, contour->GetPathPoint());
+    auto newContour = CreateContourObject(Contour::gCurrentKernel, contour->GetPathPoint()); 
+    //Contour *newContour = sv3::Contour::DefaultInstantiateContourObject(Contour::gCurrentKernel, contour->GetPathPoint());
     newContour= contour->CreateSmoothedContour(fourierNumber);
     
     if ( !( gRepository->Register(contourName, newContour))) {
@@ -852,31 +906,6 @@ pyContour* createContourType()
   return PyObject_New(pyContour, &pyContourType);
 }
 
-static PyTypeObject pyContourFactoryRegistrarType = {
-  PyVarObject_HEAD_INIT(NULL, 0)
-  "pyContour.pyContourFactoryRegistrar",             /* tp_name */
-  sizeof(pyContourFactoryRegistrar),             /* tp_basicsize */
-  0,                         /* tp_itemsize */
-  0,                         /* tp_dealloc */
-  0,                         /* tp_print */
-  0,                         /* tp_getattr */
-  0,                         /* tp_setattr */
-  0,                         /* tp_compare */
-  0,                         /* tp_repr */
-  0,                         /* tp_as_number */
-  0,                         /* tp_as_sequence */
-  0,                         /* tp_as_mapping */
-  0,                         /* tp_hash */
-  0,                         /* tp_call */
-  0,                         /* tp_str */
-  0,                         /* tp_getattro */
-  0,                         /* tp_setattro */
-  0,                         /* tp_as_buffer */
-  Py_TPFLAGS_DEFAULT |
-      Py_TPFLAGS_BASETYPE,   /* tp_flags */
-  "pyContourFactoryRegistrar wrapper  ",           /* tp_doc */
-};
-
 // Define methods operating on the Contour Module level.
 //
 static PyMethodDef pyContourModule_methods[] =
@@ -925,32 +954,27 @@ static struct PyModuleDef pyContourModule = {
 //
 PyMODINIT_FUNC PyInit_pyContour()
 {
-  // Associate the mesh registrar with the python interpreter so it can be
-  // retrieved by the DLLs.
+  std::cout << "========== PyInit_pyContour ==========" << std::endl;
+
   if (gRepository==NULL) {
     gRepository = new cvRepository();
     fprintf(stdout,"New gRepository created from sv3_Contour_init\n");
   }
 
+  // Set the global contour kernel.
+  //
+  // [TODO:DaveP] yuk!
+  //
   Contour::gCurrentKernel = cKERNEL_INVALID;
-  //if (PySys_SetObject("ContourObjectRegistrar",(PyObject*)&Contour::gRegistrar)<0)
-  //{
-  //  fprintf(stdout,"Unable to create ContourObjectRegistrar");
-  //  return;
-  //}
-  // Initialize
-  pyContourType.tp_new = PyType_GenericNew;
-  pyContourFactoryRegistrarType.tp_new = PyType_GenericNew;
 
-  if (PyType_Ready(&pyContourType)<0) {
+  // Create the Contour class type.
+  pyContourType.tp_new = PyType_GenericNew;
+  if (PyType_Ready(&pyContourType) < 0) {
     fprintf(stdout,"Error in pyContourType\n");
     return SV_PYTHON_ERROR;
   }
 
-  if (PyType_Ready(&pyContourFactoryRegistrarType)<0) {
-    fprintf(stdout,"Error in pyContourFactoryRegistrarType\n");
-    return SV_PYTHON_ERROR;
-  }
+  // Create the contour module.
   auto module = PyModule_Create(&pyContourModule);
   if (module == NULL) {
     fprintf(stdout,"Error in initializing pyContour\n");
@@ -964,14 +988,6 @@ PyMODINIT_FUNC PyInit_pyContour()
   // Add the 'Contour' object.
   Py_INCREF(&pyContourType);
   PyModule_AddObject(module, MODULE_CONTOUR_CLASS, (PyObject*)&pyContourType);
-
-  // Add the 'ContourObjectRegistrar' object.
-  Py_INCREF(&pyContourFactoryRegistrarType);
-  PyModule_AddObject(module, "pyContourFactoryRegistrar", (PyObject *)&pyContourFactoryRegistrarType);
-
-  pyContourFactoryRegistrar* tmp = PyObject_New(pyContourFactoryRegistrar, &pyContourFactoryRegistrarType);
-  tmp->registrar = (cvFactoryRegistrar *)&Contour::gRegistrar;
-  PySys_SetObject("ContourObjectRegistrar", (PyObject *)tmp);
 
   return module;
 }
@@ -997,48 +1013,31 @@ PyMODINIT_FUNC initpyContour()
     fprintf(stdout,"New gRepository created from sv3_Contour_init\n");
   }
 
+  // Set the global contour kernel.
+  //
+  // [TODO:DaveP] yuk!
+  //
   Contour::gCurrentKernel = cKERNEL_INVALID;
-  //if (PySys_SetObject("ContourObjectRegistrar",(PyObject*)&Contour::gRegistrar)<0)
-  //{
-  //  fprintf(stdout,"Unable to create ContourObjectRegistrar");
-  //  return;
-  //}
-  // Initialize
-  pyContourType.tp_new=PyType_GenericNew;
-  pyContourFactoryRegistrarType.tp_new = PyType_GenericNew;
-  if (PyType_Ready(&pyContourType)<0)
-  {
+
+  // Create a Contour class.
+  pyContourType.tp_new = PyType_GenericNew;
+  if (PyType_Ready(&pyContourType)<0) {
     fprintf(stdout,"Error in pyContourType\n");
     return;
   }
-  if (PyType_Ready(&pyContourFactoryRegistrarType)<0)
-  {
-    fprintf(stdout,"Error in pyContourFactoryRegistrarType\n");
-    return;
-  }
-  PyObject* pythonC;
-  pythonC = Py_InitModule(MODULE_NAME, pyContourModule_methods);
-  if(pythonC==NULL)
-  {
+
+  auto module = Py_InitModule(MODULE_NAME, pyContourModule_methods);
+  if(module == NULL) {
     fprintf(stdout,"Error in initializing pyContour\n");
     return;
   }
   PyRunTimeErr = PyErr_NewException("pyContour.error",NULL,NULL);
-  PyModule_AddObject(pythonC,"error",PyRunTimeErr);
+  PyModule_AddObject(module,"error",PyRunTimeErr);
   Py_INCREF(&pyContourType);
-  Py_INCREF(&pyContourFactoryRegistrarType);
   PyModule_AddObject(pythonC,"pyContour",(PyObject*)&pyContourType);
-  PyModule_AddObject(pythonC, "pyContourFactoryRegistrar", (PyObject *)&pyContourFactoryRegistrarType);
   
-  pyContourFactoryRegistrar* tmp = PyObject_New(pyContourFactoryRegistrar, &pyContourFactoryRegistrarType);
-  tmp->registrar = (cvFactoryRegistrar *)&Contour::gRegistrar;
-  PySys_SetObject("ContourObjectRegistrar", (PyObject *)tmp);
-  
-  return ;
+  return module;
 
 }
 #endif
 
-#if PYTHON_MAJOR_VERSION == 3
-
-#endif

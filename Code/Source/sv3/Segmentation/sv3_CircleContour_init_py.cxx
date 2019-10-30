@@ -55,13 +55,6 @@
 #undef GetObject
 #endif
 
-using sv3::circleContour;
-
-circleContour* CreateCircleContour()
-{
-  return new circleContour();
-}
-
 //////////////////////////////////////////////////////
 //          M o d u l e  F u n c t i o n s          //
 //////////////////////////////////////////////////////
@@ -78,30 +71,6 @@ circleContour_available(PyObject* self, PyObject* args)
   return Py_BuildValue("s", "circleContour Available");
 }
 
-//--------------------------
-// circleContour_registrars
-//--------------------------
-//
-static PyObject * 
-circleContour_registrars(PyObject* self, PyObject* args)
-{
-  PyObject* pyGlobal = PySys_GetObject("ContourObjectRegistrar");
-  pyContourFactoryRegistrar* tmp = (pyContourFactoryRegistrar *) pyGlobal;
-  cvFactoryRegistrar* contourObjectRegistrar =tmp->registrar;
-
-  char result[255];
-  PyObject* pyPtr = PyList_New(8);
-  sprintf(result, "Contour object registrar ptr -> %p\n", contourObjectRegistrar );
-  PyList_SetItem(pyPtr,0,PyBytes_FromFormat(result));
-
-  for (int i = 0; i < 7; i++) {
-      sprintf( result,"GetFactoryMethodPtr(%i) = %p\n", i, (contourObjectRegistrar->GetFactoryMethodPtr(i)));
-      fprintf(stdout,result);
-      PyList_SetItem(pyPtr,i+1,PyBytes_FromFormat(result));
-  }
-  return pyPtr;
-}
-
 ////////////////////////////////////////////////////////
 //          M o d u l e  D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
@@ -109,8 +78,6 @@ circleContour_registrars(PyObject* self, PyObject* args)
 PyMethodDef circleContour_methods[] = {
 
   {"available", circleContour_available, METH_NOARGS, NULL },
-
-  {"registrars", circleContour_registrars, METH_NOARGS, NULL },
 
   {NULL, NULL}
 };
@@ -158,24 +125,6 @@ PyInit_pyCircleContour()
 {
   std::cout << "Load 'circle_contour' module." << std::endl;
 
-  // Get the factory registrar.
-  //
-  auto contourFactoryRegistrar = (pyContourFactoryRegistrar*)PySys_GetObject("ContourObjectRegistrar"); 
-  auto contourObjectRegistrar = contourFactoryRegistrar->registrar;
-  if (contourObjectRegistrar == NULL) {
-    Py_RETURN_NONE;
-  }
-  
-  // Register the CircleContour factory method.
-  //
-  contourObjectRegistrar->SetFactoryMethodPtr(cKERNEL_CIRCLE, (FactoryMethodPtr)&CreateCircleContour);
-  //
-  // [TODO:DaveP] I don't quite get what's going on here.
-  // Commenting the following two lines doesn't seem to matter.
-  //
-  //contourFactoryRegistrar->registrar = contourObjectRegistrar;
-  //PySys_SetObject("ContourObjectRegistrar", (PyObject*)contourFactoryRegistrar);
-
   // Create the circle_contour module.
   //
   auto module = PyModule_Create(&pyCircleContourModule);
@@ -185,6 +134,7 @@ PyInit_pyCircleContour()
   }
   return module;
 }
+
 #endif
 
 //---------------------------------------------------------------------------

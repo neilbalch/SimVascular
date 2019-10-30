@@ -56,13 +56,6 @@
 #undef GetObject
 #endif
 
-using sv3::ContourSplinePolygon;
-
-ContourSplinePolygon* CreateSplinePolygonContour()
-{
-  return new ContourSplinePolygon();
-}
-
 //////////////////////////////////////////////////////
 //          M o d u l e  F u n c t i o n s          //
 //////////////////////////////////////////////////////
@@ -88,40 +81,6 @@ splinePolygonContour_available(PyObject* self, PyObject* args)
   return Py_BuildValue("s","polygonContour Available");
 }
 
-//---------------------------------
-// splinePolygonContour_registrars
-//---------------------------------
-//
-PyDoc_STRVAR(splinePolygonContour_registrars_doc,
-  "registrars(kernel) \n\ 
-   \n\
-   Set the computational kernel used to segment image data.       \n\
-   \n\
-   Args: \n\
-     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
-");
-
-static PyObject * 
-splinePolygonContour_registrars(PyObject* self, PyObject* args)
-{
-  PyObject* pyGlobal = PySys_GetObject("ContourObjectRegistrar");
-  pyContourFactoryRegistrar* tmp = (pyContourFactoryRegistrar *) pyGlobal;
-  cvFactoryRegistrar* contourObjectRegistrar =tmp->registrar;
-
-  char result[255];
-  PyObject* pyPtr=PyList_New(7);
-  sprintf( result, "Contour object registrar ptr -> %p\n", contourObjectRegistrar );
-  PyList_SetItem(pyPtr,0,PyBytes_FromFormat(result));
-
-  for (int i = 0; i < 6; i++) {
-      sprintf( result,"GetFactoryMethodPtr(%i) = %p\n",
-      i, (contourObjectRegistrar->GetFactoryMethodPtr(i)));
-      fprintf(stdout,result);
-      PyList_SetItem(pyPtr,i+1,PyBytes_FromFormat(result));
-  }
-  return pyPtr;
-}
-
 ////////////////////////////////////////////////////////
 //          M o d u l e  D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
@@ -138,8 +97,6 @@ PyDoc_STRVAR(SplinePolygonContour_doc, "spline_polygon_contour module functions"
 PyMethodDef splinePolygonContour_methods[] = {
 
   {"available", splinePolygonContour_available, METH_NOARGS, splinePolygonContour_available_doc},
-
-  {"registrars", splinePolygonContour_registrars, METH_NOARGS, splinePolygonContour_registrars_doc},
 
   {NULL, NULL}
 };
@@ -177,26 +134,6 @@ static struct PyModuleDef pySplinePolygonContourModule = {
 PyMODINIT_FUNC
 PyInit_pySplinePolygonContour()
 {
-  // Associate the adapt registrar with the python interpreter so it can be
-  // retrieved by the DLLs.
-  //
-  // [TODO:DaveP] what is going on here?
-  //
-  PyObject* pyGlobal = PySys_GetObject("ContourObjectRegistrar");
-  pyContourFactoryRegistrar* tmp = (pyContourFactoryRegistrar *) pyGlobal;
-  cvFactoryRegistrar* contourObjectRegistrar = tmp->registrar;
-
-  // Register this particular factory method with the main app.
-  //
-  if (contourObjectRegistrar != NULL) {
-      contourObjectRegistrar->SetFactoryMethodPtr( cKERNEL_SPLINEPOLYGON, (FactoryMethodPtr)&CreateSplinePolygonContour);
-  } else {
-    Py_RETURN_NONE;
-  }
-
-  tmp->registrar = contourObjectRegistrar;
-  PySys_SetObject("ContourObjectRegistrar",(PyObject*)tmp);
-
   auto module = PyModule_Create(&pySplinePolygonContourModule);
   if(module == NULL) {
     fprintf(stdout,"Error in initializing pySplinePolygonContour");
@@ -204,6 +141,7 @@ PyInit_pySplinePolygonContour()
   }
   return module;
 }
+
 #endif
 
 //---------------------------------------------------------------------------

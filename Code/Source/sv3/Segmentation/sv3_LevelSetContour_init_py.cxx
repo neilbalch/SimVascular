@@ -56,13 +56,6 @@
 #undef GetObject
 #endif
 
-using sv3::levelSetContour;
-
-levelSetContour* CreatelevelSetContour()
-{
-  return new levelSetContour();
-}
-
 //////////////////////////////////////////////////////
 //          M o d u l e  F u n c t i o n s          //
 //////////////////////////////////////////////////////
@@ -77,32 +70,6 @@ static PyObject *
 levelSetContour_available(PyObject* self, PyObject* args)
 {
   return Py_BuildValue("s","levelSetContour Available");
-
-}
-
-//----------------------------
-// levelSetContour_registrars
-//----------------------------
-//
-static PyObject * 
-levelSetContour_registrars(PyObject* self, PyObject* args)
-{
-  PyObject* pyGlobal = PySys_GetObject("ContourObjectRegistrar");
-  pyContourFactoryRegistrar* tmp = (pyContourFactoryRegistrar *) pyGlobal;
-  cvFactoryRegistrar* contourObjectRegistrar =tmp->registrar;
-
-  char result[255];
-  PyObject* pyPtr=PyList_New(8);
-  sprintf( result, "Contour object registrar ptr -> %p\n", contourObjectRegistrar );
-  PyList_SetItem(pyPtr,0,PyBytes_FromFormat(result));
-
-  for (int i = 0; i < 7; i++) {
-      sprintf( result,"GetFactoryMethodPtr(%i) = %p\n",
-      i, (contourObjectRegistrar->GetFactoryMethodPtr(i)));
-      fprintf(stdout,result);
-      PyList_SetItem(pyPtr,i+1,PyBytes_FromFormat(result));
-  }
-  return pyPtr;
 }
 
 ////////////////////////////////////////////////////////
@@ -111,7 +78,6 @@ levelSetContour_registrars(PyObject* self, PyObject* args)
 
 PyMethodDef levelSetContour_methods[] = {
   {"available", levelSetContour_available,METH_NOARGS,NULL},
-  {"registrars", levelSetContour_registrars,METH_NOARGS,NULL},
   {NULL, NULL}
 };
 
@@ -150,32 +116,13 @@ static struct PyModuleDef pylevelSetContourModule = {
 PyMODINIT_FUNC
 PyInit_pylevelSetContour()
 {
-  printf("  %-12s %s\n","","levelSetContour Enabled");
-
-  // Associate the adapt registrar with the python interpreter so it can be
-  // retrieved by the DLLs.
-  PyObject* pyGlobal = PySys_GetObject("ContourObjectRegistrar");
-  pyContourFactoryRegistrar* tmp = (pyContourFactoryRegistrar *) pyGlobal;
-  cvFactoryRegistrar* contourObjectRegistrar =tmp->registrar;
-
-  // Register this particular factory method with the main app.
-  if (contourObjectRegistrar != NULL) {
-      contourObjectRegistrar->SetFactoryMethodPtr( cKERNEL_LEVELSET, (FactoryMethodPtr) &CreatelevelSetContour );
-  } else {
-    Py_RETURN_NONE;
-  }
-  tmp->registrar = contourObjectRegistrar;
-  PySys_SetObject("ContourObjectRegistrar",(PyObject*)tmp);
-
-  PyObject* pythonC;
-  pythonC = PyModule_Create(&pylevelSetContourModule);
-  if(pythonC==NULL)
-  {
+  std::cout << "Load levelSetContour module." << std::endl;
+  auto module = PyModule_Create(&pylevelSetContourModule);
+  if (module == NULL) {
     fprintf(stdout,"Error in initializing pylevelSetContour\n");
     Py_RETURN_NONE;
   }
-  
-  return pythonC;
+  return module;
 }
 #endif
 

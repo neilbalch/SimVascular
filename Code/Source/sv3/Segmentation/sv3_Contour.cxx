@@ -55,7 +55,7 @@ using sv3::PathElement;
 using sv3::SegmentationUtils;
 
 cKernelType Contour::gCurrentKernel;
-cvFactoryRegistrar Contour::gRegistrar;
+//cvFactoryRegistrar Contour::gRegistrar;
 
 Contour::Contour()
     : cvRepositoryData( CONTOUR_T ),
@@ -120,36 +120,6 @@ Contour::~Contour()
 {
 }
 
-#ifdef SV_USE_PYTHON
-// --------------------------------
-// DefaultInstantiateContourObject
-// --------------------------------
-Contour* Contour::DefaultInstantiateContourObject(cKernelType t, PathElement::PathPoint pathPoint)
-{
-  // Get the adapt object factory registrar associated with the python interpreter
-  PyObject* pyGlobal = PySys_GetObject("ContourObjectRegistrar");
-  pyContourFactoryRegistrar* tmp = (pyContourFactoryRegistrar *) pyGlobal;
-  cvFactoryRegistrar* contourObjectRegistrar =tmp->registrar;
-  if (contourObjectRegistrar==NULL)
-  {
-    fprintf(stdout,"Cannot get contourObjectRegistrar from pySys");
-  }
-  Contour* contour = NULL;
-  if (t == cKERNEL_LEVELSET || t==cKERNEL_THRESHOLD|| t == cKERNEL_CIRCLE || t == cKERNEL_POLYGON || t == cKERNEL_SPLINEPOLYGON ||t == cKERNEL_ELLIPSE)
-  {
-    contour = (Contour *) (contourObjectRegistrar->UseFactoryMethod( t ));
-    contour->SetPathPoint(pathPoint);
-    if (contour == NULL) {
-		  fprintf( stdout, "Unable to create contour object for kernel (%i)\n",Contour::gCurrentKernel);
-    }
-  } else {
-    fprintf( stdout, "current kernel is not valid (%i)\n",t);
-  }
-
-  return contour;
-}
-
-#endif
 std::string Contour::GetClassName()
 {
     return "Contour";

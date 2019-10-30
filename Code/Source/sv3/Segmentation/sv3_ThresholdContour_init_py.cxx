@@ -78,31 +78,6 @@ thresholdContour_available(PyObject* self, PyObject* args)
   return Py_BuildValue("s","thresholdContour Available");
 }
 
-//-----------------------------
-// thresholdContour_registrars
-//-----------------------------
-//
-static PyObject * 
-thresholdContour_registrars(PyObject* self, PyObject* args)
-{
-  PyObject* pyGlobal = PySys_GetObject("ContourObjectRegistrar");
-  pyContourFactoryRegistrar* tmp = (pyContourFactoryRegistrar *) pyGlobal;
-  cvFactoryRegistrar* contourObjectRegistrar =tmp->registrar;
-
-  char result[255];
-  PyObject* pyPtr=PyList_New(8);
-  sprintf( result, "Contour object registrar ptr -> %p\n", contourObjectRegistrar );
-  PyList_SetItem(pyPtr,0,PyBytes_FromFormat(result));
-
-  for (int i = 0; i < 7; i++) {
-      sprintf( result,"GetFactoryMethodPtr(%i) = %p\n",
-      i, (contourObjectRegistrar->GetFactoryMethodPtr(i)));
-      fprintf(stdout,result);
-      PyList_SetItem(pyPtr,i+1,PyBytes_FromFormat(result));
-  }
-  return pyPtr;
-}
-
 //////////////////////////////////////////////////
 //       M o d u l e  D e f i n i t i o n       //
 //////////////////////////////////////////////////
@@ -110,8 +85,6 @@ thresholdContour_registrars(PyObject* self, PyObject* args)
 PyMethodDef thresholdContour_methods[] = {
 
   {"available", thresholdContour_available, METH_NOARGS, NULL },
-
-  {"registrars", thresholdContour_registrars, METH_NOARGS, NULL },
 
   {NULL, NULL}
 };
@@ -153,31 +126,15 @@ static struct PyModuleDef pyThresholdContourModule = {
 PyMODINIT_FUNC
 PyInit_pyThresholdContour()
 {
-  printf("  %-12s %s\n","","splinePolygonContour Enabled");
+  std::cout << "Load module ThresholdContour" << std::endl;
 
-  // Associate the adapt registrar with the python interpreter so it can be
-  // retrieved by the DLLs.
-  PyObject* pyGlobal = PySys_GetObject("ContourObjectRegistrar");
-  pyContourFactoryRegistrar* tmp = (pyContourFactoryRegistrar *) pyGlobal;
-  cvFactoryRegistrar* contourObjectRegistrar =tmp->registrar;
+  auto module = PyModule_Create(&pyThresholdContourModule);
 
-  // Register this particular factory method with the main app.
-  if (contourObjectRegistrar != NULL) {
-      contourObjectRegistrar->SetFactoryMethodPtr( cKERNEL_THRESHOLD, (FactoryMethodPtr) &CreateThresholdContour );
-  } else {
-    Py_RETURN_NONE;
-  }
-  tmp->registrar = contourObjectRegistrar;
-  PySys_SetObject("ContourObjectRegistrar",(PyObject*)tmp);
-
-  PyObject* pythonC;
-  pythonC = PyModule_Create(&pyThresholdContourModule);
-
-  if(pythonC==NULL) {
+  if (module == NULL) {
     fprintf(stdout,"Error in initializing pyThresholdContour");
     Py_RETURN_NONE;
   }
-  return pythonC;
+  return module;
 }
 
 #endif

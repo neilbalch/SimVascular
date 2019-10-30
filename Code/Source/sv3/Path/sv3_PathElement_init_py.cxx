@@ -208,7 +208,7 @@ static PyObject *
 sv4Path_add_control_point(pyPath* self, PyObject* args)
 {
   PyObject* pointArg;
-  int index = -1;
+  int index = -2;
   std::string functionName = svPyUtilGetFunctionName(__func__);
   std::string msgp = svPyUtilGetMsgPrefix(functionName);
   std::string format = "O|i:" + functionName;
@@ -248,11 +248,13 @@ sv4Path_add_control_point(pyPath* self, PyObject* args)
       PyErr_SetString(PyRunTimeErr, msg.c_str());
       return nullptr;
   }
+  std::cout << "#### Index: " << index << std::endl;
     
   std::array<double,3> point;
   point[0] = PyFloat_AsDouble(PyList_GetItem(pointArg,0));
   point[1] = PyFloat_AsDouble(PyList_GetItem(pointArg,1));
   point[2] = PyFloat_AsDouble(PyList_GetItem(pointArg,2));    
+  std::cout << "#### Pt[0]: " << point[0] << std::endl;
 
   // Check if the control point is already 
   // defined for the path.
@@ -269,8 +271,11 @@ sv4Path_add_control_point(pyPath* self, PyObject* args)
   // Set the path control point by index or by point.
   //
   if (index != -2) { 
-      if (index > path->GetControlPoints().size()) {
-          PyErr_SetString(PyRunTimeErr,"Index exceeds path length");
+      int numCpts = path->GetControlPoints().size();
+      std::cout << "#### numCpts: " << numCpts << std::endl;
+      if (index > numCpts) {
+          auto msg = msgp + "Index " + std::to_string(index) + " exceeds path length " + std::to_string(numCpts)+".";
+          PyErr_SetString(PyRunTimeErr, msg.c_str()); 
           return nullptr;
       }
   } else {

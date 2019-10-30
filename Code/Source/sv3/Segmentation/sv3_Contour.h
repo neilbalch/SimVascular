@@ -66,6 +66,7 @@ class SV_EXPORT_SEGMENTATION Contour : public cvRepositoryData
 
 public:
 
+    // [TODO:DaveP] this should not be here.
     struct svLSParam
     {
         double ctrx;
@@ -113,11 +114,15 @@ public:
 
     cKernelType GetKernel() const {return contour_kernel_;}
     
-    static Contour* DefaultInstantiateContourObject(cKernelType t, PathElement::PathPoint pathPoint);
+    // [TODO:DaveP] this should be defined outside of the class. 
+    //static Contour* DefaultInstantiateContourObject(cKernelType t, PathElement::PathPoint pathPoint);
     
     static cKernelType gCurrentKernel;
     
-    static cvFactoryRegistrar gRegistrar;
+    // [TODO:DaveP] why is this a class variable? 
+    // it is only used for Python API.
+    //
+    //static cvFactoryRegistrar gRegistrar;
 
     enum SubdivisionType {CONSTANT_TOTAL_NUMBER, CONSTANT_SUBDIVISION_NUMBER,CONSTANT_SPACING};
 
