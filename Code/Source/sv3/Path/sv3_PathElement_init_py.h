@@ -47,7 +47,7 @@
 extern "C" SV_EXPORT_PATH typedef struct
 {
   PyObject_HEAD
-  sv3::PathElement* geom;
+  sv3::PathElement* path;
 } pyPath;
 
 #if PYTHON_MAJOR_VERSION == 2

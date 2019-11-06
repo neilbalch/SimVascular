@@ -29,19 +29,19 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// The functions defined here implement the SV Python API 'path' Module. 
+// The functions defined here implement the SV Python API path Module. 
 //
 // The module name is 'path'. The module defines a 'Path' class used
 // to store path data. The 'Path' class cannot be imported and must
 // be used prefixed by the module name. For example
 //
-//     ctr = contour.Countour()
+//     path = path.Path()
 //
-// A Python exception sv.contour.ContourException is defined for this module. 
+// A Python exception sv.path.PathError is defined for this module. 
 // The exception can be used in a Python 'try' statement with an 'except' clause 
 // like this
 //
-//    except sv.contour.ContourException:
+//    except sv.path.PathError:
 //
 
 #include "SimVascular.h"
@@ -110,40 +110,37 @@ PyDoc_STRVAR(sv4Path_new_object_doc,
 static PyObject * 
 sv4Path_new_object(pyPath* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char* objName;
-  //char* methodName;
-  //int calcNum=100, splacing=0;
 
-  std::string functionName = svPyUtilGetFunctionName(__func__);
-  std::string msgp = svPyUtilGetMsgPrefix(functionName);
-  std::string format = "s:" + functionName;
+  // [TODO:DaveP] this used to have more arguments.
+  //
   //std::string format = "s|sii:" + functionName;
-  
-  if (!PyArg_ParseTuple(args, format.c_str(), &objName)) {
   //if (!PyArg_ParseTuple(args, format.c_str(), &objName, &methodName, &calcNum, &splacing)) {
-      return svPyUtilResetException(PyRunTimeErr);
+  
+  if (!PyArg_ParseTuple(args, api.format, &objName)) {
+      return api.argsError();
   }
   
   // Check that the new Contour object does not already exist.
   if (gRepository->Exists(objName)) {
-      auto msg = msgp + "The Path object '" + objName + "' is already in the repository.";
-      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      api.error("The Path object '" + std::string(objName) + "' is already in the repository.");
       return nullptr;
   }
 
   // Create new path,
-  PathElement *geom = new PathElement();
+  auto path = new PathElement();
 
   // Add the new path geometry to the repository. 
-  if (!gRepository->Register(objName, geom)) {
-    PyErr_SetString(PyRunTimeErr, "error registering obj in repository");
-    delete geom;
-    return nullptr;
+  if (!gRepository->Register(objName, path)) {
+      delete path;
+      api.error("Error registering obj in repository");
+      return nullptr;
   }
 
-  Py_INCREF(geom);
-  self->geom = geom;
-  Py_DECREF(geom);
+  Py_INCREF(path);
+  self->path = path;
+  Py_DECREF(path);
   return SV_PYTHON_OK; 
 }
 
@@ -159,34 +156,30 @@ sv4Path_new_object(pyPath* self, PyObject* args)
 static PyObject * 
 sv4Path_GetObjectCmd( pyPath* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *pathName = NULL;
-  std::string functionName = svPyUtilGetFunctionName(__func__);
-  std::string msgp = svPyUtilGetMsgPrefix(functionName);
-  std::string format = "s:" + functionName;
 
-  if (!PyArg_ParseTuple(args, format.c_str(), &pathName)) {
-      return svPyUtilResetException(PyRunTimeErr);
+  if (!PyArg_ParseTuple(args, api.format, &pathName)) {
+      return api.argsError();
   }
 
   // Get path object from the repository. 
   auto rd = gRepository->GetObject(pathName);
   if (rd == nullptr) {
-      auto msg = msgp + "The Path object '" + pathName + "' is not in the repository.";
-      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      api.error("The Path object '" + std::string(pathName) + "' is not in the repository.");
       return nullptr;
   }
 
- // Check that the object is a path.
- auto type = rd->GetType();
- if (type != PATH_T) {
-     auto msg = msgp + "'" + pathName + "' is not a Path object.";
-     PyErr_SetString(PyRunTimeErr, msg.c_str());
-     return nullptr;
+  // Check that the object is a path.
+  auto type = rd->GetType();
+  if (type != PATH_T) {
+      api.error("'" + std::string(pathName) + "' is not a Path object.");
+      return nullptr;
   }
 
   auto path = dynamic_cast<PathElement*> (rd);
   Py_INCREF(path);
-  self->geom = path;
+  self->path = path;
   Py_DECREF(path);
   return SV_PYTHON_OK; 
 }
@@ -207,54 +200,32 @@ PyDoc_STRVAR(sv4Path_add_control_point_doc,
 static PyObject * 
 sv4Path_add_control_point(pyPath* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("O|i", PyRunTimeErr, __func__);
   PyObject* pointArg;
   int index = -2;
-  std::string functionName = svPyUtilGetFunctionName(__func__);
-  std::string msgp = svPyUtilGetMsgPrefix(functionName);
-  std::string format = "O|i:" + functionName;
 
-  if (!PyArg_ParseTuple(args, format.c_str(), &pointArg, &index)) {
-      return svPyUtilResetException(PyRunTimeErr);
+  if (!PyArg_ParseTuple(args, api.format, &pointArg, &index)) {
+      return api.argsError();
   }
 
   // Check control point data.
   //
-  std::string msg;
-  if (!svPyUtilCheckPointData(pointArg, msg)) {
-      auto emsg = msgp + "Control point argument " + msg;
-      PyErr_SetString(PyRunTimeErr, emsg.c_str());
+  std::string emsg;
+  if (!svPyUtilCheckPointData(pointArg, emsg)) {
+      api.error("Control point argument " + emsg);
       return nullptr;
   }
 
-/*
-  if ((PyList_Size(pointArg) != 3)) {
-      auto msg = msgp + "Control point argument is not a 3D point (three float values).";
-      PyErr_SetString(PyRunTimeErr, msg.c_str());
-      return nullptr;
-  }
-
-  for (int i = 0; i < 3; i++) {
-      if (!PyFloat_Check(PyList_GetItem(pointArg,i))) {
-          auto msg = msgp + "Control point argument data at " + std::to_string(i) + " in the list is not a float.";
-          PyErr_SetString(PyRunTimeErr, msg.c_str());
-          return nullptr;
-      }
-  }
- */
-
-  auto path = self->geom;
+  auto path = self->path;
   if (path == NULL) {
-      auto msg = msgp + "The path element data has not be created.";
-      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      api.error("The path element data has not be created.");
       return nullptr;
   }
-  std::cout << "#### Index: " << index << std::endl;
-    
+
   std::array<double,3> point;
   point[0] = PyFloat_AsDouble(PyList_GetItem(pointArg,0));
   point[1] = PyFloat_AsDouble(PyList_GetItem(pointArg,1));
   point[2] = PyFloat_AsDouble(PyList_GetItem(pointArg,2));    
-  std::cout << "#### Pt[0]: " << point[0] << std::endl;
 
   // Check if the control point is already 
   // defined for the path.
@@ -262,9 +233,9 @@ sv4Path_add_control_point(pyPath* self, PyObject* args)
   // [TODO:DaveP] Get rid of this '-2'? What about '-1'?
   //
   if (path->SearchControlPoint(point,0) !=- 2) {
-      auto msg = msgp + "The control point (" + std::to_string(point[0]) + ", " + std::to_string(point[1]) + ", " + 
+      auto msg = "The control point (" + std::to_string(point[0]) + ", " + std::to_string(point[1]) + ", " + 
         std::to_string(point[2]) + ") has already been defined for the path.";
-      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      api.error(msg);
       return nullptr;
   }
 
@@ -272,10 +243,9 @@ sv4Path_add_control_point(pyPath* self, PyObject* args)
   //
   if (index != -2) { 
       int numCpts = path->GetControlPoints().size();
-      std::cout << "#### numCpts: " << numCpts << std::endl;
       if (index > numCpts) {
-          auto msg = msgp + "Index " + std::to_string(index) + " exceeds path length " + std::to_string(numCpts)+".";
-          PyErr_SetString(PyRunTimeErr, msg.c_str()); 
+          auto msg = "Index " + std::to_string(index) + " exceeds path length " + std::to_string(numCpts)+".";
+          api.error(msg);
           return nullptr;
       }
   } else {
@@ -284,7 +254,7 @@ sv4Path_add_control_point(pyPath* self, PyObject* args)
   path->InsertControlPoint(index,point);
 
   Py_INCREF(path);
-  self->geom = path;
+  self->path = path;
   Py_DECREF(path);
   return SV_PYTHON_OK; 
     
@@ -306,34 +276,30 @@ PyDoc_STRVAR(sv4Path_remove_control_point_doc,
 static PyObject * 
 sv4Path_remove_control_point(pyPath* self, PyObject* args)
 {
-  std::string functionName = svPyUtilGetFunctionName(__func__);
-  std::string msgp = svPyUtilGetMsgPrefix(functionName);
-  std::string format = "O|i:" + functionName;
-
+  auto api = SvPyUtilApiFunction("i", PyRunTimeErr, __func__);
   int index;
-  if (!PyArg_ParseTuple(args, format.c_str(), &index)) {
+
+  if (!PyArg_ParseTuple(args, api.format, &index)) {
       return svPyUtilResetException(PyRunTimeErr);
   }
 
-  auto path = self->geom;
+  auto path = self->path;
   if (path == NULL) {
-      auto msg = msgp + "The path element data has not be created.";
-      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      api.error("The path element data has not be created.");
       return nullptr;
   }
 
   int numControlPoints = path->GetControlPoints().size();
   if (index >= numControlPoints) {
-      auto msg = msgp + "The index argument " + std::to_string(index) + " must be < the number of control points ( "
-        + std::to_string(numControlPoints) + ").";
-      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      api.error("The index argument " + std::to_string(index) + " must be < the number of control points ( "
+        + std::to_string(numControlPoints) + ").");
       return nullptr;
   }
 
   path->RemoveControlPoint(index);
     
   Py_INCREF(path);
-  self->geom = path;
+  self->path = path;
   Py_DECREF(path);
   return SV_PYTHON_OK; 
 }
@@ -355,27 +321,23 @@ PyDoc_STRVAR(sv4Path_replace_control_point_doc,
 static PyObject * 
 sv4Path_replace_control_point(pyPath* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("iO", PyRunTimeErr, __func__);
   PyObject* pointArg;
   int index;
-  std::string functionName = svPyUtilGetFunctionName(__func__);
-  std::string msgp = svPyUtilGetMsgPrefix(functionName);
-  std::string format = "iO:" + functionName;
 
-  if (!PyArg_ParseTuple(args, format.c_str(), &index, &pointArg)) {
-    return svPyUtilResetException(PyRunTimeErr);
+  if (!PyArg_ParseTuple(args, api.format, &index, &pointArg)) {
+      return api.argsError();
   }
     
-  auto path = self->geom;
+  auto path = self->path;
   if (path == NULL) {
-      auto msg = msgp + "The path element data has not be created.";
-      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      api.error("The path element data has not be created.");
       return nullptr;
   }
 
   std::string msg;
   if (!svPyUtilCheckPointData(pointArg, msg)) {
-      auto emsg = msgp + "Control point argument " + msg;
-      PyErr_SetString(PyRunTimeErr, emsg.c_str());
+      api.error("Control point argument " + msg);
       return nullptr;
   }
     
@@ -386,23 +348,23 @@ sv4Path_replace_control_point(pyPath* self, PyObject* args)
     
   int numControlPoints = path->GetControlPoints().size();
   if (index >= numControlPoints) { 
-      auto msg = msgp + "The index argument " + std::to_string(index) + " must be < the number of control points ( " 
+      auto msg = "The index argument " + std::to_string(index) + " must be < the number of control points ( " 
         + std::to_string(numControlPoints) + ")."; 
-      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      api.error(msg);
       return nullptr;
   }
 
   if (index < 0 ) { 
-      auto msg = msgp + "The index argument " + std::to_string(index) + " must be >= 0 and < the number of control points (" 
+      auto msg = "The index argument " + std::to_string(index) + " must be >= 0 and < the number of control points (" 
         + std::to_string(numControlPoints) + ")."; 
-      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      api.error(msg);
       return nullptr;
   }
 
   path->SetControlPoint(index, point);
         
   Py_INCREF(path);
-  self->geom = path;
+  self->path = path;
   Py_DECREF(path);
   return SV_PYTHON_OK; 
 }
@@ -425,19 +387,16 @@ PyDoc_STRVAR(sv4Path_smooth_doc,
 static PyObject * 
 sv4Path_smooth(pyPath* self, PyObject* args)
 {
-  std::string functionName = svPyUtilGetFunctionName(__func__);
-  std::string msgp = svPyUtilGetMsgPrefix(functionName);
-  std::string format = "iii:" + functionName;
-
+  auto api = SvPyUtilApiFunction("iii", PyRunTimeErr, __func__);
   int sampleRate, numModes, controlPointsBased;
-  if (!PyArg_ParseTuple(args, format.c_str(), &sampleRate, &numModes, &controlPointsBased)) {
-    return svPyUtilResetException(PyRunTimeErr);
+
+  if (!PyArg_ParseTuple(args, api.format, &sampleRate, &numModes, &controlPointsBased)) {
+      return api.argsError();
   }
     
-  auto path = self->geom;
+  auto path = self->path;
   if (path == NULL) {
-      auto msg = msgp + "The path element data has not be created.";
-      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      api.error("The path element data has not be created.");
       return nullptr;
     }  
     
@@ -446,18 +405,19 @@ sv4Path_smooth(pyPath* self, PyObject* args)
   path = path->CreateSmoothedPathElement(sampleRate, numModes, controlPointsBasedBool);
         
   Py_INCREF(path);
-  self->geom=path;
+  self->path=path;
   Py_DECREF(path);
   return SV_PYTHON_OK; 
 }
 
-// --------------------
+//--------------------
 // sv4Path_PrintCtrlPointCmd
-// --------------------
-
-PyObject* sv4Path_PrintCtrlPointCmd( pyPath* self, PyObject* args)
+//--------------------
+//
+static PyObject * 
+sv4Path_PrintCtrlPointCmd( pyPath* self, PyObject* args)
 {
-    PathElement* path = self->geom;
+    PathElement* path = self->path;
     std::vector<std::array<double,3> > pts = path->GetControlPoints();
     for (int i=0;i<pts.size();i++)
     {
@@ -487,21 +447,18 @@ PyDoc_STRVAR(sv4Path_create_doc,
 static PyObject * 
 sv4Path_create(pyPath* self, PyObject* args)
 {
-    std::string functionName = svPyUtilGetFunctionName(__func__);
-    std::string msgp = svPyUtilGetMsgPrefix(functionName);
-    PathElement* path = self->geom; 
+    auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+    PathElement* path = self->path; 
 
     if (path == NULL) {
-        auto msg = msgp + "No path element has been created for the path.";
-        PyErr_SetString(PyRunTimeErr, msg.c_str());
+        api.error("No path element has been created for the path.");
         return nullptr;
     }  
 
     // Check that conrol points have be defined for the path.
     int numControlPoints = path->GetControlPoints().size();
     if (numControlPoints == 0) {
-        auto msg = msgp + "Path has no control points defined for it.";
-        PyErr_SetString(PyRunTimeErr, msg.c_str());
+        api.error("Path has no control points defined for it.");
         return nullptr;
     }  
 
@@ -510,8 +467,7 @@ sv4Path_create(pyPath* self, PyObject* args)
     path->CreatePathPoints();
     int num = path->GetPathPoints().size();
     if (num == 0) {
-        PyErr_SetString(PyRunTimeErr,"Error creating path from control points");
-        auto msg = msgp + "Error creating path contol points.";
+        api.error("Error creating path from control points");
         return nullptr;
     } 
     return SV_PYTHON_OK;
@@ -533,13 +489,11 @@ PyDoc_STRVAR(sv4Path_get_num_curve_points_doc,
 static PyObject * 
 sv4Path_get_num_curve_points(pyPath* self, PyObject* args)
 {
-  std::string functionName = svPyUtilGetFunctionName(__func__);
-  std::string msgp = svPyUtilGetMsgPrefix(functionName);
-  PathElement* path = self->geom;
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  PathElement* path = self->path;
 
   if (path == NULL) {
-    auto msg = msgp + "The path element data has not be created.";
-    PyErr_SetString(PyRunTimeErr, msg.c_str());
+    api.error("The path element data has not be created.");
     return nullptr;
   }  
 
@@ -563,20 +517,17 @@ PyDoc_STRVAR(sv4Path_get_curve_points_doc,
 static PyObject * 
 sv4Path_get_curve_points(pyPath* self, PyObject* args)
 {
-  std::string functionName = svPyUtilGetFunctionName(__func__);
-  std::string msgp = svPyUtilGetMsgPrefix(functionName);
-  PathElement* path = self->geom;
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  PathElement* path = self->path;
 
   if (path == NULL) {
-    auto msg = msgp + "The path element data has not be created.";
-    PyErr_SetString(PyRunTimeErr, msg.c_str());
+    api.error("The path element data has not be created.");
     return nullptr;
   }  
     
   int num = path->GetPathPointNumber();
   if (num == 0) {
-    auto msg = msgp + "The path does not have points created for it.";
-    PyErr_SetString(PyRunTimeErr, msg.c_str());
+    api.error("The path does not have points created for it.");
     return nullptr;
   }  
 
@@ -591,7 +542,7 @@ sv4Path_get_curve_points(pyPath* self, PyObject* args)
     }
     
   if(PyErr_Occurred()!=NULL) {
-    PyErr_SetString(PyRunTimeErr, "error generating pathpospt output");
+    api.error("error generating pathpospt output");
     return nullptr;
   }
     
@@ -614,20 +565,17 @@ PyDoc_STRVAR(sv4Path_get_control_points_doc,
 static PyObject * 
 sv4Path_get_control_points(pyPath* self, PyObject* args)
 {
-  std::string functionName = svPyUtilGetFunctionName(__func__);
-  std::string msgp = svPyUtilGetMsgPrefix(functionName);
-  PathElement* path = self->geom;
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  PathElement* path = self->path;
 
   if (path == NULL) {
-    auto msg = msgp + "The path element data has not be created.";
-    PyErr_SetString(PyRunTimeErr, msg.c_str());
+    api.error("The path element data has not be created.");
     return nullptr;
   }
 
   int num = path->GetControlPointNumber();
   if (num == 0) {
-    auto msg = msgp + "The path does not have control points defined for it.";
-    PyErr_SetString(PyRunTimeErr, msg.c_str());
+    api.error("The path does not have control points defined for it.");
     return nullptr;
   }  
 
@@ -642,7 +590,7 @@ sv4Path_get_control_points(pyPath* self, PyObject* args)
     }
 
   if (PyErr_Occurred() != NULL) {
-      PyErr_SetString(PyRunTimeErr, "Error generating path control points output.");
+      api.error("Error generating path control points output.");
       return nullptr;
   }
 
@@ -665,27 +613,22 @@ PyDoc_STRVAR(sv4Path_get_polydata_doc,
 static PyObject*
 sv4Path_get_polydata(pyPath* self, PyObject* args)
 {
-    std::string functionName = svPyUtilGetFunctionName(__func__);
-    std::string msgp = svPyUtilGetMsgPrefix(functionName);
-    std::string format = "s:" + functionName;
-    std::cout << "################## sv4Path_get_polydata ################" << std::endl;
-
+    auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
     char* dstName = NULL;
-    if (!PyArg_ParseTuple(args, format.c_str(), &dstName)) {
-        return svPyUtilResetException(PyRunTimeErr);
+
+    if (!PyArg_ParseTuple(args, api.format, &dstName)) {
+      return api.argsError();
     }
 
-  auto path = self->geom;
+  auto path = self->path;
   if (path == NULL) {
-      auto msg = msgp + "The path element data has not be created.";
-      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      api.error("The path element data has not be created.");
       return nullptr;
   }
 
   // Check that the repository object does not already exist.
   if (gRepository->Exists(dstName)) {
-    auto msg = msgp + "The repository object '" + dstName + "' already exists.";
-    PyErr_SetString(PyRunTimeErr, msg.c_str());
+    api.error("The repository object '" + std::string(dstName) + "' already exists.");
     return nullptr;
   }
 
@@ -694,15 +637,13 @@ sv4Path_get_polydata(pyPath* self, PyObject* args)
   cvPolyData* pd = new cvPolyData(vtkpd);
 
   if (pd == NULL) {
-      auto msg = msgp + "Could not get polydata for the path.";
-      PyErr_SetString(PyRunTimeErr, msg.c_str());
+      api.error("Could not get polydata for the path.");
       return nullptr;
   }
    
-  if ( !( gRepository->Register( dstName, pd ) ) ) {
-      auto msg = msgp + "Could not add the polydata to the repository.";
-      PyErr_SetString(PyRunTimeErr, msg.c_str());
+  if (!gRepository->Register(dstName, pd)) {
       delete pd;
+      api.error("Could not add the polydata to the repository.");
       return nullptr;
     }
    
@@ -845,8 +786,8 @@ static PyMethodDef pyPathModule_methods[] =
 
 static char* MODULE_NAME = "path";
 static char* MODULE_PATH_CLASS = "Path";
-static char* MODULE_EXCEPTION = "path.PathException";
-static char* MODULE_EXCEPTION_OBJECT = "PathException";
+static char* MODULE_EXCEPTION = "path.PathError";
+static char* MODULE_EXCEPTION_OBJECT = "PathError";
 
 PyDoc_STRVAR(Path_doc, "path module functions");
 
@@ -884,10 +825,8 @@ static struct PyModuleDef pyPathModule = {
 //
 PyMODINIT_FUNC PyInit_pyPath()
 {
-
   if (gRepository == NULL) {
     gRepository = new cvRepository();
-    fprintf(stdout,"New gRepository created from sv3_PathElement_init\n");
   }
 
   // Initialize Path class.
@@ -908,13 +847,10 @@ PyMODINIT_FUNC PyInit_pyPath()
 
   // Add path.PathException exception.
   //
-  // This defines a Python exception named sv.path.PathException.
-  // This can be used in a 'try' statement with an 'except' clause 
-  //     'except sv.path.PathException:'
-  // 
   PyRunTimeErr = PyErr_NewException(MODULE_EXCEPTION, NULL, NULL);
   PyModule_AddObject(module, MODULE_EXCEPTION_OBJECT, PyRunTimeErr);
 
+  // Add Path class.
   Py_INCREF(&pyPathType);
   PyModule_AddObject(module, MODULE_PATH_CLASS, (PyObject*)&pyPathType);
   return module;
