@@ -38,23 +38,23 @@
 #include "sv3PathExports.h"
 
 //--------
-// pyPath
+// PyPath
 //--------
 //
-// [TODO:DaveP] why is this defined in the
-// header file?
+// [TODO:DaveP] is extern needed?
 //
 extern "C" SV_EXPORT_PATH typedef struct
 {
   PyObject_HEAD
   sv3::PathElement* path;
-} pyPath;
+  int id;
+} PyPath;
 
 #if PYTHON_MAJOR_VERSION == 2
 PyMODINIT_FUNC  initpyPath();
 #endif
 #if PYTHON_MAJOR_VERSION == 3
-PyMODINIT_FUNC  PyInit_pyPath();
+PyMODINIT_FUNC PyInit_PyPath();
 #endif
 
 #endif //__SV3_PATHELEMENT_INIT_PY_H

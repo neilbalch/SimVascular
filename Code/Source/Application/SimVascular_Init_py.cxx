@@ -115,7 +115,7 @@ void SimVascular_pyInit()
     PyImport_AppendInittab("math_utils",PyInit_pyMath);
     PyImport_AppendInittab("geometry", PyInit_pyGeom);
     PyImport_AppendInittab("image", PyInit_pyImage);
-    PyImport_AppendInittab("path", PyInit_pyPath);
+    PyImport_AppendInittab("path", PyInit_PyPath);
     PyImport_AppendInittab("contour", PyInit_pyContour);
     PyImport_AppendInittab("threshold_contour", PyInit_pyThresholdContour);
     PyImport_AppendInittab("levelset_contour",PyInit_pylevelSetContour);

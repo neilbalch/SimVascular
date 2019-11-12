@@ -41,9 +41,9 @@
 // The exception can be used in a Python 'try' statement with an 'except' clause 
 // like this
 //
+//    try:
 //    except sv.path.PathError:
 //
-
 #include "SimVascular.h"
 #include "SimVascular_python.h"
 #include "Python.h"
@@ -60,129 +60,49 @@
 #include "sv_RepositoryData.h"
 #include "sv_PolyData.h"
 #include "vtkSmartPointer.h"
+#include "sv2_globals.h"
 
 // The following is needed for Windows
 #ifdef GetObject
 #undef GetObject
 #endif
-// Globals:
-// --------
 
-#include "sv2_globals.h"
 using sv3::PathElement;
-
-#if PYTHON_MAJOR_VERSION == 2
-PyMODINIT_FUNC initpyPath();
-#elif PYTHON_MAJOR_VERSION == 3
-PyMODINIT_FUNC PyInit_pyPath();
-#endif
 
 // Exception type used by PyErr_SetString() to set the for the error indicator.
 PyObject* PyRunTimeErr;
 
+//////////////////////////////////////////////////////
+//          U t i l i t y  F u n c t i o n s        //
+//////////////////////////////////////////////////////
+
+//-----------------
+// CreatePathCurve
+//-----------------
+//
+static bool * 
+CreatePathCurve(PathElement* path)
+{
+  // Check that conrol points have be defined for the path.
+  if (path->GetControlPoints().size() == 0) {
+    return false;
+  }  
+
+  // Create the sample points along the path curve  defined by its control poitns. 
+  path->CreatePathPoints();
+  int num = path->GetPathPoints().size();
+  if (num == 0) {
+      //api.error("Error creating path from control points");
+      return false;
+  } 
+  return true; 
+}
 
 //////////////////////////////////////////////////////
 //          M o d u l e  F u n c t i o n s          //
 //////////////////////////////////////////////////////
 //
 // Python API functions. 
-
-// -------------------
-// sv4Path_new_object
-// -------------------
-// This function creates a PathElement for the object.
-//
-// The PathElement stores the path control points use for curve interpolation
-// and points sampled along the interpolating curve.
-//
-// [TODO:DaveP] The methodName, calcNumm, and splacing args
-//   are not used. Why?
-//
-PyDoc_STRVAR(sv4Path_new_object_doc,
-  "Path_new_object(name, path) \n\ 
-   \n\
-   Create the path element. \n\
-   \n\
-   Args: \n\
-     name (str): The name of the path to create. \n\
-");
-
-static PyObject * 
-sv4Path_new_object(pyPath* self, PyObject* args)
-{
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
-  char* objName;
-
-  // [TODO:DaveP] this used to have more arguments.
-  //
-  //std::string format = "s|sii:" + functionName;
-  //if (!PyArg_ParseTuple(args, format.c_str(), &objName, &methodName, &calcNum, &splacing)) {
-  
-  if (!PyArg_ParseTuple(args, api.format, &objName)) {
-      return api.argsError();
-  }
-  
-  // Check that the new Contour object does not already exist.
-  if (gRepository->Exists(objName)) {
-      api.error("The Path object '" + std::string(objName) + "' is already in the repository.");
-      return nullptr;
-  }
-
-  // Create new path,
-  auto path = new PathElement();
-
-  // Add the new path geometry to the repository. 
-  if (!gRepository->Register(objName, path)) {
-      delete path;
-      api.error("Error registering obj in repository");
-      return nullptr;
-  }
-
-  Py_INCREF(path);
-  self->path = path;
-  Py_DECREF(path);
-  return SV_PYTHON_OK; 
-}
-
-//--------------------
-// sv4Path_get_object
-//--------------------
-//
-// [TODO:DaveP] This is setting the geom of an existing 
-// Path object from something stored in the repository!
-//
-//   Get rid of this function.
-//
-static PyObject * 
-sv4Path_GetObjectCmd( pyPath* self, PyObject* args)
-{
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
-  char *pathName = NULL;
-
-  if (!PyArg_ParseTuple(args, api.format, &pathName)) {
-      return api.argsError();
-  }
-
-  // Get path object from the repository. 
-  auto rd = gRepository->GetObject(pathName);
-  if (rd == nullptr) {
-      api.error("The Path object '" + std::string(pathName) + "' is not in the repository.");
-      return nullptr;
-  }
-
-  // Check that the object is a path.
-  auto type = rd->GetType();
-  if (type != PATH_T) {
-      api.error("'" + std::string(pathName) + "' is not a Path object.");
-      return nullptr;
-  }
-
-  auto path = dynamic_cast<PathElement*> (rd);
-  Py_INCREF(path);
-  self->path = path;
-  Py_DECREF(path);
-  return SV_PYTHON_OK; 
-}
 
 //--------------------------
 //sv4Path_add_control_point 
@@ -198,7 +118,7 @@ PyDoc_STRVAR(sv4Path_add_control_point_doc,
 ");
 
 static PyObject * 
-sv4Path_add_control_point(pyPath* self, PyObject* args)
+sv4Path_add_control_point(PyPath* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("O|i", PyRunTimeErr, __func__);
   PyObject* pointArg;
@@ -253,11 +173,11 @@ sv4Path_add_control_point(pyPath* self, PyObject* args)
   }
   path->InsertControlPoint(index,point);
 
+  // [TODO:DaveP] we don't need to increment non-Python objects.
   Py_INCREF(path);
   self->path = path;
   Py_DECREF(path);
   return SV_PYTHON_OK; 
-    
 }
 
 //------------------------------
@@ -274,7 +194,7 @@ PyDoc_STRVAR(sv4Path_remove_control_point_doc,
 ");
 
 static PyObject * 
-sv4Path_remove_control_point(pyPath* self, PyObject* args)
+sv4Path_remove_control_point(PyPath* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("i", PyRunTimeErr, __func__);
   int index;
@@ -319,7 +239,7 @@ PyDoc_STRVAR(sv4Path_replace_control_point_doc,
 ");
 
 static PyObject * 
-sv4Path_replace_control_point(pyPath* self, PyObject* args)
+sv4Path_replace_control_point(PyPath* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("iO", PyRunTimeErr, __func__);
   PyObject* pointArg;
@@ -373,6 +293,9 @@ sv4Path_replace_control_point(pyPath* self, PyObject* args)
 // sv4Path_smooth 
 //-----------------
 //
+// [TODO:DaveP] this should return a new smoothed Path or should it
+// modify the path?
+//
 PyDoc_STRVAR(sv4Path_smooth_doc,
   "sv4Path_smooth(index, point) \n\ 
    \n\
@@ -385,7 +308,7 @@ PyDoc_STRVAR(sv4Path_smooth_doc,
 ");
 
 static PyObject * 
-sv4Path_smooth(pyPath* self, PyObject* args)
+sv4Path_smooth(PyPath* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("iii", PyRunTimeErr, __func__);
   int sampleRate, numModes, controlPointsBased;
@@ -415,7 +338,7 @@ sv4Path_smooth(pyPath* self, PyObject* args)
 //--------------------
 //
 static PyObject * 
-sv4Path_PrintCtrlPointCmd( pyPath* self, PyObject* args)
+sv4Path_PrintCtrlPointCmd( PyPath* self, PyObject* args)
 {
     PathElement* path = self->path;
     std::vector<std::array<double,3> > pts = path->GetControlPoints();
@@ -426,51 +349,6 @@ sv4Path_PrintCtrlPointCmd( pyPath* self, PyObject* args)
     }
     
     return SV_PYTHON_OK; 
-}
-
-// ---------------
-// sv4Path_create
-// ---------------
-//
-// [TODO:DaveP] Does this need to be called?
-//   Every time a control point is added PathElement::ControlPointsChanged() is called
-//   which recalculates the path curve points.
-//
-PyDoc_STRVAR(sv4Path_create_doc,
-  "Path_create() \n\ 
-   \n\
-   Create the points along the path curve defined by its control points.  \n\
-   \n\
-   Args: \n\
-");
-
-static PyObject * 
-sv4Path_create(pyPath* self, PyObject* args)
-{
-    auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
-    PathElement* path = self->path; 
-
-    if (path == NULL) {
-        api.error("No path element has been created for the path.");
-        return nullptr;
-    }  
-
-    // Check that conrol points have be defined for the path.
-    int numControlPoints = path->GetControlPoints().size();
-    if (numControlPoints == 0) {
-        api.error("Path has no control points defined for it.");
-        return nullptr;
-    }  
-
-    // Create the sample points along the path curve 
-    // defined by its control poitns. 
-    path->CreatePathPoints();
-    int num = path->GetPathPoints().size();
-    if (num == 0) {
-        api.error("Error creating path from control points");
-        return nullptr;
-    } 
-    return SV_PYTHON_OK;
 }
 
 //------------------------------
@@ -487,7 +365,7 @@ PyDoc_STRVAR(sv4Path_get_num_curve_points_doc,
 ");
 
 static PyObject * 
-sv4Path_get_num_curve_points(pyPath* self, PyObject* args)
+sv4Path_get_num_curve_points(PyPath* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
   PathElement* path = self->path;
@@ -515,7 +393,7 @@ PyDoc_STRVAR(sv4Path_get_curve_points_doc,
 ");
 
 static PyObject * 
-sv4Path_get_curve_points(pyPath* self, PyObject* args)
+sv4Path_get_curve_points(PyPath* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
   PathElement* path = self->path;
@@ -563,7 +441,7 @@ PyDoc_STRVAR(sv4Path_get_control_points_doc,
 ");
 
 static PyObject * 
-sv4Path_get_control_points(pyPath* self, PyObject* args)
+sv4Path_get_control_points(PyPath* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
   PathElement* path = self->path;
@@ -611,7 +489,7 @@ PyDoc_STRVAR(sv4Path_get_polydata_doc,
 ");
 
 static PyObject*
-sv4Path_get_polydata(pyPath* self, PyObject* args)
+sv4Path_get_polydata(PyPath* self, PyObject* args)
 {
     auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
     char* dstName = NULL;
@@ -655,25 +533,25 @@ sv4Path_get_polydata(pyPath* self, PyObject* args)
 //          M o d u l e  D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
 
-int Path_pyInit()
-{
-#if PYTHON_MAJOR_VERSION == 2
-    initpyPath();
-#elif PYTHON_MAJOR_VERSION == 3
-    PyInit_pyPath();
-#endif
-  return SV_OK;
-}
+static char* MODULE_NAME = "path";
+static char* MODULE_PATH_CLASS = "Path";
+static char* MODULE_EXCEPTION = "path.PathError";
+static char* MODULE_EXCEPTION_OBJECT = "PathError";
 
-//---------------------------
-// Define API function names
-//---------------------------
+PyDoc_STRVAR(Path_doc, "path module functions");
+
+//----------------
+// PyPath_methods
+//----------------
+// Path class methods.
 //
-static PyMethodDef pyPath_methods[] = {
+static PyMethodDef PyPathMethods[] = {
 
   {"add_control_point", (PyCFunction)sv4Path_add_control_point, METH_VARARGS, sv4Path_add_control_point_doc },
 
+  /* [TODO:DaveP] Remove this. 
   {"create", (PyCFunction)sv4Path_create, METH_NOARGS, sv4Path_create_doc },
+  */
 
   {"get_control_points", (PyCFunction)sv4Path_get_control_points, METH_NOARGS, sv4Path_get_control_points_doc },
 
@@ -684,15 +562,9 @@ static PyMethodDef pyPath_methods[] = {
   {"get_polydata", (PyCFunction)sv4Path_get_polydata, METH_VARARGS, sv4Path_get_polydata_doc },
 
 
-  /* [TODO:DaveP] Remove this or rename.
-  {"GetObject", 
-      (PyCFunction)sv4Path_GetObjectCmd,
-       METH_VARARGS,
-       NULL
-  },
-  */
-
+  /* [TODO:DaveP] Remove this. 
   {"new_object", (PyCFunction)sv4Path_new_object, METH_VARARGS, sv4Path_new_object_doc },
+  */
 
 
   /* [TODO:DaveP] Remove this, just use Python to print points.
@@ -712,68 +584,97 @@ static PyMethodDef pyPath_methods[] = {
   {NULL,NULL}
 };
 
-//-------------
-// pyPath_init
-//-------------
+//-----------------------------------
+// Define the PyPathType type object
+//-----------------------------------
+// Define the Python type object that stores Path data. 
+//
+// Can't set all the fields here because g++ does not suppor non-trivial 
+// designated initializers. 
+//
+static PyTypeObject PyPathType = {
+  PyVarObject_HEAD_INIT(NULL, 0)
+  // Dotted name that includes both the module name and 
+  // the name of the type within the module.
+  "path.Path", 
+  sizeof(PyPath)
+};
+
+//------------
+// PyPathInit
+//------------
 // This is the __init__() method for the Path class. 
 //
 // This function is used to initialize an object after it is created.
 //
-static int 
-pyPath_init(pyPath* self, PyObject* args)
+static int
+PyPathInit(PyPath* self, PyObject* args, PyObject *kwds)
 {
-  //fprintf(stdout,"pyPath initialized.\n");
-  return SV_OK;
+  static int numObjs = 1;
+  std::cout << "[PyPathInit] New Path object: " << numObjs << std::endl;
+  self->path = new PathElement();
+  self->id = numObjs;
+  numObjs += 1;
+  return 0;
 }
 
-//-----------------------------------
-// Define the pyPathType type object
-//-----------------------------------
-// The type object stores a large number of values, mostly C function pointers, 
-// each of which implements a small part of the type’s functionality.
+//-----------
+// PyPathNew 
+//-----------
+// Object creation function, equivalent to the Python __new__() method. 
+// The generic handler creates a new instance using the tp_alloc field.
 //
-static PyTypeObject pyPathType = {
-  PyVarObject_HEAD_INIT(NULL, 0)
-  "path.Path",               /* tp_name */
-  sizeof(pyPath),            /* tp_basicsize */
-  0,                         /* tp_itemsize */
-  0,                         /* tp_dealloc */
-  0,                         /* tp_print */
-  0,                         /* tp_getattr */
-  0,                         /* tp_setattr */
-  0,                         /* tp_compare */
-  0,                         /* tp_repr */
-  0,                         /* tp_as_number */
-  0,                         /* tp_as_sequence */
-  0,                         /* tp_as_mapping */
-  0,                         /* tp_hash */
-  0,                         /* tp_call */
-  0,                         /* tp_str */
-  0,                         /* tp_getattro */
-  0,                         /* tp_setattro */
-  0,                         /* tp_as_buffer */
-  Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,   /* tp_flags */
-  "Path  objects",           /* tp_doc */
-  0,                         /* tp_traverse */
-  0,                         /* tp_clear */
-  0,                         /* tp_richcompare */
-  0,                         /* tp_weaklistoffset */
-  0,                         /* tp_iter */
-  0,                         /* tp_iternext */
-  pyPath_methods,             /* tp_methods */
-  0,                         /* tp_members */
-  0,                         /* tp_getset */
-  0,                         /* tp_base */
-  0,                         /* tp_dict */
-  0,                         /* tp_descr_get */
-  0,                         /* tp_descr_set */
-  0,                         /* tp_dictoffset */
-  (initproc)pyPath_init,                            /* tp_init */
-  0,                         /* tp_alloc */
-  0,                  /* tp_new */
-};
+static PyObject *
+PyPathNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+  std::cout << "[PyPathNew] PyPathNew " << std::endl;
+  auto self = (PyPath*)type->tp_alloc(type, 0);
+  if (self != NULL) {
+      self->id = 1;
+  }
 
-static PyMethodDef pyPathModule_methods[] =
+  return (PyObject *) self;
+}
+
+//--------
+// PyPath
+//--------
+//
+static void
+PyPathDealloc(PyPath* self)
+{
+  std::cout << "[PyPathDealloc] Free PyPath" << std::endl;
+  delete self->path;
+  Py_TYPE(self)->tp_free(self);
+}
+
+//-------------------
+// SetPathTypeFields 
+//-------------------
+// Set the Python type object fields that stores Path data. 
+//
+// Need to set the fields here because g++ does not suppor non-trivial 
+// designated initializers. 
+//
+static void
+SetPyPathTypeFields(PyTypeObject& pathType)
+{
+  // Doc string for this type.
+  pathType.tp_doc = "Path  objects";
+  // Object creation function, equivalent to the Python __new__() method. 
+  // The generic handler creates a new instance using the tp_alloc field.
+  pathType.tp_new = PyPathNew;
+  pathType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
+  pathType.tp_init = (initproc)PyPathInit;
+  pathType.tp_dealloc = (destructor)PyPathDealloc;
+  pathType.tp_methods = PyPathMethods;
+}
+
+//----------------------
+// PyPathModule_methods
+//----------------------
+//
+static PyMethodDef PyPathModuleMethods[] =
 {
     {NULL,NULL}
 };
@@ -783,13 +684,6 @@ static PyMethodDef pyPathModule_methods[] =
 //-----------------------
 // Define the initialization function called by the Python 
 // interpreter when the module is loaded.
-
-static char* MODULE_NAME = "path";
-static char* MODULE_PATH_CLASS = "Path";
-static char* MODULE_EXCEPTION = "path.PathError";
-static char* MODULE_EXCEPTION_OBJECT = "PathError";
-
-PyDoc_STRVAR(Path_doc, "path module functions");
 
 //---------------------------------------------------------------------------
 //                           PYTHON_MAJOR_VERSION 3                         
@@ -807,39 +701,33 @@ static PyModuleDef_Base m_base = PyModuleDef_HEAD_INIT;
 // Define the module definition struct which holds all information 
 // needed to create a module object. 
 //
-static struct PyModuleDef pyPathModule = {
+static struct PyModuleDef PyPathModule = {
    m_base,
    MODULE_NAME,
    Path_doc, 
    perInterpreterStateSize,
-   pyPathModule_methods
+   PyPathModuleMethods
 };
 
 //---------------
-// PyInit_pyPath
+// PyInit_PyPath
 //---------------
 // The initialization function called by the Python interpreter when the module is loaded.
 //
-// [TODO:Davep] The global 'gRepository' is created here, as it is in all other modules init
-//     function. Why is this not created in main()?
-//
-PyMODINIT_FUNC PyInit_pyPath()
+PyMODINIT_FUNC PyInit_PyPath()
 {
-  if (gRepository == NULL) {
-    gRepository = new cvRepository();
-  }
+  std::cout << "========== PyInit_PyPath ==========" << std::endl;
 
-  // Initialize Path class.
+  // Setup the Path object type.
   //
-  pyPathType.tp_new = PyType_GenericNew;
-
-  if (PyType_Ready(&pyPathType) < 0) {
+  SetPyPathTypeFields(PyPathType);
+  if (PyType_Ready(&PyPathType) < 0) {
     fprintf(stdout, "Error initilizing PathType \n");
     return SV_PYTHON_ERROR;
   }
 
   // Create the path module.
-  auto module = PyModule_Create(&pyPathModule);
+  auto module = PyModule_Create(&PyPathModule);
   if (module == NULL) {
     fprintf(stdout,"Error in initializing 'path' module \n");
     return SV_PYTHON_ERROR;
@@ -851,8 +739,8 @@ PyMODINIT_FUNC PyInit_pyPath()
   PyModule_AddObject(module, MODULE_EXCEPTION_OBJECT, PyRunTimeErr);
 
   // Add Path class.
-  Py_INCREF(&pyPathType);
-  PyModule_AddObject(module, MODULE_PATH_CLASS, (PyObject*)&pyPathType);
+  Py_INCREF(&PyPathType);
+  PyModule_AddObject(module, MODULE_PATH_CLASS, (PyObject*)&PyPathType);
   return module;
 }
 
