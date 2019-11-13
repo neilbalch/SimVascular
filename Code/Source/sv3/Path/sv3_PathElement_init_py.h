@@ -50,6 +50,9 @@ extern "C" SV_EXPORT_PATH typedef struct
   int id;
 } PyPath;
 
+PyObject * CreatePyPath(sv3::PathElement* path = nullptr);
+extern PyTypeObject PyPathType;
+
 #if PYTHON_MAJOR_VERSION == 2
 PyMODINIT_FUNC  initpyPath();
 #endif

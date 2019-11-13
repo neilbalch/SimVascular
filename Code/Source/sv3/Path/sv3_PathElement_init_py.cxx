@@ -80,7 +80,7 @@ PyObject* PyRunTimeErr;
 // CreatePathCurve
 //-----------------
 //
-static bool * 
+static bool 
 CreatePathCurve(PathElement* path)
 {
   // Check that conrol points have be defined for the path.
@@ -592,7 +592,7 @@ static PyMethodDef PyPathMethods[] = {
 // Can't set all the fields here because g++ does not suppor non-trivial 
 // designated initializers. 
 //
-static PyTypeObject PyPathType = {
+PyTypeObject PyPathType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   // Dotted name that includes both the module name and 
   // the name of the type within the module.
@@ -668,6 +668,25 @@ SetPyPathTypeFields(PyTypeObject& pathType)
   pathType.tp_init = (initproc)PyPathInit;
   pathType.tp_dealloc = (destructor)PyPathDealloc;
   pathType.tp_methods = PyPathMethods;
+}
+
+//--------------
+// CreatePyPath
+//--------------
+// 
+PyObject *
+CreatePyPath(PathElement* path)
+{
+  std::cout << "[CreatePyPath] Create Path object ... " << std::endl;
+  auto pathObj = PyObject_CallObject((PyObject*)&PyPathType, NULL);
+  auto pyPath = (PyPath*)pathObj;
+
+  if (path != nullptr) {
+      delete pyPath->path; 
+      pyPath->path = path; 
+  }
+  std::cout << "[CreatePyPath] pyPath id: " << pyPath->id << std::endl;
+  return pathObj;
 }
 
 //----------------------
