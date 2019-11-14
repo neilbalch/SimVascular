@@ -81,6 +81,7 @@
 #include "sv4gui_DataNodeOperation.h"
 #include "vtkPythonUtil.h"
 #include "vtkDataSetSurfaceFilter.h"
+#include "sv4gui_ApplicationPluginActivator.h"
 
 #include <mitkNodePredicateDataType.h>
 #include <mitkIDataStorageService.h>
@@ -89,6 +90,11 @@
 #include <mitkDataStorage.h>
 #include <mitkUndoController.h>
 #include <mitkIOUtil.h>
+
+#include <berryPlatform.h>
+#include <berryIPreferences.h>
+#include <berryIPreferencesService.h>
+
 #include <array>
 #include <vector>
 #include <string>
@@ -1316,6 +1322,112 @@ Dmg_add_path(PyObject* self, PyObject* args)
     return SV_PYTHON_OK;
 }
 
+//------------------
+// Dmg_open_project
+//------------------
+//
+static PyObject *
+Dmg_open_project(PyObject* self, PyObject* args)
+{
+    auto pmsg = "[Dmg_open_project] ";
+    std::cout << pmsg << "========== Dmg_open_project ==========" << std::endl;
+    auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+    char* projectPathArg = NULL;
+
+    if (!PyArg_ParseTuple(args, api.format, &projectPathArg)) {
+        return api.argsError();
+    }
+
+    try {
+        mitk::IDataStorageReference::Pointer dsRef;
+        {
+            std::cout << pmsg << "here: 1" << std::endl;
+            ctkPluginContext* context = sv4guiApplicationPluginActivator::getContext();
+            //ctkPluginContext* context = sv4guiPythonDataNodesPluginActivator::GetContext();
+            if (context == nullptr) {
+                std::cout << pmsg << "context is null" << std::endl;
+                return nullptr;
+            } 
+
+            mitk::IDataStorageService* dss = 0;
+            ctkServiceReference dsServiceRef = context->getServiceReference<mitk::IDataStorageService>();
+            if (dsServiceRef) {
+                dss = context->getService<mitk::IDataStorageService>(dsServiceRef);
+            }
+
+            if (!dss) {
+                QString msg = "IDataStorageService service not available. Unable to save sv projects.";
+                //MITK_WARN << msg.toStdString();
+                //QMessageBox::warning(QApplication::activeWindow(), "Unable to save sv projects", msg);
+                return nullptr;
+            }
+
+            // Get the active data storage (or the default one, if none is active)
+            std::cout << pmsg << "here: 2" << std::endl;
+            dsRef = dss->GetDataStorage();
+            context->ungetService(dsServiceRef);
+        }
+
+        mitk::DataStorage::Pointer dataStorage = dsRef->GetDataStorage();
+        berry::IPreferencesService* prefService = berry::Platform::GetPreferencesService();
+        berry::IPreferences::Pointer prefs;
+
+        if (prefService) {
+           prefs = prefService->GetSystemPreferences()->Node("/General");
+        } else {
+           prefs = berry::IPreferences::Pointer(0);
+        }
+
+        QString lastSVProjPath = "";
+        if (prefs.IsNotNull()) {
+           lastSVProjPath = prefs->Get("LastSVProjPath", prefs->Get("LastSVProjCreatParentPath", ""));
+        }
+
+        if (lastSVProjPath == "") {
+           lastSVProjPath = QDir::homePath();
+        }
+
+        QString projPath = "/home/davep/Simvascular/DemoProject";
+
+        /*
+        QString projPath = QFileDialog::getExistingDirectory(NULL, tr("Choose Project"),
+                                                        lastSVProjPath);
+        if (projPath.trimmed().isEmpty()) return;
+        */
+
+        lastSVProjPath = projPath.trimmed();
+        QDir dir(lastSVProjPath);
+
+        if (dir.exists(".svproj")) {
+            QString projName = dir.dirName();
+            dir.cdUp();
+            QString projParentDir = dir.absolutePath();
+            //mitk::ProgressBar::GetInstance()->AddStepsToDo(2);
+            //mitk::StatusBar::GetInstance()->DisplayText("Opening SV project...");
+            //QApplication::setOverrideCursor( QCursor(Qt::WaitCursor) );
+
+            sv4guiProjectManager::AddProject(dataStorage, projName,projParentDir,false);
+
+            //mitk::ProgressBar::GetInstance()->Progress(2);
+            //mitk::StatusBar::GetInstance()->DisplayText("SV project loaded.");
+            //QApplication::restoreOverrideCursor();
+
+            if (prefs.IsNotNull()) {
+                prefs->Put("LastSVProjPath", lastSVProjPath);
+                prefs->Flush();
+            }
+        } else {
+            //QMessageBox::warning(NULL,"Invalid Project","No project config file found!");
+        }
+
+    } catch (std::exception& e) {
+        auto msg = "Exception caught during opening SV projects: " + std::string(e.what());
+        api.error(msg);
+        return nullptr;
+    }
+
+}
+
 //---------------------------------
 // Dmg_import_path_from_repository 
 //---------------------------------
@@ -1611,6 +1723,7 @@ PyMethodDef PyDmgMethods[] =
 {
     {"add_path", Dmg_add_path, METH_VARARGS, NULL},
     {"get_path", Dmg_get_path, METH_VARARGS, Dmg_export_path_to_repository_doc},
+    {"open_project", Dmg_open_project, METH_VARARGS, NULL},
 
     {"export_contour_to_repository", Dmg_export_contour_to_repository, METH_VARARGS, Dmg_export_contour_to_repository_doc},
 
