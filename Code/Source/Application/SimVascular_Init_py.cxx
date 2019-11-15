@@ -60,6 +60,7 @@
 #include "sv3_ThresholdContour_init_py.h"
 #include "sv3_SplinePolygonContour_init_py.h"
 #include "sv3_PolygonContour_init_py.h"
+#include "sv4gui_project_init_py.h"
 //#include "sv4gui_Vis_init_py.h"
 
 #ifdef SV_USE_VMTK
@@ -111,19 +112,20 @@ void SimVascular_pyInit()
     //-----------------
     //
     printf("Loading Python Modules ...\n");
-    PyImport_AppendInittab("repository", PyInit_pyRepository);
-    PyImport_AppendInittab("math_utils",PyInit_pyMath);
+    PyImport_AppendInittab("circle_contour",PyInit_pyCircleContour);
+    PyImport_AppendInittab("contour", PyInit_pyContour);
     PyImport_AppendInittab("geometry", PyInit_pyGeom);
     PyImport_AppendInittab("image", PyInit_pyImage);
-    PyImport_AppendInittab("path", PyInit_PyPath);
-    PyImport_AppendInittab("contour", PyInit_pyContour);
-    PyImport_AppendInittab("threshold_contour", PyInit_pyThresholdContour);
     PyImport_AppendInittab("levelset_contour",PyInit_pylevelSetContour);
-    PyImport_AppendInittab("circle_contour",PyInit_pyCircleContour);
+    PyImport_AppendInittab("math_utils",PyInit_pyMath);
+    PyImport_AppendInittab("path", PyInit_PyPath);
     PyImport_AppendInittab("polygon_contour",PyInit_pyPolygonContour);
-    PyImport_AppendInittab("spline_polygon_contour",PyInit_pySplinePolygonContour);
+    PyImport_AppendInittab("project", PyInit_PyProject);
+    PyImport_AppendInittab("repository", PyInit_pyRepository);
     PyImport_AppendInittab("solid", PyInit_pySolid);
     PyImport_AppendInittab("solid_polydata",PyInit_pySolidPolydata);
+    PyImport_AppendInittab("spline_polygon_contour",PyInit_pySplinePolygonContour);
+    PyImport_AppendInittab("threshold_contour", PyInit_pyThresholdContour);
 
     // [TODO:DaveP] why is pyGUI not loaded here?
     //PyImport_AppendInittab("pyGUI",PyInit_pyGUI);
