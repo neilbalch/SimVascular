@@ -1329,6 +1329,7 @@ Dmg_add_path(PyObject* self, PyObject* args)
 static PyObject *
 Dmg_open_project(PyObject* self, PyObject* args)
 {
+/* [TODO:DaveP] This does not work. 
     auto pmsg = "[Dmg_open_project] ";
     std::cout << pmsg << "========== Dmg_open_project ==========" << std::endl;
     auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
@@ -1395,6 +1396,7 @@ Dmg_open_project(PyObject* self, PyObject* args)
         if (projPath.trimmed().isEmpty()) return;
         */
 
+/*
         lastSVProjPath = projPath.trimmed();
         QDir dir(lastSVProjPath);
 
@@ -1425,6 +1427,7 @@ Dmg_open_project(PyObject* self, PyObject* args)
         api.error(msg);
         return nullptr;
     }
+*/
 
 }
 
