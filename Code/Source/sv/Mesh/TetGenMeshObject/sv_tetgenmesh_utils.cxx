@@ -1172,6 +1172,17 @@ int TGenUtils_SetSizeFunctionArray(vtkPolyData *polydatasolid,
     min = range[0];
     fprintf(stderr,"Size Function minimum is: %.4f\n",min);
     fprintf(stderr,"Size Function maximum is: %.4f\n",range[1]);
+    /*
+    std::cout << "Values: ";
+    for (pointId = 0;pointId<numPts;pointId++) {
+      value = arrayonmesh->GetValue(pointId);
+      std::cout << " " << value;
+      if (value == 0.0) { 
+          std::cout << " **** zero at " << pointId << std::endl;
+      }
+    }
+    std::cout << std::endl;
+    */
     if (min <= 0)
     {
       fprintf(stderr,"Min is Zero or negative. This will not work!!!\n",min);

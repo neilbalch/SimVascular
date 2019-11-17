@@ -154,10 +154,17 @@ Geom_centerlines(PyObject* self, PyObject* args)
   for (int i=0;i<nsources;i++) {
     sources.push_back(PyLong_AsLong(PyList_GetItem(sourceList,i)));
   }
-
   for (int j=0;j<ntargets;j++) {
     targets.push_back(PyLong_AsLong(PyList_GetItem(targetList,j)));
   }
+
+  for (int i=0;i<nsources;i++) {
+      std::cout << "#### source: " << sources[i] << std::endl;
+  }
+  for (int i=0;i<ntargets;i++) {
+      std::cout << "#### target: " << targets[i] << std::endl;
+  }
+
 
   if (sys_geom_centerlines((cvPolyData*)geomSrc, sources.data(), nsources, targets.data(), ntargets, (cvPolyData**)&linesDst, 
     (cvPolyData**)&voronoiDst) != SV_OK ) {

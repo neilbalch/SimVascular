@@ -968,6 +968,8 @@ bool sv4guiModelUtils::DeleteRegions(vtkSmartPointer<vtkPolyData> inpd, std::vec
 vtkPolyData* sv4guiModelUtils::CreateCenterlines(sv4guiModelElement* modelElement,
                                              vtkIdList *sourceCapIds)
 {
+    std::cout << "======================= sv4guiModelUtils::CreateCenterline ======================" << std::endl;
+  
     if(modelElement==NULL || modelElement->GetWholeVtkPolyData()==NULL)
         return NULL;
 
@@ -1056,6 +1058,7 @@ vtkPolyData* sv4guiModelUtils::CreateCenterlines(sv4guiModelElement* modelElemen
 
     delete [] capCenterIds;
 
+
     vtkPolyData* centerlines=CreateCenterlines(capped->GetVtkPolyData(),
                                                sourcePtIds, targetPtIds);
     delete capped;
@@ -1065,6 +1068,7 @@ vtkPolyData* sv4guiModelUtils::CreateCenterlines(sv4guiModelElement* modelElemen
 
 vtkPolyData* sv4guiModelUtils::CreateCenterlines(vtkPolyData* inpd)
 {
+    std::cout << "======================= sv4guiModelUtils::CreateCenterline ======================" << std::endl;
   // If given just a polydata, assume it is a wall, cap and get source and
   // target points and then send to centerline extraction
 
@@ -1101,6 +1105,9 @@ vtkPolyData* sv4guiModelUtils::CreateCenterlines(vtkPolyData* inpd)
 
   delete [] capCenterIds;
   // capped and got ids
+
+  std::cout << "######### sourcePtIds: " << sourcePtIds->GetId(0) << std::endl;
+  std::cout << "######### targetPtIds: " << targetPtIds->GetId(0) << std::endl;
 
   return CreateCenterlines(capped->GetVtkPolyData(), sourcePtIds, targetPtIds);
 

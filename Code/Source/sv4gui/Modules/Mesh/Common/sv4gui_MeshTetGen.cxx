@@ -124,6 +124,9 @@ bool sv4guiMeshTetGen::SetModelElement(sv4guiModelElement* modelElement)
 
 bool sv4guiMeshTetGen::Execute(std::string flag, double values[20], std::string strValues[5], bool option, std::string& msg)
 {
+    std::cout << "========== sv4guiMeshTetGen::Execute =========" << std::endl;
+    std::cout << "[sv4guiMeshTetGen::Execute] flag: " << flag << std::endl;
+
     if(m_cvTetGenMesh==NULL)
     {
         msg="No mesher created";
@@ -186,6 +189,8 @@ bool sv4guiMeshTetGen::Execute(std::string flag, double values[20], std::string 
             msg="No mesher model";
             return false;
         }
+        std::cout << ">>>>>>>>>>>>>> useCenterlineRadius <<<<<<<<<<<<<<<<<" << std::endl;
+
         vtkPolyData* centerlines=sv4guiModelUtils::CreateCenterlines(solid->GetVtkPolyData());
         vtkPolyData* distance=sv4guiModelUtils::CalculateDistanceToCenterlines(centerlines, solid->GetVtkPolyData());
         if(distance==NULL)
@@ -202,6 +207,7 @@ bool sv4guiMeshTetGen::Execute(std::string flag, double values[20], std::string 
     else if(flag=="functionBasedMeshing")
     {
         char *strv = const_cast<char *>(strValues[0].c_str());
+        std::cout << "############# functionBasedMeshing: " << strv << std::endl;
         if(m_cvTetGenMesh->SetSizeFunctionBasedMesh(values[0],strv)!=SV_OK)
         {
             msg="Failed in function based meshing, such as radius based";
