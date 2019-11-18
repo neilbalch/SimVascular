@@ -45,7 +45,7 @@ extern "C" SV_EXPORT_MESH int Mesh_pyInit();
 //
 extern "C" SV_EXPORT_MESH typedef struct {
   PyObject_HEAD
-  cvMeshObject* geom;
+  cvMeshObject* meshObject;
 } pyMeshObject;
 
 #if PYTHON_MAJOR_VERSION == 2

@@ -1358,7 +1358,7 @@ int cvTetGenMeshObject::SetSphereRefinement(double size, double radius,
 int cvTetGenMeshObject::SetSizeFunctionBasedMesh(double size,char *sizefunctionname)
 {
 
-  fprintf(stderr,"Setting size based function...\n");
+  fprintf(stderr,"Setting size based function: size=%g  function name=%s \n", size, sizefunctionname);
   //Set meshoptions_ parameters based on input.
   int i;
   meshoptions_.functionbasedmeshing = 1;

@@ -77,7 +77,7 @@ static void MeshPrintMethods();
 static void 
 pyMeshObject_dealloc(pyMeshObject* self)
 {
-  Py_XDECREF(self->geom);
+  Py_XDECREF(self->meshObject);
   Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
@@ -88,8 +88,8 @@ pyMeshObject_dealloc(pyMeshObject* self)
 
 void DeleteMesh(pyMeshObject* self )
 {
-    cvMeshObject *geom =self->geom ;
-    gRepository->UnRegister( geom->GetName() );
+    cvMeshObject *meshObject =self->meshObject ;
+    gRepository->UnRegister( meshObject->GetName() );
 }
 
 // -------------
@@ -154,15 +154,15 @@ static void MeshPrintMethods()
 //---------------------
 //
 static bool 
-CheckMeshLoadUpdate(cvMeshObject *geom, std::string& msg) 
+CheckMeshLoadUpdate(cvMeshObject *meshObject, std::string& msg) 
 {
-  if (geom == nullptr) {
-      msg = "The Mesh object does not have geometry.";
+  if (meshObject == nullptr) {
+      msg = "The Mesh object does not have meshObjectetry.";
       return false;
   }
 
-  if (geom->GetMeshLoaded() == 0) {
-      if (geom->Update() == SV_ERROR) {
+  if (meshObject->GetMeshLoaded() == 0) {
+      if (meshObject->Update() == SV_ERROR) {
           msg = "Error updating the mesh.";
           return false;
       }
@@ -172,23 +172,23 @@ CheckMeshLoadUpdate(cvMeshObject *geom, std::string& msg)
 }
 
 //---------------
-// CheckGeometry
+// CheckMesh
 //---------------
-// Check if the mesh object has geometry.
+// Check if the mesh object has meshObjectetry.
 //
 // This is really used to set the error message 
 // in a single place. 
 //
 static cvMeshObject *
-CheckGeometry(SvPyUtilApiFunction& api, pyMeshObject *self)
+CheckMesh(SvPyUtilApiFunction& api, pyMeshObject *self)
 {
-  auto geom = self->geom;
-  if (geom == NULL) {
-      api.error("The Mesh object does not have geometry.");
+  auto meshObject = self->meshObject;
+  if (meshObject == NULL) {
+      api.error("The Mesh object does not have meshObjectetry.");
       return nullptr;
   }
 
-  return geom;
+  return meshObject;
 }
 
 //////////////////////////////////////////////////////
@@ -230,22 +230,22 @@ Mesh_new_object(pyMeshObject* self, PyObject* args)
   }
 
   // Create a new cvMeshObject object. 
-  auto geom = cvMeshSystem::DefaultInstantiateMeshObject(meshFileName, solidFileName );
-  if (geom == NULL) {
+  auto meshObject = cvMeshSystem::DefaultInstantiateMeshObject(meshFileName, solidFileName );
+  if (meshObject == NULL) {
       api.error("Failed to create Mesh object.");
       return nullptr;
   }
 
   // Add mesh to the repository.
-  if (!gRepository->Register(resultName, geom)) {
-      delete geom;
+  if (!gRepository->Register(resultName, meshObject)) {
+      delete meshObject;
       api.error("Error adding the Mesh object '" + std::string(resultName) + "' to the repository.");
       return nullptr;
   }
 
-  Py_INCREF(geom);
-  self->geom = geom;
-  Py_DECREF(geom);
+  Py_INCREF(meshObject);
+  self->meshObject = meshObject;
+  Py_DECREF(meshObject);
   return SV_PYTHON_OK;
 }
 
@@ -253,13 +253,13 @@ Mesh_new_object(pyMeshObject* self, PyObject* args)
 // Mesh_get_object
 //-----------------
 //
-// [TODO:DaveP] This sets the 'geom' data member of the pyContour struct for
+// [TODO:DaveP] This sets the 'meshObject' data member of the pyContour struct for
 // this object. Bad!
 //
 PyDoc_STRVAR(Mesh_get_mesh_doc,
   "Mesh_get_mesh(mesh)  \n\ 
    \n\
-   Set the mesh geometry from a Mesh object stored in the repository. \n\
+   Set the mesh meshObjectetry from a Mesh object stored in the repository. \n\
    \n\
    Args: \n\
      mesh (str): The name of the Mesh object. \n\
@@ -288,10 +288,10 @@ Mesh_get_mesh(pyMeshObject* self, PyObject* args)
       return nullptr;
   }
   
-  auto geom = dynamic_cast<cvMeshObject*> (rd);
-  Py_INCREF(geom);
-  self->geom = geom;
-  Py_DECREF(geom);
+  auto meshObject = dynamic_cast<cvMeshObject*> (rd);
+  Py_INCREF(meshObject);
+  self->meshObject = meshObject;
+  Py_DECREF(meshObject);
   return SV_PYTHON_OK; 
 }
     
@@ -358,14 +358,14 @@ Mesh_get_kernel(pyMeshObject* self, PyObject* args)
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__); 
 
   std::string emsg;
-  auto geom = self->geom;
-  if (!CheckMeshLoadUpdate(geom, emsg)) {
+  auto meshObject = self->meshObject;
+  if (!CheckMeshLoadUpdate(meshObject, emsg)) {
       api.error(emsg);
       return nullptr;
   }
 
   // Check the current mesh kernel.
-  auto kernelType = geom->GetMeshKernel();
+  auto kernelType = meshObject->GetMeshKernel();
   if (kernelType == SM_KT_INVALID ) {
       api.error("The mesh kernel is not set.");
       return nullptr;
@@ -392,13 +392,13 @@ Mesh_print(pyMeshObject* self, PyObject* args)
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__); 
 
   std::string emsg;
-  auto geom = self->geom;
-  if (!CheckMeshLoadUpdate(geom, emsg)) {
+  auto meshObject = self->meshObject;
+  if (!CheckMeshLoadUpdate(meshObject, emsg)) {
       api.error(emsg); 
       return nullptr;
   }
 
-  if (geom->pyPrint() != SV_OK) {
+  if (meshObject->pyPrint() != SV_OK) {
       api.error("Error printing the mesh.");
       return nullptr;
   }
@@ -423,12 +423,12 @@ static PyObject *
 Mesh_update(pyMeshObject* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__); 
-  auto geom = CheckGeometry(api, self); 
-  if (geom == nullptr) { 
+  auto meshObject = CheckMesh(api, self); 
+  if (meshObject == nullptr) { 
       return nullptr;
   }
 
-  if (geom->Update() != SV_OK) {
+  if (meshObject->Update() != SV_OK) {
       api.error("Error updating the mesh.");
       return nullptr;
   }
@@ -458,8 +458,8 @@ Mesh_set_solid_kernel(pyMeshObject* self, PyObject* args)
       return api.argsError();
   }
 
-  auto geom = CheckGeometry(api, self);
-  if (geom == nullptr) {
+  auto meshObject = CheckMesh(api, self);
+  if (meshObject == nullptr) {
       return nullptr;
   }
 
@@ -470,7 +470,7 @@ Mesh_set_solid_kernel(pyMeshObject* self, PyObject* args)
       return nullptr;
   }
 
-  geom->SetSolidModelKernel(kernel);
+  meshObject->SetSolidModelKernel(kernel);
   return Py_BuildValue("s",kernelName);
 }
 
@@ -497,13 +497,13 @@ Mesh_write_metis_adjacency(pyMeshObject* self, PyObject* args)
   }
 
   std::string emsg;
-  auto geom = self->geom;
-  if (!CheckMeshLoadUpdate(geom, emsg)) {
+  auto meshObject = self->meshObject;
+  if (!CheckMeshLoadUpdate(meshObject, emsg)) {
       api.error(emsg); 
       return nullptr;
   }
 
-  if (geom->WriteMetisAdjacency(file_name) != SV_OK) {
+  if (meshObject->WriteMetisAdjacency(file_name) != SV_OK) {
       api.error("Error writing the mesh adjacency to the file '"+std::string(file_name)+"'.");
       return nullptr;
   } 
@@ -518,10 +518,10 @@ Mesh_write_metis_adjacency(pyMeshObject* self, PyObject* args)
 PyDoc_STRVAR(Mesh_get_polydata_doc,
 " Mesh.get_polydata(name)  \n\ 
   \n\
-  Add the mesh geometry to the repository. \n\
+  Add the mesh meshObjectetry to the repository. \n\
   \n\
   Args:                                    \n\
-    name (str): Name in the repository to store the geometry. \n\
+    name (str): Name in the repository to store the meshObjectetry. \n\
 ");
 
 static PyObject * 
@@ -534,8 +534,8 @@ Mesh_get_polydata(pyMeshObject* self, PyObject* args)
   }
 
   std::string emsg;
-  auto geom = self->geom;
-  if (!CheckMeshLoadUpdate(geom, emsg)) {
+  auto meshObject = self->meshObject;
+  if (!CheckMeshLoadUpdate(meshObject, emsg)) {
       api.error(emsg);
       return nullptr;
   }
@@ -547,7 +547,7 @@ Mesh_get_polydata(pyMeshObject* self, PyObject* args)
   }
 
   // Get the cvPolyData:
-  auto pd = geom->GetPolyData();
+  auto pd = meshObject->GetPolyData();
   if (pd == NULL) {
       api.error("Could not get polydata for the mesh.");
       return nullptr;
@@ -570,10 +570,10 @@ Mesh_get_polydata(pyMeshObject* self, PyObject* args)
 PyDoc_STRVAR(Mesh_get_solid_doc,
 " Mesh.Mesh_get_solid(name)  \n\ 
   \n\
-  Add the mesh solid model geometry to the repository. \n\
+  Add the mesh solid model meshObjectetry to the repository. \n\
   \n\
   Args:                                    \n\
-    name (str): Name in the repository to store the solid model geometry. \n\
+    name (str): Name in the repository to store the solid model meshObjectetry. \n\
 ");
 
 static PyObject * 
@@ -586,8 +586,8 @@ Mesh_get_solid(pyMeshObject* self, PyObject* args)
   }
 
   std::string emsg;
-  auto geom = self->geom;
-  if (!CheckMeshLoadUpdate(geom, emsg)) {
+  auto meshObject = self->meshObject;
+  if (!CheckMeshLoadUpdate(meshObject, emsg)) {
       api.error(emsg);
       return nullptr;
   }
@@ -599,7 +599,7 @@ Mesh_get_solid(pyMeshObject* self, PyObject* args)
   }
 
   // Get the cvPolyData:
-  auto pd = geom->GetSolid();
+  auto pd = meshObject->GetSolid();
   if (pd == NULL) {
       api.error("Could not get polydata for the mesh solid model.");
       return nullptr;
@@ -622,10 +622,10 @@ Mesh_get_solid(pyMeshObject* self, PyObject* args)
 PyDoc_STRVAR(Mesh_set_vtk_polydata_doc,
 " Mesh.set_vtk_polydata(name)  \n\ 
   \n\
-  Add the mesh solid model geometry to the repository. \n\
+  Add the mesh solid model meshObjectetry to the repository. \n\
   \n\
   Args:                                    \n\
-    name (str): Name in the repository to store the solid model geometry. \n\
+    name (str): Name in the repository to store the solid model meshObjectetry. \n\
 ");
 
 static PyObject * 
@@ -639,8 +639,8 @@ Mesh_set_vtk_polydata(pyMeshObject* self, PyObject* args)
   }
 
   std::string emsg;
-  auto geom = self->geom;
-  if (!CheckMeshLoadUpdate(geom, emsg)) {
+  auto meshObject = self->meshObject;
+  if (!CheckMeshLoadUpdate(meshObject, emsg)) {
       api.error(emsg);
       return nullptr;
   }
@@ -664,7 +664,7 @@ Mesh_set_vtk_polydata(pyMeshObject* self, PyObject* args)
   }
 
   // Set the vtkPolyData.
-  if (!geom->SetVtkPolyDataObject(pd)) {
+  if (!meshObject->SetVtkPolyDataObject(pd)) {
       api.error("Could not set the polydata for the mesh.");
       return nullptr;
   }
@@ -695,8 +695,8 @@ Mesh_get_unstructured_grid(pyMeshObject* self, PyObject* args)
   }
 
   std::string emsg;
-  auto geom = self->geom;
-  if (!CheckMeshLoadUpdate(geom, emsg)) {
+  auto meshObject = self->meshObject;
+  if (!CheckMeshLoadUpdate(meshObject, emsg)) {
       api.error(emsg);
       return nullptr;
   }
@@ -708,7 +708,7 @@ Mesh_get_unstructured_grid(pyMeshObject* self, PyObject* args)
   }
 
   // Get the cvUnstructuredGrid:
-  auto ug = geom->GetUnstructuredGrid();
+  auto ug = meshObject->GetUnstructuredGrid();
   if (ug == NULL) {
       api.error("Could not get the unstructured grid for the mesh.");
       return nullptr;
@@ -748,8 +748,8 @@ Mesh_get_face_polydata(pyMeshObject* self, PyObject* args)
   }
 
   std::string emsg;
-  auto geom = self->geom;
-  if (!CheckMeshLoadUpdate(geom, emsg)) {
+  auto meshObject = self->meshObject;
+  if (!CheckMeshLoadUpdate(meshObject, emsg)) {
       api.error(emsg);
       return nullptr;
   }
@@ -761,7 +761,7 @@ Mesh_get_face_polydata(pyMeshObject* self, PyObject* args)
   }
 
   // Get the cvPolyData:
-  auto pd = geom->GetFacePolyData(face);
+  auto pd = meshObject->GetFacePolyData(face);
   if (pd == NULL) {
     api.error("Could not get mesh polydata for the face '" + std::to_string(face) + "'.");
     return nullptr;
@@ -862,31 +862,32 @@ static PyObject *
 Mesh_set_meshing_options(pyMeshObject* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("sO", PyRunTimeErr, __func__); 
-  char *flags;
+  char *optionName;
   PyObject* valueList;
 
-  if (!PyArg_ParseTuple(args, api.format, &flags, &valueList)) {
+  if (!PyArg_ParseTuple(args, api.format, &optionName, &valueList)) {
     return api.argsError();
   }
 
-  auto geom = CheckGeometry(api, self);
-  if (geom == nullptr) {
+  auto meshObject = CheckMesh(api, self);
+  if (meshObject == nullptr) {
       return nullptr;
   }
 
   int numValues = PyList_Size(valueList);
-  double *values = new double [numValues];
-  for (int j=0 ; j<numValues;j++) {
-    values[j]=PyFloat_AsDouble(PyList_GetItem(valueList,j));
+  std::vector<double> values;
+  for (int j = 0; j < numValues; j++) {
+    values.push_back(PyFloat_AsDouble(PyList_GetItem(valueList,j)));
   }
 
-  if (geom->SetMeshOptions(flags,numValues,values) == SV_ERROR ) {
-    delete [] values;
+  // [TODO:DaveP] The SetMeshOptions() function does not return an error
+  // if the option is not recognized.
+  //
+  if (meshObject->SetMeshOptions(optionName, numValues, values.data()) == SV_ERROR) {
     api.error("Error setting meshing options.");
     return nullptr;
   }
 
-  delete [] values;
   return SV_PYTHON_OK;
 }
 
@@ -913,13 +914,13 @@ Mesh_load_model(pyMeshObject* self, PyObject* args)
     return api.argsError();
   }
 
-  auto geom = CheckGeometry(api, self);
-  if (geom == nullptr) {
+  auto meshObject = CheckMesh(api, self);
+  if (meshObject == nullptr) {
       return nullptr;
   }
 
   // Read in the solid model file.
-  if (geom->LoadModel(FileName) == SV_ERROR) {
+  if (meshObject->LoadModel(FileName) == SV_ERROR) {
       api.error("Error loading solid model from the file '" + std::string(FileName) + "'."); 
       return nullptr;
   }
@@ -927,9 +928,9 @@ Mesh_load_model(pyMeshObject* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
-// -------------------
-// Solid_GetBoundaryFacesMtd
-// -------------------
+//-------------------------
+// Mesh_get_boundary_faces 
+//-------------------------
 //
 PyDoc_STRVAR(Mesh_get_boundary_faces_doc,
 " Mesh_get_boundary_faces(name)  \n\ 
@@ -951,12 +952,12 @@ Mesh_get_boundary_faces(pyMeshObject* self, PyObject* args)
     
   }
 
-  auto geom = CheckGeometry(api, self);
-  if (geom == nullptr) {
+  auto meshObject = CheckMesh(api, self);
+  if (meshObject == nullptr) {
       return nullptr;
   }
 
-  if (geom->GetBoundaryFaces(angle) != SV_OK) {
+  if (meshObject->GetBoundaryFaces(angle) != SV_OK) {
       api.error("Error getting boundary faces for angle '" + std::to_string(angle) + "'."); 
       return nullptr;
   }
@@ -988,13 +989,13 @@ Mesh_load_mesh(pyMeshObject* self, PyObject* args)
     return api.argsError();
   }
 
-  auto geom = CheckGeometry(api, self);
-  if (geom == nullptr) {
+  auto meshObject = CheckMesh(api, self);
+  if (meshObject == nullptr) {
       return nullptr;
   }
 
   // Read in the mesh file.
-  if (geom->LoadMesh(FileName,SurfFileName) == SV_ERROR) {
+  if (meshObject->LoadMesh(FileName,SurfFileName) == SV_ERROR) {
       api.error("Error reading in a mesh from the file '" + std::string(FileName) + "'."); 
       return nullptr;
   }
@@ -1022,13 +1023,13 @@ Mesh_write_stats(pyMeshObject* self, PyObject* args)
   }
 
   std::string emsg;
-  auto geom = self->geom;
-  if (!CheckMeshLoadUpdate(geom, emsg)) {
+  auto meshObject = self->meshObject;
+  if (!CheckMeshLoadUpdate(meshObject, emsg)) {
       api.error(emsg);
       return nullptr;
   }
 
-  if (geom->WriteStats(fileName) == SV_ERROR) {
+  if (meshObject->WriteStats(fileName) == SV_ERROR) {
       api.error("Error writing mesh statistics to the file '" + std::string(fileName) + "'."); 
       return nullptr;
   }
@@ -1054,13 +1055,13 @@ Mesh_adapt(pyMeshObject* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__); 
   std::string emsg;
-  auto geom = self->geom;
-  if (!CheckMeshLoadUpdate(geom, emsg)) {
+  auto meshObject = self->meshObject;
+  if (!CheckMeshLoadUpdate(meshObject, emsg)) {
       api.error(emsg);
       return nullptr;
   }
 
-  if (geom->Adapt() != SV_OK) {
+  if (meshObject->Adapt() != SV_OK) {
       api.error("Error performing adapt mesh operation."); 
       return nullptr;
   }
@@ -1093,14 +1094,14 @@ Mesh_write(pyMeshObject* self, PyObject* args)
   }
 
   std::string emsg;
-  auto geom = self->geom;
-  if (!CheckMeshLoadUpdate(geom, emsg)) {
+  auto meshObject = self->meshObject;
+  if (!CheckMeshLoadUpdate(meshObject, emsg)) {
       api.error(emsg);
       return nullptr;
   }
 
   // Write the mesh to a file.
-  if (geom->WriteMesh(fileName,smsver) == SV_ERROR) {
+  if (meshObject->WriteMesh(fileName,smsver) == SV_ERROR) {
       api.error("Error writing the mesh to the file '" + std::string(fileName) + "'."); 
       return nullptr;
   }
@@ -1125,12 +1126,12 @@ static PyObject *
 Mesh_new_mesh( pyMeshObject* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__); 
-  auto geom = CheckGeometry(api, self);
-  if (geom == nullptr) {
+  auto meshObject = CheckMesh(api, self);
+  if (meshObject == nullptr) {
       return nullptr;
   }
 
-  if (geom->NewMesh() == SV_ERROR) {
+  if (meshObject->NewMesh() == SV_ERROR) {
       api.error("Error creating a new mesh."); 
       return nullptr;
   }
@@ -1153,13 +1154,13 @@ static PyObject *
 Mesh_generate_mesh(pyMeshObject* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__); 
-  auto geom = CheckGeometry(api, self);
-  if (geom == nullptr) {
+  auto meshObject = CheckMesh(api, self);
+  if (meshObject == nullptr) {
       return nullptr;
   }
 
 
-  if (geom->GenerateMesh() == SV_ERROR) {
+  if (meshObject->GenerateMesh() == SV_ERROR) {
       api.error("Error generating a mesh."); 
       return nullptr;
   }
@@ -1192,8 +1193,8 @@ Mesh_set_sphere_refinement(pyMeshObject* self, PyObject* args)
     return api.argsError();
   }
 
-  auto geom = CheckGeometry(api, self);
-  if (geom == nullptr) {
+  auto meshObject = CheckMesh(api, self);
+  if (meshObject == nullptr) {
       return nullptr;
   }
 
@@ -1208,7 +1209,7 @@ Mesh_set_sphere_refinement(pyMeshObject* self, PyObject* args)
       center[i] = PyFloat_AsDouble(PyList_GetItem(centerArg,i));
   }
 
-  if (geom->SetSphereRefinement(size, radius, center) == SV_ERROR )   {
+  if (meshObject->SetSphereRefinement(size, radius, center) == SV_ERROR )   {
       std::string centerStr = "  center=(" + std::to_string(center[0]) + ", " + std::to_string(center[1]) + ", " + 
         std::to_string(center[2]) + ")"; 
       api.error("Error setting sphere refinement: radius=" + std::to_string(radius) + 
@@ -1243,12 +1244,12 @@ Mesh_set_size_function_based_mesh(pyMeshObject* self, PyObject* args)
     return api.argsError();
   }
 
-  auto geom = CheckGeometry(api, self);
-  if (geom == nullptr) {
+  auto meshObject = CheckMesh(api, self);
+  if (meshObject == nullptr) {
       return nullptr;
   }
 
-  if (geom->SetSizeFunctionBasedMesh(size,functionName) == SV_ERROR) {
+  if (meshObject->SetSizeFunctionBasedMesh(size,functionName) == SV_ERROR) {
       api.error("Error setting size function. size=" + std::to_string(size) + "  function=" + std::string(functionName)+"."); 
       return nullptr;
   }
@@ -1284,8 +1285,8 @@ Mesh_set_cylinder_refinement(pyMeshObject* self, PyObject* args)
     return api.argsError();
   }
 
-  auto geom = CheckGeometry(api, self);
-  if (geom == nullptr) {
+  auto meshObject = CheckMesh(api, self);
+  if (meshObject == nullptr) {
       return nullptr;
   }
 
@@ -1309,7 +1310,7 @@ Mesh_set_cylinder_refinement(pyMeshObject* self, PyObject* args)
       normal[i] = PyFloat_AsDouble(PyList_GetItem(normalArg,i));
   }
 
-  if (geom->SetCylinderRefinement(size,radius,length,center,normal) == SV_ERROR ) {
+  if (meshObject->SetCylinderRefinement(size,radius,length,center,normal) == SV_ERROR ) {
       std::string centerStr = "  center=(" + std::to_string(center[0]) + ", " + std::to_string(center[1]) + ", " + 
         std::to_string(center[2]) + ")";
       std::string normalStr = "  normal=(" + std::to_string(normal[0]) + ", " + std::to_string(normal[1]) + ", " + 
@@ -1350,8 +1351,8 @@ Mesh_set_boundary_layer(pyMeshObject* self, PyObject* args)
     return api.argsError();
   }
 
-  auto geom = CheckGeometry(api, self);
-  if (geom == nullptr) {
+  auto meshObject = CheckMesh(api, self);
+  if (meshObject == nullptr) {
       return nullptr;
   }
 
@@ -1362,7 +1363,7 @@ Mesh_set_boundary_layer(pyMeshObject* self, PyObject* args)
     H[i] = PyFloat_AsDouble(PyList_GetItem(Hlist,i));
   }
 
-  if (geom->SetBoundaryLayer(type,id,side,nL,H) == SV_ERROR ) {
+  if (meshObject->SetBoundaryLayer(type,id,side,nL,H) == SV_ERROR ) {
       delete [] H;
       api.error("Error setting boundary layer.");
       return nullptr;
@@ -1394,8 +1395,8 @@ Mesh_set_walls(pyMeshObject* self, PyObject* args)
     return api.argsError();
   }
 
-  auto geom = CheckGeometry(api, self);
-  if (geom == nullptr) {
+  auto meshObject = CheckMesh(api, self);
+  if (meshObject == nullptr) {
       return nullptr;
   }
 
@@ -1407,7 +1408,7 @@ Mesh_set_walls(pyMeshObject* self, PyObject* args)
     walls[i]=PyLong_AsLong(PyList_GetItem(wallsList,i));
   }
 
-  if (geom->SetWalls(numWalls,walls) == SV_ERROR ) {
+  if (meshObject->SetWalls(numWalls,walls) == SV_ERROR ) {
       delete [] walls;
       api.error("Error setting walls.");
       return nullptr;
@@ -1433,13 +1434,13 @@ static PyObject *
 Mesh_get_model_face_info(pyMeshObject* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__); 
-  auto geom = CheckGeometry(api, self); 
-  if (geom == nullptr) { 
+  auto meshObject = CheckMesh(api, self); 
+  if (meshObject == nullptr) { 
       return nullptr;
   }
 
   char info[99999];
-  geom->GetModelFaceInfo(info);
+  meshObject->GetModelFaceInfo(info);
 
   return Py_BuildValue("s",info);
 }
