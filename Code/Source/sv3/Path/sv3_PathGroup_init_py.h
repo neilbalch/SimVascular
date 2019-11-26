@@ -41,14 +41,15 @@
 extern "C" SV_EXPORT_PATH typedef struct
 {
   PyObject_HEAD
-  sv3::PathGroup* geom;
-}pyPathGroup;
+  sv3::PathGroup* pathGroup;
+  int id;
+} PyPathGroup;
 
 #if PYTHON_MAJOR_VERSION == 2
 PyMODINIT_FUNC  initpyPathGroup();
 #endif
 #if PYTHON_MAJOR_VERSION == 3
-PyMODINIT_FUNC  PyInit_pyPathGroup();
+PyMODINIT_FUNC  PyInit_PyPathGroup();
 #endif
 
 #endif //__SV3_PATHGROUP_INIT_PY_H

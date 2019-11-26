@@ -29,18 +29,31 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// The functions defined here implement the SV Python API Contour Module. 
+// The functions defined here implement the SV Python API path group module. 
 //
-// [TODO:DaveP] This module does not appear to be used, not referenced in sv package.
+// The module name is 'path_group'. The module defines a 'PathGroup' class used
+// to store path group data. The 'PathGroup' class cannot be imported and must
+// be used prefixed by the module name. For example
+//
+//     aorta_path_group = path_group.PathGroup()
+//
+// A Python exception sv.path_group.PathGroupError is defined for this module. 
+// The exception can be used in a Python 'try' statement with an 'except' clause 
+// like this
+//
+//    try:
+//    except sv.path_group.PathGroupError:
 //
 #include "SimVascular.h"
 #include "SimVascular_python.h"
 #include "Python.h"
+#include "sv_PyUtils.h"
 
 #include "sv3_PathGroup.h"
 #include "sv3_PathGroup_init_py.h"
 #include "sv3_PathElement.h"
 #include "sv3_PathElement_init_py.h"
+#include "sv3_PathIO.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -58,118 +71,47 @@
 using sv3::PathGroup;
 using sv3::PathElement;
 
-#if PYTHON_MAJOR_VERSION == 2
-PyMODINIT_FUNC initpyPathGroup();
-#elif PYTHON_MAJOR_VERSION == 3
-PyMODINIT_FUNC PyInit_pyPathGroup();
-#endif
-
 // Exception type used by PyErr_SetString() to set the for the error indicator.
-static PyObject * PyRunTimeErrPg;
+static PyObject * PyRunTimeErr;
 
+static PyObject * CreatePyPathGroup(PathGroup* pathGroup);
 
-// --------------------
-// sv4PathGroup_NewObjectCmd
-// --------------------
-PyObject* sv4PathGroup_NewObjectCmd( pyPathGroup* self, PyObject* args)
+// Define a map between method name and enum type.
+static std::map<std::string, PathElement::CalculationMethod> methodNameTypeMap =
 {
-    
+    {"Spacing", PathElement::CONSTANT_SPACING},
+    {"Subdivision", PathElement::CONSTANT_SUBDIVISION_NUMBER},
+    {"Total", PathElement::CONSTANT_TOTAL_NUMBER}
+};
+
+
+//-----------------------
+// PathGroup_set_path 
+//-----------------------
+//
+PyDoc_STRVAR(PathGroup_set_path_doc,
+  "set_path(name) \n\ 
+   \n\
+   Store the polydata for the named path into the repository. \n\
+   \n\
+   Args: \n\
+     name (str): \n\
+");
+
+static PyObject * 
+PathGroup_set_path(PyPathGroup* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("si", PyRunTimeErr, __func__);
   char* objName;
-  
-  if(!PyArg_ParseTuple(args,"s",&objName))
-  {
-    PyErr_SetString(PyRunTimeErrPg,"Could not import one char or optional char and ints");
-    
-  }
-  
-   // Do work of command:
-
-  // Make sure the specified result object does not exist:
-  if ( gRepository->Exists( objName ) ) {
-    PyErr_SetString(PyRunTimeErrPg, "object already exists.");
-    
-  }
-
-  // Instantiate the new mesh:
-  PathGroup *geom = new PathGroup();
-
-  // Register the solid:
-  if ( !( gRepository->Register( objName, geom ) ) ) {
-    PyErr_SetString(PyRunTimeErrPg, "error registering obj in repository");
-    delete geom;
-    
-  }
-
-  Py_INCREF(geom);
-  self->geom=geom;
-  Py_DECREF(geom);
-  return SV_PYTHON_OK; 
-
-}
-
-// --------------------
-// sv4PathGroup_GetObjectCmd
-// --------------------
-PyObject* sv4PathGroup_GetObjectCmd( pyPathGroup* self, PyObject* args)
-{
-  char *objName=NULL;
-  RepositoryDataT type;
+  int index=-2;
   cvRepositoryData *rd;
-  PathGroup *path;
+  RepositoryDataT type;
 
-  if (!PyArg_ParseTuple(args,"s", &objName))
-  {
-    PyErr_SetString(PyRunTimeErrPg, "Could not import 1 char: objName");
-    
+  if (!PyArg_ParseTuple(args, api.format, &objName, &index)) {
+     return api.argsError();
   }
 
-  // Do work of command:
-
-  // Retrieve source object:
-  rd = gRepository->GetObject( objName );
-  char r[2048];
-  if ( rd == NULL )
-  {
-    r[0] = '\0';
-    sprintf(r, "couldn't find object %s", objName);
-    PyErr_SetString(PyRunTimeErrPg,r);
-    
-  }
-
-  type = rd->GetType();
-
-  if ( type != PATHGROUP_T )
-  {
-    r[0] = '\0';
-    sprintf(r, "%s not a path group object", objName);
-    PyErr_SetString(PyRunTimeErrPg,r);
-    
-  }
-  
-  path = dynamic_cast<PathGroup*> (rd);
-  Py_INCREF(path);
-  self->geom=path;
-  Py_DECREF(path);
-  return SV_PYTHON_OK; 
-
-}
-
-// --------------------
-// sv4PathGroup_SetPathCmd
-// --------------------
-
-PyObject* sv4PathGroup_SetPathCmd( pyPathGroup* self, PyObject* args)
-{
-
-    char* objName;
-    int index=-2;
-    cvRepositoryData *rd;
-    RepositoryDataT type;
-    if(!PyArg_ParseTuple(args,"si",&objName,&index))
-    {
-        PyErr_SetString(PyRunTimeErrPg,"Could not import path name, index");
-        
-    }
+/*
     
         // Retrieve source object:
     rd = gRepository->GetObject( objName );
@@ -178,7 +120,7 @@ PyObject* sv4PathGroup_SetPathCmd( pyPathGroup* self, PyObject* args)
     {
         r[0] = '\0';
         sprintf(r, "couldn't find object %s", objName);
-        PyErr_SetString(PyRunTimeErrPg,r);
+        PyErr_SetString(PyRunTimeErr,r);
         
     }
     
@@ -188,351 +130,513 @@ PyObject* sv4PathGroup_SetPathCmd( pyPathGroup* self, PyObject* args)
     {
         r[0] = '\0';
         sprintf(r, "%s not a path object", objName);
-        PyErr_SetString(PyRunTimeErrPg,r);
+        PyErr_SetString(PyRunTimeErr,r);
         
     }
     
     PathElement* path = static_cast<PathElement*> (rd);
     if (path==NULL)
     {
-        PyErr_SetString(PyRunTimeErrPg,"Path does not exist.");
+        PyErr_SetString(PyRunTimeErr,"Path does not exist.");
         
     }
     
-    int timestepSize = self->geom->GetTimeSize();
+    int timestepSize = self->pathGroup->GetTimeSize();
     if (index+1>=timestepSize)
     {
-        self->geom->Expand(index);
-        self->geom->SetPathElement(path,index);
+        self->pathGroup->Expand(index);
+        self->pathGroup->SetPathElement(path,index);
     }
     else
-        self->geom->SetPathElement(path, index);
+        self->pathGroup->SetPathElement(path, index);
             
-    return SV_PYTHON_OK; 
-    
+*/
+    return Py_None; 
 }
 
+//----------------------------
+// PathGroup_get_time_size 
+//----------------------------
+//
+// [TODO:DaveP] bad method name: get_number_time_steps() ?
+//
+PyDoc_STRVAR(PathGroup_get_time_size_doc,
+  "set_path(name) \n\ 
+   \n\
+   Store the polydata for the named path into the repository. \n\
+   \n\
+   Args: \n\
+     name (str): \n\
+");
 
-// --------------------
-// sv4PathGroup_GetTimeSizeCmd
-// --------------------
-
-PyObject* sv4PathGroup_GetTimeSizeCmd( pyPathGroup* self, PyObject* args)
+static PyObject * 
+PathGroup_get_time_size(PyPathGroup* self, PyObject* args)
 {
-  // Do work of command:
-    int timestepSize = self->geom->GetTimeSize();
-    
-    return Py_BuildValue("i",timestepSize); 
-    
+  int timestepSize = self->pathGroup->GetTimeSize();
+  return Py_BuildValue("i",timestepSize); 
 }
 
-// --------------------
-// sv4PathGroup_GetPathCmd
-// --------------------
-PyObject* sv4PathGroup_GetPathCmd( pyPathGroup* self, PyObject* args)
+//-----------------------
+// PathGroup_get_path 
+//-----------------------
+PyDoc_STRVAR(PathGroup_get_path_doc,
+  "get_path(name) \n\ 
+   \n\
+   Store the polydata for the named path into the repository. \n\
+   \n\
+   Args: \n\
+     name (str): \n\
+");
+
+static PyObject * 
+PathGroup_get_path(PyPathGroup* self, PyObject* args)
 {
+  auto api = SvPyUtilApiFunction("i", PyRunTimeErr, __func__);
+  int index;
+  char* pathName = NULL;
 
-    int index;
-    char* pathName=NULL;
-    if(!PyArg_ParseTuple(args,"si",&pathName, &index))
-    {
-        PyErr_SetString(PyRunTimeErrPg,"Could not import char pathName, int index");
+  if (!PyArg_ParseTuple(args, api.format, &index)) {
+     return api.argsError();
+  }
         
-    }
-        
-    PathGroup* pathGrp = self->geom;
-    if (pathGrp==NULL)
-    {
-        PyErr_SetString(PyRunTimeErrPg,"Path does not exist.");
-        
-    }
-    
-    // Make sure the specified result object does not exist:
-    if ( gRepository->Exists( pathName ) ) {
-        PyErr_SetString(PyRunTimeErrPg, "object already exists.");
-        
-    }
-    
-    PathElement* path;
-    if (index<pathGrp->GetTimeSize())
-        path = pathGrp->GetPathElement(index);
-    else
-    {
-        PyErr_SetString(PyRunTimeErrPg, "Index out of bound.");
-        
-    }
-    
-    // Register the path:
-    if ( !( gRepository->Register( pathName, path ) ) ) {
-        PyErr_SetString(PyRunTimeErrPg, "error registering obj in repository");
-        
-    }
-  
-    return SV_PYTHON_OK;
-    
+  auto pathGroup = self->pathGroup;
+  int numPaths = pathGroup->GetTimeSize();
+
+  if (index > numPaths-1) {
+      api.error("The index argument '" + std::to_string(index) + "' is must be between 0 and " +
+        std::to_string(numPaths-1));
+      return nullptr;
+  }
+
+  auto path = pathGroup->GetPathElement(index);
+  return CreatePyPath(path);
 }
 
-// --------------------
-// sv4PathGroup_GetPathGroupIDCmd
-// --------------------
+//-----------------------------
+// PathGroup_get_path_group_id 
+//-----------------------------
+//
+PyDoc_STRVAR(PathGroup_get_path_group_id_doc,
+  "get_path_group_id(name) \n\ 
+   \n\
+   Store the polydata for the named path into the repository. \n\
+   \n\
+   Args: \n\
+     name (str): \n\
+");
 
-PyObject* sv4PathGroup_GetPathGroupIDCmd( pyPathGroup* self, PyObject* args)
+static PyObject * 
+PathGroup_get_path_group_id(PyPathGroup* self, PyObject* args)
 {
-  // Do work of command:
-    int id = self->geom->GetPathID();
-    
-    return Py_BuildValue("i",id); 
-    
+  int id = self->pathGroup->GetPathID();
+  return Py_BuildValue("i",id); 
 }
     
-// --------------------
-// sv4PathGroup_SetPathGroupIDCmd
-// --------------------
+//--------------------------------
+// PathGroup_set_path_group_id
+//--------------------------------
+//
+PyDoc_STRVAR(PathGroup_set_path_group_id_doc,
+  "set_path_group_id(name) \n\ 
+   \n\
+   Store the polydata for the named path into the repository. \n\
+   \n\
+   Args: \n\
+     name (str): \n\
+");
 
-PyObject* sv4PathGroup_SetPathGroupIDCmd(pyPathGroup* self, PyObject* args)
+static PyObject * 
+PathGroup_set_path_group_id(PyPathGroup* self, PyObject* args)
 {
-    int id;
-    if(!PyArg_ParseTuple(args,"i",&id))
-    {
-        PyErr_SetString(PyRunTimeErrPg,"Could not import int id");
-        
-    }
-    
-    self->geom->SetPathID(id);
-    return SV_PYTHON_OK;
-}
+  auto api = SvPyUtilApiFunction("i", PyRunTimeErr, __func__);
+  int id;
 
-// --------------------
-// sv4PathGroup_SetSpacingCmd
-// --------------------
-PyObject* sv4PathGroup_SetSpacingCmd(pyPathGroup* self, PyObject* args)
-{
-    double spacing;
-    if(!PyArg_ParseTuple(args,"d",&spacing))
-    {
-        PyErr_SetString(PyRunTimeErrPg,"Could not import double spacing");
-        
-    }
+  if (!PyArg_ParseTuple(args, api.format, &id)) {
+      return api.argsError();
+  }
     
-    self->geom->SetSpacing(spacing);
-    return SV_PYTHON_OK;
+  self->pathGroup->SetPathID(id);
+  return Py_None;
 }
 
-// --------------------
-// sv4PathGroup_GetSpacingCmd
-// --------------------
-PyObject* sv4PathGroup_GetSpacingCmd(pyPathGroup* self, PyObject* args)
+//--------------------------
+// PathGroup_set_spacing 
+//--------------------------
+//
+PyDoc_STRVAR(PathGroup_set_spacing_doc,
+  "set_spacing(name) \n\ 
+   \n\
+   Store the polydata for the named path into the repository. \n\
+   \n\
+   Args: \n\
+     name (str): \n\
+");
+
+static PyObject * 
+PathGroup_set_spacing(PyPathGroup* self, PyObject* args)
 {
-  // Do work of command:
-    double spacing = self->geom->GetSpacing();
+  auto api = SvPyUtilApiFunction("d", PyRunTimeErr, __func__);
+  double spacing;
+
+  if (!PyArg_ParseTuple(args, api.format, &spacing)) {
+     return api.argsError();
+  }
     
-    return Py_BuildValue("d",spacing); 
-    
+  self->pathGroup->SetSpacing(spacing);
+  return Py_None;
 }
 
-// --------------------
-// sv4PathGroup_SetMethod
-// --------------------
-PyObject* sv4PathGroup_SetMethod(pyPathGroup* self, PyObject* args)
+//--------------------------
+// PathGroup_get_spacing 
+//--------------------------
+//
+PyDoc_STRVAR(PathGroup_get_spacing_doc,
+  "get_spacing(name) \n\ 
+   \n\
+   Store the polydata for the named path into the repository. \n\
+   \n\
+   Args: \n\
+     name (str): \n\
+");
+
+static PyObject * 
+PathGroup_get_spacing(PyPathGroup* self, PyObject* args)
 {
-    char* method;
-    if(!PyArg_ParseTuple(args,"s",&method))
-    {
-        PyErr_SetString(PyRunTimeErrPg,"Could not import char method (total, subdivision or spacing)");
-        
-    }
-    
-    if(strcmp(method,"total")==0)
-        self->geom->SetMethod(PathElement::CONSTANT_TOTAL_NUMBER);
-    else if (strcmp(method, "subdivision")==0)
-        self->geom->SetMethod(PathElement::CONSTANT_SUBDIVISION_NUMBER);
-    else if(strcmp(method, "spacing")==0)
-        self->geom->SetMethod(PathElement::CONSTANT_SPACING);
-    else
-    {
-        PyErr_SetString(PyRunTimeErrPg,"Method not recognized.");
-        
-    }
-    return SV_PYTHON_OK;
+  double spacing = self->pathGroup->GetSpacing();
+  return Py_BuildValue("d",spacing); 
 }
 
-// --------------------
-// sv4PathGroup_GetMethod
-// --------------------
-PyObject* sv4PathGroup_GetMethod(pyPathGroup* self, PyObject* args)
+//-------------------------
+// PathGroup_set_method 
+//-------------------------
+//
+PyDoc_STRVAR(PathGroup_set_method_doc,
+  "set_method(name) \n\ 
+   \n\
+   Store the polydata for the named path into the repository. \n\
+   \n\
+   Args: \n\
+     name (str): \n\
+");
+
+static PyObject * 
+PathGroup_set_method(PyPathGroup* self, PyObject* args)
 {
-    PathElement::CalculationMethod method= self->geom->GetMethod();
-    
-    switch(method)
-    {
-    case PathElement::CONSTANT_TOTAL_NUMBER:
-        return Py_BuildValue("s","total");
-    case PathElement::CONSTANT_SUBDIVISION_NUMBER:
-        return Py_BuildValue("s","subdivision");
-    case PathElement::CONSTANT_SPACING:
-        return Py_BuildValue("s","spacing");
-    default:
-        break;
-    }
-    
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  char* methodName;
+
+  if (!PyArg_ParseTuple(args, api.format, &methodName)) {
+     return api.argsError();
+  }
+
+  PathElement::CalculationMethod method;
+
+  try {
+      method = methodNameTypeMap.at(std::string(methodName));
+  } catch (const std::out_of_range& except) {
+      auto msg = "Unknown method name '" + std::string(methodName) + "'." +
+          " Valid names are: Spacing, Subdivision or Total.";
+      api.error(msg);
+      return nullptr;
+  }
+
+  self->pathGroup->SetMethod(method);
+  return Py_None;
 }
 
-// --------------------
-// sv4PathGroup_SetCalculationNumber
-// --------------------
-PyObject* sv4PathGroup_SetCalculationNumber(pyPathGroup* self, PyObject* args)
+//----------------------
+// PathGroup_get_method 
+//----------------------
+//
+PyDoc_STRVAR(PathGroup_get_method_doc,
+  "get_method(name) \n\ 
+   \n\
+   Store the polydata for the named path into the repository. \n\
+   \n\
+   Args: \n\
+     name (str): \n\
+");
+
+static PyObject * 
+PathGroup_get_method(PyPathGroup* self, PyObject* args)
 {
-    int number;
-    if(!PyArg_ParseTuple(args,"i",&number))
-    {
-        PyErr_SetString(PyRunTimeErrPg,"Could not import int number");
-        
-    }
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  PathElement::CalculationMethod method = self->pathGroup->GetMethod();
+  std::string methodName;
+
+  for (auto const& element : methodNameTypeMap) { 
+      if (method == element.second) {
+          methodName = element.first;
+          break; 
+      }
+  }
+
+  if (methodName == "") {
+      api.error("No method is set.");
+      return nullptr;
+  }
     
-    self->geom->SetCalculationNumber(number);
-    return SV_PYTHON_OK;
+  return Py_BuildValue("s", methodName.c_str());
 }
 
-// --------------------
-// sv4PathGroup_GetCalculationNumber
-// --------------------
-PyObject* sv4PathGroup_GetCalculationNumber(pyPathGroup* self, PyObject* args)
+//----------------------------------
+// PathGroup_set_calculation_number 
+//----------------------------------
+//
+PyDoc_STRVAR(PathGroup_set_calculation_number_doc,
+  "set_calculation_number(name) \n\ 
+   \n\
+   Store the polydata for the named path into the repository. \n\
+   \n\
+   Args: \n\
+     name (str): \n\
+");
+
+static PyObject * 
+PathGroup_set_calculation_number(PyPathGroup* self, PyObject* args)
 {
-    int number=self->geom->GetCalculationNumber();
-    return Py_BuildValue("i",number);
+  auto api = SvPyUtilApiFunction("i", PyRunTimeErr, __func__);
+  int number;
+
+  if (!PyArg_ParseTuple(args, api.format, &number)) {
+     return api.argsError();
+  }
+    
+  // [TODO:DaveP] need to check valume of number.
+  self->pathGroup->SetCalculationNumber(number);
+  return Py_None;
 }
+
+//----------------------------------
+// PathGroup_get_calculation_number 
+//----------------------------------
+//
+PyDoc_STRVAR(PathGroup_get_calculation_number_doc,
+  "get_calculation_number(name) \n\ 
+   \n\
+   Store the polydata for the named path into the repository. \n\
+   \n\
+   Args: \n\
+     name (str): \n\
+");
+
+static PyObject * 
+PathGroup_get_calculation_number(PyPathGroup* self, PyObject* args)
+{
+  int number = self->pathGroup->GetCalculationNumber();
+  return Py_BuildValue("i",number);
+}
+
+//----------------
+// PathGroup_read
+//----------------
+//
+PyDoc_STRVAR(PathGroup_read_doc,
+  "read(file_name) \n\ 
+   \n\
+   Read an SV path .pth file and create a PathGroup from it. \n\
+   \n\
+   Args: \n\
+     file_name (str): The name of the SV .pth file.\n\
+");
+
+static PyObject * 
+PathGroup_read(PyObject* self, PyObject* args)
+{
+  std::cout << "========== PathGroup_read ==========" << std::endl;
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  char *fileName;
+
+  if (!PyArg_ParseTuple(args, api.format, &fileName)) {
+      return api.argsError();
+  }
+
+  std::cout << "[PathGroup_read] fileName: " << fileName << std::endl;
+  sv3::PathGroup* pathGroup;
+
+  try {
+      pathGroup = sv3::PathIO().ReadFile(fileName);
+      if (pathGroup == nullptr) { 
+          api.error("Error reading file '" + std::string(fileName) + "'.");
+          return nullptr;
+      }
+      int numElements = pathGroup->GetTimeSize();
+      std::cout << "[PathGroup_read] numElements: " << numElements << std::endl;
+
+  } catch (const std::exception& readException) {
+      api.error("Error reading file '" + std::string(fileName) + "': " + readException.what());
+      return nullptr;
+  }
+
+  /*
+  for (int i=0; i<svPathGrp->GetTimeSize(); i++) {
+        path->SetPathElement(static_cast<sv4guiPathElement*>(svPathGrp->GetPathElement(i)),i);
+  }
+  */
+
+  return CreatePyPathGroup(pathGroup);
+}
+
 
 ////////////////////////////////////////////////////////
 //          M o d u l e  D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
 
-int PathGroup_pyInit()
-{
-#if PYTHON_MAJOR_VERSION == 2
-    initpyPathGroup();
-#elif PYTHON_MAJOR_VERSION == 3
-    PyInit_pyPathGroup();
-#endif
-  return SV_OK;
-}
+static char* MODULE_NAME = "path_group";
+static char* MODULE_PATH_GROUP_CLASS = "PathGroup";
+static char* MODULE_EXCEPTION = "path_group.PathGroupError";
+static char* MODULE_EXCEPTION_OBJECT = "PathGroupError";
 
-//----------------------------
-// Define API function names
-//----------------------------
+PyDoc_STRVAR(pathgroup_doc, "path_group functions");
 
-static PyMethodDef pyPathGroup_methods[]={
+//--------------------
+// PyPathGroupMethods 
+//--------------------
+// Define the methods for the PathGroup class.
+//
+static PyMethodDef PyPathGroupMethods[] = {
 
-  {"GetCalculationNumber",
-       (PyCFunction)sv4PathGroup_GetCalculationNumber, 
-       METH_NOARGS, NULL},
+  {"get_calculation_number", (PyCFunction)PathGroup_get_calculation_number, METH_NOARGS, PathGroup_get_calculation_number_doc},
 
-  {"GetMethod",
-       (PyCFunction)sv4PathGroup_GetMethod, METH_NOARGS, NULL},
+  {"get_method", (PyCFunction)PathGroup_get_method, METH_NOARGS, PathGroup_get_method_doc}, 
 
-  {"GetObject", 
-       (PyCFunction)sv4PathGroup_GetObjectCmd,METH_VARARGS,NULL},
+  {"get_path", (PyCFunction)PathGroup_get_path, METH_VARARGS, PathGroup_get_path_doc},
 
-  {"GetPath",
-       (PyCFunction)sv4PathGroup_GetPathCmd,METH_VARARGS,NULL},
+  {"get_path_group_id", (PyCFunction)PathGroup_get_path_group_id,METH_VARARGS,PathGroup_get_path_group_id_doc},
 
-  {"GetPathGroupID",
-       (PyCFunction)sv4PathGroup_GetPathGroupIDCmd,METH_VARARGS,NULL},
+  {"get_spacing", (PyCFunction)PathGroup_get_spacing, METH_NOARGS, PathGroup_get_spacing_doc},
 
-  {"GetSpacing",
-       (PyCFunction)sv4PathGroup_GetSpacingCmd, METH_NOARGS, NULL},
+  {"get_time_size", (PyCFunction)PathGroup_get_time_size, METH_NOARGS, PathGroup_get_time_size_doc},
 
-  {"GetTimeSize",
-       (PyCFunction)sv4PathGroup_GetTimeSizeCmd, METH_NOARGS,NULL},
+  {"set_calculation_number", (PyCFunction)PathGroup_set_calculation_number, METH_NOARGS, PathGroup_set_calculation_number_doc},
 
-  {"NewObject", 
-       (PyCFunction)sv4PathGroup_NewObjectCmd,METH_VARARGS,NULL},
+  {"set_method", (PyCFunction)PathGroup_set_method, METH_NOARGS, PathGroup_set_method_doc},
 
-  {"SetCalculationNumber",
-       (PyCFunction)sv4PathGroup_SetCalculationNumber, METH_NOARGS, NULL},
+  {"set_path", (PyCFunction)PathGroup_set_path, METH_VARARGS, PathGroup_set_path_doc},
 
-  {"SetMethod",
-       (PyCFunction)sv4PathGroup_SetMethod, METH_NOARGS, NULL},
+  {"set_path_group_id", (PyCFunction)PathGroup_set_path_group_id, METH_VARARGS,PathGroup_set_path_group_id_doc},
 
-  {"SetPath",
-       (PyCFunction)sv4PathGroup_SetPathCmd,METH_VARARGS,NULL},
-
-
-  {"SetPathGroupID",
-       (PyCFunction)sv4PathGroup_SetPathGroupIDCmd, METH_VARARGS,NULL},
-
-  {"SetSpacing",
-       (PyCFunction)sv4PathGroup_SetSpacingCmd, METH_NOARGS,NULL},
-
+  {"set_spacing", (PyCFunction)PathGroup_set_spacing, METH_NOARGS,PathGroup_set_spacing_doc},
 
   {NULL,NULL}
 };
 
+//----------------------------------
+// Define the PyPathGroupType class 
+//----------------------------------
+// Define the Python type that stores PathGroup data. 
+//
+// Can't set all the fields here because g++ does not suppor non-trivial 
+// designated initializers. 
+//
+static PyTypeObject PyPathGroupType = {
+  PyVarObject_HEAD_INIT(NULL, 0)
+  // Dotted name that includes both the module name and 
+  // the name of the type within the module.
+  "path_group.PathGroup",     
+  sizeof(PyPathGroup)
+};
+
 //------------------
-// pyPathGroup_init
+// PyPathGroup_init
 //------------------
 //
 // This is the __init__() method for the PathGroup class. 
 //
 // This function is used to initialize an object after it is created.
 //
-static int pyPathGroup_init(pyPathGroup* self, PyObject* args)
+static int 
+PyPathGroupInit(PyPathGroup* self, PyObject* args)
 {
-  fprintf(stdout,"pyPathGroup initialized.\n");
-  return SV_OK;
+  static int numObjs = 1;
+  std::cout << "[PyPathGroupInit] New PathGroup object: " << numObjs << std::endl;
+  //self->path = new PathElement();
+  //self->id = numObjs;
+  numObjs += 1;
+  return 0;
 }
 
-//----------------------------------------
-// Define the pyPathGroupType type object
-//----------------------------------------
-// The type object stores a large number of values, mostly C function pointers, 
-// each of which implements a small part of the type’s functionality.
+//----------------
+// PyPathGroupNew 
+//----------------
+// Object creation function, equivalent to the Python __new__() method. 
+// The generic handler creates a new instance using the tp_alloc field.
 //
-static PyTypeObject pyPathGroupType = {
-  PyVarObject_HEAD_INIT(NULL, 0)
-  "pathgroup.PathGroup",             /* tp_name */
-  sizeof(pyPathGroup),             /* tp_basicsize */
-  0,                         /* tp_itemsize */
-  0,                         /* tp_dealloc */
-  0,                         /* tp_print */
-  0,                         /* tp_getattr */
-  0,                         /* tp_setattr */
-  0,                         /* tp_compare */
-  0,                         /* tp_repr */
-  0,                         /* tp_as_number */
-  0,                         /* tp_as_sequence */
-  0,                         /* tp_as_mapping */
-  0,                         /* tp_hash */
-  0,                         /* tp_call */
-  0,                         /* tp_str */
-  0,                         /* tp_getattro */
-  0,                         /* tp_setattro */
-  0,                         /* tp_as_buffer */
-  Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,   /* tp_flags */
-  "PathGroup  objects",           /* tp_doc */
-  0,                         /* tp_traverse */
-  0,                         /* tp_clear */
-  0,                         /* tp_richcompare */
-  0,                         /* tp_weaklistoffset */
-  0,                         /* tp_iter */
-  0,                         /* tp_iternext */
-  pyPathGroup_methods,             /* tp_methods */
-  0,                         /* tp_members */
-  0,                         /* tp_getset */
-  0,                         /* tp_base */
-  0,                         /* tp_dict */
-  0,                         /* tp_descr_get */
-  0,                         /* tp_descr_set */
-  0,                         /* tp_dictoffset */
-  (initproc)pyPathGroup_init,                            /* tp_init */
-  0,                         /* tp_alloc */
-  0,                  /* tp_new */
-};
+static PyObject *
+PyPathGroupNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+  std::cout << "[PyPathGroupNew] PyPathGroupNew " << std::endl;
+  auto self = (PyPath*)type->tp_alloc(type, 0);
+  if (self != NULL) {
+      self->id = 1;
+  }
+
+  return (PyObject *) self;
+}
+
+//--------------------
+// PyPathGroupDealloc 
+//--------------------
+//
+static void
+PyPathGroupDealloc(PyPathGroup* self)
+{
+  std::cout << "[PyPathGroupDealloc] Free PyPathGroup" << std::endl;
+  delete self->pathGroup;
+  Py_TYPE(self)->tp_free(self);
+}
+
+//------------------------
+// SetPathGroupTypeFields 
+//------------------------
+// Set the Python type object fields that stores Path data. 
+//
+// Need to set the fields here because g++ does not suppor non-trivial 
+// designated initializers. 
+//
+static void
+SetPyPathGroupTypeFields(PyTypeObject& pathType)
+{
+  // Doc string for this type.
+  pathType.tp_doc = "PathGroup  objects";
+  // Object creation function, equivalent to the Python __new__() method. 
+  // The generic handler creates a new instance using the tp_alloc field.
+  pathType.tp_new = PyPathGroupNew;
+  pathType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
+  pathType.tp_init = (initproc)PyPathGroupInit;
+  pathType.tp_dealloc = (destructor)PyPathGroupDealloc;
+  pathType.tp_methods = PyPathGroupMethods;
+}
+
+//-------------------
+// CreatePyPathGroup
+//-------------------
+// Create a PyPathGroupType object.
+//
+// If the 'pathGroup' argument is not null then use that 
+// for the PyPathGroupType.pathGroup data.
+//
+PyObject *
+CreatePyPathGroup(PathGroup* pathGroup)
+{
+  std::cout << "[CreatePyPathGroup] Create PathGroup object ... " << std::endl;
+  auto pathGroupObj = PyObject_CallObject((PyObject*)&PyPathGroupType, NULL);
+  auto pyPathGroup = (PyPathGroup*)pathGroupObj;
+
+  if (pathGroup != nullptr) {
+      delete pyPathGroup->pathGroup;
+      pyPathGroup->pathGroup = pathGroup;
+  }
+  std::cout << "[CreatePyPath] pyPathGroup id: " << pyPathGroup->id << std::endl;
+  return pathGroupObj;
+}
 
 // Define methods operating on the PathGroup Module level.
 //
-static PyMethodDef pyPathGroupModule_methods[] =
+static PyMethodDef PyPathGroupModuleMethods[] =
 {
-    {NULL,NULL}
+  {"read", (PyCFunction)PathGroup_read, METH_VARARGS, PathGroup_read_doc},
+  {NULL,NULL}
 };
 
 //-----------------------
@@ -540,13 +644,6 @@ static PyMethodDef pyPathGroupModule_methods[] =
 //-----------------------
 // Define the initialization function called by the Python 
 // interpreter when the module is loaded.
-
-static char* MODULE_NAME = "path_group";
-static char* MODULE_PATH_GROUP_CLASS = "PathGroup";
-static char* MODULE_EXCEPTION = "path_group.PathGroupException";
-static char* MODULE_EXCEPTION_OBJECT = "PathGroupException";
-
-PyDoc_STRVAR(pathgroup_doc, "path_group functions");
 
 //---------------------------------------------------------------------------
 //                           PYTHON_MAJOR_VERSION 3                         
@@ -563,23 +660,23 @@ static PyModuleDef_Base m_base = PyModuleDef_HEAD_INIT;
 
 // Define the module definition struct which holds all information 
 // needed to create a module object. 
-static struct PyModuleDef pyPathGroupModule = {
+static struct PyModuleDef PyPathGroupModule = {
    m_base,
    MODULE_NAME,
    pathgroup_doc, 
    perInterpreterStateSize,
-   pyPathGroupModule_methods
+   PyPathGroupModuleMethods
 };
 
 //--------------------
-// PyInit_pyPathGroup
+// PyInit_PyPathGroup
 //--------------------
 // The initialization function called by the Python interpreter when the module is loaded.
 //
 // [TODO:Davep] The global 'gRepository' is created here, as it is in all other modules init
 //     function. Why is this not create in main()?
 //
-PyMODINIT_FUNC PyInit_pyPathGroup()
+PyMODINIT_FUNC PyInit_PyPathGroup()
 {
 
   if (gRepository==NULL) {
@@ -589,13 +686,13 @@ PyMODINIT_FUNC PyInit_pyPathGroup()
 
   // Create PathGoup type. 
   //
-  pyPathGroupType.tp_new = PyType_GenericNew;
-  if (PyType_Ready(&pyPathGroupType) < 0) {
-    fprintf(stdout,"Error in pyPathGroupType\n");
+  SetPyPathGroupTypeFields(PyPathGroupType);
+  if (PyType_Ready(&PyPathGroupType) < 0) {
+    fprintf(stdout,"Error in PyPathGroupType\n");
     return SV_PYTHON_ERROR;
   }
 
-  auto module = PyModule_Create(&pyPathGroupModule);
+  auto module = PyModule_Create(&PyPathGroupModule);
   if (module == NULL) {
     fprintf(stdout,"Error in initializing pathgroup module.\n");
     return SV_PYTHON_ERROR;
@@ -606,10 +703,10 @@ PyMODINIT_FUNC PyInit_pyPathGroup()
   // This defines a Python exception named sv.pathgroup.PathGroupException.
   // This can be used in a 'try' statement with an 'except' clause 'except sv.pathgroup.PathGroupExceptions:'
   // 
-  PyRunTimeErrPg = PyErr_NewException(MODULE_EXCEPTION, NULL, NULL);
-  PyModule_AddObject(module, MODULE_EXCEPTION_OBJECT, PyRunTimeErrPg);
-  Py_INCREF(&pyPathGroupType);
-  PyModule_AddObject(module,MODULE_PATH_GROUP_CLASS,(PyObject*)&pyPathGroupType);
+  PyRunTimeErr = PyErr_NewException(MODULE_EXCEPTION, NULL, NULL);
+  PyModule_AddObject(module, MODULE_EXCEPTION_OBJECT, PyRunTimeErr);
+  Py_INCREF(&PyPathGroupType);
+  PyModule_AddObject(module,MODULE_PATH_GROUP_CLASS,(PyObject*)&PyPathGroupType);
   return module;
 }
 
@@ -620,7 +717,7 @@ PyMODINIT_FUNC PyInit_pyPathGroup()
 //---------------------------------------------------------------------------
 
 #if PYTHON_MAJOR_VERSION == 2
-PyMODINIT_FUNC initpyPathGroup()
+PyMODINIT_FUNC initPyPathGroup()
 
 {
   // Associate the mesh registrar with the python interpreter so it can be
@@ -632,23 +729,23 @@ PyMODINIT_FUNC initpyPathGroup()
   }
 
   // Initialize
-  pyPathGroupType.tp_new=PyType_GenericNew;
-  if (PyType_Ready(&pyPathGroupType)<0)
+  PyPathGroupType.tp_new=PyType_GenericNew;
+  if (PyType_Ready(&PyPathGroupType)<0)
   {
-    fprintf(stdout,"Error in pyPathGroupType\n");
+    fprintf(stdout,"Error in PyPathGroupType\n");
     return;
   }
   PyObject* pythonC;
-  pythonC = Py_InitModule("pyPathGroup",pyPathGroupModule_methods);
+  pythonC = Py_InitModule("PyPathGroup",PyPathGroupModule_methods);
   if(pythonC==NULL)
   {
-    fprintf(stdout,"Error in initializing pyPathGroup\n");
+    fprintf(stdout,"Error in initializing PyPathGroup\n");
     return;
   }
-  PyRunTimeErrPg = PyErr_NewException("pyPathGroup.error",NULL,NULL);
-  PyModule_AddObject(pythonC,"error",PyRunTimeErrPg);
-  Py_INCREF(&pyPathGroupType);
-  PyModule_AddObject(pythonC,"pyPathGroup",(PyObject*)&pyPathGroupType);
+  PyRunTimeErr = PyErr_NewException("PyPathGroup.error",NULL,NULL);
+  PyModule_AddObject(pythonC,"error",PyRunTimeErr);
+  Py_INCREF(&PyPathGroupType);
+  PyModule_AddObject(pythonC,"PyPathGroup",(PyObject*)&PyPathGroupType);
   return ;
 
 }

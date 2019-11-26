@@ -61,6 +61,9 @@ std::vector<mitk::BaseData::Pointer> sv4guiPathIO::Read()
 
 std::vector<mitk::BaseData::Pointer> sv4guiPathIO::ReadFile(std::string fileName)
 {
+    std::cout << "=================== sv4guiPathIO::ReadFile ==================" << std::endl;
+    std::cout << "[sv4guiPathIO::ReadFile] fileName: " << fileName << std::endl;
+
     TiXmlDocument document;
 
     if (!document.LoadFile(fileName))

@@ -31,7 +31,7 @@
 
 // The functions defined here implement the SV Python API project Module. 
 //
-// The module name is 'path'. The module defines a 'Path' class used
+// The module name is 'project'. The module defines a 'Path' class used
 // to store path data. The 'Path' class cannot be imported and must
 // be used prefixed by the module name. For example
 //
@@ -80,12 +80,12 @@ static PyObject* PyRunTimeErr;
 //
 // Python API functions. 
 
-//--------------------------
-//sv4Path_add_control_point 
-//--------------------------
+//-----------------
+// sv4Project_open  
+//-----------------
 //
 PyDoc_STRVAR(sv4Project_open_doc,
-  "Path_add_control_point(point) \n\ 
+  "sv4Project_open(point) \n\ 
    \n\
    Add a control point to a path. \n\
    \n\
@@ -96,14 +96,12 @@ PyDoc_STRVAR(sv4Project_open_doc,
 static PyObject * 
 sv4Project_open(PyProject* self, PyObject* args)
 {
-/*
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char* fileNameArg;
 
-  if (!PyArg_ParseTuple(args, api.format, &fileNameArg) {
+  if (!PyArg_ParseTuple(args, api.format, &fileNameArg)) {
       return api.argsError();
   }
-*/
 
   return SV_PYTHON_OK; 
 }
@@ -119,9 +117,9 @@ static char* MODULE_EXCEPTION_OBJECT = "ProjectError";
 
 PyDoc_STRVAR(Project_doc, "project module functions");
 
-//----------------
-// PyProject_methods
-//----------------
+//------------------
+// PyProjectMethods 
+//------------------
 // Project class methods.
 //
 static PyMethodDef PyProjectMethods[] = {

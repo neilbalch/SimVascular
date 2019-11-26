@@ -54,6 +54,7 @@
 
 #include "sv_solid_init_py.h"
 #include "sv3_PathElement_init_py.h"
+#include "sv3_PathGroup_init_py.h"
 #include "sv3_Contour_init_py.h"
 #include "sv3_CircleContour_init_py.h"
 #include "sv3_LevelSetContour_init_py.h"
@@ -119,6 +120,7 @@ void SimVascular_pyInit()
     PyImport_AppendInittab("levelset_contour",PyInit_pylevelSetContour);
     PyImport_AppendInittab("math_utils",PyInit_pyMath);
     PyImport_AppendInittab("path", PyInit_PyPath);
+    PyImport_AppendInittab("path_group", PyInit_PyPathGroup);
     PyImport_AppendInittab("polygon_contour",PyInit_pyPolygonContour);
     PyImport_AppendInittab("project", PyInit_PyProject);
     PyImport_AppendInittab("repository", PyInit_pyRepository);
