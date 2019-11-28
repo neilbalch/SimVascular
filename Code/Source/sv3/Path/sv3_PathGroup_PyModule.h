@@ -29,14 +29,13 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __SV3_PATHGROUP_INIT_PY_H
-#define __SV3_PATHGROUP_INIT_PY_H
+#ifndef SV3_PATH_GROUP_PYMODULE_H
+#define SV3_PATH_GROUP_PYMODULE_H 
 
 #include "SimVascular.h"
 #include "Python.h"
 #include "sv3_PathGroup.h"
 #include "sv3PathExports.h"
-
 
 extern "C" SV_EXPORT_PATH typedef struct
 {
@@ -52,4 +51,4 @@ PyMODINIT_FUNC  initpyPathGroup();
 PyMODINIT_FUNC  PyInit_PyPathGroup();
 #endif
 
-#endif //__SV3_PATHGROUP_INIT_PY_H
+#endif 

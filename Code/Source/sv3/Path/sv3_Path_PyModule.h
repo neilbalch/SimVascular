@@ -29,8 +29,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __SV3_PATHELEMENT_INIT_PY_H
-#define __SV3_PATHELEMENT_INIT_PY_H
+#ifndef SV3_PATH_PYMODULE_H
+#define SV3_PATH_PYMODUL_H
 
 #include "SimVascular.h"
 #include "Python.h"
@@ -60,4 +60,4 @@ PyMODINIT_FUNC  initpyPath();
 PyMODINIT_FUNC PyInit_PyPath();
 #endif
 
-#endif //__SV3_PATHELEMENT_INIT_PY_H
+#endif 

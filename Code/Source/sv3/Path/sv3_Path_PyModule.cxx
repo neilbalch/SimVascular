@@ -49,7 +49,8 @@
 #include "Python.h"
 
 #include "sv3_PathElement.h"
-#include "sv3_PathElement_init_py.h"
+#include "sv3_Path_PyModule.h"
+#include "sv3_PathCalcMethod_PyModule.h"
 #include "sv_PyUtils.h"
 
 #include <stdio.h>
@@ -70,7 +71,7 @@
 using sv3::PathElement;
 
 // Exception type used by PyErr_SetString() to set the for the error indicator.
-PyObject* PyRunTimeErr;
+static PyObject* PyRunTimeErr;
 
 //////////////////////////////////////////////////////
 //          U t i l i t y  F u n c t i o n s        //
@@ -549,10 +550,6 @@ static PyMethodDef PyPathMethods[] = {
 
   {"add_control_point", (PyCFunction)sv4Path_add_control_point, METH_VARARGS, sv4Path_add_control_point_doc },
 
-  /* [TODO:DaveP] Remove this. 
-  {"create", (PyCFunction)sv4Path_create, METH_NOARGS, sv4Path_create_doc },
-  */
-
   {"get_control_points", (PyCFunction)sv4Path_get_control_points, METH_NOARGS, sv4Path_get_control_points_doc },
 
   {"get_curve_points", (PyCFunction)sv4Path_get_curve_points, METH_NOARGS, sv4Path_get_curve_points_doc },
@@ -560,20 +557,6 @@ static PyMethodDef PyPathMethods[] = {
   {"get_num_curve_points", (PyCFunction)sv4Path_get_num_curve_points, METH_NOARGS, sv4Path_get_num_curve_points_doc },
 
   {"get_polydata", (PyCFunction)sv4Path_get_polydata, METH_VARARGS, sv4Path_get_polydata_doc },
-
-
-  /* [TODO:DaveP] Remove this. 
-  {"new_object", (PyCFunction)sv4Path_new_object, METH_VARARGS, sv4Path_new_object_doc },
-  */
-
-
-  /* [TODO:DaveP] Remove this, just use Python to print points.
-  {"PrintPoints",
-      (PyCFunction)sv4Path_PrintCtrlPointCmd, 
-       METH_NOARGS,
-       NULL
-  },
-  */
 
   {"remove_control_point", (PyCFunction)sv4Path_remove_control_point, METH_VARARGS, sv4Path_remove_control_point_doc },
 
@@ -689,14 +672,17 @@ CreatePyPath(PathElement* path)
   return pathObj;
 }
 
-//----------------------
-// PyPathModule_methods
-//----------------------
+//---------------------
+// PyPathModuleMethods
+//---------------------
 //
 static PyMethodDef PyPathModuleMethods[] =
 {
     {NULL,NULL}
 };
+
+// Include path.Group definition.
+#include "sv3_PathGroup_PyModule.cxx"
 
 //-----------------------
 // Initialize the module
@@ -745,6 +731,22 @@ PyMODINIT_FUNC PyInit_PyPath()
     return SV_PYTHON_ERROR;
   }
 
+  // Setup the PathGroup object type.
+  //
+  SetPyPathGroupTypeFields(PyPathGroupType);
+  if (PyType_Ready(&PyPathGroupType) < 0) {
+    fprintf(stdout,"Error in PyPathGroupType\n");
+    return SV_PYTHON_ERROR;
+  }
+
+  // Setup the PathCalcMethod  object type.
+  //
+  SetPathCalcMethodTypeFields(PyPathCalcMethodType);
+  if (PyType_Ready(&PyPathCalcMethodType) < 0) {
+      fprintf(stdout,"Error in PyPathCalcMethodType\n");
+      return nullptr;
+  }
+
   // Create the path module.
   auto module = PyModule_Create(&PyPathModule);
   if (module == NULL) {
@@ -760,6 +762,18 @@ PyMODINIT_FUNC PyInit_PyPath()
   // Add Path class.
   Py_INCREF(&PyPathType);
   PyModule_AddObject(module, MODULE_PATH_CLASS, (PyObject*)&PyPathType);
+
+  // Add PathGroup class.
+  Py_INCREF(&PyPathGroupType);
+  PyModule_AddObject(module, MODULE_PATH_GROUP_CLASS, (PyObject*)&PyPathGroupType);
+
+  // Add PathCalcMethod class.
+  Py_INCREF(&PyPathCalcMethodType);
+  PyModule_AddObject(module, MODULE_PATH_CALC_METHOD_CLASS, (PyObject*)&PyPathCalcMethodType);
+
+  // Set the calculate method names in the PyPathCalcMethodType dictinary.
+  SetPathCalcMethodTypes(PyPathCalcMethodType);
+
   return module;
 }
 

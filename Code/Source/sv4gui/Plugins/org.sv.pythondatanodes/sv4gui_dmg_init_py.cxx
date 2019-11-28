@@ -43,7 +43,7 @@
 #include "SimVascular_python.h"
 
 #include "sv4gui_dmg_init_py.h"
-#include "sv3_PathElement_init_py.h"
+#include "sv3_Path_PyModule.h"
 #include "sv_Repository.h"
 #include "sv_PolyData.h"
 #include "sv_StrPts.h"
