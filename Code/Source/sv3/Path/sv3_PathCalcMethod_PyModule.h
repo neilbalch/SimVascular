@@ -30,7 +30,7 @@
  */
 
 // The functions defined here implement the SV Python API path module calculation method class. 
-// The class provides string constants representing each of the calculation methods. 
+// The class member data provides string constants representing each of the calculation methods. 
 //
 // The class name is 'CalculationMethod'. It is referenced from the path module as 'path.CalculationMethod'.
 //
@@ -44,12 +44,15 @@
 
 // Define a map between method name and enum type.
 //
-static std::map<std::string, sv3::PathElement::CalculationMethod> methodNameTypeMap =
+static std::map<std::string, sv3::PathElement::CalculationMethod> calcMethodNameTypeMap =
 {
     {"SPACING", sv3::PathElement::CONSTANT_SPACING},
     {"SUBDIVISION", sv3::PathElement::CONSTANT_SUBDIVISION_NUMBER},
     {"TOTAL", sv3::PathElement::CONSTANT_TOTAL_NUMBER}
 };
+
+// Define the valid calculation methods, used in error messages.
+static std::string calcMethodValidNames = "SPACING, SUBDIVISION or TOTAL";
 
 //-----------------------
 // PyPathCalcMethodClass 
@@ -66,12 +69,25 @@ PyObject_HEAD
 //
 // Python API functions. 
 
+//--------------------------
+// PathCalcMethod_get_names
+//--------------------------
+// 
+PyDoc_STRVAR(PathCalcMethod_get_names_doc,
+  "get_names() \n\ 
+   \n\
+   Get the calculation method names. \n\
+   \n\
+   Args: \n\
+     None \n\
+");
+
 static PyObject *
 PathCalcMethod_get_names()
 {
-  PyObject* nameList = PyList_New(methodNameTypeMap.size());
+  PyObject* nameList = PyList_New(calcMethodNameTypeMap.size());
   int n = 0;
-  for (auto const& entry : methodNameTypeMap) {
+  for (auto const& entry : calcMethodNameTypeMap) {
       auto name = entry.first.c_str();
       PyList_SetItem(nameList, n, PyUnicode_FromString(name));
       n += 1;
@@ -89,8 +105,8 @@ PyDoc_STRVAR(pathcalcmethod_doc, "path calculate method functions");
 
 
 static PyMethodDef PyPathCalcMethodMethods[] = {
-  { "get_names", (PyCFunction)PathCalcMethod_get_names, METH_NOARGS, NULL},
-  {NULL,NULL}
+  { "get_names", (PyCFunction)PathCalcMethod_get_names, METH_NOARGS, PathCalcMethod_get_names_doc},
+  {NULL, NULL}
 };
 
 //------------------------------
@@ -125,7 +141,7 @@ SetPathCalcMethodTypeFields(PyTypeObject& methodType)
 static void
 SetPathCalcMethodTypes(PyTypeObject& methodType)
 {
-  for (auto const& entry : methodNameTypeMap) {
+  for (auto const& entry : calcMethodNameTypeMap) {
       auto name = entry.first.c_str();
       if (PyDict_SetItemString(methodType.tp_dict, name, PyUnicode_FromString(name))) {
           std::cout << "Error initializing Python API path calculation method types." << std::endl;
@@ -133,9 +149,9 @@ SetPathCalcMethodTypes(PyTypeObject& methodType)
       }
   }
 
-  PyObject* nameList = PyList_New(methodNameTypeMap.size());
+  PyObject* nameList = PyList_New(calcMethodNameTypeMap.size());
   int n = 0;
-  for (auto const& entry : methodNameTypeMap) {
+  for (auto const& entry : calcMethodNameTypeMap) {
       auto name = entry.first.c_str();
       PyList_SetItem(nameList, n, PyUnicode_FromString(name));
       n += 1;

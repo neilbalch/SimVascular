@@ -658,7 +658,11 @@ SetPyPathTypeFields(PyTypeObject& pathType)
 //--------------
 // CreatePyPath
 //--------------
-// 
+// Create a PyPath object. 
+//
+// If the path argument is not null then use it 
+// for the PyPath object.
+//
 PyObject *
 CreatePyPath(PathElement* path)
 {
@@ -671,6 +675,7 @@ CreatePyPath(PathElement* path)
       pyPath->path = path; 
   }
   std::cout << "[CreatePyPath] pyPath id: " << pyPath->id << std::endl;
+  std::cout << "[CreatePyPath] pathObj ref count: " << Py_REFCNT(pathObj) << std::endl;
   return pathObj;
 }
 

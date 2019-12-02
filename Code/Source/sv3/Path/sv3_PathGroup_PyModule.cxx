@@ -29,7 +29,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// The functions defined here implement the SV Python API path module path group class. 
+// The functions defined here implement the SV Python API path module group class. 
 // It provides an interface to the SV PathGroup class.
 //
 // The class name is 'Group'. It is referenced from the path module as 'path.Group'.
@@ -44,20 +44,57 @@ using sv3::PathGroup;
 
 static PyObject * CreatePyPathGroup(PathGroup* pathGroup);
 
-// Define a map between method name and enum type.
-//
-/*
-static std::map<std::string, PathElement::CalculationMethod> methodNameTypeMap =
-{
-    {"Spacing", PathElement::CONSTANT_SPACING},
-    {"Subdivision", PathElement::CONSTANT_SUBDIVISION_NUMBER},
-    {"Total", PathElement::CONSTANT_TOTAL_NUMBER}
-};
-*/
+//////////////////////////////////////////////////////
+//          U t i l i t y  F u n c t i o n s        //
+//////////////////////////////////////////////////////
 
-//-----------------------
+//----------------
+// PathGroup_read
+//----------------
+// Read in an SV .pth file and create a PathGroup object
+// from its contents.
+//
+static sv3::PathGroup * 
+PathGroup_read(char* fileName)
+{
+  std::cout << "========== PathGroup_read ==========" << std::endl;
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+
+  std::cout << "[PathGroup_read] fileName: " << fileName << std::endl;
+  sv3::PathGroup* pathGroup;
+
+  try {
+      pathGroup = sv3::PathIO().ReadFile(fileName);
+      if (pathGroup == nullptr) { 
+          api.error("Error reading file '" + std::string(fileName) + "'.");
+          return nullptr;
+      }
+      int numElements = pathGroup->GetTimeSize();
+      std::cout << "[PathGroup_read] numElements: " << numElements << std::endl;
+
+  } catch (const std::exception& readException) {
+      api.error("Error reading file '" + std::string(fileName) + "': " + readException.what());
+      return nullptr;
+  }
+
+  /*
+  for (int i=0; i<svPathGrp->GetTimeSize(); i++) {
+        path->SetPathElement(static_cast<sv4guiPathElement*>(svPathGrp->GetPathElement(i)),i);
+  }
+  */
+
+  return pathGroup;
+}
+
+//////////////////////////////////////////////////////
+//       G r o u p  C l a s s  M e t h o d s        //
+//////////////////////////////////////////////////////
+//
+// SV Python Path Group methods. 
+
+//--------------------
 // PathGroup_set_path 
-//-----------------------
+//--------------------
 //
 PyDoc_STRVAR(PathGroup_set_path_doc,
   "set_path(name) \n\ 
@@ -71,62 +108,52 @@ PyDoc_STRVAR(PathGroup_set_path_doc,
 static PyObject * 
 PathGroup_set_path(PyPathGroup* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("si", PyRunTimeErr, __func__);
-  char* objName;
-  int index=-2;
-  cvRepositoryData *rd;
-  RepositoryDataT type;
+  auto api = SvPyUtilApiFunction("OI", PyRunTimeErr, __func__);
+  PyObject* pathArg;
+  int timeStep = -2;
 
-  if (!PyArg_ParseTuple(args, api.format, &objName, &index)) {
+  if (!PyArg_ParseTuple(args, api.format, &pathArg, &timeStep)) {
      return api.argsError();
   }
 
-/*
-    
-        // Retrieve source object:
-    rd = gRepository->GetObject( objName );
-    char r[2048];
-    if ( rd == NULL )
-    {
-        r[0] = '\0';
-        sprintf(r, "couldn't find object %s", objName);
-        PyErr_SetString(PyRunTimeErr,r);
-        
-    }
-    
-    type = rd->GetType();
-    
-    if ( type != PATH_T )
-    {
-        r[0] = '\0';
-        sprintf(r, "%s not a path object", objName);
-        PyErr_SetString(PyRunTimeErr,r);
-        
-    }
-    
-    PathElement* path = static_cast<PathElement*> (rd);
-    if (path==NULL)
-    {
-        PyErr_SetString(PyRunTimeErr,"Path does not exist.");
-        
-    }
-    
-    int timestepSize = self->pathGroup->GetTimeSize();
-    if (index+1>=timestepSize)
-    {
-        self->pathGroup->Expand(index);
-        self->pathGroup->SetPathElement(path,index);
-    }
-    else
-        self->pathGroup->SetPathElement(path, index);
+  auto pmsg = "[PathGroup_set_path] ";
+  std::cout << pmsg << std::endl;
+
+  // Check that the path argument is a SV Python Path object.
+  if (!PyObject_TypeCheck(pathArg, &PyPathType)) {
+      api.error("The 'path' argument is not a Path object.");
+      return nullptr;
+  }
+
+  // Get the PathElement object.
+  auto pathObj = (PyPath*)pathArg;
+  auto path = pathObj->path;
+
+  // Check time step.
+  int timestepSize = self->pathGroup->GetTimeSize();
+
+  if (timeStep < 0) {
+      api.error("The 'time_step' argument must be >= 0.");
+      return nullptr;
+  }
+
+  // Add the path to the group.
+  if (timeStep+1 >= timestepSize) {
+      self->pathGroup->Expand(timeStep);
+      self->pathGroup->SetPathElement(path, timeStep);
+  } else {
+      self->pathGroup->SetPathElement(path, timeStep);
+  }
+
+  // [TODO:DaveP] Is this the right thing to do?
+  Py_INCREF(pathArg);
             
-*/
-    return Py_None; 
+  return Py_None; 
 }
 
-//----------------------------
+//-------------------------
 // PathGroup_get_time_size 
-//----------------------------
+//-------------------------
 //
 // [TODO:DaveP] bad method name: get_number_time_steps() ?
 //
@@ -143,7 +170,7 @@ static PyObject *
 PathGroup_get_time_size(PyPathGroup* self, PyObject* args)
 {
   int timestepSize = self->pathGroup->GetTimeSize();
-  return Py_BuildValue("i",timestepSize); 
+  return Py_BuildValue("i", timestepSize); 
 }
 
 //--------------------
@@ -178,6 +205,7 @@ PathGroup_get_path(PyPathGroup* self, PyObject* args)
       return nullptr;
   }
 
+  // Create a PyPath object from the path and return it as a PyObject*.
   auto path = pathGroup->GetPathElement(index);
   return CreatePyPath(path);
 }
@@ -273,28 +301,13 @@ static PyObject *
 PathGroup_get_spacing(PyPathGroup* self, PyObject* args)
 {
   double spacing = self->pathGroup->GetSpacing();
-  return Py_BuildValue("d",spacing); 
+  return Py_BuildValue("d", spacing); 
 }
 
 //----------------------
 // PathGroup_set_method 
 //----------------------
 //
-
-static void my_Py_INCREF(PyObject *op)
-{
-    cout << "############ my_Py_INCREF ################" << std::endl;
-    cout << "############ op->ob_refcnt: " << op->ob_refcnt << std::endl;
-    _Py_INC_REFTOTAL;
-    op->ob_refcnt++;
-}
-
-#define my_PyObject_CAST(op) ((PyObject*)(op))
-
-
-#define my_Py_INCREF(op) my_Py_INCREF(my_PyObject_CAST(op))
-
-
 PyDoc_STRVAR(PathGroup_set_method_doc,
   "set_method(name) \n\ 
    \n\
@@ -316,16 +329,11 @@ PathGroup_set_method(PyPathGroup* self, PyObject* args)
 
   PathElement::CalculationMethod method;
 
-  auto path = new PathElement();
-  //char* s = "bob";
-  //my_Py_INCREF(s);
-  my_Py_INCREF(path);
-
   try {
-      method = methodNameTypeMap.at(std::string(methodName));
+      method = calcMethodNameTypeMap.at(std::string(methodName));
   } catch (const std::out_of_range& except) {
       auto msg = "Unknown method name '" + std::string(methodName) + "'." +
-          " Valid names are: Spacing, Subdivision or Total.";
+          " Valid names are: " + calcMethodValidNames + ".";
       api.error(msg);
       return nullptr;
   }
@@ -354,7 +362,7 @@ PathGroup_get_method(PyPathGroup* self, PyObject* args)
   PathElement::CalculationMethod method = self->pathGroup->GetMethod();
   std::string methodName;
 
-  for (auto const& element : methodNameTypeMap) { 
+  for (auto const& element : calcMethodNameTypeMap) { 
       if (method == element.second) {
           methodName = element.first;
           break; 
@@ -392,7 +400,7 @@ PathGroup_set_calculation_number(PyPathGroup* self, PyObject* args)
      return api.argsError();
   }
     
-  // [TODO:DaveP] need to check valume of number.
+  // [TODO:DaveP] need to check value of number.
   self->pathGroup->SetCalculationNumber(number);
   return Py_None;
 }
@@ -414,46 +422,45 @@ static PyObject *
 PathGroup_get_calculation_number(PyPathGroup* self, PyObject* args)
 {
   int number = self->pathGroup->GetCalculationNumber();
-  return Py_BuildValue("i",number);
+  return Py_BuildValue("i", number);
 }
 
-//----------------
-// PathGroup_read
-//----------------
-// Read in an SV .pth file and create a PathGroup object
-// from its contents.
+//-----------------
+// PathGroup_write
+//-----------------
 //
-static sv3::PathGroup * 
-PathGroup_read(char* fileName)
-{
-  std::cout << "========== PathGroup_read ==========" << std::endl;
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+PyDoc_STRVAR(PathGroup_write_doc,
+  "write(file_name) \n\ 
+   \n\
+   Write the path group to an SV .pth file.\n\
+   \n\
+   Args: \n\
+     file_name (str): The name of the file to write the path group to.\n\
+");
 
-  std::cout << "[PathGroup_read] fileName: " << fileName << std::endl;
-  sv3::PathGroup* pathGroup;
+static PyObject *
+PathGroup_write(PyPathGroup* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  char* fileName = NULL;
+
+  if (!PyArg_ParseTuple(args, api.format, &fileName)) {
+      return api.argsError();
+  }
 
   try {
-      pathGroup = sv3::PathIO().ReadFile(fileName);
-      if (pathGroup == nullptr) { 
-          api.error("Error reading file '" + std::string(fileName) + "'.");
+      if (sv3::PathIO().Write(fileName, self->pathGroup) != SV_OK) {
+          api.error("Error writing path group to the file '" + std::string(fileName) + "'.");
           return nullptr;
       }
-      int numElements = pathGroup->GetTimeSize();
-      std::cout << "[PathGroup_read] numElements: " << numElements << std::endl;
-
   } catch (const std::exception& readException) {
-      api.error("Error reading file '" + std::string(fileName) + "': " + readException.what());
+      api.error("Error writing path group to the file '" + std::string(fileName) + "': " + readException.what());
       return nullptr;
   }
 
-  /*
-  for (int i=0; i<svPathGrp->GetTimeSize(); i++) {
-        path->SetPathElement(static_cast<sv4guiPathElement*>(svPathGrp->GetPathElement(i)),i);
-  }
-  */
-
-  return pathGroup;
+  return SV_PYTHON_OK;
 }
+
 
 ////////////////////////////////////////////////////////
 //          C l a s s    D e f i n i t i o n          //
@@ -461,7 +468,7 @@ PathGroup_read(char* fileName)
 
 static char* MODULE_PATH_GROUP_CLASS = "Group";
 
-PyDoc_STRVAR(pathgroup_doc, "path_group functions");
+PyDoc_STRVAR(pathgroup_doc, "path.Group functions");
 
 //--------------------
 // PyPathGroupMethods 
@@ -490,9 +497,11 @@ static PyMethodDef PyPathGroupMethods[] = {
 
   {"set_path_group_id", (PyCFunction)PathGroup_set_path_group_id, METH_VARARGS,PathGroup_set_path_group_id_doc},
 
-  {"set_spacing", (PyCFunction)PathGroup_set_spacing, METH_NOARGS,PathGroup_set_spacing_doc},
+  {"set_spacing", (PyCFunction)PathGroup_set_spacing, METH_VARARGS, PathGroup_set_spacing_doc},
 
-  {NULL,NULL}
+  {"write", (PyCFunction)PathGroup_write, METH_VARARGS, PathGroup_write_doc},
+
+  {NULL, NULL}
 };
 
 //----------------------------------
@@ -521,7 +530,7 @@ static PyTypeObject PyPathGroupType = {
 // Arguments:
 //
 //   fileName - An SV .pth file. A new PathGroup object is created from 
-//     contents of the file.
+//     the contents of the file. (optional)
 //
 static int 
 PyPathGroupInit(PyPathGroup* self, PyObject* args)
