@@ -122,6 +122,8 @@ static PyObject *
 sv4Path_add_control_point(PyPath* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("O|i", PyRunTimeErr, __func__);
+  // [TODO:DaveP] should be declared as 
+  //   const PyObject* pointArg;
   PyObject* pointArg;
   int index = -2;
 

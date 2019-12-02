@@ -280,6 +280,21 @@ PathGroup_get_spacing(PyPathGroup* self, PyObject* args)
 // PathGroup_set_method 
 //----------------------
 //
+
+static void my_Py_INCREF(PyObject *op)
+{
+    cout << "############ my_Py_INCREF ################" << std::endl;
+    cout << "############ op->ob_refcnt: " << op->ob_refcnt << std::endl;
+    _Py_INC_REFTOTAL;
+    op->ob_refcnt++;
+}
+
+#define my_PyObject_CAST(op) ((PyObject*)(op))
+
+
+#define my_Py_INCREF(op) my_Py_INCREF(my_PyObject_CAST(op))
+
+
 PyDoc_STRVAR(PathGroup_set_method_doc,
   "set_method(name) \n\ 
    \n\
@@ -300,6 +315,11 @@ PathGroup_set_method(PyPathGroup* self, PyObject* args)
   }
 
   PathElement::CalculationMethod method;
+
+  auto path = new PathElement();
+  //char* s = "bob";
+  //my_Py_INCREF(s);
+  my_Py_INCREF(path);
 
   try {
       method = methodNameTypeMap.at(std::string(methodName));
