@@ -778,7 +778,7 @@ PyMODINIT_FUNC PyInit_PyPath()
   Py_INCREF(&PyPathCalcMethodType);
   PyModule_AddObject(module, MODULE_PATH_CALC_METHOD_CLASS, (PyObject*)&PyPathCalcMethodType);
 
-  // Set the calculate method names in the PyPathCalcMethodType dictinary.
+  // Set the calculate method names in the PyPathCalcMethodType dictionary.
   SetPathCalcMethodTypes(PyPathCalcMethodType);
 
   return module;

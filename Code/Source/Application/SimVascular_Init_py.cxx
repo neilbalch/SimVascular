@@ -56,7 +56,7 @@
 #include "sv3_Path_PyModule.h"
 //#include "sv3_PathGroup_init_py.h"
 #include "sv3_Contour_PyModule.h"
-#include "sv3_CircleContour_init_py.h"
+//#include "sv3_CircleContour_init_py.h"
 #include "sv3_LevelSetContour_init_py.h"
 #include "sv3_ThresholdContour_init_py.h"
 #include "sv3_SplinePolygonContour_init_py.h"
@@ -113,7 +113,7 @@ void SimVascular_pyInit()
     //-----------------
     //
     printf("Loading Python Modules ...\n");
-    PyImport_AppendInittab("circle_contour",PyInit_pyCircleContour);
+    //PyImport_AppendInittab("circle_contour",PyInit_pyCircleContour);
     PyImport_AppendInittab("contour", PyInit_PyContour);
     PyImport_AppendInittab("geometry", PyInit_pyGeom);
     PyImport_AppendInittab("image", PyInit_pyImage);

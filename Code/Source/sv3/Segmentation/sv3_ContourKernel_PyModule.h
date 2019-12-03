@@ -28,6 +28,8 @@ static std::map<std::string,cKernelType> kernelNameEnumMap =
     {"THRESHOLD", cKERNEL_THRESHOLD}
 };
 
+static std::string kernelValidNames = "CIRCLE, ELLIPSE, LEVEL_SET, POLYGON, SPLINE_POLYGON, or THRESHOLD";
+
 //---------------------
 // ContourKernelObject
 //---------------------
@@ -59,8 +61,17 @@ ContourKernel_get_names()
 
 static PyMethodDef ContourKernelMethods[] = {
   { "get_names", (PyCFunction)ContourKernel_get_names, METH_NOARGS, NULL},
-  {NULL,NULL}
+  {NULL, NULL}
 };
+
+////////////////////////////////////////////////////////
+//          C l a s s    D e f i n i t i o n          //
+////////////////////////////////////////////////////////
+
+static char* MODULE_CONTOUR_KERNEL_CLASS = "Kernel";
+static char* MODULE_CONTOUR_KERNEL_CLASS_NAME = "contour.Kernel";
+
+PyDoc_STRVAR(ContourKernelClass_doc, "contour kernel class functions");
 
 //------------------------------------
 // Define the ContourType type object
@@ -69,7 +80,8 @@ static PyMethodDef ContourKernelMethods[] = {
 //
 static PyTypeObject ContourKernelType = {
   PyVarObject_HEAD_INIT(NULL, 0)
-  .tp_name = "contour.kernel",
+  .tp_name = MODULE_CONTOUR_KERNEL_CLASS_NAME,
+  //.tp_name = "contour." + std::string(MODULE_CONTOUR_KERNEL_CLASS).c_str(), 
   .tp_basicsize = sizeof(ContourKernelObject)
 };
 
@@ -114,9 +126,7 @@ SetContourKernelTypes(PyTypeObject& contourType)
       return;
   }
 
-
 };
-
 
 #endif
 
