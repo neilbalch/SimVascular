@@ -37,11 +37,11 @@
 //
 //     ctr = contour.Countour()
 //
-// A Python exception sv.contour.ContourException is defined for this module. 
+// A Python exception sv.contour.ContourError is defined for this module. 
 // The exception can be used in a Python 'try' statement with an 'except' clause 
 // like this
 //
-//    except sv.contour.ContourException:
+//    except sv.contour.ContourError:
 //
 #include "SimVascular.h"
 #include "SimVascular_python.h"
@@ -52,7 +52,8 @@
 #include "sv3_PolygonContour.h"
 #include "sv3_SplinePolygonContour.h"
 #include "sv3_ThresholdContour.h"
-#include "sv3_Contour_init_py.h"
+#include "sv3_Contour_PyModule.h"
+#include "sv3_ContourKernel_PyModule.h"
 
 #include "sv3_PathElement.h"
 
@@ -84,9 +85,9 @@ using sv3::PathElement;
 // Exception type used by PyErr_SetString() to set the for the error indicator.
 static PyObject * PyRunTimeErr;
 
-// createContourType() references pyContourType and is used before 
+// createContourType() references PyContourType and is used before 
 // it is defined so we need to define its prototype here.
-pyContour * createContourType();
+PyContour * CreateContourType();
 
 // Define a map between contour kernel name and enum type.
 static std::map<std::string,cKernelType> kernelNameTypeMap = 
@@ -201,7 +202,7 @@ PyDoc_STRVAR(Contour_new_object_doc,
 ");
 
 static PyObject * 
-Contour_new_object(pyContour* self, PyObject* args)
+Contour_new_object(PyContour* self, PyObject* args)
 {
     char *contourName = nullptr;
     char *pathName = nullptr;
@@ -265,7 +266,7 @@ Contour_new_object(pyContour* self, PyObject* args)
     }
     
     Py_INCREF(contour);
-    self->geom = contour;
+    self->contour = contour;
     Py_DECREF(contour);
     return Py_None;
 }
@@ -284,7 +285,7 @@ PyDoc_STRVAR(Contour_set_image_doc,
 ");
 
 static PyObject* 
-Contour_set_image(pyContour* self, PyObject* args)
+Contour_set_image(PyContour* self, PyObject* args)
 {
     PyObject *vtkName; 
     auto api = SvPyUtilApiFunction("O", PyRunTimeErr, __func__);
@@ -294,7 +295,7 @@ Contour_set_image(pyContour* self, PyObject* args)
     }
   
     // Check the Contour object has data. 
-    Contour* contour = self->geom;
+    Contour* contour = self->contour;
     if (contour == nullptr) {
         api.error("The Contour object does not have geometry."); 
         return nullptr;
@@ -312,7 +313,7 @@ Contour_set_image(pyContour* self, PyObject* args)
     contour->SetVtkImageSlice(slice);
     
     Py_INCREF(contour);
-    self->geom=contour;
+    self->contour=contour;
     Py_DECREF(contour);
     return Py_None;
 }
@@ -321,7 +322,7 @@ Contour_set_image(pyContour* self, PyObject* args)
 // Contour_get_object
 //--------------------
 //
-// [TODO:DaveP] This sets the 'geom' data member of the pyContour struct for
+// [TODO:DaveP] This sets the 'geom' data member of the PyContour struct for
 // this object. Bad!
 //
 PyDoc_STRVAR(Contour_get_object_doc,
@@ -334,7 +335,7 @@ PyDoc_STRVAR(Contour_get_object_doc,
 ");
 
 static PyObject* 
-Contour_get_object(pyContour* self, PyObject* args)
+Contour_get_object(PyContour* self, PyObject* args)
 {
     char *objName = NULL;
     auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
@@ -359,7 +360,7 @@ Contour_get_object(pyContour* self, PyObject* args)
 
     auto contour = dynamic_cast<Contour*>(rd);
     Py_INCREF(contour);
-    self->geom = contour;
+    self->contour = contour;
     Py_DECREF(contour);
     return Py_None;
 }
@@ -383,7 +384,7 @@ PyDoc_STRVAR(Contour_set_control_points_doc,
 ");
 
 static PyObject* 
-Contour_set_control_points(pyContour* self, PyObject* args)
+Contour_set_control_points(PyContour* self, PyObject* args)
 {
     PyObject *controlPoints = nullptr;
     auto api = SvPyUtilApiFunction("O", PyRunTimeErr, __func__);
@@ -430,7 +431,7 @@ Contour_set_control_points(pyContour* self, PyObject* args)
         throw std::runtime_error("Polygon contour requires at least three points");
     }        
     
-    Contour* contour = self->geom;
+    Contour* contour = self->contour;
     if (contour == NULL ) {
         throw std::runtime_error("Geometry has not been created for the contour.");
     }
@@ -471,7 +472,7 @@ PyDoc_STRVAR(Contour_set_control_points_by_radius_doc,
 ");
 
 static PyObject* 
-Contour_set_control_points_by_radius(pyContour* self, PyObject* args)
+Contour_set_control_points_by_radius(PyContour* self, PyObject* args)
 {
     auto api = SvPyUtilApiFunction("Od", PyRunTimeErr, __func__);
 
@@ -500,7 +501,7 @@ Contour_set_control_points_by_radius(pyContour* self, PyObject* args)
         ctr[i] = PyFloat_AsDouble(PyList_GetItem(center,i));
     }
     
-    auto contour = self->geom;
+    auto contour = self->contour;
     if (contour == NULL) {
         api.error("No geometry has been created for the contour.");
         return nullptr;
@@ -529,11 +530,11 @@ PyDoc_STRVAR(Contour_create_doc,
 ");
 
 static PyObject* 
-Contour_create(pyContour* self, PyObject* args)
+Contour_create(PyContour* self, PyObject* args)
 {
     auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
 
-    auto contour = self->geom;
+    auto contour = self->contour;
     if (contour == NULL) {
         api.error("No geometry has been created for the Contour.");
         return nullptr;
@@ -553,7 +554,7 @@ Contour_create(pyContour* self, PyObject* args)
     }
     
     Py_INCREF(contour);
-    self->geom = contour;
+    self->contour = contour;
     Py_DECREF(contour);
     return Py_None;
 }
@@ -574,10 +575,10 @@ PyDoc_STRVAR(Contour_get_area_doc,
 ");
 
 static PyObject* 
-Contour_get_area(pyContour* self, PyObject* args)
+Contour_get_area(PyContour* self, PyObject* args)
 {
     auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
-    auto contour = self->geom;
+    auto contour = self->contour;
     if (contour == NULL) {
         api.error("No geometry has been created for the contour.");
         return nullptr;
@@ -602,10 +603,10 @@ PyDoc_STRVAR(Contour_get_perimeter_doc,
    Returns: Length (float) of the contour perimeter. \n\
 ");
 
-PyObject* Contour_get_perimeter(pyContour* self, PyObject* args)
+PyObject* Contour_get_perimeter(PyContour* self, PyObject* args)
 {
     auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
-    auto contour = self->geom;
+    auto contour = self->contour;
     if (contour == NULL) {
         api.error("No geometry has been created for the Contour.");
         return nullptr;
@@ -630,10 +631,10 @@ PyDoc_STRVAR(Contour_get_center_doc,
    Returns: Center (string(x,y,z)) of the contour. \n\
 ");
 
-PyObject* Contour_get_center(pyContour* self, PyObject* args)
+PyObject* Contour_get_center(PyContour* self, PyObject* args)
 {
     auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
-    auto contour = self->geom;
+    auto contour = self->contour;
     if (contour == NULL ) {
         api.error("No geometry has been created for the Contour.");
         return nullptr;
@@ -659,7 +660,7 @@ PyDoc_STRVAR(Contour_set_threshold_value_doc,
      threshold (float): Threshold value. \n\
 ");
 
-PyObject* Contour_set_threshold_value(pyContour* self, PyObject* args)
+PyObject* Contour_set_threshold_value(PyContour* self, PyObject* args)
 {
     double threshold = 0.0;
     auto api = SvPyUtilApiFunction("d", PyRunTimeErr, __func__);
@@ -673,7 +674,7 @@ PyObject* Contour_set_threshold_value(pyContour* self, PyObject* args)
         return nullptr;
     }
     
-    Contour* contour = self->geom;
+    Contour* contour = self->contour;
     if (contour == NULL) {
         api.error("No geometry has been created for the contour.");
         return nullptr;
@@ -697,8 +698,8 @@ PyDoc_STRVAR(Contour_create_smooth_contour_doc,
      name (str): Name of the new smoothed contour. \n\
 ");
 
-static pyContour* 
-Contour_create_smooth_contour(pyContour* self, PyObject* args)
+static PyContour* 
+Contour_create_smooth_contour(PyContour* self, PyObject* args)
 {
     auto api = SvPyUtilApiFunction("is", PyRunTimeErr, __func__);
     int fourierNumber = 0;
@@ -709,7 +710,7 @@ Contour_create_smooth_contour(pyContour* self, PyObject* args)
         return nullptr;
     }
     
-    Contour* contour = self->geom;
+    Contour* contour = self->contour;
     if (contour == NULL) {
         api.error("No geometry has been created for the Contour.");
         return nullptr;
@@ -726,9 +727,9 @@ Contour_create_smooth_contour(pyContour* self, PyObject* args)
     }
         
     Py_INCREF(newContour);
-    pyContour* pyNewCt;
-    pyNewCt = createContourType();
-    pyNewCt->geom = newContour;
+    PyContour* pyNewCt;
+    pyNewCt = CreateContourType();
+    pyNewCt->contour = newContour;
     Py_DECREF(newContour);
     return pyNewCt;
 }
@@ -755,7 +756,7 @@ PyDoc_STRVAR(Contour_get_polydata_doc,
 ");
 
 static PyObject* 
-Contour_get_polydata(pyContour* self, PyObject* args)
+Contour_get_polydata(PyContour* self, PyObject* args)
 {
     auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
     char* dstName = NULL;
@@ -769,7 +770,7 @@ Contour_get_polydata(pyContour* self, PyObject* args)
         return nullptr;
     }
   
-    auto geom = self->geom;
+    auto geom = self->contour;
     if (geom == NULL) {
         api.error("The contour does not have geometry."); 
         return nullptr;
@@ -799,16 +800,43 @@ Contour_get_polydata(pyContour* self, PyObject* args)
 
 static char* MODULE_NAME = "contour";
 static char* MODULE_CONTOUR_CLASS = "Contour";
-static char* MODULE_EXCEPTION = "contour.ContourException";
-static char* MODULE_EXCEPTION_OBJECT = "ContourException";
+static char* MODULE_EXCEPTION = "contour.ContourError";
+static char* MODULE_EXCEPTION_OBJECT = "ContourError";
 
 PyDoc_STRVAR(Contour_doc, "contour module functions");
 
-//----------------------------
-// Define API function names
-//----------------------------
+// Derived class names.
+static const char* MODULE_CIRCLE_CONTOUR_CLASS = "CircleContour";
+static const char* MODULE_POLYGON_CONTOUR_CLASS = "PolygonContour";
 
-static PyMethodDef pyContour_methods[] = {
+//-------------------
+// ContourObjectInit
+//-------------------
+// This is the __init__() method for the Contour class. 
+//
+// This function is used to initialize an object after it is created.
+//
+static int
+PyContourInit(PyContour* self, PyObject* args, PyObject *kwds)
+{
+  static int numObjs = 1;
+  std::cout << "[PyContourInit] New Contour object: " << numObjs << std::endl;
+  char* kernalName = nullptr;
+  if (!PyArg_ParseTuple(args, "s", &kernalName)) {
+      return -1;
+  }
+
+  std::cout << "[ContourObjectInit] Kernel name: " << kernalName << std::endl;
+  self->contour = new Contour();
+  numObjs += 1;
+  return 0;
+}
+
+//------------------
+// PyContourMethods 
+//------------------
+
+static PyMethodDef PyContourMethods[] = {
 
   { "area", (PyCFunction)Contour_get_area, METH_NOARGS, Contour_get_area_doc },
 
@@ -837,78 +865,86 @@ static PyMethodDef pyContour_methods[] = {
   {NULL,NULL}
 };
 
-//----------------
-// pyContour_init
-//----------------
-// This is the __init__() method for the Contour class. 
+//--------------------------------------
+// Define the PyContourType type object
+//--------------------------------------
+// Define the Python type object that stores Contour data. 
 //
-// This function is used to initialize an object after it is created.
+// Can't set all the fields here because g++ does not suppor non-trivial 
+// designated initializers. 
 //
-static int pyContour_init(pyContour* self, PyObject* args)
+static PyTypeObject PyContourType = {
+  PyVarObject_HEAD_INIT(NULL, 0)
+  // Dotted name that includes both the module name and 
+  // the name of the type within the module.
+  .tp_name = "contour.Contour",
+  .tp_basicsize = sizeof(PyContour)
+};
+
+//---------------
+// PyContourtNew
+//---------------
+//
+static PyObject *
+PyContourNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
-  //fprintf(stdout, "Contour object type initialized.\n");
-  return SV_OK;
+  std::cout << "[PyContourNew] PyContourNew " << std::endl;
+  auto self = (PyContour*)type->tp_alloc(type, 0);
+  if (self != NULL) {
+      //self->id = 1;
+  }
+
+  return (PyObject *) self;
 }
 
-//--------------------------------------
-// Define the pyContourType type object
-//--------------------------------------
-// The type object stores a large number of values, mostly C function pointers, 
-// each of which implements a small part of the type’s functionality.
+//-----------------
+// PyContourDelete
+//-----------------
 //
-static PyTypeObject pyContourType = {
-  PyVarObject_HEAD_INIT(NULL, 0)
-  "contour.Contour",         /* tp_name */
-  sizeof(pyContour),         /* tp_basicsize */
-  0,                         /* tp_itemsize */
-  0,                         /* tp_dealloc */
-  0,                         /* tp_print */
-  0,                         /* tp_getattr */
-  0,                         /* tp_setattr */
-  0,                         /* tp_compare */
-  0,                         /* tp_repr */
-  0,                         /* tp_as_number */
-  0,                         /* tp_as_sequence */
-  0,                         /* tp_as_mapping */
-  0,                         /* tp_hash */
-  0,                         /* tp_call */
-  0,                         /* tp_str */
-  0,                         /* tp_getattro */
-  0,                         /* tp_setattro */
-  0,                         /* tp_as_buffer */
-  Py_TPFLAGS_DEFAULT |       /* tp_flags */
-  Py_TPFLAGS_BASETYPE,   
-  "Contour  objects",        /* tp_doc */
-  0,                         /* tp_traverse */
-  0,                         /* tp_clear */
-  0,                         /* tp_richcompare */
-  0,                         /* tp_weaklistoffset */
-  0,                         /* tp_iter */
-  0,                         /* tp_iternext */
-  pyContour_methods,         /* tp_methods */
-  0,                         /* tp_members */
-  0,                         /* tp_getset */
-  0,                         /* tp_base */
-  0,                         /* tp_dict */
-  0,                         /* tp_descr_get */
-  0,                         /* tp_descr_set */
-  0,                         /* tp_dictoffset */
-  (initproc)pyContour_init,  /* tp_init */
-  0,                         /* tp_alloc */
-  0,                         /* tp_new */
+static void
+PyContourDealloc(PyContour* self)
+{
+  std::cout << "[PyContourDealloc] Free PyContour" << std::endl;
+  delete self->contour;
+  Py_TYPE(self)->tp_free(self);
+}
+
+//----------------------
+// SetContourTypeFields 
+//----------------------
+// Set the Python type object fields that stores Contour data. 
+//
+// Need to set the fields here because g++ does not suppor non-trivial 
+// designated initializers. 
+//
+static void
+SetContourTypeFields(PyTypeObject& contourType)
+{
+  // Doc string for this type.
+  contourType.tp_doc = "Contour  objects";
+  // Object creation function, equivalent to the Python __new__() method. 
+  // The generic handler creates a new instance using the tp_alloc field.
+  contourType.tp_new = PyContourNew;
+  //contourType.tp_new = PyType_GenericNew,
+  contourType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
+  contourType.tp_init = (initproc)PyContourInit;
+  contourType.tp_dealloc = (destructor)PyContourDealloc;
+  contourType.tp_methods = PyContourMethods;
 };
 
 //-------------------
-// createContourType
+// CreateContourType
 //-------------------
-pyContour* createContourType()
+//
+PyContour * 
+CreateContourType()
 {
-  return PyObject_New(pyContour, &pyContourType);
+  return PyObject_New(PyContour, &PyContourType);
 }
 
 // Define methods operating on the Contour Module level.
 //
-static PyMethodDef pyContourModule_methods[] =
+static PyMethodDef PyContourModuleMethods[] =
 {
     {"set_contour_kernel", (PyCFunction)Contour_set_contour_kernel, METH_VARARGS, Contour_set_contour_kernel_doc },
 
@@ -936,48 +972,37 @@ static PyModuleDef_Base m_base = PyModuleDef_HEAD_INIT;
 
 // Define the module definition struct which holds all information 
 // needed to create a module object. 
-static struct PyModuleDef pyContourModule = {
+static struct PyModuleDef PyContourModule = {
    m_base,
    MODULE_NAME,   
    Contour_doc, 
    perInterpreterStateSize,  
-   pyContourModule_methods
+   PyContourModuleMethods
 };
 
 //------------------
-// PyInit_pyContour 
+// PyInit_PyContour 
 //------------------
 // The initialization function called by the Python interpreter when the module is loaded.
 //
 // [TODO:Davep] The global 'gRepository' is created here, as it is in all other modules init
 //     function. Why is this not create in main()?
 //
-PyMODINIT_FUNC PyInit_pyContour()
+PyMODINIT_FUNC PyInit_PyContour()
 {
-  std::cout << "========== PyInit_pyContour ==========" << std::endl;
+  std::cout << "========== load contour module ==========" << std::endl;
 
-  if (gRepository==NULL) {
-    gRepository = new cvRepository();
-    fprintf(stdout,"New gRepository created from sv3_Contour_init\n");
-  }
-
-  // Set the global contour kernel.
-  //
-  // [TODO:DaveP] yuk!
-  //
-  Contour::gCurrentKernel = cKERNEL_INVALID;
-
-  // Create the Contour class type.
-  pyContourType.tp_new = PyType_GenericNew;
-  if (PyType_Ready(&pyContourType) < 0) {
-    fprintf(stdout,"Error in pyContourType\n");
+  // Initialize the Contour class type.
+  SetContourTypeFields(PyContourType);
+  if (PyType_Ready(&PyContourType) < 0) {
+    fprintf(stdout,"Error in PyContourType\n");
     return SV_PYTHON_ERROR;
   }
 
   // Create the contour module.
-  auto module = PyModule_Create(&pyContourModule);
+  auto module = PyModule_Create(&PyContourModule);
   if (module == NULL) {
-    fprintf(stdout,"Error in initializing pyContour\n");
+    fprintf(stdout,"Error in initializing PyContour\n");
     return SV_PYTHON_ERROR;
   }
 
@@ -986,8 +1011,8 @@ PyMODINIT_FUNC PyInit_pyContour()
   PyModule_AddObject(module, MODULE_EXCEPTION_OBJECT, PyRunTimeErr);
 
   // Add the 'Contour' object.
-  Py_INCREF(&pyContourType);
-  PyModule_AddObject(module, MODULE_CONTOUR_CLASS, (PyObject*)&pyContourType);
+  Py_INCREF(&PyContourType);
+  PyModule_AddObject(module, MODULE_CONTOUR_CLASS, (PyObject*)&PyContourType);
 
   return module;
 }
@@ -999,10 +1024,10 @@ PyMODINIT_FUNC PyInit_pyContour()
 //---------------------------------------------------------------------------
 
 //----------------
-//initpyContour
+//initPyContour
 //----------------
 #if PYTHON_MAJOR_VERSION == 2
-PyMODINIT_FUNC initpyContour()
+PyMODINIT_FUNC initPyContour()
 
 {
   // Associate the mesh registrar with the python interpreter so it can be
@@ -1020,21 +1045,29 @@ PyMODINIT_FUNC initpyContour()
   Contour::gCurrentKernel = cKERNEL_INVALID;
 
   // Create a Contour class.
-  pyContourType.tp_new = PyType_GenericNew;
-  if (PyType_Ready(&pyContourType)<0) {
-    fprintf(stdout,"Error in pyContourType\n");
+  PyContourType.tp_new = PyType_GenericNew;
+  if (PyType_Ready(&PyContourType)<0) {
+    fprintf(stdout,"Error in PyContourType\n");
     return;
   }
 
-  auto module = Py_InitModule(MODULE_NAME, pyContourModule_methods);
+  auto module = Py_InitModule(MODULE_NAME, PyContourModule_methods);
   if(module == NULL) {
-    fprintf(stdout,"Error in initializing pyContour\n");
+    fprintf(stdout,"Error in initializing PyContour\n");
     return;
   }
-  PyRunTimeErr = PyErr_NewException("pyContour.error",NULL,NULL);
+  PyRunTimeErr = PyErr_NewException("PyContour.error",NULL,NULL);
   PyModule_AddObject(module,"error",PyRunTimeErr);
-  Py_INCREF(&pyContourType);
-  PyModule_AddObject(pythonC,"pyContour",(PyObject*)&pyContourType);
+
+  Py_INCREF(&PyContourType);
+  PyModule_AddObject(pythonC,"PyContour",(PyObject*)&PyContourType);
+
+  // Add the 'kernel' object.
+  Py_INCREF(&ContourKernelType);
+  PyModule_AddObject(module, "kernel", (PyObject*)&ContourKernelType);
+
+  SetContourKernelTypes(ContourKernelType);
+
   
   return module;
 

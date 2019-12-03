@@ -35,7 +35,7 @@
 #include "SimVascular.h"
 #include "sv_misc_utils.h"
 #include "sv3_Contour.h"
-#include "sv3_Contour_init_py.h"
+#include "sv3_Contour_PyModule.h"
 #include "sv3_ThresholdContour.h"
 #include "sv3_ThresholdContour_init_py.h"
 //#include "sv_adapt_utils.h"

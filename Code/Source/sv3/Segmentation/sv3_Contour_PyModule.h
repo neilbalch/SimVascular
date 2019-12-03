@@ -29,8 +29,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
  
-#ifndef __SV3_CONTOUR_INIT_PY_H
-#define __SV3_CONTOUR_INIT_PY_H
+#ifndef SV3_CONTOUR_PYMODULE_H
+#define SV3_CONTOUR_PYMODULE_H
 
 #include "SimVascular.h"
 #include "Python.h"
@@ -38,24 +38,23 @@
 #include "sv3_Contour.h"
 #include "sv_FactoryRegistrar.h"
 
-
 extern "C" SV_EXPORT_SEGMENTATION typedef struct
 {
   PyObject_HEAD
-  sv3::Contour* geom;
-}pyContour;
+  sv3::Contour* contour;
+} PyContour;
 
 extern "C" SV_EXPORT_SEGMENTATION typedef struct
 {
   PyObject_HEAD
   cvFactoryRegistrar* registrar;
-}pyContourFactoryRegistrar;
+} pyContourFactoryRegistrar;
 
 #if PYTHON_MAJOR_VERSION == 2
 PyMODINIT_FUNC  initpyContour();
 #endif
 #if PYTHON_MAJOR_VERSION == 3
-PyMODINIT_FUNC  PyInit_pyContour();
+PyMODINIT_FUNC  PyInit_PyContour();
 #endif
 
-#endif //__SV3_CONTOUR_INIT_PY_H
+#endif 

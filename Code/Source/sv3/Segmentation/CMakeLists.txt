@@ -50,7 +50,7 @@ set(HDRS sv3_Contour.h sv3_LevelSetContour.h sv3_SegmentationUtils.h sv3_CircleC
 
 
 if(SV_USE_PYTHON)
-  list(APPEND CXXSRCS sv3_Contour_init_py.cxx sv3_LevelSetContour_init_py.cxx sv3_CircleContour_init_py.cxx sv3_PolygonContour_init_py.cxx sv3_SplinePolygonContour_init_py.cxx sv3_ThresholdContour_init_py.cxx)
+  list(APPEND CXXSRCS sv3_Contour_PyModule.cxx sv3_LevelSetContour_init_py.cxx sv3_CircleContour_init_py.cxx sv3_PolygonContour_init_py.cxx sv3_SplinePolygonContour_init_py.cxx sv3_ThresholdContour_init_py.cxx)
 endif()
 
 
