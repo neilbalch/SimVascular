@@ -37,7 +37,7 @@
 //     aorta_path_group = path.Group()
 //
 #include "sv3_PathGroup.h"
-#include "sv3_PathGroup_PyModule.h"
+#include "sv3_PathGroup_PyClass.h"
 #include "sv3_PathIO.h"
 
 using sv3::PathGroup;

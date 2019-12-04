@@ -29,8 +29,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef SV3_PATH_GROUP_PYMODULE_H
-#define SV3_PATH_GROUP_PYMODULE_H 
+#ifndef SV3_PATH_GROUP_PYCLASS_H
+#define SV3_PATH_GROUP_PYCLASS_H 
 
 #include "SimVascular.h"
 #include "Python.h"
@@ -43,12 +43,5 @@ extern "C" SV_EXPORT_PATH typedef struct
   sv3::PathGroup* pathGroup;
   int id;
 } PyPathGroup;
-
-#if PYTHON_MAJOR_VERSION == 2
-PyMODINIT_FUNC  initpyPathGroup();
-#endif
-#if PYTHON_MAJOR_VERSION == 3
-PyMODINIT_FUNC  PyInit_PyPathGroup();
-#endif
 
 #endif 

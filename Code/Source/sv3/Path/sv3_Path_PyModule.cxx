@@ -50,7 +50,7 @@
 
 #include "sv3_PathElement.h"
 #include "sv3_Path_PyModule.h"
-#include "sv3_PathCalcMethod_PyModule.h"
+#include "sv3_PathCalcMethod_PyClass.h"
 #include "sv_PyUtils.h"
 
 #include <stdio.h>
@@ -689,7 +689,7 @@ static PyMethodDef PyPathModuleMethods[] =
 };
 
 // Include path.Group definition.
-#include "sv3_PathGroup_PyModule.cxx"
+#include "sv3_PathGroup_PyClass.cxx"
 
 //-----------------------
 // Initialize the module
@@ -776,7 +776,7 @@ PyMODINIT_FUNC PyInit_PyPath()
 
   // Add PathCalcMethod class.
   Py_INCREF(&PyPathCalcMethodType);
-  PyModule_AddObject(module, MODULE_PATH_CALC_METHOD_CLASS, (PyObject*)&PyPathCalcMethodType);
+  PyModule_AddObject(module, PATH_CALC_METHOD_CLASS, (PyObject*)&PyPathCalcMethodType);
 
   // Set the calculate method names in the PyPathCalcMethodType dictionary.
   SetPathCalcMethodTypes(PyPathCalcMethodType);

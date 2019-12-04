@@ -99,10 +99,12 @@ PathCalcMethod_get_names()
 //          C l a s s    D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
 
-static char* MODULE_PATH_CALC_METHOD_CLASS = "CalculationMethod";
+static char* PATH_CALC_METHOD_CLASS = "CalculationMethod";
+static char* PATH_CALC_METHOD_MODULE_CLASS = "path.CalculationMethod";
+// The name of the CalculationMethod class veriable that contains all of the method types.
+static char* PATH_CALC_METHOD_CLASS_VARIBLE_NAMES = "names";
 
-PyDoc_STRVAR(pathcalcmethod_doc, "path calculate method functions");
-
+PyDoc_STRVAR(PathCalcMethod_doc, "path calculate method functions");
 
 static PyMethodDef PyPathCalcMethodMethods[] = {
   { "get_names", (PyCFunction)PathCalcMethod_get_names, METH_NOARGS, PathCalcMethod_get_names_doc},
@@ -116,7 +118,7 @@ static PyMethodDef PyPathCalcMethodMethods[] = {
 //
 static PyTypeObject PyPathCalcMethodType = {
   PyVarObject_HEAD_INIT(NULL, 0)
-  .tp_name = "path.CalculationMethod",
+  .tp_name = PATH_CALC_METHOD_MODULE_CLASS,
   .tp_basicsize = sizeof(PyPathCalcMethodClass)
 };
 
@@ -127,7 +129,7 @@ static PyTypeObject PyPathCalcMethodType = {
 static void
 SetPathCalcMethodTypeFields(PyTypeObject& methodType)
  {
-  methodType.tp_doc = "Path calculation method types.";
+  methodType.tp_doc = PathCalcMethod_doc; 
   methodType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
   methodType.tp_methods = PyPathCalcMethodMethods;
   methodType.tp_dict = PyDict_New();
@@ -138,9 +140,13 @@ SetPathCalcMethodTypeFields(PyTypeObject& methodType)
 //------------------------
 // Set the calculate method names in the PyPathCalcMethodType dictionary.
 //
+// The names in the PyPathCalcMethodType dictionary are referenced as a 
+// string class variable for the Python CalculareMethod class.
+//
 static void
 SetPathCalcMethodTypes(PyTypeObject& methodType)
 {
+  // Add calculate method names to the PyPathCalcMethodType dictionary.
   for (auto const& entry : calcMethodNameTypeMap) {
       auto name = entry.first.c_str();
       if (PyDict_SetItemString(methodType.tp_dict, name, PyUnicode_FromString(name))) {
@@ -149,6 +155,8 @@ SetPathCalcMethodTypes(PyTypeObject& methodType)
       }
   }
 
+  // Create a string list of method names refenced by 'names'.
+  //
   PyObject* nameList = PyList_New(calcMethodNameTypeMap.size());
   int n = 0;
   for (auto const& entry : calcMethodNameTypeMap) {
@@ -157,7 +165,7 @@ SetPathCalcMethodTypes(PyTypeObject& methodType)
       n += 1;
   }
 
-  if (PyDict_SetItemString(methodType.tp_dict, "names", nameList)) {
+  if (PyDict_SetItemString(methodType.tp_dict, PATH_CALC_METHOD_CLASS_VARIBLE_NAMES, nameList)) {
       std::cout << "Error initializing Python API path calculation method types." << std::endl;
       return;
   }

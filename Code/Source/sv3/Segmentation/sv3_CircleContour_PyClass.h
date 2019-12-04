@@ -93,15 +93,14 @@ CircleContour_set_radius(PyCircleContour* self, PyObject* args)
   Py_RETURN_NONE;
 }
 
-
 ////////////////////////////////////////////////////////
-//          M o d u l e  D e f i n i t i o n          //
+//          C l a s s    D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
 
-static char* MODULE_CIRCLE_CONTOUR_CLASS = "Circle";
-static char* MODULE_CIRCLE_CONTOUR_CLASS_NAME = "contour.Circle";
+static char* CONTOUR_CIRCLE_CLASS = "Circle";
+static char* CONTOUR_CIRCLE_MODULE_CLASS = "contour.Circle";
 
-PyDoc_STRVAR(PyCircleContour_doc, "circle contour functions");
+PyDoc_STRVAR(PyCircleContourClass_doc, "circle contour functions");
 
 //----------------------
 // CircleContourMethods
@@ -172,7 +171,7 @@ static PyTypeObject PyCircleContourType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   // Dotted name that includes both the module name and 
   // the name of the type within the module.
-  .tp_name = MODULE_CIRCLE_CONTOUR_CLASS_NAME, 
+  .tp_name = CONTOUR_CIRCLE_MODULE_CLASS, 
   .tp_basicsize = sizeof(PyCircleContour)
 };
 
@@ -195,7 +194,7 @@ SetCircleContourTypeFields(PyTypeObject& contourType)
   contourType.tp_new = PyCircleContourNew;
   //.tp_new = PyType_GenericNew,
 
-  contourType.tp_base = &PyContourType;
+  contourType.tp_base = &PyContourClassType;
 
   contourType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
   contourType.tp_init = (initproc)PyCircleContourInit;
