@@ -91,7 +91,8 @@ static PyObject * PyRunTimeErr;
 
 // Prototypes for creating SV and Python contour objects. 
 static PyContour * PyCreateContourType();
-static PyObject * PyCreateContour(cKernelType contourType, sv3::Contour* contour = nullptr);
+static PyObject * PyCreateContour(cKernelType contourType); 
+static PyObject * PyCreateContour(sv3::Contour* contour);
 
 //----------------
 // ContourCtorMap
@@ -101,7 +102,7 @@ static PyObject * PyCreateContour(cKernelType contourType, sv3::Contour* contour
 using ContourCtorMapType = std::map<cKernelType, std::function<Contour*()>>;
 ContourCtorMapType ContourCtorMap = {
     {cKernelType::cKERNEL_CIRCLE, []() -> Contour* { return new sv3::circleContour(); } },
-    //{cKernelType::cKERNEL_ELLIPSE, []() -> Contour* { return new sv3::circleContour(); } },
+    {cKernelType::cKERNEL_ELLIPSE, []() -> Contour* { return new sv3::circleContour(); } },
     {cKernelType::cKERNEL_LEVELSET, []() -> Contour* { return new sv3::levelSetContour(); } },
     {cKernelType::cKERNEL_POLYGON, []() -> Contour* { return new sv3::ContourPolygon(); } },
     {cKernelType::cKERNEL_SPLINEPOLYGON, []() -> Contour* { return new sv3::ContourSplinePolygon(); } },
@@ -117,10 +118,13 @@ ContourCtorMapType ContourCtorMap = {
 //---------------------
 // Create an SV Contour derived object.
 //
+// If 'contourType' is not valid then create a Contour object.
+// Contour objects can be used with diffetent methods. 
+//
 static Contour * 
 CreateContourObject(cKernelType contourType, PathElement::PathPoint pathPoint)
 {
-  Contour* contour = NULL;
+  Contour* contour = nullptr;
 
   try {
       contour = ContourCtorMap[contourType]();
@@ -788,6 +792,7 @@ PyContourInit(PyContour* self, PyObject* args, PyObject *kwds)
       std::cout << "[ContourObjectInit] Kernel name: " << kernelName << std::endl;
   }
   self->contour = new Contour();
+  self->id = numObjs; 
   numObjs += 1;
   return 0;
 }
@@ -861,15 +866,15 @@ PyContourNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
   return (PyObject *) self;
 }
 
-//-----------------
-// PyContourDelete
-//-----------------
+//------------------
+// PyContourDealloc 
+//------------------
 //
 static void
 PyContourDealloc(PyContour* self)
 {
-  std::cout << "[PyContourDealloc] Free PyContour" << std::endl;
-  delete self->contour;
+  std::cout << "[PyContourDealloc] Free PyContour: " << self->id << std::endl;
+  //delete self->contour;
   Py_TYPE(self)->tp_free(self);
 }
 
@@ -1005,6 +1010,10 @@ static PyMethodDef PyContourModuleMethods[] =
 
 // Include derived Contour classes.
 #include "sv3_CircleContour_PyClass.h"
+#include "sv3_LevelSetContour_PyClass.h"
+#include "sv3_PolygonContour_PyClass.h"
+#include "sv3_SplinePolygonContour_PyClass.h"
+#include "sv3_ThresholdContour_PyClass.h"
 
 // Include path.Group definition.
 #include "sv4gui_ContourGroup_PyClass.cxx"
@@ -1016,7 +1025,12 @@ static PyMethodDef PyContourModuleMethods[] =
 //
 using PyContourCtorMapType = std::map<cKernelType, std::function<PyObject*()>>;
 PyContourCtorMapType PyContourCtorMap = {
-    {cKernelType::cKERNEL_CIRCLE, []() -> PyObject* { return PyObject_CallObject((PyObject*)&PyCircleContourClassType, NULL); } },
+  {cKernelType::cKERNEL_CIRCLE,        []()->PyObject* {return PyObject_CallObject((PyObject*)&PyCircleContourClassType, NULL);}},
+  {cKernelType::cKERNEL_ELLIPSE,       []()->PyObject* {return PyObject_CallObject((PyObject*)&PyCircleContourClassType, NULL);}},
+  {cKernelType::cKERNEL_LEVELSET,      []()->PyObject* {return PyObject_CallObject((PyObject*)&PyLevelSetContourClassType, NULL);}},
+  {cKernelType::cKERNEL_POLYGON,       []()->PyObject* {return PyObject_CallObject((PyObject*)&PyPolygonContourClassType, NULL);}},
+  {cKernelType::cKERNEL_SPLINEPOLYGON, []()->PyObject* {return PyObject_CallObject((PyObject*)&PySplinePolygonContourClassType, NULL);}},
+  {cKernelType::cKERNEL_THRESHOLD,     []()->PyObject* {return PyObject_CallObject((PyObject*)&PyThresholdContourClassType, NULL);}},
 };
 
 //-----------------
@@ -1025,7 +1039,7 @@ PyContourCtorMapType PyContourCtorMap = {
 // Create a Python contour object for the given kernel type.
 // 
 static PyObject *
-PyCreateContour(cKernelType contourType, sv3::Contour* contour)
+PyCreateContour(cKernelType contourType)
 {
   std::cout << "[PyCreateContour] ========== PyCreateContour ==========" << std::endl;
   PyObject* contourObj;
@@ -1033,14 +1047,42 @@ PyCreateContour(cKernelType contourType, sv3::Contour* contour)
   try {
       contourObj = PyContourCtorMap[contourType]();
   } catch (const std::bad_function_call& except) {
-      contourObj = PyObject_CallObject((PyObject*)&PyContourClassType, NULL);
+      return nullptr; 
   }
 
-  if (contour != nullptr) {
-     auto pyContour = (PyContour*)contourObj;
-     delete pyContour->contour;
-     pyContour->contour = contour;
+  return contourObj;
+}
+
+//-----------------
+// PyCreateContour
+//-----------------
+// Create a Python contour object for the given sv3::Contour object.
+//
+// [TODO:DaveP] The concept of contour type and kernel type is
+// a bit muddled. Contour type is stored as a string in sv3::Contour.
+//
+//   Contour types: Circle, Ellipse, Polygon, SplinePolygon, TensionPolygon and Contour
+//
+//
+static PyObject *
+PyCreateContour(sv3::Contour* contour)
+{
+  std::cout << "[PyCreateContour] ========== PyCreateContour ==========" << std::endl;
+  auto kernel = contour->GetKernel();
+  auto ctype = contour->GetType();
+  PyObject* contourObj;
+
+  if (ctype == "Contour") { 
+      contourObj = PyObject_CallObject((PyObject*)&PyContourClassType, NULL);
+  } else {
+      contourObj = PyCreateContour(kernel);
   }
+
+  // Replace the PyContour->contour with 'contour'.
+  //
+  auto pyContour = (PyContour*)contourObj;
+  delete pyContour->contour;
+  pyContour->contour = contour;
 
   return contourObj;
 }
@@ -1105,6 +1147,34 @@ PyMODINIT_FUNC PyInit_PyContour()
       return nullptr;
   }
 
+  // Initialize the level set class type.
+  SetLevelSetContourTypeFields(PyLevelSetContourClassType);
+  if (PyType_Ready(&PyLevelSetContourClassType) < 0) {
+      std::cout << "Error creating LevelSetContour type" << std::endl;
+      return nullptr;
+  }
+
+  // Initialize the polygon class type.
+  SetPolygonContourTypeFields(PyPolygonContourClassType);
+  if (PyType_Ready(&PyPolygonContourClassType) < 0) {
+      std::cout << "Error creating PolygonContour type" << std::endl;
+      return nullptr;
+  }
+
+  // Initialize the spline polygon class type.
+  SetSplinePolygonContourTypeFields(PySplinePolygonContourClassType);
+  if (PyType_Ready(&PySplinePolygonContourClassType) < 0) {
+      std::cout << "Error creating SplinePolygonContour type" << std::endl;
+      return nullptr;
+  }
+
+  // Initialize the threshold class type.
+  SetThresholdContourTypeFields(PyThresholdContourClassType);
+  if (PyType_Ready(&PyThresholdContourClassType) < 0) {
+      std::cout << "Error creating ThresholdContour type" << std::endl;
+      return nullptr;
+  }
+
   // Initialize the kernel class type.
   SetContourKernelTypeFields(PyContourKernelClassType);
   if (PyType_Ready(&PyContourKernelClassType) < 0) {
@@ -1134,6 +1204,22 @@ PyMODINIT_FUNC PyInit_PyContour()
   // Add the 'Circle' class.
   Py_INCREF(&PyCircleContourClassType);
   PyModule_AddObject(module, CONTOUR_CIRCLE_CLASS, (PyObject*)&PyCircleContourClassType);
+
+  // Add the 'LevelSet' class.
+  Py_INCREF(&PyLevelSetContourClassType);
+  PyModule_AddObject(module, CONTOUR_LEVELSET_CLASS, (PyObject*)&PyLevelSetContourClassType);
+
+  // Add the 'Polygon' class.
+  Py_INCREF(&PyPolygonContourClassType);
+  PyModule_AddObject(module, CONTOUR_POLYGON_CLASS, (PyObject*)&PyPolygonContourClassType);
+
+  // Add the 'SplinePolygon' class.
+  Py_INCREF(&PySplinePolygonContourClassType);
+  PyModule_AddObject(module, CONTOUR_SPLINE_POLYGON_CLASS, (PyObject*)&PySplinePolygonContourClassType);
+
+  // Add the 'Threshold' class.
+  Py_INCREF(&PyThresholdContourClassType);
+  PyModule_AddObject(module, CONTOUR_THRESHOLD_CLASS, (PyObject*)&PyThresholdContourClassType);
 
   // Add the 'Kernel' class.
   Py_INCREF(&PyContourKernelClassType);

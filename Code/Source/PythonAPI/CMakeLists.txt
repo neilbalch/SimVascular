@@ -43,10 +43,6 @@ include_directories(${TCL_INCLUDE_PATH} ${TK_INCLUDE_PATH} ${TINYXML_INCLUDE_DIR
 
 list (APPEND CXXSRCS 
   sv3_Contour_PyModule.cxx
-  sv3_LevelSetContour_init_py.cxx
-  sv3_PolygonContour_init_py.cxx
-  sv3_SplinePolygonContour_init_py.cxx
-  sv3_ThresholdContour_init_py.cxx
 )
 
 add_library(${lib} ${SV_LIBRARY_TYPE} ${CXXSRCS})

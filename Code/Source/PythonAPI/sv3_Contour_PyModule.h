@@ -42,6 +42,7 @@ extern "C" SV_EXPORT_PYTHON_API typedef struct
 {
   PyObject_HEAD
   sv3::Contour* contour;
+  int id;
 } PyContour;
 
 extern "C" SV_EXPORT_SEGMENTATION typedef struct

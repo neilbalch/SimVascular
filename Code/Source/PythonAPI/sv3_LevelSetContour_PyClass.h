@@ -29,17 +29,15 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// The functions defined here implement the SV Python API circle contour class. 
+// The functions defined here implement the SV Python API level set contour class. 
 //
-// The class name is 'contour.Circle'.
+// The class name is 'contour.LevelSet'.
 //
 #include "SimVascular.h"
 #include "sv_misc_utils.h"
 #include "sv3_Contour.h"
 #include "sv3_Contour_PyModule.h"
-#include "sv3_CircleContour.h"
-//#include "sv3_CircleContour_init_py.h"
-//#include "sv_adapt_utils.h"
+#include "sv3_LevelSetContour.h"
 #include "sv_arg.h"
 
 #include <stdio.h>
@@ -47,8 +45,9 @@
 #include "sv_Repository.h"
 #include "sv_arg.h"
 #include "sv_misc_utils.h"
-#include "sv2_globals.h"
+
 #include "Python.h"
+#include "sv2_globals.h"
 
 // The following is needed for Windows
 #ifdef GetObject
@@ -56,105 +55,89 @@
 #endif
 
 //-----------------
-// PyCircleContour
+// PyLevelSetContour
 //-----------------
-// Define the Circle class (type).
+// Define the LevelSet class (type).
 //
 typedef struct {
   PyContour super;
-  double radius;
-} PyCircleContour;
-
+} PyLevelSetContour;
 
 //////////////////////////////////////////////////////
 //          C l a s s    M e t h o d s              //
 //////////////////////////////////////////////////////
 //
-// Python API functions. 
+// Python LevelSet class methods. 
 
-//--------------------------
-// CircleContour_set_radius 
-//--------------------------
+//---------------------------
+// levelSetContour_available
+//---------------------------
 //
-static PyObject*
-CircleContour_set_radius(PyCircleContour* self, PyObject* args)
+static PyObject *  
+LevelSetContour_available(PyObject* self, PyObject* args)
 {
-  double radius = 0.0;
-
-  if (!PyArg_ParseTuple(args, "d", &radius)) {
-      return nullptr;
-  }
-  auto pmsg = "[PyCircleContour::set_radius] ";
-  std::cout << pmsg << "Set radius ..." << std::endl;
-  std::cout << pmsg << "Radius: " << radius << std::endl;
-  //auto contour = dynamic_cast<CircleContour*>(self->super.contour);
-  //contour->SetRadius(radius);
-
-  Py_RETURN_NONE;
+  return Py_BuildValue("s","levelSetContour Available");
 }
 
 ////////////////////////////////////////////////////////
 //          C l a s s    D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
 
-static char* CONTOUR_CIRCLE_CLASS = "Circle";
-static char* CONTOUR_CIRCLE_MODULE_CLASS = "contour.Circle";
+static char* CONTOUR_LEVELSET_CLASS = "LevelSet";
+// Dotted name that includes both the module name and the name of the type within the module.
+static char* CONTOUR_LEVELSET_MODULE_CLASS = "contour.LevelSet";
 
-PyDoc_STRVAR(PyCircleContourClass_doc, "circle contour functions");
+PyDoc_STRVAR(PyLevelSetContourClass_doc, "level set contour functions");
 
-//----------------------
-// CircleContourMethods
-//----------------------
-//
-static PyMethodDef PyCircleContourMethods[] = {
-
-  { "set_radius", (PyCFunction)CircleContour_set_radius, METH_VARARGS, NULL},
-
+//--------------------------
+// PyLevelSetContourMethods
+//--------------------------
+//  
+PyMethodDef PyLevelSetContourMethods[] = {
+  {"available", LevelSetContour_available, METH_NOARGS, NULL},
   {NULL, NULL}
 };
 
-//---------------------
-// PyCircleContourInit 
-//---------------------
-// This is the __init__() method for the Contour class. 
+//-----------------------
+// PyLevelSetContourInit 
+//-----------------------
+// This is the __init__() method for the LevelSet class. 
 //
 // This function is used to initialize an object after it is created.
 //
 static int
-PyCircleContourInit(PyCircleContour* self, PyObject* args, PyObject *kwds)
+PyLevelSetContourInit(PyLevelSetContour* self, PyObject* args, PyObject *kwds)
 {
   static int numObjs = 1;
-  std::cout << "[PyCircleContourInit] New Circle Contour object: " << numObjs << std::endl;
-  //self->super.count = numObjs;
-  //self->super.contour = new CircleContour();
-  self->super.contour = new sv3::circleContour();
+  std::cout << "[PyLevelSetContourInit] New LevelSet Contour object: " << numObjs << std::endl;
+  self->super.contour = new sv3::levelSetContour();
   numObjs += 1;
   return 0;
 }
 
-//--------------------
-// PyCircleContourNew 
-//--------------------
+//----------------------
+// PyLevelSetContourNew 
+//----------------------
 //
 static PyObject *
-PyCircleContourNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
-{ 
-  std::cout << "[PyCircleContourNew] PyCircleContourNew " << std::endl;
-  auto self = (PyCircleContour*)type->tp_alloc(type, 0);
+PyLevelSetContourNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+  std::cout << "[PyLevelSetContourNew] PyLevelSetContourNew " << std::endl;
+  auto self = (PyLevelSetContour*)type->tp_alloc(type, 0);
   if (self != NULL) {
       //self->super.id = 2;
   }
   return (PyObject *) self;
 }
 
-//------------------------
-// PyCircleContourDealloc 
-//------------------------
+//--------------------------
+// PyLevelSetContourDealloc 
+//--------------------------
 //
 static void
-PyCircleContourDealloc(PyCircleContour* self)
-{ 
-  std::cout << "[PyCircleContourDealloc] Free PyCircleContour" << std::endl;
+PyLevelSetContourDealloc(PyLevelSetContour* self)
+{
+  std::cout << "[PyLevelSetContourDealloc] Free PyLevelSetContour" << std::endl;
   delete self->super.contour;
   Py_TYPE(self)->tp_free(self);
 }
@@ -167,39 +150,37 @@ PyCircleContourDealloc(PyCircleContour* self)
 // Can't set all the fields here because g++ does not suppor non-trivial 
 // designated initializers. 
 //
-static PyTypeObject PyCircleContourClassType = {
+static PyTypeObject PyLevelSetContourClassType = {
   PyVarObject_HEAD_INIT(NULL, 0)
-  // Dotted name that includes both the module name and 
-  // the name of the type within the module.
-  .tp_name = CONTOUR_CIRCLE_MODULE_CLASS, 
-  .tp_basicsize = sizeof(PyCircleContour)
+  .tp_name = CONTOUR_LEVELSET_MODULE_CLASS,
+  .tp_basicsize = sizeof(PyLevelSetContour)
 };
 
 //----------------------------
 // SetCircleContourTypeFields
 //----------------------------
-// Set the Python type object fields that stores Contour data. 
+// Set the Python type object fields that stores LevelSet data. 
 //
 // Need to set the fields here because g++ does not suppor non-trivial 
 // designated initializers. 
 //
 static void
-SetCircleContourTypeFields(PyTypeObject& contourType)
+SetLevelSetContourTypeFields(PyTypeObject& contourType)
  {
   // Doc string for this type.
-  contourType.tp_doc = "Circle Contour  objects";
+  contourType.tp_doc = "LevelSet Contour objects";
 
   // Object creation function, equivalent to the Python __new__() method. 
   // The generic handler creates a new instance using the tp_alloc field.
-  contourType.tp_new = PyCircleContourNew;
+  contourType.tp_new = PyLevelSetContourNew;
   //.tp_new = PyType_GenericNew,
 
   contourType.tp_base = &PyContourClassType;
 
   contourType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
-  contourType.tp_init = (initproc)PyCircleContourInit;
-  contourType.tp_dealloc = (destructor)PyCircleContourDealloc;
-  contourType.tp_methods = PyCircleContourMethods;
+  contourType.tp_init = (initproc)PyLevelSetContourInit;
+  contourType.tp_dealloc = (destructor)PyLevelSetContourDealloc;
+  contourType.tp_methods = PyLevelSetContourMethods;
 };
 
 

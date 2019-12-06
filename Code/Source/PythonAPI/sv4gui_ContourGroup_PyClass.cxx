@@ -38,7 +38,6 @@
 //
 #include "sv4gui_ContourGroup_PyClass.h"
 #include "sv4gui_dmg_init_py.h"
-//#include "sv4gui_ContourGroupIO.h"
 
 static PyObject * CreatePyContourGroup(sv4guiContourGroup::Pointer contourGroup);
 
@@ -156,21 +155,30 @@ ContourGroup_get_contour(PyContourGroup* self, PyObject* args)
   std::cout << "[ContourGroup_get_contour] Number of contours: " << numContours << std::endl;
 
   // Check for valid index.
-  if (index > numContours-1) {
+  if ((index < 0) || (index > numContours-1)) {
       api.error("The index argument '" + std::to_string(index) + "' is must be between 0 and " +
         std::to_string(numContours-1));
       return nullptr;
   }
 
-  // Create a PyContour object from the contour and return it as a PyObject*.
+  // Get the contour for the given index.
+  //
   auto contour = contourGroup->GetContour(index);
+
+  if (contour == nullptr) {
+      api.error("ERROR getting the contour for the index argument '" + std::to_string(index) + "'.");
+      return nullptr;
+  }
   auto kernel = contour->GetKernel();
   auto ctype = contour->GetType();
   auto contourType = ContourKernel_get_name(kernel);
   std::cout << "[ContourGroup_get_contour] ctype: " << ctype << std::endl;
   std::cout << "[ContourGroup_get_contour] kernel: " << kernel << std::endl;
   std::cout << "[ContourGroup_get_contour] Contour type: " << contourType << std::endl;
-  return PyCreateContour(kernel, contour);
+
+  // Create a PyContour object from the SV Contour object 
+  // and return it as a PyObject*.
+  return PyCreateContour(contour);
 }
 
 //-----------------
