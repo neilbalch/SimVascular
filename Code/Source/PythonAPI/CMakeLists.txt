@@ -32,41 +32,39 @@
 # Segmentation
 #-----------------------------------------------------------------------------
 
-set(lib ${SV_LIB_SEGMENTATION_NAME})
-set(export_directive segmentation)
-set(export_file_name sv3SegmentationExports.h)
+set(lib ${SV_LIB_PYTHON_API_NAME})
+set(export_directive python_api)
+set(export_file_name svPythonAPIExports.h)
 
 list(APPEND CORELIBS ${lib})
 
+include_directories(${PYTHON_INCLUDE_PATH} ${PYTHON_INCLUDE_DIR} ${PYTHON_INCLUDE_DIRS})
 include_directories(${TCL_INCLUDE_PATH} ${TK_INCLUDE_PATH} ${TINYXML_INCLUDE_DIR})
 
-set(CXXSRCS 
-  sv3_Contour.cxx 
-  sv3_ContourGroup.cxx
-  sv3_LevelSetContour.cxx 
-  sv3_SegmentationUtils.cxx 
-  sv3_CircleContour.cxx 
-  sv3_PolygonContour.cxx 
-  sv3_SplinePolygonContour.cxx 
-  sv3_ThresholdContour.cxx
-)
-set(HDRS 
-  sv3_Contour.h 
-  sv3_ContourGroup.h
-  sv3_LevelSetContour.h 
-  sv3_SegmentationUtils.h 
-  sv3_CircleContour.h 
-  sv3_PolygonContour.h 
-  sv3_SplinePolygonContour.h 
-  sv3_ThresholdContour.h
+list (APPEND CXXSRCS 
+  sv3_Contour_PyModule.cxx
+  sv3_LevelSetContour_init_py.cxx
+  sv3_PolygonContour_init_py.cxx
+  sv3_SplinePolygonContour_init_py.cxx
+  sv3_ThresholdContour_init_py.cxx
 )
 
 add_library(${lib} ${SV_LIBRARY_TYPE} ${CXXSRCS})
 
+target_link_libraries(${lib} ${PYTHON_LIBRARY} ${org_sv_pythondatanodes} )
+
 target_link_libraries(${lib}
-  ${VTK_LIBRARIES} ${TCL_LIBRARY} ${TK_LIBRARY}
-  ${SV_LIB_GLOBALS_NAME} ${SV_LIB_GEOM_NAME} ${SV_LIB_COMMON_NAME} ${SV_LIB_ITK_LSET_NAME} ${SV_LIB_PATH_NAME}
+  ${VTK_LIBRARIES} 
+  ${TCL_LIBRARY} 
+  ${TK_LIBRARY}
+  ${SV_LIB_GLOBALS_NAME} 
+  ${SV_LIB_GEOM_NAME} 
+  ${SV_LIB_COMMON_NAME} 
+  ${SV_LIB_ITK_LSET_NAME} 
+  ${SV_LIB_PATH_NAME}
+  ${SV_LIB_SEGMENTATION_NAME}
   ${SV_LIB_UTILS_NAME}
+  org_sv_pythondatanodes
 )
 
 if(SV_USE_TINYXML)

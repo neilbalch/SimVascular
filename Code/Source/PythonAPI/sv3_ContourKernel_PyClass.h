@@ -64,6 +64,17 @@ typedef struct {
 PyObject_HEAD
 } ContourKernelObject;
 
+std::string 
+ContourKernel_get_name(cKernelType contourType)
+{
+  for (auto const& entry : kernelNameEnumMap) {
+      if (contourType == entry.second) { 
+          return entry.first;
+      }
+  }
+  return "";
+}
+
 ////////////////////////////////////////////////////////
 //          C l a s s    M e t h o d s                //
 ////////////////////////////////////////////////////////
@@ -108,14 +119,14 @@ PyDoc_STRVAR(ContourKernelClass_doc, "contour kernel class functions");
 //------------------------------------
 // Define the Python type object that stores contour.kernel types. 
 //
-static PyTypeObject ContourKernelType = {
+static PyTypeObject PyContourKernelClassType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   .tp_name = CONTOUR_KERNEL_MODULE_CLASS,
   .tp_basicsize = sizeof(ContourKernelObject)
 };
 
 //----------------------------
-// SetContourKernelTypeFields
+// SetContourKernelClassTypeFields
 //----------------------------
 // Set the Python type object fields that stores Kernel data. 
 //
@@ -138,7 +149,7 @@ SetContourKernelTypeFields(PyTypeObject& contourType)
 // Kernel class.
 //
 static void
-SetContourKernelTypes(PyTypeObject& contourType)
+SetContourKernelClassTypes(PyTypeObject& contourType)
 {
   // Add kernel types to ContourKernelType dictionary.
   for (auto const& entry : kernelNameEnumMap) {

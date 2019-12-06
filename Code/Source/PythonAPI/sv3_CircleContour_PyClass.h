@@ -167,7 +167,7 @@ PyCircleContourDealloc(PyCircleContour* self)
 // Can't set all the fields here because g++ does not suppor non-trivial 
 // designated initializers. 
 //
-static PyTypeObject PyCircleContourType = {
+static PyTypeObject PyCircleContourClassType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   // Dotted name that includes both the module name and 
   // the name of the type within the module.

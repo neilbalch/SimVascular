@@ -39,6 +39,9 @@
 //
 //    except sv.dmg.DmgError:
 //
+// Some functions defined here are also visible outside of this module. They are used 
+// by Python API functions to read files (e.g. .ctgr) created by SV.
+//
 #include "SimVascular.h"
 #include "SimVascular_python.h"
 
@@ -53,6 +56,7 @@
 #include "vtkTclUtil.h"
 #include "vtkPythonUtil.h"
 #include "sv_PyUtils.h"
+#include "sv4gui_ContourGroupIO.h"
 
 // The following is needed for Windows
 #ifdef GetObject
@@ -114,6 +118,52 @@ namespace SvDataManagerNodes {
   static char* Project = "sv4guiProjectFolder";
   static char* Repository = "svRepositoryFolder";
   static char* Segmentation = "sv4guiSegmentationFolder";
+}
+
+//////////////////////////////////////////////////////
+//  G l o b a l  U t i l i t y  F u n c t i o n s   //
+//////////////////////////////////////////////////////
+// Functions visible outside of this module.
+
+//--------------------------
+// Dmg_create_contour_group
+//--------------------------
+// Create an sV sv4guiContourGroup object.
+//
+// You can't call sv4guiContourGroup::New() directly from PythonAPI.
+//
+sv4guiContourGroup::Pointer 
+Dmg_create_contour_group()
+{
+    return sv4guiContourGroup::New();
+}
+
+//-----------------------------
+// Dmg_read_contour_group_file
+//-----------------------------
+// Read in a contour group (.ctgr) file.
+//
+sv4guiContourGroup::Pointer 
+Dmg_read_contour_group_file(std::string fileName)
+{
+    //std::cout << "[Dmg_read_contour_group_file] ========== Dmg_read_contour_group_file ==========" << std::endl;
+    //std::cout << "[Dmg_read_contour_group_file] File name: " << fileName << std::endl;
+    sv4guiContourGroup::Pointer group;
+
+    // sv4guiContourGroupIO will throw an exception if the file
+    // can't be read or is not the right type.
+    //
+    try {
+        group = sv4guiContourGroupIO().CreateGroupFromFile(std::string(fileName));
+    } catch (...) {
+        return nullptr;
+    }
+
+    if (group.IsNull()) {
+        return nullptr;
+    }
+
+    return group;
 }
 
 //////////////////////////////////////////////////////
@@ -650,6 +700,7 @@ GetRepositoryObject(SvPyUtilApiFunction& api, char* name, RepositoryDataT objTyp
 
   return obj;
 }
+
 
 //////////////////////////////////////////////////////
 //          M o d u l e  F u n c t i o n s          //
@@ -1714,6 +1765,30 @@ Dmg_remove_data_node(PyObject* self, PyObject* args)
     return SV_PYTHON_OK;
 }
 
+//------------------------
+// Dmg_read_contour_group
+//------------------------
+//
+static PyObject * 
+Dmg_read_contour_group(PyObject* self, PyObject* args)
+{
+    std::cout << "[Dmg_read_contour_group] ========== Dmg_read_contour_group ==========" << std::endl;
+    auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+    char* fileName;
+
+    if (!PyArg_ParseTuple(args, api.format, &fileName)) {
+        return api.argsError();
+    }
+
+    auto contourGroups = sv4guiContourGroupIO().ReadFile(std::string(fileName));
+    std::cout << "[Dmg_read_contour_group] Read " << contourGroups.size() << " contour groups." << std::endl;
+    auto contourGroup = dynamic_cast<sv4guiContourGroup*>(contourGroups[0].GetPointer()); 
+    int numContours = contourGroup->GetSize();
+    std::cout << "[Dmg_read_contour_group] Number of contours: " << numContours << std::endl;
+
+    Py_RETURN_NONE;
+}
+
 ////////////////////////////////////////////////////////
 //          M o d u l e  D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
@@ -1751,6 +1826,8 @@ PyMethodDef PyDmgMethods[] =
         Dmg_import_unstructured_grid_from_repository_doc},
 
     {"remove_data_node", Dmg_remove_data_node, METH_VARARGS, Dmg_remove_data_node_doc},
+
+    {"read_contour_group", Dmg_read_contour_group, METH_VARARGS, NULL},
 
     {NULL, NULL,0,NULL},
 };

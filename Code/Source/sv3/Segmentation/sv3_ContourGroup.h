@@ -29,35 +29,40 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef SV4GUI_CONTOURGROUPIO_H
-#define SV4GUI_CONTOURGROUPIO_H
+#ifndef SV3_CONTOURGROUP_H
+#define SV3_CONTOURGROUP_H
 
 #include "SimVascular.h"
-#include "sv4gui_ContourGroup.h"
 
-#include <sv4guiModuleSegmentationExports.h>
+#include "sv3SegmentationExports.h"
 
-#include "mitkAbstractFileIO.h"
 
-class SV4GUIMODULESEGMENTATION_EXPORT sv4guiContourGroupIO : public mitk::AbstractFileIO
+//#include "sv3_ContourElement.h"
+//#include "sv_RepositoryData.h"
+
+
+#include <map>
+#include <sstream>
+#include <iostream>
+#include <string>
+
+namespace sv3 {
+class SV_EXPORT_SEGMENTATION ContourGroup 
 {
-public:
+  public:
+    ContourGroup();
+    ContourGroup(const ContourGroup &other);
+    ~ContourGroup();
 
-    sv4guiContourGroupIO();
+    void Expand( unsigned int timeSteps );
+    unsigned int GetTimeSize() const;
+    int GetSize( unsigned int t = 0 ) const;
 
-    using mitk::AbstractFileReader::Read;
-    std::vector<mitk::BaseData::Pointer> Read() override;
-    static std::vector<mitk::BaseData::Pointer> ReadFile(std::string fileName);
+  protected:
+    
 
-    static sv4guiContourGroup::Pointer CreateGroupFromFile(std::string fileName);
+  };
 
-    mitk::IFileIO::ConfidenceLevel GetReaderConfidenceLevel() const override;
+}
 
-    void Write() override;
-    mitk::IFileIO::ConfidenceLevel GetWriterConfidenceLevel() const override;
-
-private:
-    sv4guiContourGroupIO* IOClone() const override;
-};
-
-#endif // SV4GUI_CONTOURGROUPIO_H
+#endif 

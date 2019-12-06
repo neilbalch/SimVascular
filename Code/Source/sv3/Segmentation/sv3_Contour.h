@@ -113,6 +113,7 @@ public:
     };
 
     cKernelType GetKernel() const {return contour_kernel_;}
+    void SetKernel(cKernelType ktype) {contour_kernel_ = ktype;}
     
     // [TODO:DaveP] this should be defined outside of the class. 
     //static Contour* DefaultInstantiateContourObject(cKernelType t, PathElement::PathPoint pathPoint);
@@ -201,6 +202,8 @@ public:
     void RemoveControlPoint(int index);
 
     virtual void SetControlPoint(int index, std::array<double,3> point);
+
+    std::vector<std::array<double,3> > GetControlPoints();
 
     void SetControlPointSelectedIndex(int index);
 

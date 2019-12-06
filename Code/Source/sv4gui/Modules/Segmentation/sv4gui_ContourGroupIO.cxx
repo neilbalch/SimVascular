@@ -63,16 +63,18 @@ std::vector<mitk::BaseData::Pointer> sv4guiContourGroupIO::Read()
     return ReadFile(fileName);
 }
 
-std::vector<mitk::BaseData::Pointer> sv4guiContourGroupIO::ReadFile(std::string fileName)
+sv4guiContourGroup::Pointer
+sv4guiContourGroupIO::CreateGroupFromFile(std::string fileName)
 {
     TiXmlDocument document;
+    sv4guiContourGroup::Pointer group = sv4guiContourGroup::New();
 
     if (!document.LoadFile(fileName))
     {
         mitkThrow() << "Could not open/read/parse " << fileName;
         //        MITK_ERROR << "Could not open/read/parse " << fileName;
         std::vector<mitk::BaseData::Pointer> empty;
-        return empty;
+        return group;
     }
 
     //    TiXmlElement* version = document.FirstChildElement("format");
@@ -84,7 +86,6 @@ std::vector<mitk::BaseData::Pointer> sv4guiContourGroupIO::ReadFile(std::string 
         mitkThrow() << "No ContourGroup data in "<< fileName;
     }
 
-    sv4guiContourGroup::Pointer group = sv4guiContourGroup::New();
 
     group->SetPathName(groupElement->Attribute("path_name"));
     int pathID=0;
@@ -273,6 +274,12 @@ std::vector<mitk::BaseData::Pointer> sv4guiContourGroupIO::ReadFile(std::string 
 
     }//timestep
 
+    return group;
+}
+
+std::vector<mitk::BaseData::Pointer> sv4guiContourGroupIO::ReadFile(std::string fileName)
+{
+    auto group = CreateGroupFromFile(fileName);
     std::vector<mitk::BaseData::Pointer> result;
     result.push_back(group.GetPointer());
     return result;

@@ -28,36 +28,63 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-#ifndef SV4GUI_CONTOURGROUPIO_H
-#define SV4GUI_CONTOURGROUPIO_H
-
 #include "SimVascular.h"
-#include "sv4gui_ContourGroup.h"
 
-#include <sv4guiModuleSegmentationExports.h>
+//#include "sv3_PathElement.h"
+//#include "sv_RepositoryData.h"
+#include "sv3_ContourGroup.h"
+#include "sv_Math.h"
 
-#include "mitkAbstractFileIO.h"
+//using sv3::ContourElement;
+using sv3::ContourGroup;
 
-class SV4GUIMODULESEGMENTATION_EXPORT sv4guiContourGroupIO : public mitk::AbstractFileIO
+ContourGroup::ContourGroup()
 {
-public:
+}
 
-    sv4guiContourGroupIO();
+ContourGroup::ContourGroup(const ContourGroup &other)
+{
+/*
+    for (std::size_t t = 0; t < other.GetTimeSize(); ++t)
+    {
+        m_ContourElementSet[t]=other.GetContourElement(t)->Clone();
+    }
+*/
+}
 
-    using mitk::AbstractFileReader::Read;
-    std::vector<mitk::BaseData::Pointer> Read() override;
-    static std::vector<mitk::BaseData::Pointer> ReadFile(std::string fileName);
+ContourGroup::~ContourGroup()
+{
+}
 
-    static sv4guiContourGroup::Pointer CreateGroupFromFile(std::string fileName);
+void ContourGroup::Expand( unsigned int timeSteps )
+{
+/*
+    unsigned int oldSize = m_PathElementSet.size();
 
-    mitk::IFileIO::ConfidenceLevel GetReaderConfidenceLevel() const override;
+    if ( timeSteps > oldSize )
+    {
 
-    void Write() override;
-    mitk::IFileIO::ConfidenceLevel GetWriterConfidenceLevel() const override;
+        m_PathElementSet.resize( timeSteps );
 
-private:
-    sv4guiContourGroupIO* IOClone() const override;
-};
+        m_CalculateBoundingBox = true;
 
-#endif // SV4GUI_CONTOURGROUPIO_H
+    }
+*/
+}
+
+
+unsigned int ContourGroup::GetTimeSize() const
+{
+    //return m_ContourElementSet.size();
+}
+
+int ContourGroup::GetSize( unsigned int t ) const
+{
+/*
+    if(GetContourElement(t))
+        return GetContourElement(t)->GetControlPointNumber();
+    else
+        return 0;
+*/
+}
+

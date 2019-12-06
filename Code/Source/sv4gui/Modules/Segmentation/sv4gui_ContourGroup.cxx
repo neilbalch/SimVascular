@@ -72,6 +72,7 @@ sv4guiContourGroup::sv4guiContourGroup(const sv4guiContourGroup &other)
 
 sv4guiContourGroup::~sv4guiContourGroup()
 {
+   std::cout << "#################### ~sv4guiContourGroup ############" << std::endl;
     this->ClearData();
     if(m_LoftingParam)
         delete m_LoftingParam;

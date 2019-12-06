@@ -28,33 +28,22 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
- 
-#ifndef SV3_CONTOUR_PYMODULE_H
-#define SV3_CONTOUR_PYMODULE_H
+
+#ifndef SV3_CONTOUR_GROUP_PYCLASS_H
+#define SV3_CONTOUR_GROUP_PYCLASS_H 
 
 #include "SimVascular.h"
 #include "Python.h"
-#include "sv3SegmentationExports.h"
-#include "sv3_Contour.h"
-#include "sv_FactoryRegistrar.h"
+#include "sv4gui_ContourGroup.h"
+#include "svPythonAPIExports.h"
 
-extern "C" SV_EXPORT_SEGMENTATION typedef struct
+extern "C" SV_EXPORT_PYTHON_API typedef struct
 {
   PyObject_HEAD
-  sv3::Contour* contour;
-} PyContour;
-
-extern "C" SV_EXPORT_SEGMENTATION typedef struct
-{
-  PyObject_HEAD
-  cvFactoryRegistrar* registrar;
-} pyContourFactoryRegistrar;
-
-#if PYTHON_MAJOR_VERSION == 2
-PyMODINIT_FUNC  initpyContour();
-#endif
-#if PYTHON_MAJOR_VERSION == 3
-PyMODINIT_FUNC  PyInit_PyContour();
-#endif
+  // sv4guiContourGroup* contourGroup;
+  sv4guiContourGroup::Pointer contourGroupPointer;
+  sv4guiContourGroup* contourGroup;
+  int id;
+} PyContourGroup;
 
 #endif 

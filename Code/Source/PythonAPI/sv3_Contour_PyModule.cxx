@@ -91,7 +91,7 @@ static PyObject * PyRunTimeErr;
 
 // Prototypes for creating SV and Python contour objects. 
 static PyContour * PyCreateContourType();
-static PyObject * PyCreateContour(cKernelType contourType);
+static PyObject * PyCreateContour(cKernelType contourType, sv3::Contour* contour = nullptr);
 
 //----------------
 // ContourCtorMap
@@ -125,7 +125,7 @@ CreateContourObject(cKernelType contourType, PathElement::PathPoint pathPoint)
   try {
       contour = ContourCtorMap[contourType]();
   } catch (const std::bad_function_call& except) {
-      return nullptr;
+      contour = new sv3::Contour();
   }
 
   contour->SetPathPoint(pathPoint);
@@ -138,130 +138,187 @@ CreateContourObject(cKernelType contourType, PathElement::PathPoint pathPoint)
 //
 // Python 'Contour' class methods.
 
-//--------------------------
-// Contour_SetContourKernel
-//--------------------------
+//--------------------
+// Contour_get_center
+//--------------------
 //
-// [TODO:DaveP] SetContourKernel is a bit obscure. How about
-//   SetContourMethod?
-//
-PyDoc_STRVAR(Contour_set_contour_kernel_doc, 
-  "set_contour_kernel(kernel)                                    \n\ 
-                                                                 \n\
-   Set the computational kernel used to segment image data.       \n\
-                                                                 \n\
-   Args:                                                          \n\
-     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+PyDoc_STRVAR(Contour_get_center_doc,
+  "get_center()  \n\ 
+   \n\
+   Get the center of the contour. \n\
+   \n\
+   Args:                                    \n\
+     None \n\
+   \n\
+   Returns list([x,y,z]): The center of the contour. \n\
 ");
 
 static PyObject * 
-Contour_set_contour_kernel(PyObject* self, PyObject *args)
+Contour_get_center(PyContour* self, PyObject* args)
 {
-    char *kernelName;
-    cKernelType kernel;
-    auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
-
-    if (!PyArg_ParseTuple(args, api.format, &kernelName)) {
-        return api.argsError();
-    }
-
-    try {
-        kernel = kernelNameEnumMap.at(std::string(kernelName));
-    } catch (const std::out_of_range& except) {
-        auto msg = "Unknown kernel type '" + std::string(kernelName) + "'." + 
-          " Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold.";
-        api.error(msg); 
-        return nullptr;
-    }
-
-    Contour::gCurrentKernel = kernel;
-    return Py_BuildValue("s", kernelName);
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto contour = self->contour;
+  auto center = contour->GetCenterPoint();
+  return Py_BuildValue("[d,d,d]", center[0], center[1], center[2]);
 }
 
-//--------------------
-// Contour_new_object
-//--------------------
+//----------------------------
+// Contour_get_contour_points
+//----------------------------
 //
-PyDoc_STRVAR(Contour_new_object_doc,
-  "Contour_new_object(name, path) \n\ 
+PyDoc_STRVAR(Contour_get_contour_points_doc,
+  "get_contour_points()  \n\ 
    \n\
-   Create a contour at a given position along an existing path. \n\
+   Get the center of the contour. \n\
+   \n\
+   Args:                                    \n\
+     None \n\
+   \n\
+   Returns list([x,y,z]): The center of the contour. \n\
+");
+
+static PyObject *
+Contour_get_contour_points(PyContour* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto contour = self->contour;
+  auto contour_points = contour->GetContourPoints();
+  auto pointList = PyList_New(contour_points.size());
+  int n = 0;
+
+  for (auto const& point : contour_points) {
+      auto pointValues = PyList_New(3);
+      for (int i = 0; i < 3; i++) {
+          auto val = PyFloat_FromDouble((double)point[i]); 
+          PyList_SetItem(pointValues, i, val); 
+      }
+      PyList_SetItem(pointList, n, pointValues); 
+      n += 1;
+  }
+
+  return Py_BuildValue("N", pointList); 
+}
+
+//----------------------------
+// Contour_get_control_points
+//----------------------------
+//
+PyDoc_STRVAR(Contour_get_control_points_doc,
+  "get_control_points()  \n\ 
+   \n\
+   Get the center of the contour. \n\
+   \n\
+   Args:                                    \n\
+     None \n\
+   \n\
+   Returns list([x,y,z]): The center of the contour. \n\
+");
+
+static PyObject *
+Contour_get_control_points(PyContour* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto contour = self->contour;
+  auto control_points = contour->GetControlPoints();
+  auto pointList = PyList_New(control_points.size());
+  int n = 0;
+
+  for (auto const& point : control_points) {
+      auto pointValues = PyList_New(3);
+      for (int i = 0; i < 3; i++) {
+          auto val = PyFloat_FromDouble((double)point[i]); 
+          PyList_SetItem(pointValues, i, val); 
+      }
+      PyList_SetItem(pointList, n, pointValues); 
+      n += 1;
+  }
+
+  return Py_BuildValue("N", pointList); 
+}
+
+//------------------------
+// Contour_get_path_point
+//------------------------
+//
+PyDoc_STRVAR(Contour_get_path_point_doc,
+  "get_path_point()  \n\ 
+   \n\
+   Get the contour path point. \n\
+   \n\
+   Args:                                    \n\
+     None \n\
+   \n\
+   Returns dict(pos:[x,y,z], tangent:[x,y,z], rotation:[x,y,z]): The contour path point. \n\
+");
+
+static PyObject * 
+Contour_get_path_point(PyContour* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto contour = self->contour;
+  auto pathPoint = contour->GetPathPoint();
+  return Py_BuildValue("{s:[d,d,d], s:[d,d,d], s:[d,d,d]}",
+    "pos", pathPoint.pos[0], pathPoint.pos[1], pathPoint.pos[1], 
+    "tangent", pathPoint.tangent[0], pathPoint.tangent[1], pathPoint.tangent[1], 
+    "rotation", pathPoint.rotation[0], pathPoint.rotation[1], pathPoint.rotation[1] );
+}
+
+//------------------
+// Contour_get_type
+//------------------
+//
+PyDoc_STRVAR(Contour_get_type_doc,
+  "get_type()  \n\ 
+   \n\
+   Get the contour type. \n\
    \n\
    Args: \n\
-     name (str): The name of the contour to create.       \n\
-     path (str): The name of the Path object the contour is defined on. \n\
-     index (int): The index into the path points array to position the contour. 0 <= Index <= N-1, N = number of path points.\n\
+     None \n\
+   Returns (str): contour type. \n\
 ");
 
 static PyObject * 
-Contour_new_object(PyContour* self, PyObject* args)
-{
-    char *contourName = nullptr;
-    char *pathName = nullptr;
-    int index = 0;
-    auto api = SvPyUtilApiFunction("ssi", PyRunTimeErr, __func__);
-
-    if (!PyArg_ParseTuple(args, api.format, &contourName, &pathName, &index)) {
-        return api.argsError();
-    }
-  
-    // Check that the new Contour object does not already exist.
-    if (gRepository->Exists(contourName)) {
-        api.error("The Contour object '" + std::string(contourName) + "' is already in the repository."); 
-        return nullptr;
-    }
-
-    // Get Path object.
-    auto rd = gRepository->GetObject(pathName);
-    if (rd == nullptr) {
-        api.error("The Path object '" + std::string(pathName) + "' is not in the repository."); 
-        return nullptr;
-    }
-    
-    // Check that the Path is a path.
-    auto type = rd->GetType();
-    if (type != PATH_T) {
-        api.error("'" + std::string(pathName) + "' is not a Path object.");
-        return nullptr;
-    }
-    
-    auto path = dynamic_cast<PathElement*>(rd);
-    if (path == nullptr) {
-        api.error("Path element is null.");
-        return nullptr;
-    } 
-    int numPathPts = path->GetPathPointNumber();
-
-    if (index >= numPathPts) {
-        api.error("Index is larger than the number of path points " + std::to_string(numPathPts) + "."); 
-        return nullptr;
-    } else if (index < 0) {
-        api.error("Index must be larger than 0."); 
-        return nullptr;
-    }
-
-    // Create a new Contour object.
-    std::cout << "####### Create a new Contour object" << std::endl;
-    //Contour *geom = sv3::Contour::DefaultInstantiateContourObject(Contour::gCurrentKernel, path->GetPathPoint(index));
-    auto contour = CreateContourObject(Contour::gCurrentKernel, path->GetPathPoint(index)); 
-    
-    if (contour == NULL) {
-        api.error("Failed to create Contour object.");
-        return nullptr;
-    }
-
-    // Add contour to the repository.
-    if (!gRepository->Register(contourName, contour)) {
-        delete contour;
-        api.error("Error adding the Contour object '" + std::string(contourName) + "' to the repository.");
-        return nullptr;
-    }
-    
-    Py_INCREF(contour);
-    self->contour = contour;
-    Py_DECREF(contour);
-    return Py_None;
+Contour_get_type(PyContour* self, PyObject* args)
+{   
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto contour = self->contour;
+  auto contourType = contour->GetType();
+  return Py_BuildValue("s", contourType.c_str());
 }
+
+//------------------
+// Contour_get_type
+//------------------
+//
+PyDoc_STRVAR(Contour_get_vtk_polydata_doc,
+  "get_vtk_polydata()  \n\ 
+   \n\
+   Get the contour type. \n\
+   \n\
+   Args: \n\
+     None \n\
+   Returns (str): contour type. \n\
+");
+
+static PyObject *
+Contour_get_vtk_polydata(PyContour* self, PyObject* args)
+{ 
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto contour = self->contour;
+  vtkSmartPointer<vtkPolyData> polydata = contour->CreateVtkPolyDataFromContour();
+
+/*
+  auto vtkObj = ((cvDataObject *)polydata)->GetVtkPtr();
+  PyObject* pyVtkObj = vtkPythonUtil::GetObjectFromPointer(vtkObj);
+
+  return pyVtkObj;
+*/
+
+}
+
+//=======================================================================================================
+//                                   O L D   M E T H O D S
+//=======================================================================================================
 
 //-------------------
 // Contour_set_image
@@ -306,53 +363,6 @@ Contour_set_image(PyContour* self, PyObject* args)
     
     Py_INCREF(contour);
     self->contour=contour;
-    Py_DECREF(contour);
-    return Py_None;
-}
-
-//--------------------
-// Contour_get_object
-//--------------------
-//
-// [TODO:DaveP] This sets the 'geom' data member of the PyContour struct for
-// this object. Bad!
-//
-PyDoc_STRVAR(Contour_get_object_doc,
-  "Contour_get_object(name)  \n\ 
-   \n\
-   Set the image data for a contour. \n\
-   \n\
-   Args: \n\
-     name (str): The name of the Contour object. \n\
-");
-
-static PyObject* 
-Contour_get_object(PyContour* self, PyObject* args)
-{
-    char *objName = NULL;
-    auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
-
-    if (!PyArg_ParseTuple(args, api.format, &objName)) {
-        return api.argsError();
-    }
-    
-    // Get the Contour object from the repository. 
-    auto rd = gRepository->GetObject(objName);
-    if (rd == nullptr) {
-        api.error("The Contour object '" + std::string(objName) + "' is not in the repository."); 
-        return nullptr;
-    }
-
-    // Check its type.
-    auto type = rd->GetType();
-    if (type != CONTOUR_T) {
-        api.error("'" + std::string(objName) + "' is not a Contour object.");
-        return nullptr;
-    }
-
-    auto contour = dynamic_cast<Contour*>(rd);
-    Py_INCREF(contour);
-    self->contour = contour;
     Py_DECREF(contour);
     return Py_None;
 }
@@ -565,37 +575,6 @@ PyObject* Contour_get_perimeter(PyContour* self, PyObject* args)
     return Py_BuildValue("d",perimeter);    
 }
 
-//--------------------
-// Contour_get_center
-//--------------------
-//
-// [TODO:DaveP] This should return a list of three floats.
-PyDoc_STRVAR(Contour_get_center_doc,
-  "Contour.center()  \n\ 
-   \n\
-   Get the center of the contour. \n\
-   \n\
-   Args:                                    \n\
-     None \n\
-   \n\
-   Returns: Center (string(x,y,z)) of the contour. \n\
-");
-
-PyObject* Contour_get_center(PyContour* self, PyObject* args)
-{
-    auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
-    auto contour = self->contour;
-    if (contour == NULL ) {
-        api.error("No geometry has been created for the Contour.");
-        return nullptr;
-    }
-
-    std::array<double,3> center = contour->GetCenterPoint();
-    char output[1024];
-    output[0] = '\0';
-    sprintf(output,"(%.4f,%.4f,%.4f)",center[0],center[1],center[2]);
-    return Py_BuildValue("s",output);    
-}
 
 //-----------------------------
 // Contour_set_threshold_value
@@ -610,7 +589,8 @@ PyDoc_STRVAR(Contour_set_threshold_value_doc,
      threshold (float): Threshold value. \n\
 ");
 
-PyObject* Contour_set_threshold_value(PyContour* self, PyObject* args)
+static PyObject * 
+Contour_set_threshold_value(PyContour* self, PyObject* args)
 {
     double threshold = 0.0;
     auto api = SvPyUtilApiFunction("d", PyRunTimeErr, __func__);
@@ -800,11 +780,13 @@ PyContourInit(PyContour* self, PyObject* args, PyObject *kwds)
   static int numObjs = 1;
   std::cout << "[PyContourInit] New Contour object: " << numObjs << std::endl;
   char* kernelName = nullptr;
-  if (!PyArg_ParseTuple(args, "s", &kernelName)) {
+  if (!PyArg_ParseTuple(args, "|s", &kernelName)) {
       return -1;
   }
 
-  std::cout << "[ContourObjectInit] Kernel name: " << kernelName << std::endl;
+  if (kernelName != nullptr) { 
+      std::cout << "[ContourObjectInit] Kernel name: " << kernelName << std::endl;
+  }
   self->contour = new Contour();
   numObjs += 1;
   return 0;
@@ -817,17 +799,24 @@ PyContourInit(PyContour* self, PyObject* args, PyObject *kwds)
 //
 static PyMethodDef PyContourMethods[] = {
 
-  { "area", (PyCFunction)Contour_get_area, METH_NOARGS, Contour_get_area_doc },
+  {"get_center", (PyCFunction)Contour_get_center, METH_NOARGS, Contour_get_center_doc }, 
 
-  {"center", (PyCFunction)Contour_get_center, METH_NOARGS, Contour_get_center_doc }, 
+  {"get_contour_points", (PyCFunction)Contour_get_contour_points, METH_NOARGS, Contour_get_contour_points_doc}, 
+
+  {"get_control_points", (PyCFunction)Contour_get_control_points, METH_NOARGS, Contour_get_control_points_doc}, 
+
+  {"get_path_point", (PyCFunction)Contour_get_path_point, METH_NOARGS, Contour_get_path_point_doc}, 
+
+  { "get_type", (PyCFunction)Contour_get_type, METH_NOARGS, Contour_get_type_doc},
+
+
+  // ======================= old methods ================================================ //
+
+  { "area", (PyCFunction)Contour_get_area, METH_NOARGS, Contour_get_area_doc },
 
   {"create_smooth_contour", (PyCFunction)Contour_create_smooth_contour, METH_VARARGS, Contour_create_smooth_contour_doc },
 
-  {"get_object", (PyCFunction)Contour_get_object, METH_VARARGS, Contour_get_object_doc },
-
   {"get_polydata", (PyCFunction)Contour_get_polydata, METH_VARARGS, Contour_get_polydata_doc },
-
-  { "new_object", (PyCFunction)Contour_new_object, METH_VARARGS, Contour_new_object_doc },
 
   {"perimeter", (PyCFunction)Contour_get_perimeter, METH_NOARGS, Contour_get_perimeter_doc },
 
@@ -1011,13 +1000,14 @@ static PyMethodDef PyContourModuleMethods[] =
 {
     {"create", (PyCFunction)Contour_create, METH_VARARGS, "Create a Contour object."},
 
-    {"set_contour_kernel", (PyCFunction)Contour_set_contour_kernel, METH_VARARGS, Contour_set_contour_kernel_doc },
-
     {NULL,NULL}
 };
 
 // Include derived Contour classes.
 #include "sv3_CircleContour_PyClass.h"
+
+// Include path.Group definition.
+#include "sv4gui_ContourGroup_PyClass.cxx"
 
 //------------------
 // PyContourCtorMap
@@ -1026,7 +1016,7 @@ static PyMethodDef PyContourModuleMethods[] =
 //
 using PyContourCtorMapType = std::map<cKernelType, std::function<PyObject*()>>;
 PyContourCtorMapType PyContourCtorMap = {
-    {cKernelType::cKERNEL_CIRCLE, []() -> PyObject* { return PyObject_CallObject((PyObject*)&PyCircleContourType, NULL); } },
+    {cKernelType::cKERNEL_CIRCLE, []() -> PyObject* { return PyObject_CallObject((PyObject*)&PyCircleContourClassType, NULL); } },
 };
 
 //-----------------
@@ -1035,17 +1025,24 @@ PyContourCtorMapType PyContourCtorMap = {
 // Create a Python contour object for the given kernel type.
 // 
 static PyObject *
-PyCreateContour(cKernelType contourType)
+PyCreateContour(cKernelType contourType, sv3::Contour* contour)
 {
-  PyObject* contour;
+  std::cout << "[PyCreateContour] ========== PyCreateContour ==========" << std::endl;
+  PyObject* contourObj;
 
   try {
-      contour = PyContourCtorMap[contourType]();
+      contourObj = PyContourCtorMap[contourType]();
   } catch (const std::bad_function_call& except) {
-      return nullptr;
+      contourObj = PyObject_CallObject((PyObject*)&PyContourClassType, NULL);
   }
 
-  return contour;
+  if (contour != nullptr) {
+     auto pyContour = (PyContour*)contourObj;
+     delete pyContour->contour;
+     pyContour->contour = contour;
+  }
+
+  return contourObj;
 }
 
 //-----------------------
@@ -1094,16 +1091,23 @@ PyMODINIT_FUNC PyInit_PyContour()
     return SV_PYTHON_ERROR;
   }
 
+  // Initialize the group class type.
+  SetContourGroupTypeFields(PyContourGroupClassType);
+  if (PyType_Ready(&PyContourGroupClassType) < 0) {
+      std::cout << "Error creating ContourGroup type" << std::endl;
+      return nullptr;
+  }
+
   // Initialize the circle class type.
-  SetCircleContourTypeFields(PyCircleContourType);
-  if (PyType_Ready(&PyCircleContourType) < 0) {
+  SetCircleContourTypeFields(PyCircleContourClassType);
+  if (PyType_Ready(&PyCircleContourClassType) < 0) {
       std::cout << "Error creating CircleContour type" << std::endl;
       return nullptr;
   }
 
   // Initialize the kernel class type.
-  SetContourKernelTypeFields(ContourKernelType);
-  if (PyType_Ready(&ContourKernelType) < 0) {
+  SetContourKernelTypeFields(PyContourKernelClassType);
+  if (PyType_Ready(&PyContourKernelClassType) < 0) {
       std::cout << "Error creating ContourKernel type" << std::endl;
       return nullptr;
   }
@@ -1123,16 +1127,20 @@ PyMODINIT_FUNC PyInit_PyContour()
   Py_INCREF(&PyContourClassType);
   PyModule_AddObject(module, CONTOUR_CLASS, (PyObject*)&PyContourClassType);
 
+  // Add the 'Group' object.
+  Py_INCREF(&PyContourGroupClassType);
+  PyModule_AddObject(module, CONTOUR_GROUP_CLASS, (PyObject*)&PyContourGroupClassType);
+
   // Add the 'Circle' class.
-  Py_INCREF(&PyCircleContourType);
-  PyModule_AddObject(module, CONTOUR_CIRCLE_CLASS, (PyObject*)&PyCircleContourType);
+  Py_INCREF(&PyCircleContourClassType);
+  PyModule_AddObject(module, CONTOUR_CIRCLE_CLASS, (PyObject*)&PyCircleContourClassType);
 
   // Add the 'Kernel' class.
-  Py_INCREF(&ContourKernelType);
-  PyModule_AddObject(module, CONTOUR_KERNEL_CLASS, (PyObject*)&ContourKernelType);
+  Py_INCREF(&PyContourKernelClassType);
+  PyModule_AddObject(module, CONTOUR_KERNEL_CLASS, (PyObject*)&PyContourKernelClassType);
 
   // Set the kernel names in the ContourKernelType dictionary.
-  SetContourKernelTypes(ContourKernelType);
+  SetContourKernelClassTypes(PyContourKernelClassType);
 
   return module;
 }
@@ -1182,11 +1190,11 @@ PyMODINIT_FUNC initPyContour()
   Py_INCREF(&PyContourClassType);
   PyModule_AddObject(pythonC,"PyContour",(PyObject*)&PyContourClassType);
 
-  // Add the 'kernel' object.
-  Py_INCREF(&ContourKernelType);
-  PyModule_AddObject(module, "kernel", (PyObject*)&ContourKernelType);
+  // Add the 'kernel' class.
+  Py_INCREF(&ContourKernelClassType);
+  PyModule_AddObject(module, "kernel", (PyObject*)&ContourKernelClassType);
 
-  SetContourKernelTypes(ContourKernelType);
+  SetContourKernelClassTypes(ContourKernelClassType);
 
   
   return module;

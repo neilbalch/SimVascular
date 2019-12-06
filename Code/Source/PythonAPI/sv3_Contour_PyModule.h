@@ -28,36 +28,33 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-#ifndef SV4GUI_CONTOURGROUPIO_H
-#define SV4GUI_CONTOURGROUPIO_H
+ 
+#ifndef SV3_CONTOUR_PYMODULE_H
+#define SV3_CONTOUR_PYMODULE_H
 
 #include "SimVascular.h"
-#include "sv4gui_ContourGroup.h"
+#include "Python.h"
+#include "svPythonAPIExports.h"
+#include "sv3_Contour.h"
+#include "sv_FactoryRegistrar.h"
 
-#include <sv4guiModuleSegmentationExports.h>
-
-#include "mitkAbstractFileIO.h"
-
-class SV4GUIMODULESEGMENTATION_EXPORT sv4guiContourGroupIO : public mitk::AbstractFileIO
+extern "C" SV_EXPORT_PYTHON_API typedef struct
 {
-public:
+  PyObject_HEAD
+  sv3::Contour* contour;
+} PyContour;
 
-    sv4guiContourGroupIO();
+extern "C" SV_EXPORT_SEGMENTATION typedef struct
+{
+  PyObject_HEAD
+  cvFactoryRegistrar* registrar;
+} pyContourFactoryRegistrar;
 
-    using mitk::AbstractFileReader::Read;
-    std::vector<mitk::BaseData::Pointer> Read() override;
-    static std::vector<mitk::BaseData::Pointer> ReadFile(std::string fileName);
+#if PYTHON_MAJOR_VERSION == 2
+PyMODINIT_FUNC  initpyContour();
+#endif
+#if PYTHON_MAJOR_VERSION == 3
+PyMODINIT_FUNC  PyInit_PyContour();
+#endif
 
-    static sv4guiContourGroup::Pointer CreateGroupFromFile(std::string fileName);
-
-    mitk::IFileIO::ConfidenceLevel GetReaderConfidenceLevel() const override;
-
-    void Write() override;
-    mitk::IFileIO::ConfidenceLevel GetWriterConfidenceLevel() const override;
-
-private:
-    sv4guiContourGroupIO* IOClone() const override;
-};
-
-#endif // SV4GUI_CONTOURGROUPIO_H
+#endif 
