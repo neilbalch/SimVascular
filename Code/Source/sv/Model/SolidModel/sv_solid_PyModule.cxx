@@ -37,11 +37,11 @@
 //
 //     model = solid.SolidModel()
 //
-// A Python exception sv.solid.SolidModelException is defined for this module. 
+// A Python exception sv.solid.SolidModelError is defined for this module. 
 // The exception can be used in a Python 'try' statement with an 'except' clause 
 // like this
 //
-//    except sv.solid.SolidModelException: 
+//    except sv.solid.SolidModelError: 
 //
 #include "SimVascular.h"
 #include "SimVascular_python.h"
@@ -49,7 +49,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "sv_Repository.h"
-#include "sv_solid_init_py.h"
+#include "sv_solid_PyModule.h"
 #include "sv_SolidModel.h"
 #include "sv_arg.h"
 #include "sv_misc_utils.h"
@@ -71,6 +71,7 @@
 #include "Python.h"
 #include <structmember.h>
 #include "vtkPythonUtil.h"
+
 #if PYTHON_MAJOR_VERSION == 3
 #include "PyVTKObject.h"
 #elif PYTHON_MAJOR_VERSION == 2
@@ -80,7 +81,11 @@
 #include "sv_occt_init_py.h"
 #include "sv_polydatasolid_init_py.h"
 
+//--------------------
+// kernelNameTypeMap
+//--------------------
 // Define a map between solid model kernel name and enum type.
+//
 static std::map<std::string,SolidModel_KernelT> kernelNameTypeMap =
 {
     {"Discrete", SM_KT_DISCRETE},
@@ -91,27 +96,32 @@ static std::map<std::string,SolidModel_KernelT> kernelNameTypeMap =
 };
 
 //--------------
-// pySolidModel
+// PySolidModel
 //--------------
 //
 typedef struct {
   PyObject_HEAD
-  cvSolidModel* geom;
-} pySolidModel;
+  cvSolidModel* model;
+  int id;
+} PySolidModel;
 
 // [TODO:DaveP] not used.
-static void pySolidModel_dealloc(pySolidModel* self)
+static void PySolidModel_dealloc(PySolidModel* self)
 {
-  Py_XDECREF(self->geom);
+  Py_XDECREF(self->model);
   Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
 // Exception type used by PyErr_SetString() to set the for the error indicator.
 static PyObject * PyRunTimeErr;
 
-// createSolidModelType() references pySolidModelType and is used before 
+// createSolidModelType() references PySolidModelType and is used before 
 // it is defined so we need to define its prototype here.
-pySolidModel * createSolidModelType();
+PySolidModel * CreateSolidModelType();
+
+//////////////////////////////////////////////////////
+//          U t i l i t y   F u n c t i o n s       //
+//////////////////////////////////////////////////////
 
 //-----------------
 // CheckSolidModel
@@ -168,9 +178,9 @@ CheckSimplificationName(SvPyUtilApiFunction& api, char* name)
 // in a single place. 
 //
 static cvSolidModel *
-CheckGeometry(SvPyUtilApiFunction& api, pySolidModel *self)
+CheckGeometry(SvPyUtilApiFunction& api, PySolidModel *self)
 {
-  auto geom = self->geom;
+  auto geom = self->model;
   if (geom == NULL) {
       api.error("The solid model object does not have geometry.");
       return nullptr;
@@ -181,7 +191,7 @@ CheckGeometry(SvPyUtilApiFunction& api, pySolidModel *self)
 
 
 //////////////////////////////////////////////////////
-//          M o d u l e  F u n c t i o n s          //
+//         M o d u l e   F u n c t i o n s          //
 //////////////////////////////////////////////////////
 //
 // Python API functions. 
@@ -201,14 +211,14 @@ PyDoc_STRVAR(Solid_list_registrars_doc,
 static PyObject * 
 Solid_list_registrars(PyObject* self, PyObject* args)
 {
-  cvFactoryRegistrar* pySolidModelRegistrar =(cvFactoryRegistrar *) PySys_GetObject("solidModelRegistrar");
+  cvFactoryRegistrar* PySolidModelRegistrar =(cvFactoryRegistrar *) PySys_GetObject("solidModelRegistrar");
   char result[255];
   PyObject* pyList=PyList_New(6);
-  sprintf( result, "Solid model registrar ptr -> %p\n", pySolidModelRegistrar );
+  sprintf( result, "Solid model registrar ptr -> %p\n", PySolidModelRegistrar );
   PyList_SetItem(pyList,0,PyString_FromFormat(result));
   for (int i = 0; i < CV_MAX_FACTORY_METHOD_PTRS; i++) {
     sprintf( result, "GetFactoryMethodPtr(%i) = %p\n",
-      i, (pySolidModelRegistrar->GetFactoryMethodPtr(i)));
+      i, (PySolidModelRegistrar->GetFactoryMethodPtr(i)));
     PyList_SetItem(pyList,i+1,PyString_FromFormat(result));
   }
   return pyList;
@@ -274,7 +284,7 @@ Solid_get_kernel(PyObject* self, PyObject* args)
 }
 
 /////////////////////////////////////////////////////////////////
-//          M o d u l e  C l a s s  F u n c t i o n s          //
+//              C l a s s   F u n c t i o n s                  //
 /////////////////////////////////////////////////////////////////
 //
 // Python API functions for the SolidModel class. 
@@ -299,7 +309,7 @@ PyDoc_STRVAR(SolidModel_get_model_doc,
 ");
 
 static PyObject * 
-SolidModel_get_model(pySolidModel* self, PyObject* args)
+SolidModel_get_model(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *objName = NULL;
@@ -323,7 +333,7 @@ SolidModel_get_model(pySolidModel* self, PyObject* args)
   
   auto geom = dynamic_cast<cvSolidModel*>(rd);
   Py_INCREF(geom);
-  self->geom=geom;
+  self->model=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK; 
 }
@@ -342,7 +352,7 @@ PyDoc_STRVAR(SolidModel_polygon_points_doc,
 ");
 
 static PyObject * 
-SolidModel_polygon_points(pySolidModel* self, PyObject* args)
+SolidModel_polygon_points(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *srcName;
@@ -392,7 +402,7 @@ SolidModel_polygon_points(pySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->geom=geom;
+  self->model=geom;
   Py_DECREF(geom);
 
   return SV_PYTHON_OK;
@@ -412,7 +422,7 @@ PyDoc_STRVAR(SolidModel_polygon_doc,
 ");
 
 static PyObject * 
-SolidModel_polygon(pySolidModel* self, PyObject* args)
+SolidModel_polygon(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *srcName;
@@ -462,7 +472,7 @@ SolidModel_polygon(pySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->geom=geom;
+  self->model=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -481,7 +491,7 @@ PyDoc_STRVAR(SolidModel_circle_doc,
 ");
 
 static PyObject * 
-SolidModel_circle(pySolidModel* self, PyObject* args)
+SolidModel_circle(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("sddd", PyRunTimeErr, __func__);
   char *objName;
@@ -523,7 +533,7 @@ SolidModel_circle(pySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->geom=geom;
+  self->model=geom;
   Py_DECREF(geom);
 
   return SV_PYTHON_OK;
@@ -545,7 +555,7 @@ PyDoc_STRVAR(SolidModel_sphere_doc,
 ");
 
 static PyObject * 
-SolidModel_sphere(pySolidModel* self, PyObject* args)
+SolidModel_sphere(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("sdO", PyRunTimeErr, __func__);
   char *objName;
@@ -594,7 +604,7 @@ SolidModel_sphere(pySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->geom=geom;
+  self->model=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -613,7 +623,7 @@ PyDoc_STRVAR(SolidModel_ellipse_doc,
 ");
 
 static PyObject * 
-SolidModel_ellipse(pySolidModel* self, PyObject* args)
+SolidModel_ellipse(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("sdddd", PyRunTimeErr, __func__);
   char *objName;
@@ -661,7 +671,7 @@ SolidModel_ellipse(pySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->geom=geom;
+  self->model=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -680,7 +690,7 @@ PyDoc_STRVAR(SolidModel_box2d_doc,
 ");
 
 static PyObject * 
-SolidModel_box2d(pySolidModel* self, PyObject* args)
+SolidModel_box2d(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("sdddd", PyRunTimeErr, __func__);
   char *objName;
@@ -728,7 +738,7 @@ SolidModel_box2d(pySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->geom=geom;
+  self->model=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -747,7 +757,7 @@ PyDoc_STRVAR(SolidModel_box3d_doc,
 ");
 
 static PyObject * 
-SolidModel_box3d( pySolidModel* self, PyObject* args)
+SolidModel_box3d( PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("sOO", PyRunTimeErr, __func__);
   char *objName;
@@ -813,7 +823,7 @@ SolidModel_box3d( pySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->geom=geom;
+  self->model=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -832,7 +842,7 @@ PyDoc_STRVAR(SolidModel_ellipsoid_doc,
 ");
 
 static PyObject * 
-SolidModel_ellipsoid(pySolidModel* self, PyObject* args)
+SolidModel_ellipsoid(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("sOO", PyRunTimeErr, __func__);
   char *objName;
@@ -889,7 +899,7 @@ SolidModel_ellipsoid(pySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->geom=geom;
+  self->model=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -907,7 +917,7 @@ PyDoc_STRVAR(SolidModel_cylinder_doc,
 ");
 
 static PyObject * 
-SolidModel_cylinder(pySolidModel* self, PyObject* args)
+SolidModel_cylinder(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("sddOO", PyRunTimeErr, __func__);
   char *objName;
@@ -974,7 +984,7 @@ SolidModel_cylinder(pySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->geom=geom;
+  self->model=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -993,7 +1003,7 @@ PyDoc_STRVAR(SolidModel_truncated_cone_doc,
 ");
 
 static PyObject * 
-SolidModel_truncated_cone(pySolidModel* self, PyObject* args)
+SolidModel_truncated_cone(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("sddOO", PyRunTimeErr, __func__);
   char *objName;
@@ -1060,7 +1070,7 @@ SolidModel_truncated_cone(pySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->geom=geom;
+  self->model=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -1079,7 +1089,7 @@ PyDoc_STRVAR(SolidModel_torus_doc,
 ");
 
 static PyObject * 
-SolidModel_torus(pySolidModel* self, PyObject* args)
+SolidModel_torus(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("sddOO", PyRunTimeErr, __func__);
   char *objName;
@@ -1146,7 +1156,7 @@ SolidModel_torus(pySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->geom=geom;
+  self->model=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -1167,7 +1177,7 @@ PyDoc_STRVAR(SolidModel_poly3d_solid_doc,
 ");
 
 static PyObject * 
-SolidModel_poly3d_solid(pySolidModel* self, PyObject* args)
+SolidModel_poly3d_solid(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("sssd", PyRunTimeErr, __func__);
   char *objName;
@@ -1232,7 +1242,7 @@ SolidModel_poly3d_solid(pySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->geom=geom;
+  self->model=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -1251,7 +1261,7 @@ PyDoc_STRVAR(SolidModel_poly3d_surface_doc,
 ");
 
 static PyObject * 
-SolidModel_poly3d_surface(pySolidModel* self, PyObject* args)
+SolidModel_poly3d_surface(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("sss", PyRunTimeErr, __func__);
   char *objName;
@@ -1314,7 +1324,7 @@ SolidModel_poly3d_surface(pySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->geom=geom;
+  self->model=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -1333,7 +1343,7 @@ PyDoc_STRVAR(SolidModel_extrude_z_doc,
 ");
 
 static PyObject * 
-SolidModel_extrude_z(pySolidModel* self, PyObject* args)
+SolidModel_extrude_z(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("ssd", PyRunTimeErr, __func__);
   char *srcName;
@@ -1389,7 +1399,7 @@ SolidModel_extrude_z(pySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->geom=geom;
+  self->model=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -1408,7 +1418,7 @@ PyDoc_STRVAR(SolidModel_extrude_doc,
 ");
 
 static PyObject * 
-SolidModel_extrude(pySolidModel* self, PyObject* args)
+SolidModel_extrude(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("ssOO", PyRunTimeErr, __func__);
   char *srcName;
@@ -1488,7 +1498,7 @@ SolidModel_extrude(pySolidModel* self, PyObject* args)
 
   delete dist;
   Py_INCREF(geom);
-  self->geom=geom;
+  self->model=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -1509,7 +1519,7 @@ PyDoc_STRVAR(SolidModel_make_approximate_curve_loop_doc,
 ");
 
 static PyObject * 
-SolidModel_make_approximate_curve_loop(pySolidModel* self, PyObject* args)
+SolidModel_make_approximate_curve_loop(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("ssdi", PyRunTimeErr, __func__);
   char *srcName;
@@ -1561,7 +1571,7 @@ SolidModel_make_approximate_curve_loop(pySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->geom=geom;
+  self->model=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -1580,7 +1590,7 @@ PyDoc_STRVAR(SolidModel_make_interpolated_curve_loop_doc,
 ");
 
 static PyObject * 
-SolidModel_make_interpolated_curve_loop( pySolidModel* self, PyObject* args)
+SolidModel_make_interpolated_curve_loop( PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("ss|i", PyRunTimeErr, __func__);
   char *srcName;
@@ -1631,7 +1641,7 @@ SolidModel_make_interpolated_curve_loop( pySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->geom=geom;
+  self->model=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -1650,7 +1660,7 @@ PyDoc_STRVAR(SolidModel_make_lofted_surface_doc,
 ");
 
 static PyObject * 
-SolidModel_make_lofted_surface(pySolidModel* self, PyObject* args)
+SolidModel_make_lofted_surface(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("Os|iidddi", PyRunTimeErr, __func__);
   PyObject* srcList;
@@ -1718,7 +1728,7 @@ SolidModel_make_lofted_surface(pySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->geom=geom;
+  self->model=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -1737,7 +1747,7 @@ PyDoc_STRVAR(SolidModel_cap_surface_to_solid_doc,
 ");
 
 static PyObject * 
-SolidModel_cap_surface_to_solid(pySolidModel* self, PyObject* args)
+SolidModel_cap_surface_to_solid(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *srcName;
@@ -1786,7 +1796,7 @@ SolidModel_cap_surface_to_solid(pySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->geom=geom;
+  self->model=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -1805,7 +1815,7 @@ PyDoc_STRVAR(SolidModel_read_native_doc,
 ");
 
 static PyObject * 
-SolidModel_read_native(pySolidModel* self, PyObject* args)
+SolidModel_read_native(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *objName, *fileName;
@@ -1846,7 +1856,7 @@ SolidModel_read_native(pySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->geom=geom;
+  self->model=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -1865,7 +1875,7 @@ PyDoc_STRVAR(SolidModel_copy_doc,
 ");
 
 static PyObject * 
-SolidModel_copy(pySolidModel* self, PyObject* args)
+SolidModel_copy(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *srcName;
@@ -1915,7 +1925,7 @@ SolidModel_copy(pySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(dstGeom);
-  self->geom=dstGeom;
+  self->model=dstGeom;
   Py_DECREF(dstGeom);
   return SV_PYTHON_OK;
 }
@@ -1934,7 +1944,7 @@ PyDoc_STRVAR(SolidModel_intersect_doc,
 ");
 
 static PyObject * 
-SolidModel_intersect( pySolidModel* self, PyObject* args)
+SolidModel_intersect( PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("sss|s", PyRunTimeErr, __func__);
   char *resultName;
@@ -1983,7 +1993,7 @@ SolidModel_intersect( pySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->geom=geom;
+  self->model=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -2002,7 +2012,7 @@ PyDoc_STRVAR(SolidModel_union_doc,
 ");
 
 static PyObject * 
-SolidModel_union(pySolidModel* self, PyObject* args)
+SolidModel_union(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("sss|s", PyRunTimeErr, __func__);
   char *resultName;
@@ -2051,7 +2061,7 @@ SolidModel_union(pySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(result);
-  self->geom=result;
+  self->model=result;
   Py_DECREF(result);
   return SV_PYTHON_OK;
 }
@@ -2070,7 +2080,7 @@ PyDoc_STRVAR(SolidModel_subtract_doc,
 ");
 
 static PyObject * 
-SolidModel_subtract(pySolidModel* self, PyObject* args)
+SolidModel_subtract(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("sss|s", PyRunTimeErr, __func__);
   char *resultName;
@@ -2119,7 +2129,7 @@ SolidModel_subtract(pySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(result);
-  self->geom=result;
+  self->model=result;
   Py_DECREF(result);
   return SV_PYTHON_OK;
 }
@@ -2130,7 +2140,7 @@ SolidModel_subtract(pySolidModel* self, PyObject* args)
 // [TODO:DaveP] is this useful?
 //
 static PyObject * 
-SolidModel_object(pySolidModel* self,PyObject* args )
+SolidModel_object(PySolidModel* self,PyObject* args )
 {
   if (PyTuple_Size(args)== 0 ) {
     //PrintMethods();
@@ -2141,9 +2151,9 @@ SolidModel_object(pySolidModel* self,PyObject* args )
 // [TODO:DaveP] is this used?
 /*
 PyObject * 
-DeleteSolid( pySolidModel* self, PyObject* args)
+DeleteSolid( PySolidModel* self, PyObject* args)
 {
-  cvSolidModel *geom = self->geom;
+  cvSolidModel *geom = self->model;
 
   gRepository->UnRegister( geom->GetName() );
   Py_INCREF(Py_None);
@@ -2168,7 +2178,7 @@ PyDoc_STRVAR(SolidModel_new_object_doc,
 ");
 
 static PyObject * 
-SolidModel_new_object(pySolidModel* self,PyObject *args)
+SolidModel_new_object(PySolidModel* self,PyObject *args)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *objName, *fileName;
@@ -2203,7 +2213,7 @@ SolidModel_new_object(pySolidModel* self,PyObject *args)
   }
 
   Py_INCREF(geom);
-  self->geom = geom;
+  self->model = geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -2222,7 +2232,7 @@ PyDoc_STRVAR(SolidModel_get_class_name_doc,
 ");
 
 static PyObject * 
-SolidModel_get_class_name(pySolidModel* self, PyObject* args)
+SolidModel_get_class_name(PySolidModel* self, PyObject* args)
 {
   return Py_BuildValue("s","SolidModel");
 }
@@ -2239,10 +2249,10 @@ PyDoc_STRVAR(SolidModel_find_extent_doc,
 ");
 
 static PyObject * 
-SolidModel_find_extent(pySolidModel *self ,PyObject* args)
+SolidModel_find_extent(PySolidModel *self ,PyObject* args)
 {
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
-  auto geom =self->geom;
+  auto geom =self->model;
 
   double extent;
   auto status = geom->FindExtent(&extent);
@@ -2267,13 +2277,13 @@ PyDoc_STRVAR(SolidModel_find_centroid_doc,
 ");
 
 static PyObject *  
-SolidModel_find_centroid(pySolidModel *self ,PyObject* args)
+SolidModel_find_centroid(PySolidModel *self ,PyObject* args)
 {
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
   double centroid[3];
   int tdim;
 
-  cvSolidModel *geom = self->geom;
+  cvSolidModel *geom = self->model;
 
   if (geom->GetSpatialDim(&tdim) != SV_OK) {
       api.error("Unable to get the spatial dimension of the solid model.");
@@ -2315,10 +2325,10 @@ PyDoc_STRVAR(SolidModel_get_topological_dimension_doc,
 ");
 
 static PyObject *  
-SolidModel_get_topological_dimension( pySolidModel *self ,PyObject* args  )
+SolidModel_get_topological_dimension( PySolidModel *self ,PyObject* args  )
 {
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
-  auto geom = self->geom;
+  auto geom = self->model;
   int tdim;
 
   if (geom->GetTopoDim(&tdim) != SV_OK) {
@@ -2340,10 +2350,10 @@ PyDoc_STRVAR(SolidModel_get_spatial_dimension_doc,
 ");
 
 static PyObject *  
-SolidModel_get_spatial_dimension(pySolidModel *self ,PyObject* args)
+SolidModel_get_spatial_dimension(PySolidModel *self ,PyObject* args)
 {
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
-  auto geom = self->geom;
+  auto geom = self->model;
   int sdim;
 
   if (geom->GetSpatialDim(&sdim) != SV_OK) {
@@ -2367,7 +2377,7 @@ PyDoc_STRVAR(SolidModel_classify_point_doc,
 ");
 
 static PyObject *  
-SolidModel_classify_point(pySolidModel *self ,PyObject* args)
+SolidModel_classify_point(PySolidModel *self ,PyObject* args)
 {
   auto api = SvPyUtilApiFunction("dd|di", PyRunTimeErr, __func__);
   double x, y;
@@ -2381,7 +2391,7 @@ SolidModel_classify_point(pySolidModel *self ,PyObject* args)
       return api.argsError();
   }
 
-  auto geom = self->geom;
+  auto geom = self->model;
   geom->GetTopoDim(&tdim);
   geom->GetSpatialDim(&sdim);
 
@@ -2417,7 +2427,7 @@ PyDoc_STRVAR(SolidModel_distance_doc,
 ");
 
 static PyObject *  
-SolidModel_distance(pySolidModel *self, PyObject* args)
+SolidModel_distance(PySolidModel *self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("Od", PyRunTimeErr, __func__);
   double pos[3];
@@ -2431,7 +2441,7 @@ SolidModel_distance(pySolidModel *self, PyObject* args)
       return api.argsError();
   }
 
-  auto geom = self->geom;
+  auto geom = self->model;
 
   if (PyList_Size(posList) > 3) {
       api.error("The position argument is not between 1 and 3.");
@@ -2482,7 +2492,7 @@ PyDoc_STRVAR(SolidModel_translate_doc,
 ");
 
 static PyObject * 
-SolidModel_translate(pySolidModel *self ,PyObject* args)
+SolidModel_translate(PySolidModel *self ,PyObject* args)
 {
   auto api = SvPyUtilApiFunction("O", PyRunTimeErr, __func__);
   PyObject*  vecList;
@@ -2505,7 +2515,7 @@ SolidModel_translate(pySolidModel *self ,PyObject* args)
     vec[i] = PyFloat_AsDouble(PyList_GetItem(vecList,i));
   }
 
-  auto geom = self->geom;
+  auto geom = self->model;
 
   if (geom->Translate(vec, nvec) != SV_OK) {
       api.error("Error translating the solid model.");
@@ -2513,7 +2523,7 @@ SolidModel_translate(pySolidModel *self ,PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->geom=geom;
+  self->model=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -2533,7 +2543,7 @@ PyDoc_STRVAR(SolidModel_rotate_doc,
 ");
 
 static PyObject *  
-SolidModel_rotate( pySolidModel *self ,PyObject* args  )
+SolidModel_rotate( PySolidModel *self ,PyObject* args  )
 {
   auto api = SvPyUtilApiFunction("Od", PyRunTimeErr, __func__);
   PyObject*  axisList;
@@ -2553,7 +2563,7 @@ SolidModel_rotate( pySolidModel *self ,PyObject* args  )
     axis[i]=PyFloat_AsDouble(PyList_GetItem(axisList,i));
   }
 
-  auto geom = self->geom;
+  auto geom = self->model;
 
   if (geom->Rotate(axis, naxis, rad) != SV_OK) {
       api.error("Error rotating the solid model.");
@@ -2578,7 +2588,7 @@ PyDoc_STRVAR(SolidModel_scale_doc,
 ");
 
 static PyObject *  
-SolidModel_scale(pySolidModel *self ,PyObject* args)
+SolidModel_scale(PySolidModel *self ,PyObject* args)
 {
   auto api = SvPyUtilApiFunction("d", PyRunTimeErr, __func__);
   double factor;
@@ -2587,7 +2597,7 @@ SolidModel_scale(pySolidModel *self ,PyObject* args)
       return api.argsError();
   }
 
-  auto geom = self->geom;
+  auto geom = self->model;
 
   if (geom->Scale(factor) != SV_OK) {
       api.error("Error scaling the solid model.");
@@ -2611,7 +2621,7 @@ PyDoc_STRVAR(SolidModel_reflect_doc,
 ");
 
 static PyObject * 
-SolidModel_reflect(pySolidModel *self ,PyObject* args)
+SolidModel_reflect(PySolidModel *self ,PyObject* args)
 {
   auto api = SvPyUtilApiFunction("OO", PyRunTimeErr, __func__);
   PyObject* posList;
@@ -2645,7 +2655,7 @@ SolidModel_reflect(pySolidModel *self ,PyObject* args)
     nrm[i]=PyFloat_AsDouble(PyList_GetItem(nrmList,i));
   }
 
-  auto geom = self->geom;
+  auto geom = self->model;
 
   if (geom->Reflect(pos, nrm) != SV_OK) {
       api.error("Error reflecting the solid model.");
@@ -2669,7 +2679,7 @@ PyDoc_STRVAR(SolidModel_apply4x4_doc,
 ");
 
 static PyObject *  
-SolidModel_apply4x4(pySolidModel *self ,PyObject* args)
+SolidModel_apply4x4(PySolidModel *self ,PyObject* args)
 {
   auto api = SvPyUtilApiFunction("O", PyRunTimeErr, __func__);
   PyObject* matList;
@@ -2698,7 +2708,7 @@ SolidModel_apply4x4(pySolidModel *self ,PyObject* args)
       }
   }
 
-  auto geom = self->geom;
+  auto geom = self->model;
   if (geom->Apply4x4(mat) != SV_OK) {
       api.error("Error applyonig a 4x4 matrix to the solid model.");
       return nullptr;
@@ -2719,9 +2729,9 @@ PyDoc_STRVAR(SolidModel_print_doc,
 ");
 
 static PyObject *  
-SolidModel_print(pySolidModel *self ,PyObject* args)
+SolidModel_print(PySolidModel *self ,PyObject* args)
 {
-  auto geom = self->geom;
+  auto geom = self->model;
   geom->Print();
   return SV_PYTHON_OK;
 }
@@ -2737,9 +2747,9 @@ PyDoc_STRVAR(SolidModel_check_doc,
 ");
 
 static PyObject *  
-SolidModel_check(pySolidModel *self ,PyObject* args)
+SolidModel_check(PySolidModel *self ,PyObject* args)
 {
-  auto geom = self->geom;
+  auto geom = self->model;
   int nerr;
   geom->Check( &nerr );
   return Py_BuildValue("i",nerr);
@@ -2759,7 +2769,7 @@ PyDoc_STRVAR(SolidModel_write_native_doc,
 ");
 
 static PyObject * 
-SolidModel_write_native(pySolidModel *self ,PyObject* args)
+SolidModel_write_native(PySolidModel *self ,PyObject* args)
 {
   auto api = SvPyUtilApiFunction("s|i", PyRunTimeErr, __func__);
   char *fn;
@@ -2770,14 +2780,14 @@ SolidModel_write_native(pySolidModel *self ,PyObject* args)
       return api.argsError();
   }
 
-  auto geom = self->geom;
+  auto geom = self->model;
   if (geom->WriteNative(file_version, fn) != SV_OK) {
       api.error("Error writing the solid model to the file '" + std::string(fn) + "' using version '" + std::to_string(file_version)+"'."); 
       return nullptr;
   }
 
   Py_INCREF(geom);
-  self->geom=geom;
+  self->model=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -2796,7 +2806,7 @@ PyDoc_STRVAR(SolidModel_write_vtk_polydata_doc,
 ");
 
 static PyObject *  
-SolidModel_write_vtk_polydata(pySolidModel *self, PyObject* args)
+SolidModel_write_vtk_polydata(PySolidModel *self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *fn;
@@ -2805,7 +2815,7 @@ SolidModel_write_vtk_polydata(pySolidModel *self, PyObject* args)
       return api.argsError();
   }
 
-  auto geom = self->geom;
+  auto geom = self->model;
   if (geom->WriteVtkPolyData(fn) != SV_OK) {
       api.error("Error writing the solid model to the file '" + std::string(fn) + "'.");
       return nullptr;
@@ -2828,7 +2838,7 @@ PyDoc_STRVAR(SolidModel_write_geom_sim_doc,
 ");
 
 static PyObject *  
-SolidModel_write_geom_sim(pySolidModel *self, PyObject* args)
+SolidModel_write_geom_sim(PySolidModel *self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *fn;
@@ -2837,7 +2847,7 @@ SolidModel_write_geom_sim(pySolidModel *self, PyObject* args)
       return api.argsError();
   }
 
-  auto geom = self->geom;
+  auto geom = self->model;
   if (geom->WriteGeomSim(fn) != SV_OK) {
       api.error("Error writing the solid model to the file '" + std::string(fn) + "'.");
       return nullptr;
@@ -2860,7 +2870,7 @@ PyDoc_STRVAR(SolidModel_get_polydata_doc,
 ");
 
 static PyObject *  
-SolidModel_get_polydata(pySolidModel *self, PyObject* args)
+SolidModel_get_polydata(PySolidModel *self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("s|d", PyRunTimeErr, __func__);
   char *resultName;
@@ -2901,7 +2911,7 @@ SolidModel_get_polydata(pySolidModel *self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->geom=geom;
+  self->model=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -2920,7 +2930,7 @@ PyDoc_STRVAR(SolidModel_set_vtk_polydata_doc,
 ");
 
 static PyObject * 
-SolidModel_set_vtk_polydata(pySolidModel* self, PyObject* args)
+SolidModel_set_vtk_polydata(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *objName;
@@ -2971,7 +2981,7 @@ PyDoc_STRVAR(SolidModel_get_face_polydata_doc,
 ");
 
 static PyObject * 
-SolidModel_get_face_polydata(pySolidModel* self, PyObject* args)
+SolidModel_get_face_polydata(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("si|d", PyRunTimeErr, __func__);
   char *resultName;
@@ -3029,7 +3039,7 @@ PyDoc_STRVAR(SolidModel_get_face_normal_doc,
 ");
 
 static PyObject * 
-SolidModel_get_face_normal(pySolidModel* self, PyObject* args)
+SolidModel_get_face_normal(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("idd", PyRunTimeErr, __func__);
   int faceid;
@@ -3069,7 +3079,7 @@ PyDoc_STRVAR(SolidModel_get_discontinuities_doc,
 ");
 
 static PyObject * 
-SolidModel_get_discontinuities(pySolidModel* self, PyObject* args)
+SolidModel_get_discontinuities(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *resultName;
@@ -3119,8 +3129,8 @@ PyDoc_STRVAR(SolidModel_get_axial_isoparametric_curve_doc,
     name (str): Name in the repository to store the unstructured grid. \n\
 ");
 
-static pySolidModel * 
-SolidModel_get_axial_isoparametric_curve(pySolidModel* self, PyObject* args)
+static PySolidModel * 
+SolidModel_get_axial_isoparametric_curve(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("sd", PyRunTimeErr, __func__);
   char *resultName;
@@ -3163,9 +3173,9 @@ SolidModel_get_axial_isoparametric_curve(pySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(curve);
-  pySolidModel* newCurve;
-  newCurve = createSolidModelType();
-  newCurve->geom=curve;
+  PySolidModel* newCurve;
+  newCurve = CreateSolidModelType();
+  newCurve->model = curve;
   Py_DECREF(curve);
   return newCurve;
 }
@@ -3184,7 +3194,7 @@ PyDoc_STRVAR(SolidModel_get_kernel_doc,
 ");
 
 static PyObject * 
-SolidModel_get_kernel(pySolidModel* self, PyObject* args)
+SolidModel_get_kernel(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
 
@@ -3217,7 +3227,7 @@ PyDoc_STRVAR(SolidModel_get_label_keys_doc,
 ");
 
 static PyObject * 
-SolidModel_get_label_keys(pySolidModel* self, PyObject* args)
+SolidModel_get_label_keys(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
 
@@ -3253,7 +3263,7 @@ PyDoc_STRVAR(SolidModel_get_label_doc,
 ");
 
 static PyObject * 
-SolidModel_get_label(pySolidModel* self, PyObject* args)
+SolidModel_get_label(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *key; 
@@ -3291,7 +3301,7 @@ PyDoc_STRVAR(SolidModel_set_label_doc,
 ");
 
 static PyObject * 
-SolidModel_set_label(pySolidModel* self, PyObject* args)
+SolidModel_set_label(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *key, *value;
@@ -3333,7 +3343,7 @@ PyDoc_STRVAR(SolidModel_clear_label_doc,
 ");
 
 static PyObject * 
-SolidModel_clear_label(pySolidModel* self, PyObject* args)
+SolidModel_clear_label(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *key;
@@ -3368,7 +3378,7 @@ PyDoc_STRVAR(SolidModel_get_face_ids_doc,
 ");
 
 static PyObject * 
-SolidModel_get_face_ids(pySolidModel* self, PyObject* args)
+SolidModel_get_face_ids(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
 
@@ -3418,7 +3428,7 @@ PyDoc_STRVAR(SolidModel_get_boundary_faces_doc,
 ");
 
 static PyObject *  
-SolidModel_get_boundary_faces(pySolidModel* self, PyObject* args)
+SolidModel_get_boundary_faces(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("d", PyRunTimeErr, __func__);
   double angle = 0.0;
@@ -3452,7 +3462,7 @@ PyDoc_STRVAR(SolidModel_get_region_ids_doc,
 ");
 
 static PyObject * 
-SolidModel_get_region_ids(pySolidModel* self, PyObject* args)
+SolidModel_get_region_ids(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
 
@@ -3497,7 +3507,7 @@ PyDoc_STRVAR(SolidModel_get_face_attribute_doc,
 ");
 
 static PyObject * 
-SolidModel_get_face_attribute( pySolidModel* self, PyObject* args)
+SolidModel_get_face_attribute( PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("si", PyRunTimeErr, __func__);
   char *key;
@@ -3538,7 +3548,7 @@ PyDoc_STRVAR(SolidModel_set_face_attribute_doc,
 ");
 
 static PyObject * 
-SolidModel_set_face_attribute(pySolidModel* self, PyObject* args)
+SolidModel_set_face_attribute(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("ssi", PyRunTimeErr, __func__);
   char *key, *value;
@@ -3576,7 +3586,7 @@ PyDoc_STRVAR(SolidModel_get_region_attribute_doc,
 ");
 
 static PyObject * 
-SolidModel_get_region_attribute(pySolidModel* self, PyObject* args)
+SolidModel_get_region_attribute(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("si", PyRunTimeErr, __func__);
   char *key;
@@ -3615,7 +3625,7 @@ PyDoc_STRVAR(SolidModel_set_region_attribute_doc,
 ");
 
 static PyObject * 
-SolidModel_set_region_attribute(pySolidModel* self, PyObject* args)
+SolidModel_set_region_attribute(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("ssi", PyRunTimeErr, __func__);
   char *key, *value;
@@ -3653,7 +3663,7 @@ PyDoc_STRVAR(SolidModel_delete_faces_doc,
 ");
 
 static PyObject * 
-SolidModel_delete_faces(pySolidModel* self, PyObject* args)
+SolidModel_delete_faces(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("O", PyRunTimeErr, __func__);
   PyObject* faceList;
@@ -3704,7 +3714,7 @@ PyDoc_STRVAR(SolidModel_delete_region_doc,
 ");
 
 static PyObject * 
-SolidModel_delete_region(pySolidModel* self, PyObject* args)
+SolidModel_delete_region(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("i", PyRunTimeErr, __func__);
   int regionid;
@@ -3740,7 +3750,7 @@ PyDoc_STRVAR(SolidModel_create_edge_blend_doc,
 ");
 
 static PyObject * 
-SolidModel_create_edge_blend(pySolidModel* self, PyObject* args)
+SolidModel_create_edge_blend(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("iid|i", PyRunTimeErr, __func__);
   int faceA;
@@ -3779,7 +3789,7 @@ PyDoc_STRVAR(SolidModel_combine_faces_doc,
 ");
 
 static PyObject * 
-SolidModel_combine_faces(pySolidModel* self, PyObject* args)
+SolidModel_combine_faces(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("ii", PyRunTimeErr, __func__);
   int faceid1;
@@ -3818,7 +3828,7 @@ PyDoc_STRVAR(SolidModel_remesh_face_doc,
 ");
 
 static PyObject * 
-SolidModel_remesh_face(pySolidModel* self, PyObject* args)
+SolidModel_remesh_face(PySolidModel* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("Od", PyRunTimeErr, __func__);
   double size;
@@ -3856,14 +3866,23 @@ SolidModel_remesh_face(pySolidModel* self, PyObject* args)
 }
 
 ////////////////////////////////////////////////////////
-//          M o d u l e  D e f i n i t i o n          //
+//           C l a s s    D e f i n i t i o n         //
 ////////////////////////////////////////////////////////
 
-//------------------------------------------------
-// Define API function names for SolidModel class 
-//------------------------------------------------
+static char* SOLID_MODEL_CLASS = "SolidModel";
 
-static PyMethodDef pySolidModel_methods[] = {
+// Dotted name that includes both the module name and 
+// the name of the type within the module.
+static char* SOLID_MODEL_MODULE_CLASS = "solid.SolidModel";
+
+PyDoc_STRVAR(SolidModelClass_doc, "solid model class methods.");
+
+//--------------------------
+// PySolidModelClassMethods
+//--------------------------
+// Define method names for SolidModel class 
+//
+static PyMethodDef PySolidModelClassMethods[] = {
 
   { "apply4x4", (PyCFunction)SolidModel_apply4x4, METH_VARARGS, SolidModel_apply4x4_doc },
 
@@ -4001,85 +4020,118 @@ static PyMethodDef pySolidModel_methods[] = {
   {NULL,NULL}
 };
 
-//-------------------
-// pySolidModel_init
-//-------------------
+//------------------
+// PySolidModelInit 
+//------------------
 // This is the __init__() method for the SolidModel class. 
 //
 // This function is used to initialize an object after it is created.
 //
-static int 
-pySolidModel_init(pySolidModel* self, PyObject* args)
+static int
+PySolidModelInit(PySolidModel* self, PyObject* args, PyObject *kwds)
 {
-  fprintf(stdout,"pySolid Model tp_init called\n");
-  return SV_OK;
+  static int numObjs = 1;
+  std::cout << "[PySolidModelInit] New PySolidModel object: " << numObjs << std::endl;
+  char* kernelName = nullptr; 
+  if (!PyArg_ParseTuple(args, "|s", &kernelName)) {
+      return -1;
+  }
+
+  if (kernelName != nullptr) {
+      std::cout << "[PySolidModelInit] Kernel name: " << kernelName << std::endl;
+  }
+/*
+  self->contour = new Contour();
+  self->id = numObjs;
+*/
+  numObjs += 1;
+  return 0;
 }
 
 //------------------
-// pySolidModelType 
+// PySolidModelType 
 //------------------
 // This is the definition of the SolidModel class.
 //
 // The type object stores a large number of values, mostly C function pointers, 
 // each of which implements a small part of the type’s functionality.
 //
-static PyTypeObject pySolidModelType = {
+static PyTypeObject PySolidModelClassType = {
   PyVarObject_HEAD_INIT(NULL, 0)
-  "solid.SolidModel",        /* tp_name */
-  sizeof(pySolidModel),      /* tp_basicsize */
-  0,                         /* tp_itemsize */
-  0,                         /* tp_dealloc */
-  0,                         /* tp_print */
-  0,                         /* tp_getattr */
-  0,                         /* tp_setattr */
-  0,                         /* tp_compare */
-  0,                         /* tp_repr */
-  0,                         /* tp_as_number */
-  0,                         /* tp_as_sequence */
-  0,                         /* tp_as_mapping */
-  0,                         /* tp_hash */
-  0,                         /* tp_call */
-  0,                         /* tp_str */
-  0,                         /* tp_getattro */
-  0,                         /* tp_setattro */
-  0,                         /* tp_as_buffer */
-  Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,   /* tp_flags */
-  "SolidModel  objects",           /* tp_doc */
-  0,                         /* tp_traverse */
-  0,                         /* tp_clear */
-  0,                         /* tp_richcompare */
-  0,                         /* tp_weaklistoffset */
-  0,                         /* tp_iter */
-  0,                         /* tp_iternext */
-  pySolidModel_methods,             /* tp_methods */
-  0,                         /* tp_members */
-  0,                         /* tp_getset */
-  0,                         /* tp_base */
-  0,                         /* tp_dict */
-  0,                         /* tp_descr_get */
-  0,                         /* tp_descr_set */
-  0,                         /* tp_dictoffset */
-  (initproc)pySolidModel_init,                            /* tp_init */
-  0,                         /* tp_alloc */
-  0,                  /* tp_new */
+  .tp_name = SOLID_MODEL_MODULE_CLASS, 
+  .tp_basicsize = sizeof(PySolidModel) 
 };
 
-
-//----------------------
-// createSolidModelType 
-//----------------------
-pySolidModel * createSolidModelType()
+//-----------------
+// PySolidModelNew 
+//-----------------
+//
+static PyObject *
+PySolidModelNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
-  return PyObject_New(pySolidModel, &pySolidModelType);
+  std::cout << "[PySolidModelNew] New SolidModel" << std::endl;
+  auto self = (PySolidModel*)type->tp_alloc(type, 0);
+  if (self != NULL) {
+      //self->id = 1;
+  }
+
+  return (PyObject *) self;
 }
 
+//---------------------
+// PySolidModelDealloc 
+//---------------------
+//
+static void
+PySolidModelDealloc(PySolidModel* self)
+{
+  std::cout << "[PySolidModelDealloc] Free PySolidModel: " << self->id << std::endl;
+  //delete self->model;
+  Py_TYPE(self)->tp_free(self);
+}
 
-//------------------
-// pySolid_methods
-//------------------
+//-------------------------
+// SetSolidModelTypeFields 
+//-------------------------
+// Set the Python type object fields that stores SolidModel data. 
+//
+// Need to set the fields here because g++ does not suppor non-trivial 
+// designated initializers. 
+//
+static void
+SetSolidModelTypeFields(PyTypeObject& solidModelType)
+{
+  // Doc string for this type.
+  solidModelType.tp_doc = SolidModelClass_doc; 
+  // Object creation function, equivalent to the Python __new__() method. 
+  // The generic handler creates a new instance using the tp_alloc field.
+  solidModelType.tp_new = PySolidModelNew;
+  //solidModelType.tp_new = PyType_GenericNew,
+  solidModelType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
+  solidModelType.tp_init = (initproc)PySolidModelInit;
+  solidModelType.tp_dealloc = (destructor)PySolidModelDealloc;
+  solidModelType.tp_methods = PySolidModelClassMethods;
+};
+
+//----------------------
+// CreateSolidModelType 
+//----------------------
+static PySolidModel * 
+CreateSolidModelType()
+{
+  return PyObject_New(PySolidModel, &PySolidModelClassType);
+}
+
+////////////////////////////////////////////////////////
+//          M o d u l e   D e f i n i t i o n         //
+////////////////////////////////////////////////////////
+
+//----------------
+// PySolidMethods 
+//----------------
 // Methods for the 'solid' module.
 //
-static PyMethodDef pySolid_methods[] = {
+static PyMethodDef PySolidModuleMethods[] = {
 
   {"list_registrars", (PyCFunction)Solid_list_registrars, METH_NOARGS, Solid_list_registrars_doc },
 
@@ -4120,10 +4172,9 @@ static PyTypeObject pycvFactoryRegistrarType = {
 // Define the initialization function called by the Python interpreter 
 // when the module is loaded.
 
-static char* MODULE_NAME = "solid";
-static char* MODULE_SOLID_MODEL_CLASS = "SolidModel";
-static char* MODULE_EXCEPTION = "solid.SolidModelException";
-static char* MODEL_EXCEPTION_OBJECT = "SolidModelException";
+static char* SOLID_MODULE = "solid";
+static char* SOLID_MODULE_EXCEPTION = "solid.SolidModelError";
+static char* SOLID_MODULE_EXCEPTION_OBJECT = "SolidModelError";
 
 PyDoc_STRVAR(Solid_module_doc, "solid module functions");
 
@@ -4133,11 +4184,11 @@ PyDoc_STRVAR(Solid_module_doc, "solid module functions");
 
 #if PYTHON_MAJOR_VERSION == 3
 
-PyMODINIT_FUNC PyInit_pySolid(void);
+PyMODINIT_FUNC PyInit_PySolid(void);
 
-int Solid_pyInit()
+int Solid_PyInit()
 { 
-  PyInit_pySolid();
+  PyInit_PySolid();
   return SV_OK;
 }
 
@@ -4151,12 +4202,12 @@ static PyModuleDef_Base m_base = PyModuleDef_HEAD_INIT;
 // Define the module definition struct which holds all information 
 // needed to create a module object. 
 
-static struct PyModuleDef pySolidmodule = {
+static struct PyModuleDef PySolidModule = {
    m_base,
-   MODULE_NAME, 
+   SOLID_MODULE, 
    Solid_module_doc, 
    perInterpreterStateSize, 
-   pySolid_methods
+   PySolidModuleMethods
 };
 
 //-----------------
@@ -4166,47 +4217,38 @@ static struct PyModuleDef pySolidmodule = {
 // when the 'solid' module is loaded.
 //
 PyMODINIT_FUNC
-PyInit_pySolid(void)
+PyInit_PySolid(void)
 {
-  if (gRepository == NULL) {
-      gRepository=new cvRepository();
-      fprintf(stdout,"New gRepository created from cv_solid_init\n");
-  }
+  std::cout << "========== load solid module ==========" << std::endl;
 
-  // Set the default modeling kernel. 
-  cvSolidModel::gCurrentKernel = SM_KT_INVALID;
-  #ifdef SV_USE_PARASOLID
-  cvSolidModel::gCurrentKernel = SM_KT_PARASOLID;
-  #endif
-
-  // Create the SolidModeling class definition.
-  pySolidModelType.tp_new = PyType_GenericNew;
-  pycvFactoryRegistrarType.tp_new = PyType_GenericNew;
-  if (PyType_Ready(&pySolidModelType) < 0) {
-    fprintf(stdout,"Error in pySolidModelType");
+  // Initialize the SolidModel class type.
+  SetSolidModelTypeFields(PySolidModelClassType);
+  if (PyType_Ready(&PySolidModelClassType) < 0) {
+    fprintf(stdout,"Error in PySolidModelType");
     return SV_PYTHON_ERROR;
   }
 
+  pycvFactoryRegistrarType.tp_new = PyType_GenericNew;
   if (PyType_Ready(&pycvFactoryRegistrarType) < 0) {
-    fprintf(stdout,"Error in pySolidModelType");
+    fprintf(stdout,"Error in PySolidModelType");
     return SV_PYTHON_ERROR;
   }
 
   // Create the 'solid' module. 
-  auto module = PyModule_Create(&pySolidmodule);
+  auto module = PyModule_Create(&PySolidModule);
   if (module == NULL) {
     fprintf(stdout,"Error in initializing pySolid");
     return SV_PYTHON_ERROR;
   }
 
-  // Add solid.SolidModelException exception.
+  // Add solid.SolidModel exception.
   //
-  PyRunTimeErr = PyErr_NewException(MODULE_EXCEPTION, NULL, NULL);
-  PyModule_AddObject(module, MODEL_EXCEPTION_OBJECT, PyRunTimeErr);
+  PyRunTimeErr = PyErr_NewException(SOLID_MODULE_EXCEPTION, NULL, NULL);
+  PyModule_AddObject(module, SOLID_MODULE_EXCEPTION_OBJECT, PyRunTimeErr);
 
   // Add the 'SolidModel' class.
-  Py_INCREF(&pySolidModelType);
-  PyModule_AddObject(module, MODULE_SOLID_MODEL_CLASS, (PyObject *)&pySolidModelType);
+  Py_INCREF(&PySolidModelClassType);
+  PyModule_AddObject(module, SOLID_MODEL_CLASS, (PyObject *)&PySolidModelClassType);
 
   Py_INCREF(&pycvFactoryRegistrarType);
   PyModule_AddObject(module, "pyCvFactoryRegistrar", (PyObject *)&pycvFactoryRegistrarType);
@@ -4215,6 +4257,12 @@ PyInit_pySolid(void)
   pycvFactoryRegistrar* tmp = PyObject_New(pycvFactoryRegistrar, &pycvFactoryRegistrarType);
   tmp->registrar = (cvFactoryRegistrar *)&cvSolidModel::gRegistrar;
   PySys_SetObject("solidModelRegistrar", (PyObject *)tmp);
+
+  // Set the default modeling kernel. 
+  cvSolidModel::gCurrentKernel = SM_KT_INVALID;
+  #ifdef SV_USE_PARASOLID
+  cvSolidModel::gCurrentKernel = SM_KT_PARASOLID;
+  #endif
 
   return module;
 }
@@ -4250,16 +4298,16 @@ initpySolid(void)
   cvSolidModel::gCurrentKernel = SM_KT_PARASOLID;
   #endif
 
-  pySolidModelType.tp_new=PyType_GenericNew;
+  PySolidModelType.tp_new=PyType_GenericNew;
   pycvFactoryRegistrarType.tp_new = PyType_GenericNew;
-  if (PyType_Ready(&pySolidModelType)<0)
+  if (PyType_Ready(&PySolidModelType)<0)
   {
-    fprintf(stdout,"Error in pySolidModelType");
+    fprintf(stdout,"Error in PySolidModelType");
     return;
   }
   if (PyType_Ready(&pycvFactoryRegistrarType)<0)
   {
-    fprintf(stdout,"Error in pySolidModelType");
+    fprintf(stdout,"Error in PySolidModelType");
     return;
   }
   //Init our defined functions
@@ -4273,9 +4321,9 @@ initpySolid(void)
 
   PyRunTimeErr=PyErr_NewException("pySolid.error",NULL,NULL);
   PyModule_AddObject(pythonC, "error",PyRunTimeErr);
-  Py_INCREF(&pySolidModelType);
+  Py_INCREF(&PySolidModelType);
   Py_INCREF(&pycvFactoryRegistrarType);
-  PyModule_AddObject(pythonC, "pySolidModel", (PyObject *)&pySolidModelType);
+  PyModule_AddObject(pythonC, "PySolidModel", (PyObject *)&PySolidModelType);
   PyModule_AddObject(pythonC, "pyCvFactoryRegistrar", (PyObject *)&pycvFactoryRegistrarType);
 
   pycvFactoryRegistrar* tmp = PyObject_New(pycvFactoryRegistrar, &pycvFactoryRegistrarType);

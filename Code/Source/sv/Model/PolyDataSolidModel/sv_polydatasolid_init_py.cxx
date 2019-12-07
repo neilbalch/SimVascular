@@ -49,7 +49,7 @@
 #include <string.h>
 #include "sv_Repository.h"
 #include "sv_solid_init.h"
-#include "sv_solid_init_py.h"
+#include "sv_solid_PyModule.h"
 #include "sv_polydatasolid_init_py.h"
 #include "sv_polydatasolid_utils.h"
 #include "sv_SolidModel.h"

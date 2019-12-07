@@ -38,7 +38,7 @@
 #include <assert.h>
 #ifdef SV_USE_PYTHON
   #include "Python.h"
-  #include "sv_solid_init_py.h"
+  #include "sv_solid_PyModule.h"
 #endif
 
 // Globals:

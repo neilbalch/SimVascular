@@ -50,7 +50,7 @@
 #include "sv_geom_init_py.h"
 #include "sv_sys_geom.h"
 #include "sv_SolidModel.h"
-#include "sv_solid_init_py.h"
+#include "sv_solid_PyModule.h"
 #include "sv_integrate_surface.h"
 #include "sv_arg.h"
 #include "sv_misc_utils.h"

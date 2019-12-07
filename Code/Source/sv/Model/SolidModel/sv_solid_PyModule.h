@@ -38,7 +38,7 @@
 
 #include "Python.h"
 
-extern "C" SV_EXPORT_SOLID int Solid_pyInit();
+extern "C" SV_EXPORT_SOLID int Solid_PyInit();
 
 extern "C" SV_EXPORT_SOLID typedef struct
 {
@@ -50,7 +50,7 @@ extern "C" SV_EXPORT_SOLID typedef struct
 PyMODINIT_FUNC  initpySolid();
 #endif
 #if PYTHON_MAJOR_VERSION == 3
-PyMODINIT_FUNC  PyInit_pySolid();
+PyMODINIT_FUNC  PyInit_PySolid();
 #endif
 
 #endif // __CVSOLID_INIT_H

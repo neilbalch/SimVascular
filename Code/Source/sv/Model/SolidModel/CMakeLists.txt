@@ -49,7 +49,7 @@ set(CXXSRCS sv_SolidModel.cxx)
 set(HDRS    sv_SolidModel.h)
 
 if(SV_USE_PYTHON)
-  list(APPEND CXXSRCS sv_solid_init_py.cxx)
+  list(APPEND CXXSRCS sv_solid_PyModule.cxx)
 endif()
 
 add_library(${lib} ${SV_LIBRARY_TYPE} ${CXXSRCS} sv_solid_init.cxx)
