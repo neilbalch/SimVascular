@@ -36,8 +36,17 @@
 //
 //     aorta_cont_group = contour.Group()
 //
-#include "sv4gui_ContourGroup_PyClass.h"
+//#include "ContourGroup_PyClass.h"
 #include "sv4gui_dmg_init_py.h"
+
+extern "C" SV_EXPORT_PYTHON_API typedef struct
+{
+  PyObject_HEAD
+  // sv4guiContourGroup* contourGroup;
+  sv4guiContourGroup::Pointer contourGroupPointer;
+  sv4guiContourGroup* contourGroup;
+  int id;
+} PyContourGroup;
 
 static PyObject * CreatePyContourGroup(sv4guiContourGroup::Pointer contourGroup);
 

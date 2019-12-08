@@ -29,21 +29,40 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef SV3_CONTOUR_GROUP_PYCLASS_H
-#define SV3_CONTOUR_GROUP_PYCLASS_H 
+#ifndef CVSOLID_INIT_PY_H
+#define CVSOLID_INIT_PY_H
 
 #include "SimVascular.h"
-#include "Python.h"
-#include "sv4gui_ContourGroup.h"
-#include "svPythonAPIExports.h"
+#include "svSolidModelExports.h" // For exports
+#include "sv_FactoryRegistrar.h"
+#include "sv_SolidModel.h"
 
-extern "C" SV_EXPORT_PYTHON_API typedef struct
+#include "Python.h"
+
+//extern "C" SV_EXPORT_SOLID int Solid_PyInit();
+
+//--------------
+// PySolidModel
+//--------------
+//
+extern "C" SV_EXPORT_SOLID typedef struct {
+  PyObject_HEAD
+  int id;
+  SolidModel_KernelT kernel;
+  cvSolidModel* solidModel;
+} PySolidModel;
+
+extern "C" SV_EXPORT_SOLID typedef struct
 {
   PyObject_HEAD
-  // sv4guiContourGroup* contourGroup;
-  sv4guiContourGroup::Pointer contourGroupPointer;
-  sv4guiContourGroup* contourGroup;
-  int id;
-} PyContourGroup;
+  cvFactoryRegistrar* registrar;
+}pycvFactoryRegistrar;
 
-#endif 
+#if PYTHON_MAJOR_VERSION == 2
+PyMODINIT_FUNC  initpySolid();
+#endif
+#if PYTHON_MAJOR_VERSION == 3
+PyMODINIT_FUNC  PyInit_PySolid();
+#endif
+
+#endif // __CVSOLID_INIT_H

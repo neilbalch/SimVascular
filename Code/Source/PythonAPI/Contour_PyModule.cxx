@@ -56,8 +56,7 @@
 #include "sv3_PolygonContour.h"
 #include "sv3_SplinePolygonContour.h"
 #include "sv3_ThresholdContour.h"
-#include "sv3_Contour_PyModule.h"
-#include "sv3_ContourKernel_PyClass.h"
+#include "Contour_PyModule.h"
 
 #include "sv3_PathElement.h"
 
@@ -85,6 +84,8 @@
 
 using sv3::Contour;
 using sv3::PathElement;
+
+#include "ContourKernel_PyClass.cxx"
 
 // Exception type used by PyErr_SetString() to set the for the error indicator.
 static PyObject * PyRunTimeErr;
@@ -1009,14 +1010,14 @@ static PyMethodDef PyContourModuleMethods[] =
 };
 
 // Include derived Contour classes.
-#include "sv3_CircleContour_PyClass.h"
-#include "sv3_LevelSetContour_PyClass.h"
-#include "sv3_PolygonContour_PyClass.h"
-#include "sv3_SplinePolygonContour_PyClass.h"
-#include "sv3_ThresholdContour_PyClass.h"
+#include "ContourCircle_PyClass.cxx"
+#include "ContourLevelSet_PyClass.cxx"
+#include "ContourPolygon_PyClass.cxx"
+#include "ContourSplinePolygon_PyClass.cxx"
+#include "ContourThreshold_PyClass.cxx"
 
 // Include path.Group definition.
-#include "sv4gui_ContourGroup_PyClass.cxx"
+#include "ContourGroup_PyClass.cxx"
 
 //------------------
 // PyContourCtorMap

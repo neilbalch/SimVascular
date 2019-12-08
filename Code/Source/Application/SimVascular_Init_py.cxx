@@ -50,12 +50,12 @@
 #include "sv_geom_init_py.h"
 #include "sv2_image_init_py.h"
 #include "sv_math_init_py.h"
-#include "sv_polydatasolid_init_py.h"
+//#include "sv_polydatasolid_init_py.h"
 
-#include "sv_solid_PyModule.h"
+#include "Solid_PyModule.h"
 #include "sv3_Path_PyModule.h"
 //#include "sv3_PathGroup_init_py.h"
-#include "sv3_Contour_PyModule.h"
+#include "Contour_PyModule.h"
 //#include "sv3_CircleContour_init_py.h"
 //#include "sv3_LevelSetContour_init_py.h"
 //#include "sv3_ThresholdContour_init_py.h"
@@ -125,7 +125,7 @@ void SimVascular_pyInit()
     PyImport_AppendInittab("project", PyInit_PyProject);
     PyImport_AppendInittab("repository", PyInit_pyRepository);
     PyImport_AppendInittab("solid", PyInit_PySolid);
-    PyImport_AppendInittab("solid_polydata",PyInit_pySolidPolydata);
+    //PyImport_AppendInittab("solid_polydata",PyInit_pySolidPolydata);
     //PyImport_AppendInittab("spline_polygon_contour",PyInit_pySplinePolygonContour);
     //PyImport_AppendInittab("threshold_contour", PyInit_pyThresholdContour);
 

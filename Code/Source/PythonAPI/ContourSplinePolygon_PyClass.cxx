@@ -36,7 +36,7 @@
 #include "SimVascular.h"
 #include "sv_misc_utils.h"
 #include "sv3_Contour.h"
-#include "sv3_Contour_PyModule.h"
+#include "Contour_PyModule.h"
 #include "sv3_SplinePolygonContour.h"
 #include "sv_arg.h"
 

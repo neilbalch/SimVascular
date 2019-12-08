@@ -29,95 +29,26 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// The functions defined here implement the SV Python API 'solid' Module. 
+// The functions defined the 'Solid' class used to store solid modeling data. 
+// The 'Solid' class cannot be imported and must be used prefixed by the module 
+//  name. For example
 //
-// The module name is 'solid'. The module defines a 'SolidModel' class used
-// to store solid modeling data. The 'SolidModel' class cannot be imported and must
-// be used prefixed by the module name. For example
+//     model = solid.Solid()
 //
-//     model = solid.SolidModel()
-//
-// A Python exception sv.solid.SolidModelError is defined for this module. 
-// The exception can be used in a Python 'try' statement with an 'except' clause 
-// like this
-//
-//    except sv.solid.SolidModelError: 
-//
-#include "SimVascular.h"
-#include "SimVascular_python.h"
-
-#include <stdio.h>
-#include <string.h>
-#include "sv_Repository.h"
-#include "sv_solid_PyModule.h"
-#include "sv_SolidModel.h"
-#include "sv_arg.h"
-#include "sv_misc_utils.h"
-#include "sv_vtk_utils.h"
-#include "sv_PolyData.h"
-#include "sv_PolyDataSolid.h"
-#include "sv_sys_geom.h"
-#include "sv_PyUtils.h"
-
-#include "sv_FactoryRegistrar.h"
-#include <map>
-
-// Needed for Windows.
-#ifdef GetObject
-#undef GetObject
-#endif
-
-#include "sv2_globals.h"
-#include "Python.h"
-#include <structmember.h>
-#include "vtkPythonUtil.h"
-
-#if PYTHON_MAJOR_VERSION == 3
-#include "PyVTKObject.h"
-#elif PYTHON_MAJOR_VERSION == 2
-#include "PyVTKClass.h"
-#endif
-
-#include "sv_occt_init_py.h"
-#include "sv_polydatasolid_init_py.h"
-
-//--------------------
-// kernelNameTypeMap
-//--------------------
-// Define a map between solid model kernel name and enum type.
-//
-static std::map<std::string,SolidModel_KernelT> kernelNameTypeMap =
-{
-    {"Discrete", SM_KT_DISCRETE},
-    {"MeshSimSolid", SM_KT_MESHSIMSOLID},
-    {"OpenCASCADE", SM_KT_OCCT},
-    {"Parasolid", SM_KT_PARASOLID},
-    {"PolyData", SM_KT_POLYDATA}
-};
-
 //--------------
 // PySolidModel
 //--------------
 //
 typedef struct {
   PyObject_HEAD
-  cvSolidModel* model;
   int id;
-} PySolidModel;
-
-// [TODO:DaveP] not used.
-static void PySolidModel_dealloc(PySolidModel* self)
-{
-  Py_XDECREF(self->model);
-  Py_TYPE(self)->tp_free((PyObject*)self);
-}
-
-// Exception type used by PyErr_SetString() to set the for the error indicator.
-static PyObject * PyRunTimeErr;
+  cvSolidModel* model;
+  SolidModel_KernelT kernel;
+} PySolidClass;
 
 // createSolidModelType() references PySolidModelType and is used before 
 // it is defined so we need to define its prototype here.
-PySolidModel * CreateSolidModelType();
+static PySolidModel * CreateSolidModelType();
 
 //////////////////////////////////////////////////////
 //          U t i l i t y   F u n c t i o n s       //
@@ -180,107 +111,13 @@ CheckSimplificationName(SvPyUtilApiFunction& api, char* name)
 static cvSolidModel *
 CheckGeometry(SvPyUtilApiFunction& api, PySolidModel *self)
 {
-  auto geom = self->model;
+  auto geom = self->solidModel;
   if (geom == NULL) {
       api.error("The solid model object does not have geometry.");
       return nullptr;
   }
 
   return geom;
-}
-
-
-//////////////////////////////////////////////////////
-//         M o d u l e   F u n c t i o n s          //
-//////////////////////////////////////////////////////
-//
-// Python API functions. 
-
-//------------------------
-// Solid_list_registrars  
-//------------------------
-// This routine is used for debugging the registrar/factory system.
-//
-PyDoc_STRVAR(Solid_list_registrars_doc,
-" list_registrars()  \n\ 
-  \n\
-  ??? Add the unstructured grid mesh to the repository. \n\
-  \n\
-");
-
-static PyObject * 
-Solid_list_registrars(PyObject* self, PyObject* args)
-{
-  cvFactoryRegistrar* PySolidModelRegistrar =(cvFactoryRegistrar *) PySys_GetObject("solidModelRegistrar");
-  char result[255];
-  PyObject* pyList=PyList_New(6);
-  sprintf( result, "Solid model registrar ptr -> %p\n", PySolidModelRegistrar );
-  PyList_SetItem(pyList,0,PyString_FromFormat(result));
-  for (int i = 0; i < CV_MAX_FACTORY_METHOD_PTRS; i++) {
-    sprintf( result, "GetFactoryMethodPtr(%i) = %p\n",
-      i, (PySolidModelRegistrar->GetFactoryMethodPtr(i)));
-    PyList_SetItem(pyList,i+1,PyString_FromFormat(result));
-  }
-  return pyList;
-}
-
-//------------------
-// Solid_set_kernel  
-//------------------
-//
-PyDoc_STRVAR(Solid_set_kernel_doc,
-" set_kernel(name)  \n\ 
-  \n\
-  ??? Add the unstructured grid mesh to the repository. \n\
-  \n\
-  Args:                                    \n\
-    name (str): Name in the repository to store the unstructured grid. \n\
-");
-
-static PyObject * 
-Solid_set_kernel(PyObject* self, PyObject *args)
-{
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
-  char *kernelArg;
-
-  if (!PyArg_ParseTuple(args, api.format, &kernelArg)) {
-      return api.argsError();
-  }
-
-  SolidModel_KernelT kernel;
-
-  try {
-        kernel = kernelNameTypeMap.at(std::string(kernelArg));
-  } catch (const std::out_of_range& except) {
-      auto msg = "Unknown solid modeling kernel '" + std::string(kernelArg) + "'." +
-        " Valid solid modeling kernel names are: Discrete, MeshSimSolid, OpenCASCADE, Parasolid or PolyData.";
-      api.error(msg);
-      return nullptr;
-  }
-
-  cvSolidModel::gCurrentKernel = kernel;
-  return Py_BuildValue("s", kernelArg);
-}
-
-//------------------
-// Solid_get_kernel 
-//------------------
-//
-PyDoc_STRVAR(Solid_get_kernel_doc,
-" get_kernel()  \n\ 
-  \n\
-  ??? Add the unstructured grid mesh to the repository. \n\
-  \n\
-  Args:                                    \n\
-    name (str): Name in the repository to store the unstructured grid. \n\
-");
-
-static PyObject * 
-Solid_get_kernel(PyObject* self, PyObject* args)
-{
-  char *kernelName;
-  kernelName = SolidModel_KernelT_EnumToStr(cvSolidModel::gCurrentKernel);
-  return Py_BuildValue("s",kernelName);
 }
 
 /////////////////////////////////////////////////////////////////
@@ -333,7 +170,7 @@ SolidModel_get_model(PySolidModel* self, PyObject* args)
   
   auto geom = dynamic_cast<cvSolidModel*>(rd);
   Py_INCREF(geom);
-  self->model=geom;
+  self->solidModel=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK; 
 }
@@ -402,7 +239,7 @@ SolidModel_polygon_points(PySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->model=geom;
+  self->solidModel=geom;
   Py_DECREF(geom);
 
   return SV_PYTHON_OK;
@@ -472,7 +309,7 @@ SolidModel_polygon(PySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->model=geom;
+  self->solidModel=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -533,7 +370,7 @@ SolidModel_circle(PySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->model=geom;
+  self->solidModel=geom;
   Py_DECREF(geom);
 
   return SV_PYTHON_OK;
@@ -604,7 +441,7 @@ SolidModel_sphere(PySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->model=geom;
+  self->solidModel=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -671,7 +508,7 @@ SolidModel_ellipse(PySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->model=geom;
+  self->solidModel=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -738,7 +575,7 @@ SolidModel_box2d(PySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->model=geom;
+  self->solidModel=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -823,7 +660,7 @@ SolidModel_box3d( PySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->model=geom;
+  self->solidModel=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -899,7 +736,7 @@ SolidModel_ellipsoid(PySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->model=geom;
+  self->solidModel=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -907,6 +744,7 @@ SolidModel_ellipsoid(PySolidModel* self, PyObject* args)
 //---------------------
 // SolidModel_cylinder 
 //---------------------
+//
 PyDoc_STRVAR(SolidModel_cylinder_doc,
   "cylinder(kernel)  \n\ 
    \n\
@@ -919,74 +757,69 @@ PyDoc_STRVAR(SolidModel_cylinder_doc,
 static PyObject * 
 SolidModel_cylinder(PySolidModel* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sddOO", PyRunTimeErr, __func__);
+  std::cout << "[SolidModel_cylinder] ========== SolidModel_cylinder ==========" << std::endl;
+  auto api = SvPyUtilApiFunction("ddOO", PyRunTimeErr, __func__);
   char *objName;
-  double r, l;
-  PyObject* ctrList;
-  PyObject* axisList;
+  double radius;
+  double length;
+  PyObject* centerArg;
+  PyObject* axisArg;
 
-  if (!PyArg_ParseTuple(args, api.format, &objName, &r, &l, &ctrList, &axisList)) {
+  if (!PyArg_ParseTuple(args, api.format, &radius, &length, &centerArg , &axisArg)) {
       return api.argsError();
   }
 
   std::string emsg;
-  if (!svPyUtilCheckPointData(ctrList, emsg)) {
+  if (!svPyUtilCheckPointData(centerArg, emsg)) {
       api.error("The cylinder center argument " + emsg);
       return nullptr;
   }
 
-  if (!svPyUtilCheckPointData(axisList, emsg)) {
+  if (!svPyUtilCheckPointData(axisArg, emsg)) {
       api.error("The cylinder axis argument " + emsg);
       return nullptr;
   }
 
-  if (r <= 0.0) { 
-      api.error("The radius argument <= 0.0."); 
+  if (radius <= 0.0) { 
+      api.error("The radius argument is <= 0.0."); 
       return nullptr;
   }
 
-  if (l <= 0.0) { 
-      api.error("The length argument <= 0.0."); 
+  if (length <= 0.0) { 
+      api.error("The length argument is <= 0.0."); 
       return nullptr;
   }
 
-  double ctr[3];
+  double center[3];
   double axis[3];
-  for (int i=0;i<3;i++) {
-    axis[i] = PyFloat_AsDouble(PyList_GetItem(axisList,i));
-    ctr[i] = PyFloat_AsDouble(PyList_GetItem(ctrList,i));
-  }
-
-  // Check that the repository object does not already exist.
-  if (gRepository->Exists(objName)) {
-      api.error("The repository object '" + std::string(objName) + "' already exists.");
-      return nullptr;
+  for (int i = 0; i < 3; i++) {
+    axis[i] = PyFloat_AsDouble(PyList_GetItem(axisArg,i));
+    center[i] = PyFloat_AsDouble(PyList_GetItem(centerArg,i));
   }
 
   // Instantiate the new solid:
-  auto geom = cvSolidModel::pyDefaultInstantiateSolidModel();
-  if (geom == NULL) {
+  //
+  std::cout << "[SolidModel_cylinder] Kernel: " << self->kernel << std::endl;
+  //cvSolidModel::gCurrentKernel = self->kernel;
+  //auto model = cvSolidModel::pyDefaultInstantiateSolidModel();
+  auto model = self->solidModel;
+   
+  std::cout << "[SolidModel_cylinder] Model: " << model << std::endl;
+  if (model == NULL) {
       api.error("Error creating a cylinder solid model.");
       return nullptr;
   }
 
-  if (geom->MakeCylinder(r, l, ctr, axis) != SV_OK) {
-      delete geom;
+  std::cout << "[SolidModel_cylinder] Create cylinder ... " << std::endl;
+  if (model->MakeCylinder(radius, length, center, axis) != SV_OK) {
+      //delete model;
       api.error("Error creating a cylinder solid model.");
       return nullptr;
   }
 
-  // Register the new solid:
-  if (!gRepository->Register(objName, geom)) {
-      delete geom;
-      api.error("Error adding the cylinder solid model '" + std::string(objName) + "' to the repository.");
-      return nullptr;
-  }
+  //self->solidModel = model;
 
-  Py_INCREF(geom);
-  self->model=geom;
-  Py_DECREF(geom);
-  return SV_PYTHON_OK;
+  Py_RETURN_NONE;
 }
 
 //---------------------------
@@ -1070,7 +903,7 @@ SolidModel_truncated_cone(PySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->model=geom;
+  self->solidModel=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -1156,7 +989,7 @@ SolidModel_torus(PySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->model=geom;
+  self->solidModel=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -1242,7 +1075,7 @@ SolidModel_poly3d_solid(PySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->model=geom;
+  self->solidModel=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -1324,7 +1157,7 @@ SolidModel_poly3d_surface(PySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->model=geom;
+  self->solidModel=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -1399,7 +1232,7 @@ SolidModel_extrude_z(PySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->model=geom;
+  self->solidModel=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -1498,7 +1331,7 @@ SolidModel_extrude(PySolidModel* self, PyObject* args)
 
   delete dist;
   Py_INCREF(geom);
-  self->model=geom;
+  self->solidModel=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -1571,7 +1404,7 @@ SolidModel_make_approximate_curve_loop(PySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->model=geom;
+  self->solidModel=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -1641,7 +1474,7 @@ SolidModel_make_interpolated_curve_loop( PySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->model=geom;
+  self->solidModel=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -1728,7 +1561,7 @@ SolidModel_make_lofted_surface(PySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->model=geom;
+  self->solidModel=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -1796,7 +1629,7 @@ SolidModel_cap_surface_to_solid(PySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->model=geom;
+  self->solidModel=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -1856,7 +1689,7 @@ SolidModel_read_native(PySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->model=geom;
+  self->solidModel=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -1925,7 +1758,7 @@ SolidModel_copy(PySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(dstGeom);
-  self->model=dstGeom;
+  self->solidModel=dstGeom;
   Py_DECREF(dstGeom);
   return SV_PYTHON_OK;
 }
@@ -1993,7 +1826,7 @@ SolidModel_intersect( PySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->model=geom;
+  self->solidModel=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -2061,7 +1894,7 @@ SolidModel_union(PySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(result);
-  self->model=result;
+  self->solidModel=result;
   Py_DECREF(result);
   return SV_PYTHON_OK;
 }
@@ -2129,7 +1962,7 @@ SolidModel_subtract(PySolidModel* self, PyObject* args)
   }
 
   Py_INCREF(result);
-  self->model=result;
+  self->solidModel=result;
   Py_DECREF(result);
   return SV_PYTHON_OK;
 }
@@ -2153,7 +1986,7 @@ SolidModel_object(PySolidModel* self,PyObject* args )
 PyObject * 
 DeleteSolid( PySolidModel* self, PyObject* args)
 {
-  cvSolidModel *geom = self->model;
+  cvSolidModel *geom = self->solidModel;
 
   gRepository->UnRegister( geom->GetName() );
   Py_INCREF(Py_None);
@@ -2213,7 +2046,7 @@ SolidModel_new_object(PySolidModel* self,PyObject *args)
   }
 
   Py_INCREF(geom);
-  self->model = geom;
+  self->solidModel = geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -2252,7 +2085,7 @@ static PyObject *
 SolidModel_find_extent(PySolidModel *self ,PyObject* args)
 {
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
-  auto geom =self->model;
+  auto geom =self->solidModel;
 
   double extent;
   auto status = geom->FindExtent(&extent);
@@ -2283,7 +2116,7 @@ SolidModel_find_centroid(PySolidModel *self ,PyObject* args)
   double centroid[3];
   int tdim;
 
-  cvSolidModel *geom = self->model;
+  cvSolidModel *geom = self->solidModel;
 
   if (geom->GetSpatialDim(&tdim) != SV_OK) {
       api.error("Unable to get the spatial dimension of the solid model.");
@@ -2328,7 +2161,7 @@ static PyObject *
 SolidModel_get_topological_dimension( PySolidModel *self ,PyObject* args  )
 {
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
-  auto geom = self->model;
+  auto geom = self->solidModel;
   int tdim;
 
   if (geom->GetTopoDim(&tdim) != SV_OK) {
@@ -2353,7 +2186,7 @@ static PyObject *
 SolidModel_get_spatial_dimension(PySolidModel *self ,PyObject* args)
 {
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
-  auto geom = self->model;
+  auto geom = self->solidModel;
   int sdim;
 
   if (geom->GetSpatialDim(&sdim) != SV_OK) {
@@ -2391,7 +2224,7 @@ SolidModel_classify_point(PySolidModel *self ,PyObject* args)
       return api.argsError();
   }
 
-  auto geom = self->model;
+  auto geom = self->solidModel;
   geom->GetTopoDim(&tdim);
   geom->GetSpatialDim(&sdim);
 
@@ -2441,7 +2274,7 @@ SolidModel_distance(PySolidModel *self, PyObject* args)
       return api.argsError();
   }
 
-  auto geom = self->model;
+  auto geom = self->solidModel;
 
   if (PyList_Size(posList) > 3) {
       api.error("The position argument is not between 1 and 3.");
@@ -2515,7 +2348,7 @@ SolidModel_translate(PySolidModel *self ,PyObject* args)
     vec[i] = PyFloat_AsDouble(PyList_GetItem(vecList,i));
   }
 
-  auto geom = self->model;
+  auto geom = self->solidModel;
 
   if (geom->Translate(vec, nvec) != SV_OK) {
       api.error("Error translating the solid model.");
@@ -2523,7 +2356,7 @@ SolidModel_translate(PySolidModel *self ,PyObject* args)
   }
 
   Py_INCREF(geom);
-  self->model=geom;
+  self->solidModel=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -2563,7 +2396,7 @@ SolidModel_rotate( PySolidModel *self ,PyObject* args  )
     axis[i]=PyFloat_AsDouble(PyList_GetItem(axisList,i));
   }
 
-  auto geom = self->model;
+  auto geom = self->solidModel;
 
   if (geom->Rotate(axis, naxis, rad) != SV_OK) {
       api.error("Error rotating the solid model.");
@@ -2597,7 +2430,7 @@ SolidModel_scale(PySolidModel *self ,PyObject* args)
       return api.argsError();
   }
 
-  auto geom = self->model;
+  auto geom = self->solidModel;
 
   if (geom->Scale(factor) != SV_OK) {
       api.error("Error scaling the solid model.");
@@ -2655,7 +2488,7 @@ SolidModel_reflect(PySolidModel *self ,PyObject* args)
     nrm[i]=PyFloat_AsDouble(PyList_GetItem(nrmList,i));
   }
 
-  auto geom = self->model;
+  auto geom = self->solidModel;
 
   if (geom->Reflect(pos, nrm) != SV_OK) {
       api.error("Error reflecting the solid model.");
@@ -2708,7 +2541,7 @@ SolidModel_apply4x4(PySolidModel *self ,PyObject* args)
       }
   }
 
-  auto geom = self->model;
+  auto geom = self->solidModel;
   if (geom->Apply4x4(mat) != SV_OK) {
       api.error("Error applyonig a 4x4 matrix to the solid model.");
       return nullptr;
@@ -2731,7 +2564,7 @@ PyDoc_STRVAR(SolidModel_print_doc,
 static PyObject *  
 SolidModel_print(PySolidModel *self ,PyObject* args)
 {
-  auto geom = self->model;
+  auto geom = self->solidModel;
   geom->Print();
   return SV_PYTHON_OK;
 }
@@ -2749,7 +2582,7 @@ PyDoc_STRVAR(SolidModel_check_doc,
 static PyObject *  
 SolidModel_check(PySolidModel *self ,PyObject* args)
 {
-  auto geom = self->model;
+  auto geom = self->solidModel;
   int nerr;
   geom->Check( &nerr );
   return Py_BuildValue("i",nerr);
@@ -2780,14 +2613,14 @@ SolidModel_write_native(PySolidModel *self ,PyObject* args)
       return api.argsError();
   }
 
-  auto geom = self->model;
+  auto geom = self->solidModel;
   if (geom->WriteNative(file_version, fn) != SV_OK) {
       api.error("Error writing the solid model to the file '" + std::string(fn) + "' using version '" + std::to_string(file_version)+"'."); 
       return nullptr;
   }
 
   Py_INCREF(geom);
-  self->model=geom;
+  self->solidModel=geom;
   Py_DECREF(geom);
   return SV_PYTHON_OK;
 }
@@ -2815,7 +2648,7 @@ SolidModel_write_vtk_polydata(PySolidModel *self, PyObject* args)
       return api.argsError();
   }
 
-  auto geom = self->model;
+  auto geom = self->solidModel;
   if (geom->WriteVtkPolyData(fn) != SV_OK) {
       api.error("Error writing the solid model to the file '" + std::string(fn) + "'.");
       return nullptr;
@@ -2847,7 +2680,7 @@ SolidModel_write_geom_sim(PySolidModel *self, PyObject* args)
       return api.argsError();
   }
 
-  auto geom = self->model;
+  auto geom = self->solidModel;
   if (geom->WriteGeomSim(fn) != SV_OK) {
       api.error("Error writing the solid model to the file '" + std::string(fn) + "'.");
       return nullptr;
@@ -2872,48 +2705,31 @@ PyDoc_STRVAR(SolidModel_get_polydata_doc,
 static PyObject *  
 SolidModel_get_polydata(PySolidModel *self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s|d", PyRunTimeErr, __func__);
-  char *resultName;
+  auto api = SvPyUtilApiFunction("|d", PyRunTimeErr, __func__);
   double max_dist = -1.0;
 
-  if (!PyArg_ParseTuple(args, api.format, &resultName, &max_dist)) {
+  if (!PyArg_ParseTuple(args, api.format, &max_dist)) {
       return api.argsError();
   }
 
-  auto geom = CheckGeometry(api, self);
-  if (geom == nullptr) {
-      return nullptr;
-  }
+  auto model = self->solidModel; 
 
   int useMaxDist = 0;
   if (max_dist > 0) {
       useMaxDist = 1;
   }
 
-  // Check that the repository object does not already exist.
-  if (gRepository->Exists(resultName)) {
-      api.error("The repository object '" + std::string(resultName) + "' already exists.");
-      return nullptr;
-  }
-
   // Get the cvPolyData:
-  auto pd = geom->GetPolyData(useMaxDist, max_dist);
-  if (pd == NULL) {
+  //
+  auto cvPolydata = model->GetPolyData(useMaxDist, max_dist);
+  vtkSmartPointer<vtkPolyData> polydata = vtkSmartPointer<vtkPolyData>::New();
+  polydata = cvPolydata->GetVtkPolyData();
+  if (polydata == NULL) {
       api.error("Could not get polydata for the solid model.");
       return nullptr;
   }
 
-  // Register the result:
-  if (!gRepository->Register(resultName, pd)) {
-      delete pd;
-      api.error("Could not add the polydata to the repository.");
-      return nullptr;
-  }
-
-  Py_INCREF(geom);
-  self->model=geom;
-  Py_DECREF(geom);
-  return SV_PYTHON_OK;
+  return vtkPythonUtil::GetObjectFromPointer(polydata);
 }
 
 //----------------------
@@ -3175,7 +2991,7 @@ SolidModel_get_axial_isoparametric_curve(PySolidModel* self, PyObject* args)
   Py_INCREF(curve);
   PySolidModel* newCurve;
   newCurve = CreateSolidModelType();
-  newCurve->model = curve;
+  newCurve->solidModel = curve;
   Py_DECREF(curve);
   return newCurve;
 }
@@ -3869,11 +3685,11 @@ SolidModel_remesh_face(PySolidModel* self, PyObject* args)
 //           C l a s s    D e f i n i t i o n         //
 ////////////////////////////////////////////////////////
 
-static char* SOLID_MODEL_CLASS = "SolidModel";
+static char* SOLID_MODEL_CLASS = "Solid";
 
 // Dotted name that includes both the module name and 
 // the name of the type within the module.
-static char* SOLID_MODEL_MODULE_CLASS = "solid.SolidModel";
+static char* SOLID_MODEL_MODULE_CLASS = "solid.Solid";
 
 PyDoc_STRVAR(SolidModelClass_doc, "solid model class methods.");
 
@@ -4030,20 +3846,27 @@ static PyMethodDef PySolidModelClassMethods[] = {
 static int
 PySolidModelInit(PySolidModel* self, PyObject* args, PyObject *kwds)
 {
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, "SolidModel");
   static int numObjs = 1;
   std::cout << "[PySolidModelInit] New PySolidModel object: " << numObjs << std::endl;
   char* kernelName = nullptr; 
-  if (!PyArg_ParseTuple(args, "|s", &kernelName)) {
+  if (!PyArg_ParseTuple(args, "s", &kernelName)) {
+      return -1;
+  }
+  std::cout << "[PySolidModelInit] Kernel name: " << kernelName << std::endl;
+  auto kernel = kernelNameEnumMap.at(std::string(kernelName));
+  cvSolidModel* solidModel;
+
+  try {
+      solidModel = SolidCtorMap[kernel]();
+  } catch (const std::bad_function_call& except) {
+      api.error("The '" + std::string(kernelName) + "' kernel is not supported.");
       return -1;
   }
 
-  if (kernelName != nullptr) {
-      std::cout << "[PySolidModelInit] Kernel name: " << kernelName << std::endl;
-  }
-/*
-  self->contour = new Contour();
+  self->kernel = kernel; 
+  self->solidModel = solidModel; 
   self->id = numObjs;
-*/
   numObjs += 1;
   return 0;
 }
@@ -4070,6 +3893,23 @@ static PyObject *
 PySolidModelNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
   std::cout << "[PySolidModelNew] New SolidModel" << std::endl;
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, "SolidModel");
+  char* kernelName = nullptr; 
+  if (!PyArg_ParseTuple(args, api.format, &kernelName)) {
+      return api.argsError();
+  }
+
+  SolidModel_KernelT kernel;
+
+  try {
+      kernel = kernelNameEnumMap.at(std::string(kernelName));
+  } catch (const std::out_of_range& except) {
+      auto msg = "Unknown kernel name '" + std::string(kernelName) + "'." +
+          " Valid names are: " + kernelValidNames + ".";
+      api.error(msg);
+      return nullptr;
+  }
+
   auto self = (PySolidModel*)type->tp_alloc(type, 0);
   if (self != NULL) {
       //self->id = 1;
@@ -4086,7 +3926,7 @@ static void
 PySolidModelDealloc(PySolidModel* self)
 {
   std::cout << "[PySolidModelDealloc] Free PySolidModel: " << self->id << std::endl;
-  //delete self->model;
+  //delete self->solidModel;
   Py_TYPE(self)->tp_free(self);
 }
 
@@ -4121,216 +3961,4 @@ CreateSolidModelType()
 {
   return PyObject_New(PySolidModel, &PySolidModelClassType);
 }
-
-////////////////////////////////////////////////////////
-//          M o d u l e   D e f i n i t i o n         //
-////////////////////////////////////////////////////////
-
-//----------------
-// PySolidMethods 
-//----------------
-// Methods for the 'solid' module.
-//
-static PyMethodDef PySolidModuleMethods[] = {
-
-  {"list_registrars", (PyCFunction)Solid_list_registrars, METH_NOARGS, Solid_list_registrars_doc },
-
-  { "set_kernel", (PyCFunction)Solid_set_kernel, METH_VARARGS, NULL },
-
-  { "get_kernel", (PyCFunction)Solid_get_kernel, METH_NOARGS, Solid_get_kernel_doc },
-
-  {NULL, NULL}
-};
-
-static PyTypeObject pycvFactoryRegistrarType = {
-  PyVarObject_HEAD_INIT(NULL, 0)
-  "solid.pycvFactoryRegistrar",             /* tp_name */
-  sizeof(pycvFactoryRegistrar),             /* tp_basicsize */
-  0,                         /* tp_itemsize */
-  0,                         /* tp_dealloc */
-  0,                         /* tp_print */
-  0,                         /* tp_getattr */
-  0,                         /* tp_setattr */
-  0,                         /* tp_compare */
-  0,                         /* tp_repr */
-  0,                         /* tp_as_number */
-  0,                         /* tp_as_sequence */
-  0,                         /* tp_as_mapping */
-  0,                         /* tp_hash */
-  0,                         /* tp_call */
-  0,                         /* tp_str */
-  0,                         /* tp_getattro */
-  0,                         /* tp_setattro */
-  0,                         /* tp_as_buffer */
-  Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,   /* tp_flags */
-  "cvFactoryRegistrar wrapper  ",           /* tp_doc */
-};
-
-//-----------------------
-// Initialize the module
-//-----------------------
-// Define the initialization function called by the Python interpreter 
-// when the module is loaded.
-
-static char* SOLID_MODULE = "solid";
-static char* SOLID_MODULE_EXCEPTION = "solid.SolidModelError";
-static char* SOLID_MODULE_EXCEPTION_OBJECT = "SolidModelError";
-
-PyDoc_STRVAR(Solid_module_doc, "solid module functions");
-
-//---------------------------------------------------------------------------
-//                           PYTHON_MAJOR_VERSION 3                         
-//---------------------------------------------------------------------------
-
-#if PYTHON_MAJOR_VERSION == 3
-
-PyMODINIT_FUNC PyInit_PySolid(void);
-
-int Solid_PyInit()
-{ 
-  PyInit_PySolid();
-  return SV_OK;
-}
-
-// Size of per-interpreter state of the module.
-// Set to -1 if the module keeps state in global variables. 
-static int perInterpreterStateSize = -1;
-
-// Always initialize this to PyModuleDef_HEAD_INIT.
-static PyModuleDef_Base m_base = PyModuleDef_HEAD_INIT;
-
-// Define the module definition struct which holds all information 
-// needed to create a module object. 
-
-static struct PyModuleDef PySolidModule = {
-   m_base,
-   SOLID_MODULE, 
-   Solid_module_doc, 
-   perInterpreterStateSize, 
-   PySolidModuleMethods
-};
-
-//-----------------
-// PyInit_pySolid  
-//-----------------
-// The initialization function called by the Python interpreter 
-// when the 'solid' module is loaded.
-//
-PyMODINIT_FUNC
-PyInit_PySolid(void)
-{
-  std::cout << "========== load solid module ==========" << std::endl;
-
-  // Initialize the SolidModel class type.
-  SetSolidModelTypeFields(PySolidModelClassType);
-  if (PyType_Ready(&PySolidModelClassType) < 0) {
-    fprintf(stdout,"Error in PySolidModelType");
-    return SV_PYTHON_ERROR;
-  }
-
-  pycvFactoryRegistrarType.tp_new = PyType_GenericNew;
-  if (PyType_Ready(&pycvFactoryRegistrarType) < 0) {
-    fprintf(stdout,"Error in PySolidModelType");
-    return SV_PYTHON_ERROR;
-  }
-
-  // Create the 'solid' module. 
-  auto module = PyModule_Create(&PySolidModule);
-  if (module == NULL) {
-    fprintf(stdout,"Error in initializing pySolid");
-    return SV_PYTHON_ERROR;
-  }
-
-  // Add solid.SolidModel exception.
-  //
-  PyRunTimeErr = PyErr_NewException(SOLID_MODULE_EXCEPTION, NULL, NULL);
-  PyModule_AddObject(module, SOLID_MODULE_EXCEPTION_OBJECT, PyRunTimeErr);
-
-  // Add the 'SolidModel' class.
-  Py_INCREF(&PySolidModelClassType);
-  PyModule_AddObject(module, SOLID_MODEL_CLASS, (PyObject *)&PySolidModelClassType);
-
-  Py_INCREF(&pycvFactoryRegistrarType);
-  PyModule_AddObject(module, "pyCvFactoryRegistrar", (PyObject *)&pycvFactoryRegistrarType);
-
-  // [TODO:DaveP] What does this do?
-  pycvFactoryRegistrar* tmp = PyObject_New(pycvFactoryRegistrar, &pycvFactoryRegistrarType);
-  tmp->registrar = (cvFactoryRegistrar *)&cvSolidModel::gRegistrar;
-  PySys_SetObject("solidModelRegistrar", (PyObject *)tmp);
-
-  // Set the default modeling kernel. 
-  cvSolidModel::gCurrentKernel = SM_KT_INVALID;
-  #ifdef SV_USE_PARASOLID
-  cvSolidModel::gCurrentKernel = SM_KT_PARASOLID;
-  #endif
-
-  return module;
-}
-
-#endif
-
-
-//---------------------------------------------------------------------------
-//                           PYTHON_MAJOR_VERSION 2                         
-//---------------------------------------------------------------------------
-
-#if PYTHON_MAJOR_VERSION == 2
-
-PyMODINIT_FUNC initpySolid(void);
-int Solid_pyInit()
-{ 
-  initpySolid();
-  return SV_OK;
-}
-
-PyMODINIT_FUNC
-initpySolid(void)
-{
-    // Initialize-gRepository
-  if (gRepository ==NULL)
-  {
-    gRepository=new cvRepository();
-    fprintf(stdout,"New gRepository created from cv_solid_init\n");
-  }
-  //Initialize-gCurrentKernel
-  cvSolidModel::gCurrentKernel = SM_KT_INVALID;
-  #ifdef SV_USE_PARASOLID
-  cvSolidModel::gCurrentKernel = SM_KT_PARASOLID;
-  #endif
-
-  PySolidModelType.tp_new=PyType_GenericNew;
-  pycvFactoryRegistrarType.tp_new = PyType_GenericNew;
-  if (PyType_Ready(&PySolidModelType)<0)
-  {
-    fprintf(stdout,"Error in PySolidModelType");
-    return;
-  }
-  if (PyType_Ready(&pycvFactoryRegistrarType)<0)
-  {
-    fprintf(stdout,"Error in PySolidModelType");
-    return;
-  }
-  //Init our defined functions
-  PyObject *pythonC;
-  pythonC = Py_InitModule("pySolid", pySolid_methods);
-  if (pythonC==NULL)
-  {
-    fprintf(stdout,"Error in initializing pySolid");
-    return;
-  }
-
-  PyRunTimeErr=PyErr_NewException("pySolid.error",NULL,NULL);
-  PyModule_AddObject(pythonC, "error",PyRunTimeErr);
-  Py_INCREF(&PySolidModelType);
-  Py_INCREF(&pycvFactoryRegistrarType);
-  PyModule_AddObject(pythonC, "PySolidModel", (PyObject *)&PySolidModelType);
-  PyModule_AddObject(pythonC, "pyCvFactoryRegistrar", (PyObject *)&pycvFactoryRegistrarType);
-
-  pycvFactoryRegistrar* tmp = PyObject_New(pycvFactoryRegistrar, &pycvFactoryRegistrarType);
-  tmp->registrar = (cvFactoryRegistrar *)&cvSolidModel::gRegistrar;
-  PySys_SetObject("solidModelRegistrar", (PyObject *)tmp);
-
-
-}
-#endif
 

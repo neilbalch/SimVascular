@@ -42,7 +42,8 @@ include_directories(${PYTHON_INCLUDE_PATH} ${PYTHON_INCLUDE_DIR} ${PYTHON_INCLUD
 include_directories(${TCL_INCLUDE_PATH} ${TK_INCLUDE_PATH} ${TINYXML_INCLUDE_DIR})
 
 list (APPEND CXXSRCS 
-  sv3_Contour_PyModule.cxx
+  Contour_PyModule.cxx
+  Solid_PyModule.cxx
 )
 
 add_library(${lib} ${SV_LIBRARY_TYPE} ${CXXSRCS})
@@ -60,6 +61,8 @@ target_link_libraries(${lib}
   ${SV_LIB_PATH_NAME}
   ${SV_LIB_SEGMENTATION_NAME}
   ${SV_LIB_UTILS_NAME}
+  ${SV_LIB_POLYDATA_SOLID_NAME}
+  ${SV_LIB_OpenCASCADE_SOLID_NAME}
   org_sv_pythondatanodes
 )
 

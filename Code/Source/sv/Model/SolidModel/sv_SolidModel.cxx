@@ -38,7 +38,7 @@
 #include <assert.h>
 #ifdef SV_USE_PYTHON
   #include "Python.h"
-  #include "sv_solid_PyModule.h"
+  #include "Solid_PyModule.h"
 #endif
 
 // Globals:
@@ -104,6 +104,9 @@ cvSolidModel* cvSolidModel::DefaultInstantiateSolidModel( Tcl_Interp *interp )
 #endif
 
 #ifdef SV_USE_PYTHON
+
+// [TODO:DaveP] I don't think we need to call this.
+//
 cvSolidModel* cvSolidModel::pyDefaultInstantiateSolidModel()
 {
   // Get the solid model factory registrar associated with the python interpreter.

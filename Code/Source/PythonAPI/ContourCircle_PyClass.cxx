@@ -29,15 +29,17 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// The functions defined here implement the SV Python API polygon countour module. 
+// The functions defined here implement the SV Python API circle contour class. 
 //
-// The module name is 'polygon_contour'. 
+// The class name is 'contour.Circle'.
 //
 #include "SimVascular.h"
 #include "sv_misc_utils.h"
 #include "sv3_Contour.h"
-#include "sv3_Contour_PyModule.h"
-#include "sv3_PolygonContour.h"
+#include "Contour_PyModule.h"
+#include "sv3_CircleContour.h"
+//#include "sv3_CircleContour_init_py.h"
+//#include "sv_adapt_utils.h"
 #include "sv_arg.h"
 
 #include <stdio.h>
@@ -45,9 +47,8 @@
 #include "sv_Repository.h"
 #include "sv_arg.h"
 #include "sv_misc_utils.h"
-
-#include "Python.h"
 #include "sv2_globals.h"
+#include "Python.h"
 
 // The following is needed for Windows
 #ifdef GetObject
@@ -55,13 +56,14 @@
 #endif
 
 //-----------------
-// PyPolygonContour
+// PyCircleContour
 //-----------------
-// Define the Polygon class (type).
+// Define the Circle class (type).
 //
 typedef struct {
   PyContour super;
-} PyPolygonContour;
+  double radius;
+} PyCircleContour;
 
 
 //////////////////////////////////////////////////////
@@ -71,58 +73,74 @@ typedef struct {
 // Python API functions. 
 
 //--------------------------
-// PolygonContour_available
+// CircleContour_set_radius 
 //--------------------------
 //
-static PyObject *
-PolygonContour_available(PyObject* self, PyObject* args)
+static PyObject*
+CircleContour_set_radius(PyCircleContour* self, PyObject* args)
 {
-  return Py_BuildValue("s","polygonContour Available");
+  double radius = 0.0;
+
+  if (!PyArg_ParseTuple(args, "d", &radius)) {
+      return nullptr;
+  }
+  auto pmsg = "[PyCircleContour::set_radius] ";
+  std::cout << pmsg << "Set radius ..." << std::endl;
+  std::cout << pmsg << "Radius: " << radius << std::endl;
+  //auto contour = dynamic_cast<CircleContour*>(self->super.contour);
+  //contour->SetRadius(radius);
+
+  Py_RETURN_NONE;
 }
 
 ////////////////////////////////////////////////////////
 //          C l a s s    D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
 
-static char* CONTOUR_POLYGON_CLASS = "Polygon";
-static char* CONTOUR_POLYGON_MODULE_CLASS = "contour.Polygon";
+static char* CONTOUR_CIRCLE_CLASS = "Circle";
+static char* CONTOUR_CIRCLE_MODULE_CLASS = "contour.Circle";
 
-PyDoc_STRVAR(PyPolygonContourClass_doc, "polygon contour functions");
+PyDoc_STRVAR(PyCircleContourClass_doc, "circle contour functions");
 
-PyMethodDef PyPolygonContourMethods[] = {
-  {"available", PolygonContour_available,METH_NOARGS,NULL},
+//----------------------
+// CircleContourMethods
+//----------------------
+//
+static PyMethodDef PyCircleContourMethods[] = {
+
+  { "set_radius", (PyCFunction)CircleContour_set_radius, METH_VARARGS, NULL},
+
   {NULL, NULL}
 };
 
-
 //---------------------
-// PyPolygonContourInit 
+// PyCircleContourInit 
 //---------------------
 // This is the __init__() method for the Contour class. 
 //
 // This function is used to initialize an object after it is created.
 //
 static int
-PyPolygonContourInit(PyPolygonContour* self, PyObject* args, PyObject *kwds)
+PyCircleContourInit(PyCircleContour* self, PyObject* args, PyObject *kwds)
 {
   static int numObjs = 1;
-  std::cout << "[PyPolygonContourInit] New Polygon Contour object: " << numObjs << std::endl;
+  std::cout << "[PyCircleContourInit] New Circle Contour object: " << numObjs << std::endl;
   //self->super.count = numObjs;
-  //self->super.contour = new PolygonContour();
+  //self->super.contour = new CircleContour();
   self->super.contour = new sv3::circleContour();
   numObjs += 1;
   return 0;
 }
 
 //--------------------
-// PyPolygonContourNew 
+// PyCircleContourNew 
 //--------------------
 //
 static PyObject *
-PyPolygonContourNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
+PyCircleContourNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 { 
-  std::cout << "[PyPolygonContourNew] PyPolygonContourNew " << std::endl;
-  auto self = (PyPolygonContour*)type->tp_alloc(type, 0);
+  std::cout << "[PyCircleContourNew] PyCircleContourNew " << std::endl;
+  auto self = (PyCircleContour*)type->tp_alloc(type, 0);
   if (self != NULL) {
       //self->super.id = 2;
   }
@@ -130,13 +148,13 @@ PyPolygonContourNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 }
 
 //------------------------
-// PyPolygonContourDealloc 
+// PyCircleContourDealloc 
 //------------------------
 //
 static void
-PyPolygonContourDealloc(PyPolygonContour* self)
+PyCircleContourDealloc(PyCircleContour* self)
 { 
-  std::cout << "[PyPolygonContourDealloc] Free PyPolygonContour" << std::endl;
+  std::cout << "[PyCircleContourDealloc] Free PyCircleContour" << std::endl;
   delete self->super.contour;
   Py_TYPE(self)->tp_free(self);
 }
@@ -149,16 +167,16 @@ PyPolygonContourDealloc(PyPolygonContour* self)
 // Can't set all the fields here because g++ does not suppor non-trivial 
 // designated initializers. 
 //
-static PyTypeObject PyPolygonContourClassType = {
+static PyTypeObject PyCircleContourClassType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   // Dotted name that includes both the module name and 
   // the name of the type within the module.
-  .tp_name = CONTOUR_POLYGON_MODULE_CLASS, 
-  .tp_basicsize = sizeof(PyPolygonContour)
+  .tp_name = CONTOUR_CIRCLE_MODULE_CLASS, 
+  .tp_basicsize = sizeof(PyCircleContour)
 };
 
 //----------------------------
-// SetPolygonContourTypeFields
+// SetCircleContourTypeFields
 //----------------------------
 // Set the Python type object fields that stores Contour data. 
 //
@@ -166,20 +184,22 @@ static PyTypeObject PyPolygonContourClassType = {
 // designated initializers. 
 //
 static void
-SetPolygonContourTypeFields(PyTypeObject& contourType)
+SetCircleContourTypeFields(PyTypeObject& contourType)
  {
   // Doc string for this type.
-  contourType.tp_doc = "Polygon Contour  objects";
+  contourType.tp_doc = "Circle Contour  objects";
 
   // Object creation function, equivalent to the Python __new__() method. 
   // The generic handler creates a new instance using the tp_alloc field.
-  contourType.tp_new = PyPolygonContourNew;
+  contourType.tp_new = PyCircleContourNew;
   //.tp_new = PyType_GenericNew,
 
   contourType.tp_base = &PyContourClassType;
+
   contourType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
-  contourType.tp_init = (initproc)PyPolygonContourInit;
-  contourType.tp_dealloc = (destructor)PyPolygonContourDealloc;
-  contourType.tp_methods = PyPolygonContourMethods;
+  contourType.tp_init = (initproc)PyCircleContourInit;
+  contourType.tp_dealloc = (destructor)PyCircleContourDealloc;
+  contourType.tp_methods = PyCircleContourMethods;
 };
+
 

@@ -47,10 +47,6 @@ endif()
 set(CXXSRCS sv_PolyDataSolid.cxx sv_polydatasolid_utils.cxx sv_vtkGetBoundaryFaces.cxx)
 set(HDRS sv_PolyDataSolid.h sv_polydatasolid_utils.h sv_vtkGetBoundaryFaces.h)
 
-if(SV_USE_PYTHON)
-  list(APPEND CXXSRCS sv_polydatasolid_init_py.cxx)
-endif()
-
 add_library(${lib} ${SV_LIBRARY_TYPE} ${CXXSRCS} sv_polydatasolid_init.cxx)
 
 if(SV_USE_PYTHON)
