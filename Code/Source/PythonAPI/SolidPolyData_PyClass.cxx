@@ -40,7 +40,7 @@
 // Define the PolyDataSolid class (type).
 //
 typedef struct {
-  PySolidModel super;
+  PySolidModelClass super;
 } PyPolyDataSolid;
 
 cvPolyDataSolid* pyCreatePolyDataSolid()

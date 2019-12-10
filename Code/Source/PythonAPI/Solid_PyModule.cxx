@@ -42,8 +42,11 @@
 #include "SimVascular.h"
 #include "SimVascular_python.h"
 
+#include <functional>
+#include <map>
 #include <stdio.h>
 #include <string.h>
+
 #include "sv_Repository.h"
 #include "Solid_PyModule.h"
 #include "sv_SolidModel.h"
@@ -57,7 +60,6 @@
 #include "sv_PyUtils.h"
 
 #include "sv_FactoryRegistrar.h"
-#include <map>
 
 // Needed for Windows.
 #ifdef GetObject
@@ -96,9 +98,27 @@ SolidCtorMapType SolidCtorMap = {
 // Exception type used by PyErr_SetString() to set the for the error indicator.
 static PyObject * PyRunTimeErr;
 
-// createSolidModelType() references PySolidModelType and is used before 
-// it is defined so we need to define its prototype here.
-static PySolidModel * CreateSolidModelType();
+//////////////////////////////////////////////////////
+//          U t i l i t y  F u n c t i o n s        //
+//////////////////////////////////////////////////////
+
+//------------------------
+// CreateSolidModelObject
+//------------------------
+//
+static cvSolidModel *
+CreateSolidModelObject(SolidModel_KernelT kernel)
+{
+  cvSolidModel* solidModel;
+
+  try {
+      solidModel = SolidCtorMap[kernel]();
+  } catch (const std::bad_function_call& except) {
+      return nullptr;
+  }
+
+  return solidModel;
+}
 
 ////////////////////////////////////////////////////////
 //          M o d u l e   D e f i n i t i o n         //
@@ -126,8 +146,26 @@ static char* SOLID_MODULE_EXCEPTION_OBJECT = "SolidModelError";
 PyDoc_STRVAR(Solid_module_doc, "solid module functions");
 
 // Include derived solid classes.
-#include "Solid_PyClass.cxx"
+#include "SolidModel_PyClass.cxx"
 #include "SolidPolyData_PyClass.cxx"
+#include "SolidModeler_PyClass.cxx"
+
+//--------------------------
+// CreatePySolidModelObject
+//--------------------------
+//
+static PyObject *
+CreatePySolidModelObject(SolidModel_KernelT kernel)
+{
+  PyObject* solidModelObj;
+  solidModelObj = PyCreateContour(kernel);
+/*
+  auto pySolidModel = (PyContour*)contourObj;
+  delete pyContour->contour;
+  pyContour->contour = contour;
+*/
+  return solidModelObj;
+}
 
 //---------------------------------------------------------------------------
 //                           PYTHON_MAJOR_VERSION 3                         
@@ -164,6 +202,14 @@ PyInit_PySolid(void)
 {
   std::cout << "[PyInit_PySolid] ========== load solid module ==========" << std::endl;
 
+  // Initialize the SolidModeler class type.
+  std::cout << "[PyInit_PySolid] Initialize the SolidModeler class type. " << std::endl;
+  SetSolidModelerTypeFields(PySolidModelerClassType);
+  if (PyType_Ready(&PySolidModelerClassType) < 0) {
+    fprintf(stdout,"Error in PySolidModelerType");
+    return SV_PYTHON_ERROR;
+  }
+
   // Initialize the SolidModel class type.
   std::cout << "[PyInit_PySolid] Initialize the SolidModel class type. " << std::endl;
   SetSolidModelTypeFields(PySolidModelClassType);
@@ -199,6 +245,11 @@ PyInit_PySolid(void)
   // Add solid.SolidModelError exception.
   PyRunTimeErr = PyErr_NewException(SOLID_MODULE_EXCEPTION, NULL, NULL);
   PyModule_AddObject(module, SOLID_MODULE_EXCEPTION_OBJECT, PyRunTimeErr);
+
+  // Add the 'SolidModeler' class.
+  std::cout << "[PyInit_PySolid] Add the SolidModeler class type. " << std::endl;
+  Py_INCREF(&PySolidModelerClassType);
+  PyModule_AddObject(module, SOLID_MODELER_CLASS, (PyObject *)&PySolidModelerClassType);
 
   // Add the 'SolidModel' class.
   std::cout << "[PyInit_PySolid] Add the SolidModel class type. " << std::endl;

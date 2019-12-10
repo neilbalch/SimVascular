@@ -109,7 +109,7 @@ static PyMethodDef SolidKernelMethods[] = {
 ////////////////////////////////////////////////////////
 
 static char* SOLID_KERNEL_CLASS = "Kernel";
-static char* SOLID_KERNEL_MODULE_CLASS = "contour.Kernel";
+static char* SOLID_KERNEL_MODULE_CLASS = "solid.Kernel";
 // The name of the Kernel class veriable that contains all of the kernel types.
 static char* SOLID_KERNEL_CLASS_VARIBLE_NAMES = "names";
 

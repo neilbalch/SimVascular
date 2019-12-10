@@ -45,12 +45,14 @@
 // PySolidModel
 //--------------
 //
+/*
 extern "C" SV_EXPORT_SOLID typedef struct {
   PyObject_HEAD
   int id;
   SolidModel_KernelT kernel;
   cvSolidModel* solidModel;
 } PySolidModel;
+*/
 
 extern "C" SV_EXPORT_SOLID typedef struct
 {
