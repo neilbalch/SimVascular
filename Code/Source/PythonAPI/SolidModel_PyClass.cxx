@@ -30,12 +30,13 @@
  */
 
 // The functions defined the Pythom 'solid.Model' class used to store solid modeling data. 
-// The 'Model' class cannot be imported and must be used prefixed by the module 
-//  name. 
+// The 'solid.Model' class provides methods that operate directly on the solid model, 
+// for example, getting vtk polydata representing the model surface.
 //
 //--------------
 // PySolidModel
 //--------------
+// This is the data stored in a Python solid.Model object.
 //
 typedef struct {
   PyObject_HEAD
@@ -117,10 +118,53 @@ CheckGeometry(SvPyUtilApiFunction& api, PySolidModel *self)
 */
 
 /////////////////////////////////////////////////////////////////
-//              C l a s s   F u n c t i o n s                  //
+//              C l a s s   M e t h o d s                      //
 /////////////////////////////////////////////////////////////////
 //
 // Python API functions for the SolidModel class. 
+
+//-------------------------
+// SolidModel_get_polydata
+//-------------------------
+//
+PyDoc_STRVAR(SolidModel_get_polydata_doc,
+" get_polydata(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject *  
+SolidModel_get_polydata(PySolidModelClass *self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("|d", PyRunTimeErr, __func__);
+  double max_dist = -1.0;
+
+  if (!PyArg_ParseTuple(args, api.format, &max_dist)) {
+      return api.argsError();
+  }
+
+  auto model = self->solidModel; 
+
+  int useMaxDist = 0;
+  if (max_dist > 0) {
+      useMaxDist = 1;
+  }
+
+  // Get the cvPolyData:
+  //
+  auto cvPolydata = model->GetPolyData(useMaxDist, max_dist);
+  vtkSmartPointer<vtkPolyData> polydata = vtkSmartPointer<vtkPolyData>::New();
+  polydata = cvPolydata->GetVtkPolyData();
+  if (polydata == NULL) {
+      api.error("Could not get polydata for the solid model.");
+      return nullptr;
+  }
+
+  return vtkPythonUtil::GetObjectFromPointer(polydata);
+}
 
 ////////////////////////////////////////////////////////
 //           C l a s s    D e f i n i t i o n         //
@@ -140,6 +184,8 @@ PyDoc_STRVAR(SolidModelClass_doc, "solid model class methods.");
 // Define method names for SolidModel class 
 //
 static PyMethodDef PySolidModelClassMethods[] = {
+
+  { "get_polydata", (PyCFunction)SolidModel_get_polydata, METH_VARARGS, SolidModel_get_polydata_doc },
 
   {NULL,NULL}
 };
@@ -166,7 +212,7 @@ PySolidModelInit(PySolidModelClass* self, PyObject* args, PyObject *kwds)
   cvSolidModel* solidModel;
 
   try {
-      solidModel = SolidCtorMap[kernel]();
+      solidModel = CvSolidModelCtorMap[kernel]();
   } catch (const std::bad_function_call& except) {
       api.error("The '" + std::string(kernelName) + "' kernel is not supported.");
       return -1;

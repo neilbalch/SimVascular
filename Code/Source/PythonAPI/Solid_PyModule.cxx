@@ -84,13 +84,13 @@
 //
 #include "SolidKernel_PyClass.cxx"
 
-//--------------
-// SolidCtorMap
-//--------------
-// Define an object factory for creating objects for Solid derived classes.
+//---------------------
+// CvSolidModelCtorMap
+//----------------------
+// Define an object factory for creating cvSolidModel objects.
 //
 using SolidCtorMapType = std::map<SolidModel_KernelT, std::function<cvSolidModel*()>>;
-SolidCtorMapType SolidCtorMap = {
+SolidCtorMapType CvSolidModelCtorMap = {
     {SolidModel_KernelT::SM_KT_OCCT, []() -> cvSolidModel* { return new cvOCCTSolidModel(); } },
     {SolidModel_KernelT::SM_KT_POLYDATA, []() -> cvSolidModel* { return new cvPolyDataSolid(); } },
 };
@@ -98,22 +98,25 @@ SolidCtorMapType SolidCtorMap = {
 // Exception type used by PyErr_SetString() to set the for the error indicator.
 static PyObject * PyRunTimeErr;
 
+static PyObject * CreatePySolidModelObject(SolidModel_KernelT kernel);
+
 //////////////////////////////////////////////////////
 //          U t i l i t y  F u n c t i o n s        //
 //////////////////////////////////////////////////////
 
-//------------------------
-// CreateSolidModelObject
-//------------------------
+//--------------------
+// CreateCvSolidModel
+//--------------------
 //
 static cvSolidModel *
-CreateSolidModelObject(SolidModel_KernelT kernel)
+CreateCvSolidModel(SolidModel_KernelT kernel)
 {
+  std::cout << "[CreateCvSolidModel] ========== CreateCvSolidModel ==========" << std::endl;
   cvSolidModel* solidModel;
 
   try {
-      solidModel = SolidCtorMap[kernel]();
-  } catch (const std::bad_function_call& except) {
+      solidModel = CvSolidModelCtorMap[kernel]();
+  } catch (...) {
       return nullptr;
   }
 
@@ -147,24 +150,48 @@ PyDoc_STRVAR(Solid_module_doc, "solid module functions");
 
 // Include derived solid classes.
 #include "SolidModel_PyClass.cxx"
+#include "SolidOpenCascade_PyClass.cxx"
 #include "SolidPolyData_PyClass.cxx"
 #include "SolidModeler_PyClass.cxx"
 
-//--------------------------
-// CreatePySolidModelObject
-//--------------------------
+//---------------------
+// PySolidModelCtorMap
+//---------------------
+// Define an object factory for creating Python SolidModel derived objects.
+//
+using PySolidModelCtorMapType = std::map<SolidModel_KernelT, std::function<PyObject*()>>;
+PySolidModelCtorMapType PySolidModelCtorMap = {
+  {SolidModel_KernelT::SM_KT_OCCT, []()->PyObject* {return PyObject_CallObject((PyObject*)&PyOcctSolidClassType, NULL);}},
+  {SolidModel_KernelT::SM_KT_POLYDATA, []()->PyObject* {return PyObject_CallObject((PyObject*)&PyPolyDataSolidClassType, NULL);}},
+};
+
+//--------------------
+// CreatePySolidModel
+//--------------------
+// Create a Python SolidModel object.
 //
 static PyObject *
 CreatePySolidModelObject(SolidModel_KernelT kernel)
 {
-  PyObject* solidModelObj;
-  solidModelObj = PyCreateContour(kernel);
-/*
-  auto pySolidModel = (PyContour*)contourObj;
-  delete pyContour->contour;
-  pyContour->contour = contour;
-*/
-  return solidModelObj;
+  std::cout << "[CreatePySolidModelObject] ========== CreatePySolidModelObject ==========" << std::endl;
+  PyObject* pySolidModelObj;
+  auto cvSolidModel = CreateCvSolidModel(kernel);
+  if (cvSolidModel == nullptr) { 
+      return nullptr;
+  }
+  std::cout << "[CreatePySolidModelObject] cvSolidModel: " << cvSolidModel << std::endl;
+
+  try {
+      pySolidModelObj = PySolidModelCtorMap[kernel]();
+  } catch (const std::bad_function_call& except) {
+      std::cout << "[CreatePySolidModelObject] ERROR: Creating pySolidModelObj " << std::endl;
+      return nullptr;
+  }
+
+  std::cout << "[CreatePySolidModelObject] pySolidModelObj: " << pySolidModelObj << std::endl;
+  auto pySolidModel = (PySolidModelClass*)pySolidModelObj;
+  pySolidModel->solidModel = cvSolidModel;
+  return pySolidModelObj;
 }
 
 //---------------------------------------------------------------------------
@@ -227,6 +254,15 @@ PyInit_PySolid(void)
       return nullptr;
   }
 
+  // Initialize the OpenCascade class type.
+  std::cout << "[PyInit_PySolid] Initialize the OpenCascade class type. " << std::endl;
+  SetPolyDataSolidTypeFields(PyOcctSolidClassType);
+  std::cout << "[PyInit_PySolid] Set fields done ... " << std::endl;
+  if (PyType_Ready(&PyOcctSolidClassType) < 0) {
+      std::cout << "Error creating OpenCascade type" << std::endl;
+      return nullptr;
+  }
+
   // Initialize the solid modeling kernel class type.
   SetSolidKernelTypeFields(PySolidKernelClassType);
   if (PyType_Ready(&PySolidKernelClassType) < 0) {
@@ -261,12 +297,19 @@ PyInit_PySolid(void)
   Py_INCREF(&PyPolyDataSolidClassType);
   PyModule_AddObject(module, SOLID_POLYDATA_CLASS, (PyObject *)&PyPolyDataSolidClassType);
 
+  // Add the 'OpenCascade' class.
+  std::cout << "[PyInit_PySolid] Add the OpenCascade class type. " << std::endl;
+  Py_INCREF(&PyOcctSolidClassType);
+
   // Add the 'Kernel' class.
   Py_INCREF(&PySolidKernelClassType);
   PyModule_AddObject(module, SOLID_KERNEL_CLASS, (PyObject*)&PySolidKernelClassType);
 
   // Set the kernel names in the SolidKernelType dictionary.
   SetSolidKernelClassTypes(PySolidKernelClassType);
+
+  // Initialize Open Cascade.
+  InitOcct();
 
   std::cout << "[PyInit_PySolid] Done. " << std::endl;
 

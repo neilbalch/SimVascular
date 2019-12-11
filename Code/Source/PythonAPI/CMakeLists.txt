@@ -63,6 +63,7 @@ target_link_libraries(${lib}
   ${SV_LIB_UTILS_NAME}
   ${SV_LIB_POLYDATA_SOLID_NAME}
   ${SV_LIB_OpenCASCADE_SOLID_NAME}
+  ${OpenCASCADE_LIBRARIES}
   org_sv_pythondatanodes
 )
 

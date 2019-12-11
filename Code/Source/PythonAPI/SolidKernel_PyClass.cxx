@@ -47,14 +47,14 @@ static std::map<std::string,SolidModel_KernelT> kernelNameEnumMap =
     {"DISCRETE",     SM_KT_DISCRETE},
     {"INVALID",      SM_KT_INVALID},
     {"MESHSIMSOLID", SM_KT_MESHSIMSOLID},
-    {"OCCT",         SM_KT_OCCT},
+    {"OPENCASCADE",  SM_KT_OCCT},
     {"PARASOLID",    SM_KT_PARASOLID},
     {"POLYDATA",     SM_KT_POLYDATA},
     {"RESERVED",     SM_KT_RESERVED},
 };
 
 // The list of valid kernel names, used in error messages.
-static std::string kernelValidNames = "DISCRETE, MESHSIMSOLID, OCCT, PARASOLID or POLYDATA"; 
+static std::string kernelValidNames = "DISCRETE, MESHSIMSOLID, OPENCASCADE, PARASOLID, or POLYDATA"; 
 
 //---------------------
 // SolidKernelObject

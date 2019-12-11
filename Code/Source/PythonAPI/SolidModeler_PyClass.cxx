@@ -29,8 +29,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// Define the Python 'solid.Modeler' class. This class defines modeling operations that
-// create new Python 'solid.Solid' objects. 
+// Define the Python 'solid.Modeler' class. This class defines modeling operations 
+// that create new Python 'solid.Model' objects. 
 //
 #ifndef PYAPI_SOLID_MODELER_H
 #define PYAPI_SOLID_MODELER_H
@@ -41,10 +41,12 @@
 #include <string>
 #include <structmember.h>
 
-//-------------------
-// SolidModelerClass 
-//-------------------
+//---------------------
+// PySolidModelerClass 
+//---------------------
 // Define the SolidModelerClass.
+//
+// This is the data stored in a Python solid.Modeler object.
 //
 typedef struct {
   PyObject_HEAD
@@ -59,9 +61,92 @@ typedef struct {
 // Python 'Modeler' class methods. 
 //
 
-//---------------------
-// SolidModel_cylinder 
-//---------------------
+//--------------------
+// SolidModeler_box3d 
+//--------------------
+//
+PyDoc_STRVAR(SolidModeler_box_doc,
+  "box3d(kernel)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
+
+static PyObject * 
+SolidModeler_box(PySolidModelClass* self, PyObject* args, PyObject* kwargs)
+{
+  std::cout << "[SolidModeler_box] ========== SolidModeler_box ==========" << std::endl;
+  std::cout << "[SolidModel_box] Kernel: " << self->kernel << std::endl;
+  auto api = SvPyUtilApiFunction("O|ddd", PyRunTimeErr, __func__);
+  static char *keywords[] = {"center", "width", "height", "length", NULL};
+  double width = 1.0;
+  double height = 1.0;
+  double length = 1.0;
+  PyObject* centerArg;
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &centerArg, &width, &height, &length)) { 
+      return api.argsError();
+  }
+
+  // Check that the center argument is valid.
+  std::string emsg;
+  if (!svPyUtilCheckPointData(centerArg, emsg)) {
+      api.error("The box center argument " + emsg);
+      return nullptr;
+  }
+
+  // Get the center argument data.
+  double center[3];
+  for (int i = 0; i < PyList_Size(centerArg); i++) {
+    center[i] = PyFloat_AsDouble(PyList_GetItem(centerArg,i));
+  }
+  std::cout << "[SolidModel_box] Center: " << center[0] << "  " << center[1] << "  " << center[2] << std::endl;
+
+  if (width <= 0.0) { 
+      api.error("The box width argument is <= 0.0.");
+      return nullptr;
+  }
+
+  if (height <= 0.0) { 
+      api.error("The box height argument is <= 0.0.");
+      return nullptr;
+  }
+
+  if (length <= 0.0) { 
+      api.error("The box length argument is <= 0.0.");
+      return nullptr;
+  }
+
+  std::cout << "[SolidModel_box] Width: " << width << std::endl;
+  std::cout << "[SolidModel_box] Height: " << height << std::endl;
+  std::cout << "[SolidModel_box] Length: " << length << std::endl;
+
+  // Create the new solid object.
+  auto pySolidModelObj = CreatePySolidModelObject(self->kernel);
+  auto model = ((PySolidModelClass*)pySolidModelObj)->solidModel; 
+  if (model == NULL) {
+      api.error("Error creating a 3D box solid model.");
+      return nullptr;
+  }
+
+  // Create the box solid.
+  //
+  double dims[3] = {width, height, length};
+  if (model->MakeBox3d(dims, center) != SV_OK) {
+      Py_DECREF(pySolidModelObj);
+      delete model;
+      api.error("Error creating a 3D box solid model.");
+      return nullptr;
+  }
+
+  return pySolidModelObj;
+}
+
+//-----------------------
+// SolidModeler_cylinder 
+//-----------------------
 //
 PyDoc_STRVAR(SolidModeler_cylinder_doc,
   "cylinder(kernel)  \n\ 
@@ -76,6 +161,7 @@ static PyObject *
 SolidModeler_cylinder(PySolidModelerClass* self, PyObject* args)
 {
   std::cout << "[SolidModeler_cylinder] ========== SolidModeler_cylinder ==========" << std::endl;
+  std::cout << "[SolidModel_cylinder] Kernel: " << self->kernel << std::endl;
   auto api = SvPyUtilApiFunction("ddOO", PyRunTimeErr, __func__);
   char *objName;
   double radius;
@@ -87,6 +173,8 @@ SolidModeler_cylinder(PySolidModelerClass* self, PyObject* args)
       return api.argsError();
   }
 
+  // Check argument values.
+  //
   std::string emsg;
   if (!svPyUtilCheckPointData(centerArg, emsg)) {
       api.error("The cylinder center argument " + emsg);
@@ -108,20 +196,22 @@ SolidModeler_cylinder(PySolidModelerClass* self, PyObject* args)
       return nullptr;
   }
 
+  // Get argument data.
+  //
   double center[3];
   double axis[3];
   for (int i = 0; i < 3; i++) {
-    axis[i] = PyFloat_AsDouble(PyList_GetItem(axisArg,i));
-    center[i] = PyFloat_AsDouble(PyList_GetItem(centerArg,i));
+      axis[i] = PyFloat_AsDouble(PyList_GetItem(axisArg,i));
+      center[i] = PyFloat_AsDouble(PyList_GetItem(centerArg,i));
   }
 
-  // Instantiate the new solid:
-  //
-  std::cout << "[SolidModel_cylinder] Kernel: " << self->kernel << std::endl;
-
-  auto model = CreateSolidModelObject(self->kernel);
-
-  std::cout << "[SolidModel_cylinder] Model: " << model << std::endl;
+  // Create the new solid.
+  auto pySolidModelObj = CreatePySolidModelObject(self->kernel);
+  if (pySolidModelObj == nullptr) { 
+      api.error("Error creating a Python solid model object.");
+      return nullptr;
+  } 
+  auto model = ((PySolidModelClass*)pySolidModelObj)->solidModel; 
   if (model == NULL) {
       api.error("Error creating a cylinder solid model.");
       return nullptr;
@@ -129,16 +219,14 @@ SolidModeler_cylinder(PySolidModelerClass* self, PyObject* args)
 
   std::cout << "[SolidModel_cylinder] Create cylinder ... " << std::endl;
   if (model->MakeCylinder(radius, length, center, axis) != SV_OK) {
+      Py_DECREF(pySolidModelObj);
       delete model;
       api.error("Error creating a cylinder solid model.");
       return nullptr;
   }
 
-// CreateSolidModelType
-
-  Py_RETURN_NONE;
+  return pySolidModelObj;
 }
-
 
 ////////////////////////////////////////////////////////
 //          C l a s s    D e f i n i t i o n          //
@@ -156,6 +244,8 @@ PyDoc_STRVAR(SolidModelerClass_doc, "solid modeling kernel class functions");
 //---------------------
 //
 static PyMethodDef PySolidModelerClassMethods[] = {
+
+  { "box", (PyCFunction)SolidModeler_box, METH_VARARGS | METH_KEYWORDS, SolidModeler_box_doc },
 
   { "cylinder", (PyCFunction)SolidModeler_cylinder, METH_VARARGS, SolidModeler_cylinder_doc },
 

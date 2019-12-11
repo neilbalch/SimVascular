@@ -580,91 +580,6 @@ SolidModel_box2d(PySolidModel* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
-//------------------
-// SolidModel_box3d 
-//------------------
-//
-PyDoc_STRVAR(SolidModel_box3d_doc,
-  "box3d(kernel)  \n\ 
-   \n\
-   ??? Set the computational kernel used to segment image data.       \n\
-   \n\
-   Args:\n\
-     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
-");
-
-static PyObject * 
-SolidModel_box3d( PySolidModel* self, PyObject* args)
-{
-  auto api = SvPyUtilApiFunction("sOO", PyRunTimeErr, __func__);
-  char *objName;
-  double dims[3];
-  double ctr[3];
-  PyObject* dimList;
-  PyObject* ctrList;
-
-  if (!PyArg_ParseTuple(args, api.format, &objName, &dimList, &ctrList)) {
-      return api.argsError();
-  }
-
-  // [TODO:DaveP] do better check here.
-  if (PyList_Size(dimList) > 3) {
-      api.error("The dimension list argument > 3.");
-      return nullptr;
-  }
-
-  std::string emsg;
-  if (!svPyUtilCheckPointData(ctrList, emsg)) {
-      api.error("The box center argument " + emsg);
-      return nullptr;
-  }
-
-  for (int i=0;i<PyList_Size(dimList);i++) {
-    dims[i]=PyFloat_AsDouble(PyList_GetItem(dimList,i));
-  }
-  for (int i=0;i<PyList_Size(ctrList);i++) {
-    ctr[i]=PyFloat_AsDouble(PyList_GetItem(ctrList,i));
-  }
-
-  // Do work of command:
-
-  if ((dims[0] <= 0.0) || (dims[1] <= 0.0) || (dims[2] <= 0.0)) {
-      api.error("The box dimensions argument <= 0.0.");
-      return nullptr;
-  }
-
-  // Check that the repository object does not already exist.
-  if (gRepository->Exists(objName)) {
-      api.error("The repository object '" + std::string(objName) + "' already exists.");
-      return nullptr;
-  }
-
-  // Instantiate the new solid:
-  auto geom = cvSolidModel::pyDefaultInstantiateSolidModel();
-  if (geom == NULL) {
-      api.error("Error creating a 3D box solid model.");
-      return nullptr;
-  }
-
-  if (geom->MakeBox3d(dims, ctr) != SV_OK) {
-      delete geom;
-      api.error("Error creating a 3D box solid model.");
-      return nullptr;
-  }
-
-  // Register the new solid:
-  if (!gRepository->Register(objName, geom)) {
-      delete geom;
-      api.error("Error adding the 3D box solid model '" + std::string(objName) + "' to the repository.");
-      return nullptr;
-  }
-
-  Py_INCREF(geom);
-  self->solidModel=geom;
-  Py_DECREF(geom);
-  return SV_PYTHON_OK;
-}
-
 //---------------------
 // SolidModel_ellipsoid 
 //---------------------
@@ -2608,49 +2523,6 @@ SolidModel_write_geom_sim(PySolidModel *self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
-//-------------------------
-// SolidModel_get_polydata
-//-------------------------
-//
-PyDoc_STRVAR(SolidModel_get_polydata_doc,
-" get_polydata(name)  \n\ 
-  \n\
-  ??? Add the unstructured grid mesh to the repository. \n\
-  \n\
-  Args: \n\
-    name (str): Name in the repository to store the unstructured grid. \n\
-");
-
-static PyObject *  
-SolidModel_get_polydata(PySolidModel *self, PyObject* args)
-{
-  auto api = SvPyUtilApiFunction("|d", PyRunTimeErr, __func__);
-  double max_dist = -1.0;
-
-  if (!PyArg_ParseTuple(args, api.format, &max_dist)) {
-      return api.argsError();
-  }
-
-  auto model = self->solidModel; 
-
-  int useMaxDist = 0;
-  if (max_dist > 0) {
-      useMaxDist = 1;
-  }
-
-  // Get the cvPolyData:
-  //
-  auto cvPolydata = model->GetPolyData(useMaxDist, max_dist);
-  vtkSmartPointer<vtkPolyData> polydata = vtkSmartPointer<vtkPolyData>::New();
-  polydata = cvPolydata->GetVtkPolyData();
-  if (polydata == NULL) {
-      api.error("Could not get polydata for the solid model.");
-      return nullptr;
-  }
-
-  return vtkPythonUtil::GetObjectFromPointer(polydata);
-}
-
 //----------------------
 // Solid_SetVtkPolyDataMtd
 //----------------------
@@ -3623,8 +3495,6 @@ static PyMethodDef PySolidModelClassMethods[] = {
 
   { "box2d", (PyCFunction)SolidModel_box2d, METH_VARARGS, SolidModel_box2d_doc },
 
-  { "box3d", (PyCFunction)SolidModel_box3d, METH_VARARGS, SolidModel_box3d_doc },
-
   { "cap_surface_to_solid", (PyCFunction)SolidModel_cap_surface_to_solid, METH_VARARGS,     SolidModel_cap_surface_to_solid_doc },
 
   { "check", (PyCFunction)SolidModel_check, METH_VARARGS, SolidModel_check_doc },
@@ -3685,8 +3555,6 @@ static PyMethodDef PySolidModelClassMethods[] = {
   { "get_label_keys", (PyCFunction)SolidModel_get_label_keys, METH_VARARGS, SolidModel_get_label_keys_doc },
 
   { "get_model", (PyCFunction)SolidModel_get_model, METH_VARARGS, SolidModel_get_model_doc },
-
-  { "get_polydata", (PyCFunction)SolidModel_get_polydata, METH_VARARGS, SolidModel_get_polydata_doc },
 
   { "get_region_attribute", (PyCFunction)SolidModel_get_region_attribute, METH_VARARGS, SolidModel_get_region_attribute_doc },
 
