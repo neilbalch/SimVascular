@@ -41,6 +41,10 @@
 
 //extern "C" SV_EXPORT_SOLID int Solid_PyInit();
 
+typedef cvSolidModel * (*CreateSolidModelObjectFunction)();
+
+extern "C" SV_EXPORT_SOLID void PyAPI_InitParasolid(CreateSolidModelObjectFunction createObject);
+
 //--------------
 // PySolidModel
 //--------------

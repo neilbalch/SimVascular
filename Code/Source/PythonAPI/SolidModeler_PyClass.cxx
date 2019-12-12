@@ -66,7 +66,7 @@ typedef struct {
 //--------------------
 //
 PyDoc_STRVAR(SolidModeler_box_doc,
-  "box3d(kernel)  \n\ 
+  "box(kernel)  \n\ 
    \n\
    ??? Set the computational kernel used to segment image data.       \n\
    \n\
@@ -278,9 +278,9 @@ PySolidModelerInit(PySolidModelerClass* self, PyObject* args, PyObject *kwds)
   return 0;
 }
 
-//------------------------------------
-// Define the SolidType type object
-//------------------------------------
+//-------------------------
+// PySolidModelerClassType 
+//-------------------------
 // Define the Python type object that stores contour.kernel types. 
 //
 static PyTypeObject PySolidModelerClassType = {
@@ -297,12 +297,13 @@ static PyObject *
 PySolidModelerNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
   std::cout << "[PySolidModelerNew] New SolidModeler" << std::endl;
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, "SolidModeler");
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, "Modeler");
   char* kernelName = nullptr; 
   if (!PyArg_ParseTuple(args, api.format, &kernelName)) {
       return api.argsError();
   }
 
+  std::cout << "[PySolidModelerNew] Kernel: " << kernelName << std::endl;
   SolidModel_KernelT kernel;
 
   try {
@@ -314,6 +315,13 @@ PySolidModelerNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
       return nullptr;
   }
 
+  try {
+    auto ctore = CvSolidModelCtorMap.at(kernel);
+  } catch (const std::out_of_range& except) {
+      api.error("No modeler is defined for the kernel name '" + std::string(kernelName) + "'."); 
+      return nullptr;
+  }
+
   auto self = (PySolidModelerClass*)type->tp_alloc(type, 0);
   if (self != NULL) {
       //self->id = 1;
@@ -322,9 +330,9 @@ PySolidModelerNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
   return (PyObject *) self;
 }
 
-//---------------------
+//-----------------------
 // PySolidModelerDealloc 
-//---------------------
+//-----------------------
 //
 static void
 PySolidModelerDealloc(PySolidModelerClass* self)

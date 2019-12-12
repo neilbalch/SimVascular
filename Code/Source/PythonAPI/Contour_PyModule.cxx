@@ -772,32 +772,6 @@ static char* CONTOUR_MODULE_CLASS = "contour.Contour";
 
 PyDoc_STRVAR(ContourModule_doc, "contour module functions");
 
-//-------------------
-// ContourObjectInit
-//-------------------
-// This is the __init__() method for the Contour class. 
-//
-// This function is used to initialize an object after it is created.
-//
-static int
-PyContourInit(PyContour* self, PyObject* args, PyObject *kwds)
-{
-  static int numObjs = 1;
-  std::cout << "[PyContourInit] New Contour object: " << numObjs << std::endl;
-  char* kernelName = nullptr;
-  if (!PyArg_ParseTuple(args, "|s", &kernelName)) {
-      return -1;
-  }
-
-  if (kernelName != nullptr) { 
-      std::cout << "[ContourObjectInit] Kernel name: " << kernelName << std::endl;
-  }
-  self->contour = new Contour();
-  self->id = numObjs; 
-  numObjs += 1;
-  return 0;
-}
-
 //------------------
 // PyContourMethods 
 //------------------
@@ -851,9 +825,40 @@ static PyTypeObject PyContourClassType = {
   .tp_basicsize = sizeof(PyContour)
 };
 
+//-------------------
+// ContourObjectInit
+//-------------------
+// This function is used to initialize an object after it is created.
+//
+// This implements the Python __init__ method for the Contour class. 
+// It is called after calling the __new__ method.
+//
+static int
+PyContourInit(PyContour* self, PyObject* args, PyObject *kwds)
+{
+  static int numObjs = 1;
+  std::cout << "[PyContourInit] New Contour object: " << numObjs << std::endl;
+  char* kernelName = nullptr;
+  if (!PyArg_ParseTuple(args, "|s", &kernelName)) {
+      return -1;
+  }
+
+  if (kernelName != nullptr) { 
+      std::cout << "[ContourObjectInit] Kernel name: " << kernelName << std::endl;
+  }
+  self->contour = new Contour();
+  self->id = numObjs; 
+  numObjs += 1;
+  return 0;
+}
+
 //---------------
 // PyContourtNew
 //---------------
+// Create a new instance of a PyContour object.
+//
+// This implements the Python __new__ method. It is called before the
+// __init__ method.
 //
 static PyObject *
 PyContourNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
