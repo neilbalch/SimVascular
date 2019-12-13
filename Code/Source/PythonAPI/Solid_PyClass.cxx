@@ -2031,55 +2031,6 @@ SolidModel_get_spatial_dimension(PySolidModel *self ,PyObject* args)
   return Py_BuildValue("d",sdim);
 }
 
-// -------------------
-// Solid_ClassifyPtMtd
-// -------------------
-PyDoc_STRVAR(SolidModel_classify_point_doc,
-" classify_point(name)  \n\ 
-  \n\
-  ??? Add the unstructured grid mesh to the repository. \n\
-  \n\
-  Args: \n\
-    name (str): Name in the repository to store the unstructured grid. \n\
-");
-
-static PyObject *  
-SolidModel_classify_point(PySolidModel *self ,PyObject* args)
-{
-  auto api = SvPyUtilApiFunction("dd|di", PyRunTimeErr, __func__);
-  double x, y;
-  double z = std::numeric_limits<double>::infinity();
-  int v = 0;
-  int ans;
-  int status;
-  int tdim, sdim;
-
-  if (!PyArg_ParseTuple(args, api.format,&x,&y,&z,&v)) {
-      return api.argsError();
-  }
-
-  auto geom = self->solidModel;
-  geom->GetTopoDim(&tdim);
-  geom->GetSpatialDim(&sdim);
-
-  if (!std::isinf(z)) {
-      status = geom->ClassifyPt(x, y, z, v, &ans);
-  } else {
-      if ((tdim == 2) && (sdim == 2)) {
-          status = geom->ClassifyPt( x, y, v, &ans);
-      } else {
-          api.error("the solid model must have a topological and spatial dimension of two.");
-          return nullptr;
-      }
-  }
-
-  if (status != SV_OK) {
-      api.error("Error classifying a point for the solid model.");
-      return nullptr;
-  }
-
-  return Py_BuildValue("d",ans);
-}
 
 // -----------------
 // Solid_DistanceMtd
@@ -2332,58 +2283,6 @@ SolidModel_reflect(PySolidModel *self ,PyObject* args)
   return SV_PYTHON_OK;
 }
 
-//-----------------
-// Solid_Apply4x4Mtd
-//-----------------
-//
-PyDoc_STRVAR(SolidModel_apply4x4_doc,
-" apply4x4(name)  \n\ 
-  \n\
-  ??? Add the unstructured grid mesh to the repository. \n\
-  \n\
-  Args: \n\
-    name (str): Name in the repository to store the unstructured grid. \n\
-");
-
-static PyObject *  
-SolidModel_apply4x4(PySolidModel *self ,PyObject* args)
-{
-  auto api = SvPyUtilApiFunction("O", PyRunTimeErr, __func__);
-  PyObject* matList;
-  PyObject* rowList;
-
-  if (!PyArg_ParseTuple(args, api.format, &matList)) {
-      return api.argsError();
-  }
-
-  if (PyList_Size(matList) != 4) {
-      api.error("The matrix argument is not a 4x4 matrix.");
-      return nullptr;
-  }
-
-  // Extract the 4x4 matrix.
-  //
-  double mat[4][4];
-  for (int i=0;i<PyList_Size(matList);i++) {
-      rowList = PyList_GetItem(matList,i);
-      if (PyList_Size(rowList) != 4) {
-          api.error("The matrix argument is not a 4x4 matrix.");
-          return nullptr;
-      }
-      for (int j=0;j<PyList_Size(rowList);j++) {
-          mat[i][j] = PyFloat_AsDouble(PyList_GetItem(rowList,j));
-      }
-  }
-
-  auto geom = self->solidModel;
-  if (geom->Apply4x4(mat) != SV_OK) {
-      api.error("Error applyonig a 4x4 matrix to the solid model.");
-      return nullptr;
-  }
-
-  return SV_PYTHON_OK;
-}
-
 //------------------
 // SolidModel_print
 //------------------
@@ -2403,24 +2302,6 @@ SolidModel_print(PySolidModel *self ,PyObject* args)
   return SV_PYTHON_OK;
 }
 
-// --------------
-// Solid_CheckMtd
-// --------------
-PyDoc_STRVAR(SolidModel_check_doc,
-" check()  \n\ 
-  \n\
-  ??? Add the unstructured grid mesh to the repository. \n\
-  \n\
-");
-
-static PyObject *  
-SolidModel_check(PySolidModel *self ,PyObject* args)
-{
-  auto geom = self->solidModel;
-  int nerr;
-  geom->Check( &nerr );
-  return Py_BuildValue("i",nerr);
-}
 
 //-------------------------
 // SolidModel_write_native
@@ -3491,17 +3372,9 @@ PyDoc_STRVAR(SolidModelClass_doc, "solid model class methods.");
 //
 static PyMethodDef PySolidModelClassMethods[] = {
 
-  { "apply4x4", (PyCFunction)SolidModel_apply4x4, METH_VARARGS, SolidModel_apply4x4_doc },
-
   { "box2d", (PyCFunction)SolidModel_box2d, METH_VARARGS, SolidModel_box2d_doc },
 
   { "cap_surface_to_solid", (PyCFunction)SolidModel_cap_surface_to_solid, METH_VARARGS,     SolidModel_cap_surface_to_solid_doc },
-
-  { "check", (PyCFunction)SolidModel_check, METH_VARARGS, SolidModel_check_doc },
-
-  { "circle", (PyCFunction)SolidModel_circle, METH_VARARGS, SolidModel_circle_doc },
-
-  { "classify_point", (PyCFunction)SolidModel_classify_point, METH_VARARGS,   SolidModel_classify_point_doc },
 
   { "clear_label", (PyCFunction)SolidModel_clear_label, METH_VARARGS, SolidModel_clear_label_doc },
 
@@ -3511,42 +3384,25 @@ static PyMethodDef PySolidModelClassMethods[] = {
 
   { "create_edge_blend", (PyCFunction)SolidModel_create_edge_blend, METH_VARARGS, SolidModel_create_edge_blend_doc },
 
-  { "cylinder", (PyCFunction)SolidModel_cylinder, METH_VARARGS, SolidModel_cylinder_doc },
-
-  { "delete_faces", (PyCFunction)SolidModel_delete_faces, METH_VARARGS, SolidModel_delete_faces_doc },
-
   { "delete_region", (PyCFunction)SolidModel_delete_region, METH_VARARGS, SolidModel_delete_region_doc },
 
   { "distance", (PyCFunction)SolidModel_distance, METH_VARARGS, SolidModel_distance_doc },
 
   { "ellipse", (PyCFunction)SolidModel_ellipse, METH_VARARGS, SolidModel_ellipse_doc },
 
-  { "ellipsoid", (PyCFunction)SolidModel_ellipsoid, METH_VARARGS, SolidModel_ellipsoid_doc },
-
   { "extrude", (PyCFunction)SolidModel_extrude, METH_VARARGS, SolidModel_extrude_doc },
 
   { "extrude_z", (PyCFunction)SolidModel_extrude_z, METH_VARARGS, SolidModel_extrude_z_doc },
 
-  { "find_centroid", (PyCFunction)SolidModel_find_centroid, METH_VARARGS, SolidModel_find_centroid_doc },
-
   { "find_extent", (PyCFunction)SolidModel_find_extent, METH_VARARGS, SolidModel_find_extent_doc },
 
   { "get_axial_isoparametric_curve", (PyCFunction)SolidModel_get_axial_isoparametric_curve, METH_VARARGS, SolidModel_get_axial_isoparametric_curve_doc },
-
-  { "get_boundary_faces", (PyCFunction)SolidModel_get_boundary_faces, METH_VARARGS,     SolidModel_get_boundary_faces_doc },
 
   { "get_class_name", (PyCFunction)SolidModel_get_class_name, METH_NOARGS, SolidModel_get_class_name_doc },
 
   { "get_discontinuities", (PyCFunction)SolidModel_get_discontinuities, METH_VARARGS, SolidModel_get_discontinuities_doc },
 
   { "get_face_attribute", (PyCFunction)SolidModel_get_face_attribute, METH_VARARGS, SolidModel_get_face_attribute_doc },
-
-  { "get_face_ids", (PyCFunction)SolidModel_get_face_ids, METH_NOARGS, SolidModel_get_face_ids_doc },
-
-  { "get_face_normal", (PyCFunction)SolidModel_get_face_normal, METH_VARARGS,     SolidModel_get_face_normal_doc },
-
-  { "get_face_polydata", (PyCFunction)SolidModel_get_face_polydata, METH_VARARGS, SolidModel_get_face_polydata_doc
-  },
 
   { "get_kernel", (PyCFunction)SolidModel_get_kernel, METH_VARARGS, SolidModel_get_kernel_doc },
 
@@ -3563,8 +3419,6 @@ static PyMethodDef PySolidModelClassMethods[] = {
   { "get_spatial_dimension", (PyCFunction)SolidModel_get_spatial_dimension, METH_VARARGS, SolidModel_get_spatial_dimension_doc },
 
   { "get_topological_dimension", (PyCFunction)SolidModel_get_topological_dimension, METH_VARARGS,     SolidModel_get_topological_dimension_doc },
-
-  { "intersect", (PyCFunction)SolidModel_intersect, METH_VARARGS, SolidModel_intersect_doc },
 
   { "make_approximate_curve_loop", (PyCFunction)SolidModel_make_approximate_curve_loop, METH_VARARGS, SolidModel_make_approximate_curve_loop_doc },
 
@@ -3602,17 +3456,11 @@ static PyMethodDef PySolidModelClassMethods[] = {
 
   { "set_vtk_polydata", (PyCFunction)SolidModel_set_vtk_polydata, METH_VARARGS, SolidModel_set_vtk_polydata_doc },
 
-  { "sphere", (PyCFunction)SolidModel_sphere, METH_VARARGS, SolidModel_sphere_doc },
-
-  { "subtract", (PyCFunction)SolidModel_subtract, METH_VARARGS, SolidModel_subtract_doc },
-
   { "torus", (PyCFunction)SolidModel_torus, METH_VARARGS, SolidModel_torus_doc },
 
   { "translate", (PyCFunction)SolidModel_translate, METH_VARARGS, SolidModel_translate_doc },
 
   { "truncated_cone", (PyCFunction)SolidModel_truncated_cone, METH_VARARGS, SolidModel_truncated_cone_doc },
-
-  { "union", (PyCFunction)SolidModel_union, METH_VARARGS, SolidModel_union_doc },
 
   { "write_geom_sim", (PyCFunction)SolidModel_write_geom_sim, METH_VARARGS, SolidModel_write_geom_sim_doc },
 

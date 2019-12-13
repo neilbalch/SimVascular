@@ -54,6 +54,24 @@ typedef struct {
   SolidModel_KernelT kernel;
 } PySolidModelerClass;
 
+//////////////////////////////////////////////////////
+//          U t i l i t y   F u n c t i o n s       //
+//////////////////////////////////////////////////////
+
+//---------------------------
+// SolidModelerUtil_GetModel 
+//---------------------------
+//
+static cvSolidModel *
+SolidModelerUtil_GetModelFromPyObj(PyObject* obj)
+{
+  // Check that the Python object is an SV Python Model object.
+  if (!PyObject_TypeCheck(obj, &PySolidModelClassType)) {
+      return nullptr;
+  }
+  return ((PySolidModelClass*)obj)->solidModel;
+}
+
 ////////////////////////////////////////////////////////
 //          C l a s s    M e t h o d s                //
 ////////////////////////////////////////////////////////
@@ -144,6 +162,53 @@ SolidModeler_box(PySolidModelClass* self, PyObject* args, PyObject* kwargs)
   return pySolidModelObj;
 }
 
+//---------------------
+// SolidModeler_circle 
+//---------------------
+//
+PyDoc_STRVAR(SolidModeler_circle_doc,
+  "circle(kernel)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
+
+static PyObject * 
+SolidModeler_circle(PySolidModelerClass* self, PyObject* args, PyObject* kwargs)
+{
+  auto api = SvPyUtilApiFunction("sddd", PyRunTimeErr, __func__);
+  static char *keywords[] = {"radius", "x", "y", NULL};
+  double radius;
+  double center[2];
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &radius, &(center[0]), &(center[1]))) { 
+      return api.argsError();
+  }
+
+  if (radius <= 0.0) {
+      api.error("The radius argument <= 0.0."); 
+      return nullptr;
+  }
+
+  // Create the new solid object.
+  auto pySolidModelObj = CreatePySolidModelObject(self->kernel);
+  auto model = ((PySolidModelClass*)pySolidModelObj)->solidModel; 
+  if (model == NULL) {
+      api.error("Error creating a 3D box solid model.");
+      return nullptr;
+  }
+
+  if (model->MakeCircle(radius, center) != SV_OK) {
+      delete model;
+      api.error("Error creating a circle solid model.");
+      return nullptr;
+  }
+
+  return pySolidModelObj;
+}
+
 //-----------------------
 // SolidModeler_cylinder 
 //-----------------------
@@ -158,18 +223,18 @@ PyDoc_STRVAR(SolidModeler_cylinder_doc,
 ");
 
 static PyObject * 
-SolidModeler_cylinder(PySolidModelerClass* self, PyObject* args)
+SolidModeler_cylinder(PySolidModelerClass* self, PyObject* args, PyObject* kwargs)
 {
   std::cout << "[SolidModeler_cylinder] ========== SolidModeler_cylinder ==========" << std::endl;
   std::cout << "[SolidModel_cylinder] Kernel: " << self->kernel << std::endl;
   auto api = SvPyUtilApiFunction("ddOO", PyRunTimeErr, __func__);
-  char *objName;
+  static char *keywords[] = {"radius", "length", "center", "axis", NULL};
   double radius;
   double length;
   PyObject* centerArg;
   PyObject* axisArg;
 
-  if (!PyArg_ParseTuple(args, api.format, &radius, &length, &centerArg , &axisArg)) {
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &radius, &length, &centerArg , &axisArg)) {
       return api.argsError();
   }
 
@@ -228,6 +293,336 @@ SolidModeler_cylinder(PySolidModelerClass* self, PyObject* args)
   return pySolidModelObj;
 }
 
+//------------------------
+// SolidModeler_ellipsoid 
+//------------------------
+// [TODO:DaveP] The cvSolidModel MakeEllipsoid method is not implemented.
+//
+PyDoc_STRVAR(SolidModeler_ellipsoid_doc,
+  "ellipsoid()  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
+
+static PyObject * 
+SolidModeler_ellipsoid(PySolidModelerClass* self, PyObject* args, PyObject* kwargs)
+{
+  auto api = SvPyUtilApiFunction("OO", PyRunTimeErr, __func__);
+  static char *keywords[] = {"center", "radii", NULL};
+  PyObject* rList;
+  PyObject* centerList;
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &rList, &centerList)) { 
+      return api.argsError();
+  }
+
+  std::string emsg;
+  if (!svPyUtilCheckPointData(centerList, emsg)) {
+      api.error("The ellipsoid center argument " + emsg);
+      return nullptr;
+  }
+
+  if (!svPyUtilCheckPointData(rList, emsg)) {
+      api.error("The ellipsoid radius vector argument " + emsg);
+      return nullptr;
+  }
+
+  double center[3];
+  double r[3];
+
+  for (int i=0;i<3;i++) {
+    r[i] = PyFloat_AsDouble(PyList_GetItem(rList,i));
+    center[i] = PyFloat_AsDouble(PyList_GetItem(centerList,i));
+  }
+
+  // Create the new solid.
+  auto pySolidModelObj = CreatePySolidModelObject(self->kernel);
+  if (pySolidModelObj == nullptr) {
+      api.error("Error creating a Python solid model object.");
+      return nullptr;
+  }
+  auto model = ((PySolidModelClass*)pySolidModelObj)->solidModel;
+  if (model == NULL) {
+      api.error("Error creating a solid model object.");
+      return nullptr;
+  }
+
+  std::cout << "[SolidModeler_ellipsoid] Create ellipsoid ... " << std::endl;
+  if (model->MakeEllipsoid(r, center) != SV_OK) {
+      delete model;
+      api.error("Error creating an ellipsoid solid model.");
+      return nullptr;
+  }
+
+  return pySolidModelObj;
+}
+
+//------------------------
+// SolidModeler_intersect 
+//------------------------
+//
+PyDoc_STRVAR(SolidModeler_intersect_doc,
+  "intersect(kernel)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
+
+static PyObject * 
+SolidModeler_intersect(PySolidModelerClass* self, PyObject* args, PyObject* kwargs)
+{
+  auto api = SvPyUtilApiFunction("OO|s", PyRunTimeErr, __func__);
+  static char *keywords[] = {"model1", "model2", "simplification", NULL};
+  PyObject* model1Arg;
+  PyObject* model2Arg;
+  char *smpName=NULL;
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &model1Arg, &model2Arg, &smpName)) { 
+      return api.argsError();
+  }
+
+  // Parse the simplification flag if given.
+  auto smp = CheckSimplificationName(api, smpName);
+  if (smp == SM_Simplify_Invalid) {
+      return nullptr;
+  }
+
+  // Check that the model1 argument is a SV Python Model object.
+  auto model1 = SolidModelerUtil_GetModelFromPyObj(model1Arg);
+  if (model1 == nullptr) {
+      api.error("The first model argument is not a Model object.");
+      return nullptr;
+  }
+
+  // Check that the model2 argument is a SV Python Model object.
+  auto model2 = SolidModelerUtil_GetModelFromPyObj(model2Arg);
+  if (model2 == nullptr) {
+      api.error("The second model argument is not a Model object.");
+      return nullptr;
+  }
+
+  // Create the new solid.
+  auto pySolidModelObj = CreatePySolidModelObject(self->kernel);
+  if (pySolidModelObj == nullptr) {
+      api.error("Error creating a Python solid model object.");
+      return nullptr;
+  }
+  auto model = ((PySolidModelClass*)pySolidModelObj)->solidModel;
+  if (model == NULL) {
+      api.error("Error creating a solid model.");
+      return nullptr;
+  }
+
+  if (model->Intersect(model1, model2, smp) != SV_OK ) {
+      delete model;
+      api.error("Error performing a Boolean intersection.");
+      return nullptr;
+  }
+
+  return pySolidModelObj;
+}
+
+//---------------------
+// SolidModeler_sphere 
+//---------------------
+//
+PyDoc_STRVAR(SolidModeler_sphere_doc,
+  "sphere(kernel)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
+
+static PyObject * 
+SolidModeler_sphere(PySolidModelerClass* self, PyObject* args, PyObject* kwargs)
+{
+  auto api = SvPyUtilApiFunction("dO", PyRunTimeErr, __func__);
+  static char *keywords[] = {"radius", "center", NULL};
+  PyObject* centerArg;
+  double center[3];
+  double radius;
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &radius, &centerArg)) {
+      return api.argsError();
+  }
+
+  std::string emsg;
+  if (!svPyUtilCheckPointData(centerArg, emsg)) {
+      api.error("The sphere center argument " + emsg);
+      return nullptr;
+  }
+
+  if (radius <= 0.0) {
+      api.error("The radius argument is <= 0.0.");
+      return nullptr;
+  }
+
+  for (int i = 0; i < PyList_Size(centerArg); i++) {
+      center[i] = PyFloat_AsDouble(PyList_GetItem(centerArg, i));
+  }
+
+  // Create the new solid.
+  auto pySolidModelObj = CreatePySolidModelObject(self->kernel);
+  if (pySolidModelObj == nullptr) { 
+      api.error("Error creating a Python solid model object.");
+      return nullptr;
+  } 
+  auto model = ((PySolidModelClass*)pySolidModelObj)->solidModel; 
+  if (model == NULL) {
+      api.error("Error creating a cylinder solid model.");
+      return nullptr;
+  }
+
+  if (model->MakeSphere(radius, center) != SV_OK) {
+      delete model;
+      api.error("Error creating a sphere solid model.");
+      return nullptr;
+  }
+
+  return pySolidModelObj;
+}
+
+//-----------------------
+// SolidModeler_subtract 
+//-----------------------
+//
+PyDoc_STRVAR(SolidModeler_subtract_doc,
+  "subtract(kernel)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
+
+static PyObject * 
+SolidModeler_subtract(PySolidModelerClass* self, PyObject* args, PyObject* kwargs)
+{
+  auto api = SvPyUtilApiFunction("OO|s", PyRunTimeErr, __func__);
+  static char *keywords[] = {"main", "subtract", "simplification", NULL};
+  PyObject* mainModelArg;
+  PyObject* subtractModelArg;
+  char *smpName=NULL;
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &mainModelArg, &subtractModelArg, &smpName)) { 
+      return api.argsError();
+  }
+
+  // Parse the simplification flag if given.
+  auto smp = CheckSimplificationName(api, smpName);
+  if (smp == SM_Simplify_Invalid) {
+      return nullptr;
+  }
+
+  // Check that the mainModel argument is a SV Python Model object.
+  auto mainModel = SolidModelerUtil_GetModelFromPyObj(mainModelArg);
+  if (mainModel == nullptr) { 
+      api.error("The main model argument is not a Model object.");
+      return nullptr;
+  }
+
+  // Check that the subtractModel argument is a SV Python Model object.
+  auto subtractModel = SolidModelerUtil_GetModelFromPyObj(subtractModelArg);
+  if (subtractModel == nullptr) { 
+      api.error("The subtract model argument is not a Model object.");
+      return nullptr;
+  }
+
+  // Create the new solid.
+  auto pySolidModelObj = CreatePySolidModelObject(self->kernel);
+  if (pySolidModelObj == nullptr) {
+      api.error("Error creating a Python solid model object.");
+      return nullptr;
+  }
+  auto model = ((PySolidModelClass*)pySolidModelObj)->solidModel;
+  if (model == NULL) {
+      api.error("Error creating a solid model.");
+      return nullptr;
+  }
+
+  if (model->Subtract(mainModel, subtractModel, smp) != SV_OK) {
+      delete model;
+      api.error("Error performing the Boolean subtract.");
+      return nullptr;
+  }
+
+  return pySolidModelObj;
+}
+
+//--------------------
+// SolidModeler_union 
+//--------------------
+//
+PyDoc_STRVAR(SolidModeler_union_doc,
+  "union(kernel)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
+
+static PyObject * 
+SolidModeler_union(PySolidModelerClass* self, PyObject* args, PyObject* kwargs)
+{
+  auto api = SvPyUtilApiFunction("OO|s", PyRunTimeErr, __func__);
+  static char *keywords[] = {"model1", "model2", "simplification", NULL};
+  PyObject* model1Arg;
+  PyObject* model2Arg;
+  char *smpName = NULL;
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &model1Arg, &model2Arg, &smpName)) { 
+      return api.argsError();
+  }
+
+  // Parse the simplification flag if given.
+  auto smp = CheckSimplificationName(api, smpName);
+  if (smp == SM_Simplify_Invalid) {
+      return nullptr;
+  }
+
+  // Check that the model1 argument is a SV Python Model object.
+  auto model1 = SolidModelerUtil_GetModelFromPyObj(model1Arg);
+  if (model1 == nullptr) { 
+      api.error("The first model argument is not a Model object.");
+      return nullptr;
+  }
+
+  // Check that the model2 argument is a SV Python Model object.
+  auto model2 = SolidModelerUtil_GetModelFromPyObj(model2Arg);
+  if (model2 == nullptr) { 
+      api.error("The second model argument is not a Model object.");
+      return nullptr;
+  }
+
+  // Create the new solid.
+  auto pySolidModelObj = CreatePySolidModelObject(self->kernel);
+  if (pySolidModelObj == nullptr) { 
+      api.error("Error creating a Python solid model object.");
+      return nullptr;
+  } 
+  auto model = ((PySolidModelClass*)pySolidModelObj)->solidModel; 
+  if (model == NULL) {
+      api.error("Error creating a solid model.");
+      return nullptr;
+  }
+
+  if (model->Union(model1, model2, smp) != SV_OK) {
+      delete model;
+      api.error("Error performing the Boolean union.");
+      return nullptr;
+  }
+
+  return pySolidModelObj;
+}
+
 ////////////////////////////////////////////////////////
 //          C l a s s    D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
@@ -247,7 +642,21 @@ static PyMethodDef PySolidModelerClassMethods[] = {
 
   { "box", (PyCFunction)SolidModeler_box, METH_VARARGS | METH_KEYWORDS, SolidModeler_box_doc },
 
-  { "cylinder", (PyCFunction)SolidModeler_cylinder, METH_VARARGS, SolidModeler_cylinder_doc },
+  // [TODO:DaveP] The cvSolidModel MakeCircle method is not implemented.
+  //{ "circle", (PyCFunction)SolidModeler_circle, METH_VARARGS, SolidModeler_circle_doc },
+
+  { "cylinder", (PyCFunction)SolidModeler_cylinder, METH_VARARGS | METH_KEYWORDS, SolidModeler_cylinder_doc },
+
+  { "intersect", (PyCFunction)SolidModeler_intersect, METH_VARARGS | METH_KEYWORDS, SolidModeler_intersect_doc },
+
+  // [TODO:DaveP] The cvSolidModel MakeEllipsoid method is not implemented.
+  //{ "ellipsoid", (PyCFunction)SolidModeler_ellipsoid, METH_VARARGS | METH_KEYWORDS, SolidModeler_ellipsoid_doc},
+
+  { "sphere", (PyCFunction)SolidModeler_sphere, METH_VARARGS | METH_KEYWORDS, SolidModeler_sphere_doc },
+
+  { "subtract", (PyCFunction)SolidModeler_subtract, METH_VARARGS | METH_KEYWORDS, SolidModeler_subtract_doc },
+
+  { "union", (PyCFunction)SolidModeler_union, METH_VARARGS | METH_KEYWORDS, SolidModeler_union_doc},
 
   {NULL, NULL}
 };

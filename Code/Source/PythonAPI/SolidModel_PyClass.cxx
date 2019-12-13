@@ -29,14 +29,15 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// The functions defined the Pythom 'solid.Model' class used to store solid modeling data. 
+// Define the Python 'solid.Model' class used to for solid modeling. 
+//
 // The 'solid.Model' class provides methods that operate directly on the solid model, 
 // for example, getting vtk polydata representing the model surface.
 //
-//--------------
-// PySolidModel
-//--------------
-// This is the data stored in a Python solid.Model object.
+//-------------------
+// PySolidModelClass 
+//-------------------
+// The Python solid.Model class internal data.
 //
 typedef struct {
   PyObject_HEAD
@@ -95,33 +96,439 @@ CheckSimplificationName(SvPyUtilApiFunction& api, char* name)
   return smpType;
 }
 
-//---------------
-// CheckGeometry
-//---------------
-// Check if the solid model object has geometry.
-//
-// This is really used to set the error message 
-// in a single place. 
-//
-/*
-static cvSolidModel *
-CheckGeometry(SvPyUtilApiFunction& api, PySolidModel *self)
-{
-  auto geom = self->solidModel;
-  if (geom == NULL) {
-      api.error("The solid model object does not have geometry.");
-      return nullptr;
-  }
-
-  return geom;
-}
-*/
-
 /////////////////////////////////////////////////////////////////
 //              C l a s s   M e t h o d s                      //
 /////////////////////////////////////////////////////////////////
 //
-// Python API functions for the SolidModel class. 
+// Python API functions for the Python solid.Model class. 
+
+//---------------------
+// SolidModel_apply4x4 
+//---------------------
+//
+// [TODO:DaveP] The Apply4x4() method is not implemented.
+//
+PyDoc_STRVAR(SolidModel_apply4x4_doc,
+" apply4x4(matrix)  \n\ 
+  \n\
+  Apply a 4x4 transformation matrix to the solid model. \n\
+  \n\
+  Args: \n\
+    matrix (4*[4*[double]]): A list of four lists representing the elements of a 4x4 transformation matrix. \n\
+");
+
+static PyObject *  
+SolidModel_apply4x4(PySolidModelClass *self ,PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("O", PyRunTimeErr, __func__);
+  PyObject* matrixArg;
+
+  if (!PyArg_ParseTuple(args, api.format, &matrixArg)) {
+      return api.argsError();
+  }
+
+  if (PyList_Size(matrixArg) != 4) {
+      api.error("The matrix argument is not a 4x4 matrix.");
+      return nullptr;
+  }
+
+  // Extract the 4x4 matrix.
+  //
+  double matrix[4][4];
+  for (int i = 0; i < PyList_Size(matrixArg); i++) {
+      auto rowList = PyList_GetItem(matrixArg, i);
+      if (PyList_Size(rowList) != 4) {
+          api.error("The matrix argument is not a 4x4 matrix.");
+          return nullptr;
+      }
+      for (int j = 0; j < PyList_Size(rowList); j++) {
+          matrix[i][j] = PyFloat_AsDouble(PyList_GetItem(rowList,j));
+          std::cout << "[SolidModel.apply4x4] matrix[i][j] " << matrix[i][j] << std::endl; 
+      }
+  }
+
+  auto model = self->solidModel; 
+
+  if (model->Apply4x4(matrix) != SV_OK) {
+      api.error("Error applying a 4x4 matrix to the solid model.");
+      return nullptr;
+  }
+
+  return SV_PYTHON_OK;
+}
+
+PyDoc_STRVAR(SolidModel_calculate_boundary_faces_doc,
+"calculate_boundary_faces(angle)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject *
+SolidModel_calculate_boundary_faces(PySolidModelClass* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("d", PyRunTimeErr, __func__);
+  double angle = 0.0;
+
+  if (!PyArg_ParseTuple(args,api.format, &angle)) {
+      return api.argsError();
+  }
+
+  if (angle < 0.0) {
+      api.error("The angle argument < 0.0.");
+      return nullptr;
+  }
+
+  auto model = self->solidModel;
+
+  if (model->GetBoundaryFaces(angle) != SV_OK ) {
+      api.error("Error calculating boundary faces for the solid model using angle '" + std::to_string(angle) + ".");
+      return nullptr;
+  }
+
+  return SV_PYTHON_OK;
+}
+
+//------------------
+// SolidModel_check 
+//------------------
+//
+// [TODO:DaveP] The cvSolidModel method is not implemented.
+//
+PyDoc_STRVAR(SolidModel_check_doc,
+" check()  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+");
+
+static PyObject *
+SolidModel_check(PySolidModelClass *self ,PyObject* args)
+{
+  auto model = self->solidModel;
+  int nerr;
+  model->Check(&nerr);
+  return Py_BuildValue("i",nerr);
+}
+
+//-------------------
+// Solid_ClassifyPtMtd
+//-------------------
+//
+PyDoc_STRVAR(SolidModel_classify_point_doc,
+" classify_point(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject *  
+SolidModel_classify_point(PySolidModelClass* self ,PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("dd|di", PyRunTimeErr, __func__);
+  double x, y;
+  double z = std::numeric_limits<double>::infinity();
+  int v = 0;
+
+  if (!PyArg_ParseTuple(args, api.format, &x, &y, &z, &v)) {
+      return api.argsError();
+  }
+
+  auto model = self->solidModel;
+
+  // Get the spatial and topological dimention.
+  int tdim, sdim;
+  model->GetTopoDim(&tdim);
+  model->GetSpatialDim(&sdim);
+
+  // Classify point.
+  int result;
+  int status;
+  if (!std::isinf(z)) {
+      status = model->ClassifyPt(x, y, z, v, &result);
+  } else {
+      if ((tdim == 2) && (sdim == 2)) {
+          status = model->ClassifyPt( x, y, v, &result);
+      } else {
+          api.error("The solid model must have a topological and spatial dimension of two.");
+          return nullptr;
+      }
+  }
+
+  if (status != SV_OK) {
+      api.error("Error classifying a point for the solid model.");
+      return nullptr;
+  }
+
+  return Py_BuildValue("d", result);
+}
+
+//-------------------------
+// SolidModel_delete_faces 
+//-------------------------
+//
+// [TODO:DaveP] This function does not work. 
+//
+PyDoc_STRVAR(SolidModel_delete_faces_doc,
+" delete_faces(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject * 
+SolidModel_delete_faces(PySolidModelClass* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("O", PyRunTimeErr, __func__);
+  PyObject* faceListArg;
+
+  if (!PyArg_ParseTuple(args, api.format, &faceListArg)) {
+      return api.argsError();
+  }
+
+  if (PyList_Size(faceListArg) == 0) {
+      return SV_PYTHON_OK;
+  }
+
+  int numFaces;
+  int *faces;
+  auto model = self->solidModel;
+  
+  if (model->GetFaceIds(&numFaces, &faces) != SV_OK) {
+      api.error("Error getting the face IDs for the solid model.");
+      return nullptr;
+  }
+
+  // Create list of faces to delete.
+  std::vector<int> faceList;
+  for (int i = 0; i < PyList_Size(faceListArg); i++) {
+      auto faceID = PyLong_AsLong(PyList_GetItem(faceListArg,i));
+      bool faceFound = false;
+      for (int i = 0; i < numFaces; i++) {
+          if (faceID == faces[i]) {
+              faceFound = true;
+              break;
+          }
+      }
+      if (!faceFound) {
+          delete faces;
+          api.error("The face ID " + std::to_string(faceID) + " is not a valid face ID for the model.");
+          return nullptr;
+      }
+      faceList.push_back(faceID);
+  }
+
+  delete faces;
+
+  if (model->DeleteFaces(faceList.size(), faceList.data()) != SV_OK) {
+      api.error("Error deleting faces for the solid model."); 
+  }
+
+  return SV_PYTHON_OK;
+}
+
+//--------------------------
+// SolidModel_find_centroid
+//--------------------------
+//
+PyDoc_STRVAR(SolidModel_find_centroid_doc,
+" find_centroid()  \n\
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+");
+
+static PyObject *  
+SolidModel_find_centroid(PySolidModelClass* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto model = self->solidModel;
+
+  int sdim;
+  if (model->GetSpatialDim(&sdim) != SV_OK) {
+      api.error("Unable to get the spatial dimension of the solid model.");
+      return nullptr;
+  }
+
+  if ((sdim != 2) && (sdim != 3)) {
+      api.error("The spatial dimension " + std::to_string(sdim) + " is not supported.");
+      return nullptr;
+  }
+
+  double centroid[3];
+  if (model->FindCentroid(centroid) != SV_OK) {
+      api.error("Error finding centroid of the solid model.");
+      return nullptr;
+  }
+
+  // Return the center.
+  PyObject* tmpPy = PyList_New(sdim);
+  for (int i = 0; i < sdim; i++) {
+      PyList_SetItem(tmpPy, i, PyFloat_FromDouble(centroid[i]));
+  }
+
+  return tmpPy;
+}
+
+//-------------------------
+// SolidModel_get_face_ids 
+//-------------------------
+//
+PyDoc_STRVAR(SolidModel_get_face_ids_doc,
+" get_face_ids_doc()  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+");
+
+static PyObject * 
+SolidModel_get_face_ids(PySolidModelClass* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+
+  auto model = self->solidModel; 
+  int numFaces;
+  int *faces;
+
+  if (model->GetFaceIds(&numFaces, &faces) != SV_OK) {
+      api.error("Error getting the face IDs for the solid model."); 
+      return nullptr;
+  }
+
+  if (numFaces == 0) {
+      Py_INCREF(Py_None);
+      return Py_None;
+  }
+
+  auto faceList = PyList_New(numFaces);
+
+  for (int i = 0; i < numFaces; i++) {
+      auto faceID = faces[i];
+      PyList_SetItem(faceList, i, PyLong_FromLong(faceID));
+  }
+
+  delete faces;
+  return faceList;
+}
+
+//----------------------------
+// SolidModel_get_face_normal 
+//----------------------------
+//[TODO:DaveP] The C++ cvSolidModel GetFaceNormal() method is not implemented.
+//
+PyDoc_STRVAR(SolidModel_get_face_normal_doc,
+" get_face_normal(face_id, u, v)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject *
+SolidModel_get_face_normal(PySolidModelClass* self, PyObject* args, PyObject* kwargs)
+{
+  auto api = SvPyUtilApiFunction("idd", PyRunTimeErr, __func__);
+  static char *keywords[] = {"face_id", "u", "v", NULL};
+  int faceID;
+  double u,v;
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &faceID, &u, &v)) { 
+      return api.argsError();
+  }
+
+  auto model = self->solidModel;
+  double normal[3];
+
+  if (model->GetFaceNormal(faceID, u, v, normal) == SV_ERROR ) {
+      api.error("Error getting the face normal for the solid model face ID '" + std::to_string(faceID) + "'.");
+      return nullptr;
+  }
+
+  return Py_BuildValue("ddd",normal[0],normal[1],normal[2]);
+}
+
+//------------------------------
+// SolidModel_get_face_polydata
+//------------------------------
+//
+PyDoc_STRVAR(SolidModel_get_face_polydata_doc,
+" get_face_polydata(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject * 
+SolidModel_get_face_polydata(PySolidModelClass* self, PyObject* args, PyObject* kwargs)
+{
+  auto api = SvPyUtilApiFunction("i|d", PyRunTimeErr, __func__);
+  static char *keywords[] = {"face_id", "max_dist", NULL};
+  int faceID;
+  double max_dist = -1.0;
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &faceID, &max_dist)) { 
+      return api.argsError();
+  }
+
+  // Check the face ID argument.
+  //
+  if (faceID <= 0) {
+      api.error("The face ID argument <= 0.");
+      return nullptr;
+  }
+
+  int numFaces;
+  int *faces;
+  auto model = self->solidModel;
+  
+  if (model->GetFaceIds(&numFaces, &faces) != SV_OK) {
+      api.error("Error getting the face IDs for the solid model.");
+      return nullptr;
+  }
+
+  bool faceFound = false;
+  for (int i = 0; i < numFaces; i++) {
+      if (faceID == faces[i]) {
+          faceFound = true;
+          break; 
+      }
+  }
+
+  if (!faceFound) {
+      api.error("The face ID argument is not a valid face ID for the model.");
+      return nullptr;
+  }
+
+  int useMaxDist = 0;
+  if (max_dist > 0) {
+      useMaxDist = 1;
+  }
+
+  // Get the cvPolyData:
+  //
+  auto cvPolydata = model->GetFacePolyData(faceID,useMaxDist,max_dist);
+  if (cvPolydata == NULL) {
+      api.error("Error getting polydata for the solid model face ID '" + std::to_string(faceID) + "'.");
+      return nullptr;
+  }
+  vtkSmartPointer<vtkPolyData> polydata = vtkSmartPointer<vtkPolyData>::New();
+  polydata = cvPolydata->GetVtkPolyData();
+  if (polydata == NULL) {
+      api.error("Error getting polydata for the solid model face ID '" + std::to_string(faceID) + "'.");
+      return nullptr;
+  }
+
+  return vtkPythonUtil::GetObjectFromPointer(polydata);
+}
 
 //-------------------------
 // SolidModel_get_polydata
@@ -185,9 +592,34 @@ PyDoc_STRVAR(SolidModelClass_doc, "solid model class methods.");
 //
 static PyMethodDef PySolidModelClassMethods[] = {
 
+  // [TODO:DaveP] The cvSolidModel Apply4x4() method is not implemented.
+  // { "apply4x4", (PyCFunction)SolidModel_apply4x4, METH_VARARGS, SolidModel_apply4x4_doc },
+
+  { "calculate_boundary_faces", (PyCFunction)SolidModel_calculate_boundary_faces, METH_VARARGS, SolidModel_calculate_boundary_faces_doc},
+
+  { "delete_faces", (PyCFunction)SolidModel_delete_faces, METH_VARARGS, SolidModel_delete_faces_doc },
+
+  // [TODO:DaveP] The cvSolidModel method is not implemented.
+  //{ "check", (PyCFunction)SolidModel_check, METH_VARARGS, SolidModel_check_doc },
+
+  //  [TODO:DaveP] The C++ cvSolidModel ClassifyPt() method is not implemented.
+  //{ "classify_point", (PyCFunction)SolidModel_classify_point, METH_VARARGS,   SolidModel_classify_point_doc },
+
+  // [TODO:DaveP] The cvSolidModel method is not implemented.
+  //{ "find_centroid", (PyCFunction)SolidModel_find_centroid, METH_VARARGS, SolidModel_find_centroid_doc },
+
+  { "get_face_ids", (PyCFunction)SolidModel_get_face_ids, METH_NOARGS, SolidModel_get_face_ids_doc },
+
+  //[TODO:DaveP] The C++ cvSolidModel GetFaceNormal() method is not implemented.
+  //{ "get_face_normal", (PyCFunction)SolidModel_get_face_normal, METH_VARARGS | METH_KEYWORDS, SolidModel_get_face_normal_doc },
+
+  { "get_face_polydata", (PyCFunction)SolidModel_get_face_polydata, METH_VARARGS|METH_KEYWORDS, SolidModel_get_face_polydata_doc
+  },
+
   { "get_polydata", (PyCFunction)SolidModel_get_polydata, METH_VARARGS, SolidModel_get_polydata_doc },
 
   {NULL,NULL}
+
 };
 
 //------------------
