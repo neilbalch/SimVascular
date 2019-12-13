@@ -573,6 +573,51 @@ SolidModel_get_polydata(PySolidModelClass *self, PyObject* args)
   return vtkPythonUtil::GetObjectFromPointer(polydata);
 }
 
+//------------------
+// SolidModel_write
+//------------------
+//
+PyDoc_STRVAR(SolidModel_write_doc,
+" write(file_name)  \n\ 
+  \n\
+  Write the solid model to a file in its native format. \n\
+  \n\
+  Args: \n\
+    file_name (str): Name in the file to write the model to. \n\
+");
+
+static PyObject * 
+SolidModel_write(PySolidModelClass* self, PyObject* args, PyObject* kwargs)
+{
+  auto api = SvPyUtilApiFunction("ss|i", PyRunTimeErr, __func__);
+  static char *keywords[] = {"file_name", "format", "version", NULL};
+  char* fileFormat;
+  char* fileName;
+  int fileVersion = 0;
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &fileName, &fileFormat, &fileVersion)) { 
+      return api.argsError();
+  }
+  auto model = self->solidModel;
+  std::cout << "[SolidModel_write] " << std::endl;
+  std::cout << "[SolidModel_write] kernel: " << self->kernel << std::endl;
+
+  // [TODO:DaveP] This is a hack, should really change WriteNative(). 
+  // Have a default format for all modelers?
+  std::string fullFileName = std::string(fileName);
+  if (self->kernel != SM_KT_PARASOLID) {
+      fullFileName += "." + std::string(fileFormat);
+  } 
+  std::cout << "[SolidModel_write] fullFileName: " << fullFileName << std::endl;
+  if (model->WriteNative(fileVersion, fullFileName.c_str()) != SV_OK) {
+      api.error("Error writing the solid model to the file '" + std::string(fileName) + 
+        "' using version '" + std::to_string(fileVersion)+"'."); 
+      return nullptr;
+  }
+
+  Py_RETURN_NONE;
+}
+
 ////////////////////////////////////////////////////////
 //           C l a s s    D e f i n i t i o n         //
 ////////////////////////////////////////////////////////
@@ -613,10 +658,11 @@ static PyMethodDef PySolidModelClassMethods[] = {
   //[TODO:DaveP] The C++ cvSolidModel GetFaceNormal() method is not implemented.
   //{ "get_face_normal", (PyCFunction)SolidModel_get_face_normal, METH_VARARGS | METH_KEYWORDS, SolidModel_get_face_normal_doc },
 
-  { "get_face_polydata", (PyCFunction)SolidModel_get_face_polydata, METH_VARARGS|METH_KEYWORDS, SolidModel_get_face_polydata_doc
-  },
+  { "get_face_polydata", (PyCFunction)SolidModel_get_face_polydata, METH_VARARGS|METH_KEYWORDS, SolidModel_get_face_polydata_doc},
 
   { "get_polydata", (PyCFunction)SolidModel_get_polydata, METH_VARARGS, SolidModel_get_polydata_doc },
+
+  { "write", (PyCFunction)SolidModel_write, METH_VARARGS|METH_KEYWORDS, SolidModel_write_doc },
 
   {NULL,NULL}
 

@@ -3464,8 +3464,6 @@ static PyMethodDef PySolidModelClassMethods[] = {
 
   { "write_geom_sim", (PyCFunction)SolidModel_write_geom_sim, METH_VARARGS, SolidModel_write_geom_sim_doc },
 
-  { "write_native", (PyCFunction)SolidModel_write_native, METH_VARARGS, SolidModel_write_native_doc },
-
   { "write_vtk_polydata", (PyCFunction)SolidModel_write_vtk_polydata, METH_VARARGS, SolidModel_write_vtk_polydata_doc },
 
   {NULL,NULL}

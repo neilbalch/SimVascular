@@ -249,6 +249,7 @@ CreatePySolidModelObject(SolidModel_KernelT kernel)
   // Set the solidModel object.
   auto pySolidModel = (PySolidModelClass*)pySolidModelObj;
   pySolidModel->solidModel = cvSolidModel;
+  pySolidModel->kernel = kernel;
   return pySolidModelObj;
 }
 
