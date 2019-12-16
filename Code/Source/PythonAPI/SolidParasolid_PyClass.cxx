@@ -49,41 +49,55 @@ CreateSolidModelObjectFunction PyCreateParasolidSolidObject = nullptr;
 //////////////////////////////////////////////////////
 // ParasolidSolid class methods. 
 
-//-------------------------
-// ParasolidSolid_available
-//-------------------------
+//----------------------
+// ParasolidSolid_write 
+//----------------------
 //
-static PyObject * 
-ParasolidSolid_available(PyObject* self, PyObject* args )
+PyDoc_STRVAR(ParasolidSolid_write_doc,
+" write(file_name)  \n\ 
+  \n\
+  Write the solid model to a file in the Parasolid .xmt_txt format. \n\
+  \n\
+  Args: \n\
+    file_name (str): Name in the file to write the model to. \n\
+");
+
+static PyObject *
+ParasolidSolid_write(PySolidModelClass* self, PyObject* args, PyObject* kwargs)
 {
-  return Py_BuildValue("s","Parasolid Solid Module Available");
-}
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  static char *keywords[] = {"file_name", "format", "version", NULL};
+  char* fileFormat;
+  char* fileName;
+  int fileVersion = 0;
 
-//--------------------------
-// ParasolidSolid_registrars
-//--------------------------
-//
-static PyObject * 
-ParasolidSolid_registrars(PyObject* self, PyObject* args )
-{
-  char result[2048];
-  int k=0;
-  PyObject *pyPtr=PyList_New(6);
-  PyObject* pyGlobal = PySys_GetObject("solidModelRegistrar");
-  pycvFactoryRegistrar* tmp = (pycvFactoryRegistrar *) pyGlobal;
-  cvFactoryRegistrar* pySolidModelRegistrar =tmp->registrar;
-
-  sprintf(result, "Solid model registrar ptr -> %p\n", pySolidModelRegistrar);
-  fprintf(stdout,result);
-  PyList_SetItem(pyPtr,0,PyBytes_FromFormat(result));
-
-  for (int i = 0; i < 5; i++) {
-      sprintf( result,"GetFactoryMethodPtr(%i) = %p\n",
-      i, (pySolidModelRegistrar->GetFactoryMethodPtr(i)));
-      fprintf(stdout,result);
-      PyList_SetItem(pyPtr,i+1,PyBytes_FromFormat(result));
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &fileName, &fileFormat, &fileVersion)) {
+      return api.argsError();
   }
-  return pyPtr;
+
+  auto model = self->solidModel;
+  std::cout << "[ParasolidSolid_write] " << std::endl;
+  std::cout << "[ParasolidSolid_write] kernel: " << self->kernel << std::endl;
+
+  // Add format as file extension. 
+  //
+  std::string fullFileName = std::string(fileName);
+  auto extension = fullFileName.substr(fullFileName.find_last_of(".") + 1);
+  if (extension != "") {
+      api.error("The file name argument has a file extension '" + extension + "'.");
+      return nullptr;
+  }
+  fullFileName += "." + std::string(fileFormat);
+  std::vector<char> cstr(fullFileName.c_str(), fullFileName.c_str() + fullFileName.size() + 1);
+  std::cout << "[SolidModel_write] fullFileName: " << fullFileName << std::endl;
+
+  if (model->WriteNative(fileVersion, cstr.data()) != SV_OK) {
+      api.error("Error writing the solid model to the file '" + std::string(fileName) +
+        "' using version '" + std::to_string(fileVersion)+"'.");
+      return nullptr;
+  }
+
+  Py_RETURN_NONE;
 }
 
 ////////////////////////////////////////////////////////
@@ -96,8 +110,7 @@ static char* SOLID_PARASOLID_MODULE_CLASS = "solid.Parasolid";
 PyDoc_STRVAR(PyParasolidSolidClass_doc, "Parasolid solid modeling methods.");
 
 PyMethodDef PyParasolidSolidMethods[] = {
-  {"available", ParasolidSolid_available,METH_NOARGS,NULL},
-  {"registrars", ParasolidSolid_registrars,METH_NOARGS,NULL},
+  {"write", (PyCFunction)ParasolidSolid_write, METH_VARARGS|METH_KEYWORDS, NULL},
   {NULL, NULL}
 };
 

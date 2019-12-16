@@ -602,14 +602,20 @@ SolidModel_write(PySolidModelClass* self, PyObject* args, PyObject* kwargs)
   std::cout << "[SolidModel_write] " << std::endl;
   std::cout << "[SolidModel_write] kernel: " << self->kernel << std::endl;
 
-  // [TODO:DaveP] This is a hack, should really change WriteNative(). 
-  // Have a default format for all modelers?
+  // Add format as file extension. 
+  //
   std::string fullFileName = std::string(fileName);
-  if (self->kernel != SM_KT_PARASOLID) {
-      fullFileName += "." + std::string(fileFormat);
-  } 
+  auto extension = fullFileName.substr(fullFileName.find_last_of(".") + 1);
+  if (extension != fullFileName) {
+      std::cout << "[SolidModel_write] extension: " << extension << std::endl;
+      api.error("The file name argument has a file extension '" + extension + "'.");
+      return nullptr;
+  }
+  fullFileName += "." + std::string(fileFormat);
+  std::vector<char> cstr(fullFileName.c_str(), fullFileName.c_str() + fullFileName.size() + 1);
   std::cout << "[SolidModel_write] fullFileName: " << fullFileName << std::endl;
-  if (model->WriteNative(fileVersion, fullFileName.c_str()) != SV_OK) {
+
+  if (model->WriteNative(fileVersion, cstr.data()) != SV_OK) {
       api.error("Error writing the solid model to the file '" + std::string(fileName) + 
         "' using version '" + std::to_string(fileVersion)+"'."); 
       return nullptr;
