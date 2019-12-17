@@ -35,10 +35,13 @@
 #include "SimVascular.h"
 #include "Python.h"
 #include "sv4gui_ContourGroup.h"
+#include "sv4gui_Model.h"
 
 sv4guiContourGroup::Pointer Dmg_read_contour_group_file(std::string fileName);
 sv4guiContourGroup::Pointer Dmg_create_contour_group();
-//sv4guiContourGroup * Dmg_read_contour_group_file(std::string fileName);
+
+sv4guiModel::Pointer Dmg_read_model_group_file(std::string fileName);
+sv4guiModel::Pointer Dmg_create_model_group();
 
 #if PYTHON_MAJOR_VERSION == 2
 PyMODINIT_FUNC initpyDmg();

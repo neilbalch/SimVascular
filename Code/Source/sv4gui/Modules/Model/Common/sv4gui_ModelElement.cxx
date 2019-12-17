@@ -547,6 +547,7 @@ cvSolidModel* sv4guiModelElement::GetInnerSolid()
 
 void sv4guiModelElement::SetInnerSolid(cvSolidModel* innerSolid)
 {
+    std::cout << "######### >>>> sv4guiModelElement::SetInnerSolid  #########" << std::endl;
     m_InnerSolid=innerSolid;
 }
 

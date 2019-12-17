@@ -427,6 +427,54 @@ SolidModeler_intersect(PySolidModelerClass* self, PyObject* args, PyObject* kwar
   return pySolidModelObj;
 }
 
+
+//-------------------
+// SolidModeler_read 
+//-------------------
+//
+PyDoc_STRVAR(SolidModeler_read_doc,
+  "read(file_name)  \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:\n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
+
+static PyObject *
+SolidModeler_read(PySolidModelerClass* self, PyObject* args, PyObject* kwargs)
+{
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  static char *keywords[] = {"file_name", NULL};
+  char *fileName;
+  std::cout << "[SolidModeler_box] ========== SolidModeler_read ==========" << std::endl;
+  std::cout << "[SolidModel_box] Kernel: " << self->kernel << std::endl;
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &fileName)) { 
+      return api.argsError();
+  }
+
+  // Create the new solid.
+  auto pySolidModelObj = CreatePySolidModelObject(self->kernel);
+  if (pySolidModelObj == nullptr) {
+      api.error("Error creating a Python solid model object.");
+      return nullptr;
+  }
+  auto model = ((PySolidModelClass*)pySolidModelObj)->solidModel;
+  if (model == NULL) {
+      api.error("Error creating a solid model.");
+      return nullptr;
+  }
+
+  if (model->ReadNative(fileName) != SV_OK) {
+      delete model;
+      api.error("Error reading a solid model from the file '" + std::string(fileName) + "'.");
+      return nullptr;
+  }
+
+  return pySolidModelObj;
+}
+
 //---------------------
 // SolidModeler_sphere 
 //---------------------
@@ -651,6 +699,8 @@ static PyMethodDef PySolidModelerClassMethods[] = {
 
   // [TODO:DaveP] The cvSolidModel MakeEllipsoid method is not implemented.
   //{ "ellipsoid", (PyCFunction)SolidModeler_ellipsoid, METH_VARARGS | METH_KEYWORDS, SolidModeler_ellipsoid_doc},
+
+  { "read", (PyCFunction)SolidModeler_read, METH_VARARGS|METH_KEYWORDS, SolidModeler_read_doc },
 
   { "sphere", (PyCFunction)SolidModeler_sphere, METH_VARARGS | METH_KEYWORDS, SolidModeler_sphere_doc },
 

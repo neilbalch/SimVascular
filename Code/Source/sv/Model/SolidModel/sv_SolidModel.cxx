@@ -70,6 +70,11 @@ cvFactoryRegistrar cvSolidModel::gRegistrar;
 #ifdef SV_USE_TCL
 cvSolidModel* cvSolidModel::DefaultInstantiateSolidModel( Tcl_Interp *interp )
 {
+
+  std::cout << "====================================================================================" << std::endl;
+  std::cout << "==================== cvSolidModel::DefaultInstantiateSolidModel ====================" << std::endl;
+  std::cout << "====================================================================================" << std::endl;
+
   // Get the solid model factory registrar associated with this Tcl interpreter.
   cvFactoryRegistrar* solidModelRegistrar;
   if (interp == NULL) {
@@ -144,6 +149,9 @@ cvSolidModel* cvSolidModel::pyDefaultInstantiateSolidModel()
 cvSolidModel::cvSolidModel( SolidModel_KernelT t )
   : cvRepositoryData( SOLID_MODEL_T )
 {
+  std::cout << "===================================================================" << std::endl;
+  std::cout << "==================== cvSolidModel::cvSolidModel ===================" << std::endl;
+  std::cout << "===================================================================" << std::endl;
   kernel_ = t;
   tol_ = 1e6 * FindMachineEpsilon();
 }

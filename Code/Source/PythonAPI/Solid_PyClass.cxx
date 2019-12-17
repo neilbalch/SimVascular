@@ -3438,8 +3438,6 @@ static PyMethodDef PySolidModelClassMethods[] = {
 
   { "print", (PyCFunction)SolidModel_print, METH_VARARGS, SolidModel_print_doc },
 
-  { "read_native", (PyCFunction)SolidModel_read_native, METH_VARARGS, SolidModel_read_native_doc },
-
   { "reflect", (PyCFunction)SolidModel_reflect, METH_VARARGS, SolidModel_reflect_doc },
 
   { "remesh_face", (PyCFunction)SolidModel_remesh_face, METH_VARARGS, SolidModel_remesh_face_doc },

@@ -895,6 +895,9 @@ sv4guiModelElement* sv4guiModelElementPolyData::CreateModelElementByBlend(std::v
 
 bool sv4guiModelElementPolyData::ReadFile(std::string filePath)
 {
+    std::cout << "################### sv4guiModelElementPolyData::ReadFile #######################" << std::endl;
+    std::cout << "[sv4guiModelElementPolyData::ReadFile] filePath: " << filePath << std::endl;
+
     vtkSmartPointer<vtkPolyData> pd=vtkSmartPointer<vtkPolyData>::New();
     if(PlyDtaUtils_ReadNative(const_cast<char*>(filePath.c_str()), pd) != SV_OK)
         return false;
@@ -906,6 +909,7 @@ bool sv4guiModelElementPolyData::ReadFile(std::string filePath)
     vtkSmartPointer<vtkPolyData> cleanpd=cleaner->GetOutput();
     cleanpd->BuildLinks();
 
+    std::cout << "[sv4guiModelElementPolyData::ReadFile] Set m_WholeVtkPolyData " << std::endl;
     m_WholeVtkPolyData=cleanpd;
 
     return true;

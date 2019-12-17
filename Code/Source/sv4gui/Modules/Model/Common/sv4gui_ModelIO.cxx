@@ -69,7 +69,19 @@ std::vector<mitk::BaseData::Pointer> sv4guiModelIO::Read()
 
 std::vector<mitk::BaseData::Pointer> sv4guiModelIO::ReadFile(std::string fileName)
 {
-    std::vector<mitk::BaseData::Pointer> result;
+    auto group = CreateGroupFromFile(fileName);
+    std::vector<mitk::BaseData::Pointer> result { group.GetPointer() };
+    return result;
+}
+
+//---------------------
+// CreateGroupFromFile
+//---------------------
+// Create a sv4guiModel group from a file.
+//
+sv4guiModel::Pointer sv4guiModelIO::CreateGroupFromFile(std::string fileName)
+{
+    std::cout << "############## sv4guiModelIO::CreateGroupFromFile ############## " << std::endl;
 
     TiXmlDocument document;
 
@@ -92,6 +104,7 @@ std::vector<mitk::BaseData::Pointer> sv4guiModelIO::ReadFile(std::string fileNam
     std::string modelType="";
     modelElement->QueryStringAttribute("type",&modelType);
     model->SetType(modelType);
+    std::cout << "[sv4guiModelIO::CreateGroupFromFile] modelType: " << modelType << std::endl;
 
     int timestep=-1;
     for( TiXmlElement* timestepElement = modelElement->FirstChildElement("timestep");
@@ -116,6 +129,7 @@ std::vector<mitk::BaseData::Pointer> sv4guiModelIO::ReadFile(std::string fileNam
 //                return result;
             }
 
+            std::cout << "[sv4guiModelIO::CreateGroupFromFile] Create Model Element ... " << std::endl;
             sv4guiModelElement* me=sv4guiModelElementFactory::CreateModelElement(type);
             if(me==NULL)
             {
@@ -127,6 +141,7 @@ std::vector<mitk::BaseData::Pointer> sv4guiModelIO::ReadFile(std::string fileNam
             auto exts=me->GetFileExtensions();
             if(exts.size()>0)
                 fileExtension=exts[0];
+            std::cout << "[sv4guiModelIO::CreateGroupFromFile] fileExtension: " << fileExtension << std::endl;
             if(fileExtension=="")
             {
                 mitkThrow() << "No file extension available for model type: "<< type;
@@ -134,6 +149,9 @@ std::vector<mitk::BaseData::Pointer> sv4guiModelIO::ReadFile(std::string fileNam
             }
 
             std::string dataFileName=fileName.substr(0,fileName.find_last_of("."))+"." +fileExtension;
+            std::cout << "######### [sv4guiModelIO::CreateGroupFromFile] ######### " << std::endl;
+            std::cout << "[sv4guiModelIO::CreateGroupFromFile] dataFileName: " << dataFileName << std::endl;
+
 
             if(!me->ReadFile(dataFileName))
             {
@@ -142,6 +160,8 @@ std::vector<mitk::BaseData::Pointer> sv4guiModelIO::ReadFile(std::string fileNam
             }
 
             sv4guiModelElementAnalytic* meAnalytic=dynamic_cast<sv4guiModelElementAnalytic*>(me);
+            std::cout << "[sv4guiModelIO::CreateGroupFromFile] meAnalytic: " << meAnalytic << std::endl;
+
             if(meAnalytic)
             {
                 double maxDist=0;
@@ -329,8 +349,7 @@ std::vector<mitk::BaseData::Pointer> sv4guiModelIO::ReadFile(std::string fileNam
 
     }//timestep
 
-    result.push_back(model.GetPointer());
-    return result;
+    return model;
 }
 
 mitk::IFileIO::ConfidenceLevel sv4guiModelIO::GetReaderConfidenceLevel() const

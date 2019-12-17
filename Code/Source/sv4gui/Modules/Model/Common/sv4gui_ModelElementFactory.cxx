@@ -37,6 +37,9 @@ std::map<std::string, std::vector<std::string>> sv4guiModelElementFactory::m_Fil
 
 void sv4guiModelElementFactory::RegisterCreationFunction(std::string type, ModelElementCreationFunction function)
 {
+    std::cout << "######### sv4guiModelElementFactory::RegisterCreationFunction #########" << std::endl;
+    std::cout << "[sv4guiModelElementFactory::RegisterCreationFunction] type: " << type << std::endl;
+
     auto search=m_FunctionMap.find(type);
     if(search==m_FunctionMap.end())
         m_FunctionMap[type]=function;
@@ -44,6 +47,8 @@ void sv4guiModelElementFactory::RegisterCreationFunction(std::string type, Model
 
 sv4guiModelElement* sv4guiModelElementFactory::CreateModelElement(std::string type)
 {
+    std::cout << "######### sv4guiModelElementFactory::CreateModelElement #########" << std::endl;
+    std::cout << "[sv4guiModelElementFactory::CreateModelElement] type: " << type << std::endl;
     sv4guiModelElement* me=NULL;
 
     auto search=m_FunctionMap.find(type);

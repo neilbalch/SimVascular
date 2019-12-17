@@ -43,6 +43,7 @@
 // by Python API functions to read files (e.g. .ctgr) created by SV.
 //
 #include "SimVascular.h"
+#include "sv2_globals.h"
 #include "SimVascular_python.h"
 
 #include "sv4gui_dmg_init_py.h"
@@ -57,15 +58,13 @@
 #include "vtkPythonUtil.h"
 #include "sv_PyUtils.h"
 #include "sv4gui_ContourGroupIO.h"
+#include "sv4gui_ModelIO.h"
 
 // The following is needed for Windows
 #ifdef GetObject
 #undef GetObject
 #endif
 
-#include "sv2_globals.h"
-
-#include "SimVascular.h"
 #include "Python.h"
 #include "sv4gui_ModelElement.h"
 #include "sv4gui_ModelElementAnalytic.h"
@@ -165,6 +164,50 @@ Dmg_read_contour_group_file(std::string fileName)
 
     return group;
 }
+
+//------------------------------
+// Dmg_create_solid_model_group
+//------------------------------
+// Create an sV sv4guiModel object.
+//
+// You can't call sv4guiModel::New() directly from PythonAPI.
+//
+sv4guiModel::Pointer
+Dmg_create_model_group()
+{
+    return sv4guiModel::New();
+}
+
+//---------------------------
+// Dmg_read_model_group_file
+//---------------------------
+// Read in a model group (.mdl) file.
+//
+sv4guiModel::Pointer
+Dmg_read_model_group_file(std::string fileName)
+{
+    //std::cout << "[Dmg_read_contour_group_file] ========== Dmg_read_contour_group_file ==========" << std::endl;
+    //std::cout << "[Dmg_read_contour_group_file] File name: " << fileName << std::endl;
+    sv4guiModel::Pointer group;
+
+    // sv4guiContourGroupIO will throw an exception if the file
+    // can't be read or is not the right type.
+    //
+    try {
+        group = sv4guiModelIO().CreateGroupFromFile(std::string(fileName));
+    } catch (...) {
+        return nullptr;
+    }
+
+    if (group.IsNull()) {
+        return nullptr;
+    }
+
+    return group;
+}
+
+
+
 
 //////////////////////////////////////////////////////
 //        U t i l i t y     F u n c t i o n s       //

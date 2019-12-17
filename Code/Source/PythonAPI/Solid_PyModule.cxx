@@ -209,6 +209,9 @@ PyDoc_STRVAR(Solid_module_doc, "solid module functions");
 #include "SolidPolyData_PyClass.cxx"
 #include "SolidModeler_PyClass.cxx"
 
+// Include solid.Group definition.
+#include "SolidGroup_PyClass.cxx"
+
 //---------------------
 // PySolidModelCtorMap
 //---------------------
@@ -304,6 +307,13 @@ PyInit_PySolid(void)
     return SV_PYTHON_ERROR;
   }
 
+  // Initialize the group class type.
+  SetSolidGroupTypeFields(PySolidGroupClassType);
+  if (PyType_Ready(&PySolidGroupClassType) < 0) {
+      std::cout << "Error creating SolidGroup type" << std::endl;
+      return nullptr;
+  }
+
   // Initialize the OpenCascade class type.
   std::cout << "[PyInit_PySolid] Initialize the OpenCascade class type. " << std::endl;
   SetOcctSolidTypeFields(PyOcctSolidClassType);
@@ -359,6 +369,11 @@ PyInit_PySolid(void)
   std::cout << "[PyInit_PySolid] Add the SolidModel class type. " << std::endl;
   Py_INCREF(&PySolidModelClassType);
   PyModule_AddObject(module, SOLID_MODEL_CLASS, (PyObject *)&PySolidModelClassType);
+
+  // Add the 'SolidGroup' class.
+  std::cout << "[PyInit_PySolid] Add the SolidGroup class type. " << std::endl;
+  Py_INCREF(&PySolidGroupClassType);
+  PyModule_AddObject(module, SOLID_GROUP_CLASS, (PyObject *)&PySolidGroupClassType);
 
   // Add the 'OpenCascade' class.
   std::cout << "[PyInit_PySolid] Add the OpenCascade class type. " << std::endl;
