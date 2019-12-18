@@ -187,10 +187,9 @@ SolidGroup_get_model(PySolidGroup* self, PyObject* args)
   //auto kernel = solidModel->GetKernelT();
   //std::cout << "[SolidGroup_get_solid_model] kernel: " << kernel << std::endl;
 
-  // Create a PyContour object from the SV Contour object 
-  // and return it as a PyObject*.
-  //return PyCreateModel(solidModel);
-  Py_RETURN_NONE;
+  // Create a PySolidModel object from the SV cvSolidModel 
+  // object and return it as a PyObject.
+  return CreatePySolidModelObject(solidModel);
 }
 
 //-----------------

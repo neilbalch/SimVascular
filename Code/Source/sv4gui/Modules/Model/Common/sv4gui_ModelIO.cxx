@@ -81,12 +81,14 @@ std::vector<mitk::BaseData::Pointer> sv4guiModelIO::ReadFile(std::string fileNam
 //
 sv4guiModel::Pointer sv4guiModelIO::CreateGroupFromFile(std::string fileName)
 {
+    std::cout << " " << std::endl;
     std::cout << "############## sv4guiModelIO::CreateGroupFromFile ############## " << std::endl;
 
     TiXmlDocument document;
 
     if (!document.LoadFile(fileName))
     {
+        std::cout << "[sv4guiModelIO::CreateGroupFromFile] **** ERROR: Could not open/read/parse " << fileName << std::endl;
         mitkThrow() << "Could not open/read/parse " << fileName;
 //        return result;
     }
@@ -96,6 +98,7 @@ sv4guiModel::Pointer sv4guiModelIO::CreateGroupFromFile(std::string fileName)
     TiXmlElement* modelElement = document.FirstChildElement("model");
 
     if(!modelElement){
+        std::cout << "[sv4guiModelIO::CreateGroupFromFile] **** ERROR: no model data in " << fileName << std::endl;
         mitkThrow() << "No Model data in "<< fileName;
 //        return result;
     }
@@ -133,6 +136,7 @@ sv4guiModel::Pointer sv4guiModelIO::CreateGroupFromFile(std::string fileName)
             sv4guiModelElement* me=sv4guiModelElementFactory::CreateModelElement(type);
             if(me==NULL)
             {
+                std::cout << "[sv4guiModelIO::CreateGroupFromFile] ERROR: No model constructor available for model type" << std::endl;
                 mitkThrow() << "No model constructor available for model type: "<< type;
 //                return result;
             }

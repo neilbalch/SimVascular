@@ -102,6 +102,7 @@ SolidCtorMapType CvSolidModelCtorMap = {
 static PyObject * PyRunTimeErr;
 
 static PyObject * CreatePySolidModelObject(SolidModel_KernelT kernel);
+static PyObject * CreatePySolidModelObject(cvSolidModel* solidModel);
 
 //////////////////////////////////////////////////////
 //          U t i l i t y  F u n c t i o n s        //
@@ -230,17 +231,31 @@ PySolidModelCtorMapType PySolidModelCtorMap = {
 //--------------------
 // CreatePySolidModel
 //--------------------
-// Create a Python SolidModel object.
+// Create a Python SolidModel object for the given kernel.
 //
 static PyObject *
 CreatePySolidModelObject(SolidModel_KernelT kernel)
 {
   std::cout << "[CreatePySolidModelObject] ========== CreatePySolidModelObject ==========" << std::endl;
-  PyObject* pySolidModelObj;
   auto cvSolidModel = CreateCvSolidModel(kernel);
   if (cvSolidModel == nullptr) { 
       return nullptr;
   }
+
+  return CreatePySolidModelObject(cvSolidModel);
+}
+
+//--------------------
+// CreatePySolidModel
+//--------------------
+// Create a Python SolidModel object for the given cvSolidModel object.
+//
+static PyObject *
+CreatePySolidModelObject(cvSolidModel* solidModel)
+{
+  std::cout << "[CreatePySolidModelObject] ========== CreatePySolidModelObject ==========" << std::endl;
+  PyObject* pySolidModelObj;
+  auto kernel = solidModel->GetKernelT();
 
   try {
       pySolidModelObj = PySolidModelCtorMap[kernel]();
@@ -251,7 +266,7 @@ CreatePySolidModelObject(SolidModel_KernelT kernel)
 
   // Set the solidModel object.
   auto pySolidModel = (PySolidModelClass*)pySolidModelObj;
-  pySolidModel->solidModel = cvSolidModel;
+  pySolidModel->solidModel = solidModel;
   pySolidModel->kernel = kernel;
   return pySolidModelObj;
 }
