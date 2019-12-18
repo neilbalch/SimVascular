@@ -41,13 +41,14 @@
  *  @author shaddenlab.berkeley.edu
  */
 
-#ifndef __CV_OCCT_INIT_PY_H
-#define __CV_OCCT_INIT_PY_H
+#ifndef CV_OCCT_INIT_PY_H
+#define CV_OCCT_INIT_PY_H
 
 #include "SimVascular.h"
 #include "svOpenCASCADEExports.h" // For exports
 #include "Python.h"
-extern "C" SV_EXPORT_OPENCASCADE PyObject* Occtsolid_pyInit();
+
+// extern "C" SV_EXPORT_OPENCASCADE PyObject* Occtsolid_pyInit();
 
 #if PYTHON_MAJOR_VERSION == 2
 PyMODINIT_FUNC  initpySolidOCCT();

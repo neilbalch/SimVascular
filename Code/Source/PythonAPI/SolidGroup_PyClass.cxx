@@ -184,8 +184,16 @@ SolidGroup_get_model(PySolidGroup* self, PyObject* args)
 
   auto solidModel = solidModelElement->GetInnerSolid();
   std::cout << "[SolidGroup_get_solid_model] solidModel: " << solidModel << std::endl;
-  //auto kernel = solidModel->GetKernelT();
-  //std::cout << "[SolidGroup_get_solid_model] kernel: " << kernel << std::endl;
+
+  // No inner solid is created for models read from .vtp or .stl files
+  // so create a PolyData solid model and set its polydata.
+  //
+  if (solidModel == nullptr) {
+      auto polydata = solidModelElement->GetWholeVtkPolyData();
+      std::cout << "[SolidGroup_get_solid_model] polydata: " << polydata << std::endl;
+      solidModel = new cvPolyDataSolid();
+      solidModel->SetVtkPolyDataObject(polydata);
+  } 
 
   // Create a PySolidModel object from the SV cvSolidModel 
   // object and return it as a PyObject.

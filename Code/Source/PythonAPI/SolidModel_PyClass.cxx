@@ -546,6 +546,8 @@ PyDoc_STRVAR(SolidModel_get_polydata_doc,
 static PyObject *  
 SolidModel_get_polydata(PySolidModelClass *self, PyObject* args)
 {
+  std::cout << " " << std::endl;
+  std::cout << " ========== SolidModel_get_polydata ==========" << std::endl;
   auto api = SvPyUtilApiFunction("|d", PyRunTimeErr, __func__);
   double max_dist = -1.0;
 
@@ -564,7 +566,7 @@ SolidModel_get_polydata(PySolidModelClass *self, PyObject* args)
   //
   auto cvPolydata = model->GetPolyData(useMaxDist, max_dist);
   vtkSmartPointer<vtkPolyData> polydata = vtkSmartPointer<vtkPolyData>::New();
-  polydata = cvPolydata->GetVtkPolyData();
+  polydata->DeepCopy(cvPolydata->GetVtkPolyData());
   if (polydata == NULL) {
       api.error("Could not get polydata for the solid model.");
       return nullptr;

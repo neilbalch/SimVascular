@@ -36,6 +36,7 @@
 #include <XCAFApp_Application.hxx>
 #include <XCAFDoc_DocumentTool.hxx>
 #include "Standard_Version.hxx"
+#include "sv4gui_RegisterOCCTFunction.h"
 
 //-----------------
 // PyOcctSolid 
@@ -108,9 +109,9 @@ PyMethodDef PyOcctSolidMethods[] = {
   {NULL, NULL}
 };
 
-//---------------------
+//-----------------
 // PyOcctSolidInit 
-//---------------------
+//-----------------
 // This is the __init__() method for the OcctSolid class. 
 //
 // This function is used to initialize an object after it is created.
@@ -125,9 +126,9 @@ PyOcctSolidInit(PyOcctSolid* self, PyObject* args, PyObject *kwds)
   return 0;
 }
 
-//--------------------
+//----------------
 // PyOcctSolidNew 
-//--------------------
+//----------------
 //
 static PyObject *
 PyOcctSolidNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
@@ -140,9 +141,9 @@ PyOcctSolidNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
   return (PyObject *) self;
 }
 
-//------------------------
+//--------------------
 // PyOcctSolidDealloc 
-//------------------------
+//--------------------
 //
 static void
 PyOcctSolidDealloc(PyOcctSolid* self)
@@ -152,9 +153,9 @@ PyOcctSolidDealloc(PyOcctSolid* self)
   Py_TYPE(self)->tp_free(self);
 }
 
-//--------------------------
+//----------------------
 // PyOcctSolidClassType 
-//--------------------------
+//----------------------
 // Define the Python type object that stores OcctSolidClass data. 
 //
 // Can't set all the fields here because g++ does not suppor non-trivial 
@@ -168,9 +169,9 @@ PyTypeObject PyOcctSolidClassType = {
   .tp_basicsize = sizeof(PyOcctSolid)
 };
 
-//----------------------------
+//------------------------
 // SetOcctSolidTypeFields
-//----------------------------
+//------------------------
 // Set the Python type object fields that stores OcctSolid data. 
 //
 // Need to set the fields here because g++ does not suppor non-trivial 
@@ -199,25 +200,27 @@ SetOcctSolidTypeFields(PyTypeObject& solidType)
 //----------
 // InitOcct
 //----------
+// Initialize Open Cascade.
 //
 void
 InitOcct()
 {
+  std::cout << "[InitOcct] " << std::endl;
   std::cout << "[InitOcct] ========= InitOcct ========== " << std::endl;
   Handle(XCAFApp_Application) OCCTManager = static_cast<XCAFApp_Application*>(gOCCTManager);
   OCCTManager = XCAFApp_Application::GetApplication();
-  //if ( gOCCTManager == NULL ) {
-  //  fprintf( stderr, "error allocating gOCCTManager\n" );
-  //  return TCL_ERROR;
-  //}
   Handle(TDocStd_Document) doc;
-  //gOCCTManager->NewDocument("Standard",doc);
-  OCCTManager->NewDocument("MDTV-XCAF",doc);
-  if ( !XCAFDoc_DocumentTool::IsXCAFDocument(doc)) {
-    fprintf(stdout,"OCCT XDE is not setup correctly, file i/o and register of solid will not work correctly\n");
+  OCCTManager->NewDocument("MDTV-XCAF", doc);
+
+  if (!XCAFDoc_DocumentTool::IsXCAFDocument(doc)) {
+    fprintf(stdout,"OCCT XDE is not setup correctly, file i/o and register of solid will not work correctly.\n");
   }
 
-  printf("  %-12s %s\n","OpenCASCADE:", OCC_VERSION_COMPLETE);
+  printf("  %-12s %s\n","Python API OpenCASCADE:", OCC_VERSION_COMPLETE);
+
+  // Register the file extensions: brep, step, iges and stl. 
+  auto registerFunction = new sv4guiRegisterOCCTFunction();
+
 }
 
 

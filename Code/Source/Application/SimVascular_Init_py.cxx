@@ -141,7 +141,7 @@ void SimVascular_pyInit()
     #endif
 
     #ifdef SV_USE_OpenCASCADE
-    PyImport_AppendInittab("solid_occt",PyInit_pySolidOCCT);
+    //PyImport_AppendInittab("solid_occt", PyInit_pySolidOCCT);
     #endif
 
     #ifdef SV_USE_TETGEN

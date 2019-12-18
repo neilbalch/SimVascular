@@ -344,22 +344,24 @@ static struct PyModuleDef pySolidOCCTmodule = {
 PyMODINIT_FUNC
 PyInit_pySolidOCCT()
 {
+  std::cout << " " << std::endl;
+  std::cout << "[PyInit_pySolidOCCT] ########## PyInit_pySolidOCCT ##########" << std::endl;
+  std::cout << " " << std::endl;
+
+  std::cout << "[PyInit_pySolidOCCT] Init OCCTManager ..." << std::endl;
   Handle(XCAFApp_Application) OCCTManager = static_cast<XCAFApp_Application*>(gOCCTManager);
-  //gOCCTManager = new AppStd_Application;
   OCCTManager = XCAFApp_Application::GetApplication();
-  //if ( gOCCTManager == NULL ) {
-  //  fprintf( stderr, "error allocating gOCCTManager\n" );
-  //  return TCL_ERROR;
-  //}
   Handle(TDocStd_Document) doc;
-  //gOCCTManager->NewDocument("Standard",doc);
   OCCTManager->NewDocument("MDTV-XCAF",doc);
-  if ( !XCAFDoc_DocumentTool::IsXCAFDocument(doc))
-  {
+  std::cout << "[PyInit_pySolidOCCT] Done." << std::endl;
+
+  if (!XCAFDoc_DocumentTool::IsXCAFDocument(doc)) {
     fprintf(stdout,"OCCT XDE is not setup correctly, file i/o and register of solid will not work correctly\n");
   }
 
-  printf("  %-12s %s\n","OpenCASCADE:", OCC_VERSION_COMPLETE);
+  printf("  %-12s %s\n", "Python API OpenCASCADE:", OCC_VERSION_COMPLETE);
+
+/*
   //get solidModelRegistrar from sys
   PyObject* pyGlobal = PySys_GetObject("solidModelRegistrar");
   pycvFactoryRegistrar* tmp = (pycvFactoryRegistrar *) pyGlobal;
@@ -374,11 +376,10 @@ PyInit_pySolidOCCT()
   }
   tmp->registrar = pySolidModelRegistrar;
   PySys_SetObject("solidModelRegistrar",(PyObject*)tmp);
-  PyObject *pythonC;
+*/
 
-  pythonC = PyModule_Create(&pySolidOCCTmodule);
-  if (pythonC==NULL)
-  {
+  auto pythonC = PyModule_Create(&pySolidOCCTmodule);
+  if (pythonC == nullptr) {
     fprintf(stdout,"Error in initializing pySolid");
     pythonC;
   }
@@ -388,24 +389,27 @@ PyInit_pySolidOCCT()
 
 #endif
 
-PyObject* Occtsolid_pyInit()
+
+/* [TODO:DaveP] What is this for?
+
+PyObject * 
+Occtsolid_pyInit()
 {
+  std::cout << " " << std::endl;
+  std::cout << "########## Occtsolid_pyInit ##########" << std::endl;
+  std::cout << " " << std::endl;
+
   Handle(XCAFApp_Application) OCCTManager = static_cast<XCAFApp_Application*>(gOCCTManager);
-  //gOCCTManager = new AppStd_Application;
   OCCTManager = XCAFApp_Application::GetApplication();
-  //if ( gOCCTManager == NULL ) {
-  //  fprintf( stderr, "error allocating gOCCTManager\n" );
-  //  return TCL_ERROR;
-  //}
   Handle(TDocStd_Document) doc;
-  //gOCCTManager->NewDocument("Standard",doc);
   OCCTManager->NewDocument("MDTV-XCAF",doc);
-  if ( !XCAFDoc_DocumentTool::IsXCAFDocument(doc))
-  {
+
+  if (!XCAFDoc_DocumentTool::IsXCAFDocument(doc)) {
     fprintf(stdout,"OCCT XDE is not setup correctly, file i/o and register of solid will not work correctly\n");
   }
 
-  printf("  %-12s %s\n","OpenCASCADE:", OCC_VERSION_COMPLETE);
+  printf("  %-12s %s\n"," Python API OpenCASCADE:", OCC_VERSION_COMPLETE);
+
   //get solidModelRegistrar from sys
   PyObject* pyGlobal = PySys_GetObject("solidModelRegistrar");
   pycvFactoryRegistrar* tmp = (pycvFactoryRegistrar *) pyGlobal;
@@ -418,14 +422,17 @@ PyObject* Occtsolid_pyInit()
   else {
     return SV_PYTHON_ERROR;
   }
+
   tmp->registrar = pySolidModelRegistrar;
   PySys_SetObject("solidModelRegistrar",(PyObject*)tmp);
   PyObject *pythonC;
+
 #if PYTHON_MAJOR_VERSION == 2
   pythonC = Py_InitModule("pySolidOCCT", SolidOCCT_methods);
 #elif PYTHON_MAJOR_VERSION == 3
   pythonC = PyModule_Create(&pySolidOCCTmodule);
 #endif  
+
 if (pythonC==NULL)
   {
     fprintf(stdout,"Error in initializing pySolid");
@@ -433,6 +440,7 @@ if (pythonC==NULL)
   }
   return pythonC;
 }
+*/
 
 //---------------------------------------------------------------------------
 //                           PYTHON_MAJOR_VERSION 2                         

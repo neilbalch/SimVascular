@@ -254,6 +254,7 @@ static PyObject *
 CreatePySolidModelObject(cvSolidModel* solidModel)
 {
   std::cout << "[CreatePySolidModelObject] ========== CreatePySolidModelObject ==========" << std::endl;
+  std::cout << "[CreatePySolidModelObject] Copy from given cvSolidModel object" << std::endl;
   PyObject* pySolidModelObj;
   auto kernel = solidModel->GetKernelT();
 
@@ -266,7 +267,7 @@ CreatePySolidModelObject(cvSolidModel* solidModel)
 
   // Set the solidModel object.
   auto pySolidModel = (PySolidModelClass*)pySolidModelObj;
-  pySolidModel->solidModel = solidModel;
+  pySolidModel->solidModel = solidModel->Copy();
   pySolidModel->kernel = kernel;
   return pySolidModelObj;
 }
