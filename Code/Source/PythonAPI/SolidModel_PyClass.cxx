@@ -527,7 +527,7 @@ SolidModel_get_face_polydata(PySolidModelClass* self, PyObject* args, PyObject* 
       return nullptr;
   }
 
-  return vtkPythonUtil::GetObjectFromPointer(polydata);
+  return svPyUtilGetVtkObject(api, polydata); 
 }
 
 //-------------------------
@@ -572,7 +572,7 @@ SolidModel_get_polydata(PySolidModelClass *self, PyObject* args)
       return nullptr;
   }
 
-  return vtkPythonUtil::GetObjectFromPointer(polydata);
+  return svPyUtilGetVtkObject(api, polydata); 
 }
 
 //------------------

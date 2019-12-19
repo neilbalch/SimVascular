@@ -31,6 +31,7 @@
 
 #include "sv_PyUtils.h"
 #include <string>
+#include <iostream>
 
 SvPyUtilApiFunction::SvPyUtilApiFunction(const std::string& format, PyObject* pyError, const char* function)
 {
@@ -268,4 +269,31 @@ void svPyUtilSetErrorMsg(PyObject* pyRunTimeErr, std::string& msgp, std::string 
     auto emsg = msgp + msg;
     PyErr_SetString(pyRunTimeErr, emsg.c_str());
 }
+
+//----------------------
+// svPyUtilGetVtkObject 
+//----------------------
+// Create a Python object for vtkPolyData.
+//
+PyObject * 
+svPyUtilGetVtkObject(SvPyUtilApiFunction& api, vtkSmartPointer<vtkPolyData> polydata)
+{
+  // Create a PyObject for the vtkPolyData.
+  auto pyObject = vtkPythonUtil::GetObjectFromPointer(polydata);
+
+  // Check for valid PyObject.
+  auto repr = PyObject_Repr(pyObject);
+  auto str = PyUnicode_AsEncodedString(repr, "utf-8", "~E~");
+  const char *bytes = PyBytes_AS_STRING(str);
+  Py_XDECREF(repr);
+  Py_XDECREF(str);
+
+  if (std::string(bytes) == "None") {
+      Py_XDECREF(pyObject);
+      pyObject = nullptr; 
+      api.error("Failed to create Python object for vtkPolyData. Make sure to import vtk in the Python script.");
+  }
+  return pyObject;
+}
+
 

@@ -35,6 +35,9 @@
 #include "SimVascular.h"
 #include "Python.h"
 #include <string>
+#include "vtkPythonUtil.h"
+#include "vtkSmartPointer.h"
+#include "vtkPolyData.h"
 
 class SvPyUtilApiFunction
 {
@@ -57,6 +60,8 @@ PyObject * svPyUtilResetException(PyObject * PyRunTimeErr);
 bool svPyUtilCheckPointData(PyObject* pointData, std::string& msg);
 
 bool svPyUtilCheckPointDataList(PyObject* pointData, std::string& msg);
+
+PyObject * svPyUtilGetVtkObject(SvPyUtilApiFunction& api, vtkSmartPointer<vtkPolyData> polydata);
 
 void svPyUtilSetupApiFunction(const char* functionName, std::string& format, std::string& msg);
 
