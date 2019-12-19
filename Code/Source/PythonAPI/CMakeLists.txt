@@ -43,6 +43,7 @@ include_directories(${TCL_INCLUDE_PATH} ${TK_INCLUDE_PATH} ${TINYXML_INCLUDE_DIR
 
 list (APPEND CXXSRCS 
   Contour_PyModule.cxx
+  Geometry_PyModule.cxx
   Solid_PyModule.cxx
 )
 

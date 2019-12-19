@@ -47,7 +47,7 @@
 #include "vtkToolkits.h"
 
 #include "sv_repos_init_py.h"
-#include "sv_geom_init_py.h"
+#include "Geometry_PyModule.h"
 #include "sv2_image_init_py.h"
 #include "sv_math_init_py.h"
 //#include "sv_polydatasolid_init_py.h"
@@ -115,7 +115,7 @@ void SimVascular_pyInit()
     printf("Loading Python Modules ...\n");
     //PyImport_AppendInittab("circle_contour",PyInit_pyCircleContour);
     PyImport_AppendInittab("contour", PyInit_PyContour);
-    PyImport_AppendInittab("geometry", PyInit_pyGeom);
+    PyImport_AppendInittab("geometry", PyInit_PyGeometry);
     PyImport_AppendInittab("image", PyInit_pyImage);
     //PyImport_AppendInittab("levelset_contour",PyInit_pylevelSetContour);
     PyImport_AppendInittab("math_utils",PyInit_pyMath);

@@ -33,21 +33,22 @@
 //
 // The module name is 'geometry'. 
 //
-// A Python exception sv.geometry.GeometryException is defined for this module. 
+// A Python exception sv.geometry.GeometryError is defined for this module. 
 // The exception can be used in a Python 'try' statement with an 'except' clause 
 // like this
 //
-//    except sv.geometry.GeometryException:
+//    except sv.geometry.GeometryError:
 //
 #include "SimVascular.h"
 #include "SimVascular_python.h"
 
 #include <stdio.h>
 #include <string.h>
+
 #include "sv_Repository.h"
 #include "sv_RepositoryData.h"
 #include "sv_PolyData.h"
-#include "sv_geom_init_py.h"
+#include "Geometry_PyModule.h"
 #include "sv_sys_geom.h"
 #include "sv_SolidModel.h"
 #include "Solid_PyModule.h"
@@ -58,6 +59,7 @@
 #include "vtkSmartPointer.h"
 #include "sv_PyUtils.h"
 #include "sv2_globals.h"
+#include "vtkPythonUtil.h"
 
 // Needed for Windows
 #ifdef GetObject
@@ -2261,33 +2263,39 @@ PyDoc_STRVAR(Geom_classify_doc,
 static PyObject * 
 Geom_classify(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sO", PyRunTimeErr, __func__);
-  char *objName;
-  PyObject* ptList;
+  std::cout << "========== Geom_classify ==========" << std::endl;
+  auto api = SvPyUtilApiFunction("OO", PyRunTimeErr, __func__);
+  PyObject* geomObj;
+  PyObject* ptArg;
 
-  if (!PyArg_ParseTuple(args,api.format, &objName,&ptList)) {
+  if (!PyArg_ParseTuple(args, api.format, &geomObj, &ptArg)) {
       return api.argsError();
   }
 
+  auto polydata = (vtkPolyData*)vtkPythonUtil::GetPointerFromObject(geomObj, "vtkPolyData");
+  auto cvPolydata = cvPolyData(polydata);
+
+/*
   auto obj = GetRepositoryGeometry(api, objName);
   if (obj == NULL) {
       return nullptr;
   }
+*/
 
   double pt[3];
   std::string emsg;
-  if (!svPyUtilGetPointData<double>(ptList, emsg, pt)) {
+  if (!svPyUtilGetPointData<double>(ptArg, emsg, pt)) {
       api.error("The point argument " + emsg);
       return nullptr;
   }
 
-  int ans;
-  if (sys_geom_Classify(obj, pt, &ans) != SV_OK) {
-      api.error("Error classifying a point for the geometry '" + std::string(objName) + ".");
+  int result;
+  if (sys_geom_Classify(&cvPolydata, pt, &result) != SV_OK) {
+      api.error("Error classifying a point for the geometry.");
       return nullptr;
   }
 
-  return Py_BuildValue("i",ans);
+  return Py_BuildValue("i", result);
 }
 
 //--------------------
@@ -3686,12 +3694,23 @@ Geom_replace_point_data(PyObject* self, PyObject* args)
 //          M o d u l e  D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
 
-//-------------------------
-// Geometry module methods
-//-------------------------
+static char* GEOMETRY_MODULE = "geometry";
+static char* GEOMETRY_EXCEPTION = "geometry.GeometryError";
+static char* GEOMETRY_EXCEPTION_OBJECT = "GeometryError";
+
+PyDoc_STRVAR(GeometryModule_doc, "geometry module functions");
+
+//---------------
+// PyGeomMethods 
+//---------------
+// Geometry module methods.
 //
-PyMethodDef pyGeom_methods[] =
+PyMethodDef PyGeomMethods[] =
 {
+
+  {"classify", Geom_classify, METH_VARARGS, Geom_classify_doc},
+
+/*
   {"add_point_data", Geom_add_point_data, METH_VARARGS, Geom_add_point_data_doc},
 
   {"align_profile", Geom_align_profile, METH_VARARGS, Geom_align_profile_doc},
@@ -3705,7 +3724,6 @@ PyMethodDef pyGeom_methods[] =
 
   {"check_surface", Geom_check_surface, METH_VARARGS, Geom_check_surface_doc},
 
-  {"classify", Geom_classify, METH_VARARGS, Geom_classify_doc},
 
   {"clean", Geom_clean, METH_VARARGS, Geom_clean_doc},
 
@@ -3844,6 +3862,7 @@ PyMethodDef pyGeom_methods[] =
 
   // Rename: WriteOrderedPts
   {"write_ordered_points", Geom_write_ordered_points, METH_VARARGS, Geom_write_ordered_points_doc},
+*/
 
   {NULL,NULL}
 };
@@ -3853,12 +3872,6 @@ PyMethodDef pyGeom_methods[] =
 //-----------------------
 // Define the initialization function called by the Python 
 // interpreter when the module is loaded.
-
-static char* MODULE_NAME = "geometry";
-static char* MODULE_EXCEPTION = "geometry.GeometryException";
-static char* MODULE_EXCEPTION_OBJECT = "GeometryException";
-
-PyDoc_STRVAR(GeometryModule_doc, "geometry module functions");
 
 //---------------------------------------------------------------------------
 //                           PYTHON_MAJOR_VERSION 3                         
@@ -3876,33 +3889,29 @@ static PyModuleDef_Base m_base = PyModuleDef_HEAD_INIT;
 // Define the module definition struct which holds all information 
 // needed to create a module object. 
 
-static struct PyModuleDef pyGeomModule= {
+static struct PyModuleDef PyGeomModule = {
    m_base,
-   MODULE_NAME, 
+   GEOMETRY_MODULE, 
    GeometryModule_doc,
    perInterpreterStateSize, 
-   pyGeom_methods
+   PyGeomMethods
 };
 
-//----------------
-// PyInit_pyGeom 
-//----------------
+//-------------------
+// PyInit_PyGeometry 
+//-------------------
 // The initialization function called by the Python interpreter when the module is loaded.
 //
 PyMODINIT_FUNC 
-PyInit_pyGeom(void)
+PyInit_PyGeometry(void)
 {
-  if (gRepository == NULL) {
-    gRepository = new cvRepository();
-    fprintf( stdout, "gRepository created from sv_geom_init\n" );
-  }
+  std::cout << "========== load geometry module ==========" << std::endl;
 
-  auto module = PyModule_Create(&pyGeomModule);
+  auto module = PyModule_Create(&PyGeomModule);
 
-  // Add contour.ContourException exception.
-  PyRunTimeErr = PyErr_NewException(MODULE_EXCEPTION,NULL,NULL);
+  PyRunTimeErr = PyErr_NewException(GEOMETRY_EXCEPTION, NULL, NULL);
   Py_INCREF(PyRunTimeErr);
-  PyModule_AddObject(module, MODULE_EXCEPTION_OBJECT, PyRunTimeErr);
+  PyModule_AddObject(module, GEOMETRY_EXCEPTION_OBJECT, PyRunTimeErr);
 
   return module;
 }
