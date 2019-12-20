@@ -291,11 +291,11 @@ Contour_get_type(PyContour* self, PyObject* args)
   return Py_BuildValue("s", contourType.c_str());
 }
 
-//------------------
-// Contour_get_type
-//------------------
+//----------------------
+// Contour_get_polydata
+//----------------------
 //
-PyDoc_STRVAR(Contour_get_vtk_polydata_doc,
+PyDoc_STRVAR(Contour_get_polydata_doc,
   "get_vtk_polydata()  \n\ 
    \n\
    Get the contour type. \n\
@@ -306,19 +306,12 @@ PyDoc_STRVAR(Contour_get_vtk_polydata_doc,
 ");
 
 static PyObject *
-Contour_get_vtk_polydata(PyContour* self, PyObject* args)
+Contour_get_polydata(PyContour* self, PyObject* args)
 { 
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
   auto contour = self->contour;
   vtkSmartPointer<vtkPolyData> polydata = contour->CreateVtkPolyDataFromContour();
-
-/*
-  auto vtkObj = ((cvDataObject *)polydata)->GetVtkPtr();
-  PyObject* pyVtkObj = vtkPythonUtil::GetObjectFromPointer(vtkObj);
-
-  return pyVtkObj;
-*/
-
+  return vtkPythonUtil::GetObjectFromPointer(polydata);
 }
 
 //=======================================================================================================
@@ -669,66 +662,6 @@ Contour_create_smooth_contour(PyContour* self, PyObject* args)
     return pyNewCt;
 }
 
-//----------------------
-// Contour_get_polydata
-//----------------------
-//
-// [TODO:DaveP] This function name is confusing, does not get
-// anything: puts contour geometry into the Python repository.
-//
-//   Do we want to have an explicit operation for this
-//
-//       poly_data = contour.get_polydata()
-//       repository.add_polydata(poly_data)
-//
-PyDoc_STRVAR(Contour_get_polydata_doc,
-  "Contour.get_polydata(name)  \n\ 
-   \n\
-   Add the contour geometry to the repository. \n\
-   \n\
-   Args:                                    \n\
-     name (str): Name in the repository to store the geometry. \n\
-");
-
-static PyObject* 
-Contour_get_polydata(PyContour* self, PyObject* args)
-{
-    auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
-    char* dstName = NULL;
-    if (!PyArg_ParseTuple(args, api.format, &dstName)) {
-        return api.argsError();
-    }
-    
-    // Check that the repository object does not already exist.
-    if (gRepository->Exists(dstName)) {
-        api.error("The repository object '" + std::string(dstName) + "' already exists."); 
-        return nullptr;
-    }
-  
-    auto geom = self->contour;
-    if (geom == NULL) {
-        api.error("The contour does not have geometry."); 
-        return nullptr;
-    }
-
-    // Get the VTK polydata.
-    vtkSmartPointer<vtkPolyData> vtkpd = geom->CreateVtkPolyDataFromContour();
-    cvPolyData* pd = new cvPolyData(vtkpd);
-    
-    if (pd == NULL) {
-        api.error("Could not get polydata for the contour.");
-        return nullptr;
-    }
-    
-    if ( !( gRepository->Register( dstName, pd ) ) ) {
-        api.error("Could not add the polydata to the repository.");
-        delete pd;
-        return nullptr;
-    }
-    
-    return Py_None;
-}
-
 //----------------
 // Contour_create 
 //----------------
@@ -787,10 +720,13 @@ static PyMethodDef PyContourMethods[] = {
 
   {"get_path_point", (PyCFunction)Contour_get_path_point, METH_NOARGS, Contour_get_path_point_doc}, 
 
+  {"get_polydata", (PyCFunction)Contour_get_polydata, METH_NOARGS, Contour_get_polydata_doc}, 
+
   { "get_type", (PyCFunction)Contour_get_type, METH_NOARGS, Contour_get_type_doc},
 
 
   // ======================= old methods ================================================ //
+  /*
 
   { "area", (PyCFunction)Contour_get_area, METH_NOARGS, Contour_get_area_doc },
 
@@ -807,6 +743,7 @@ static PyMethodDef PyContourMethods[] = {
   {"set_image", (PyCFunction)Contour_set_image, METH_VARARGS, Contour_set_image_doc },
 
   {"set_threshold_value", (PyCFunction)Contour_set_threshold_value, METH_VARARGS, Contour_set_threshold_value_doc },
+  */
 
   {NULL,NULL}
 };
