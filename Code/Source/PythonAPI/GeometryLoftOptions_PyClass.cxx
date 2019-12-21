@@ -162,7 +162,7 @@ static PyTypeObject PyLoftOptionsType = {
 //--------------------
 // PyLoftOptions_init
 //--------------------
-// This is the __init__() method for the contour.Group class. 
+// This is the __init__() method for the geometry.LoftOptions class. 
 //
 // This function is used to initialize an object after it is created.
 //
@@ -226,8 +226,6 @@ static void
 PyLoftOptionsDealloc(PyLoftOptionsClass* self)
 {
   std::cout << "[PyLoftOptionsDealloc] Free PyLoftOptions" << std::endl;
-  // Can't delete contourGroup because it has a protected detructor.
-  //delete self->contourGroup;
   Py_TYPE(self)->tp_free(self);
 }
 

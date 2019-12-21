@@ -72,8 +72,9 @@
 // Exception type used by PyErr_SetString() to set the for the error indicator.
 static PyObject * PyRunTimeErr;
 
-// Include the definition for the geometry.LoftOptions class. 
+// Include the definition for the geometry.LoftOptions and geometry.LoftNurbsOptions classes. 
 #include "GeometryLoftOptions_PyClass.cxx"
+#include "GeometryLoftNurbsOptions_PyClass.cxx"
 
 //////////////////////////////////////////////////////
 //        U t i l i t y     F u n c t i o n s       //
@@ -354,6 +355,9 @@ Geom_interpolate_closed_curve(PyObject* self, PyObject* args, PyObject* kwargs)
 // Geom_loft_solid 
 //-----------------
 //
+// [TODO:DaveP] We may need to add input curve resampling and alignment here
+// in order to get lofting to work.
+//
 PyDoc_STRVAR(Geom_loft_solid_doc,
   "loft_solid(polydata_list, loft_options) \n\ 
    \n\
@@ -429,6 +433,70 @@ Geom_loft_solid(PyObject* self, PyObject* args, PyObject* kwargs)
   }
 
   return vtkPythonUtil::GetObjectFromPointer(result->GetVtkPolyData());
+}
+
+//-----------------------------
+// Geom_loft_solid_using_nurbs 
+//-----------------------------
+//
+PyDoc_STRVAR(Geom_loft_solid_using_nurbs_doc,
+  "loft_solid_using_nurbs(kernel) \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
+
+static PyObject *
+Geom_loft_solid_using_nurbs(PyObject* self, PyObject* args, PyObject* kwargs)
+{
+  auto api = SvPyUtilApiFunction("Osiiddssss", PyRunTimeErr, __func__);
+  static char *keywords[] = {"polydata_list", "loft_nurb_options", NULL};
+  PyObject* srcList;
+  char *dstName;
+  int uDegree = 2;
+  int vDegree = 2;
+  double uSpacing = 0.01;
+  double vSpacing = 0.01;
+  char *uKnotSpanType;
+  char *vKnotSpanType;
+  char *uParametricSpanType;
+  char *vParametricSpanType;
+
+  if (!PyArg_ParseTuple(args, api.format, &srcList, &dstName, &uDegree, &vDegree, &uSpacing, &vSpacing, &uKnotSpanType, &vKnotSpanType, 
+          &uParametricSpanType, &vParametricSpanType)) {
+      return api.argsError();
+  }
+
+/*
+  // Check the list of source geometries.
+  std::vector<cvPolyData*> srcs;
+  if (!GetGeometryObjects(api, srcList, srcs)) {
+      return nullptr;
+  }
+  auto numSrcs = srcs.size();
+
+  if (RepositoryGeometryExists(api, dstName)) {
+      return nullptr;
+  }
+
+  cvPolyData *dst;
+  vtkSmartPointer<vtkSVNURBSSurface> NURBSSurface = vtkSmartPointer<vtkSVNURBSSurface>::New();
+
+  if (sys_geom_loft_solid_with_nurbs(srcs.data(), numSrcs, uDegree, vDegree, uSpacing, vSpacing, uKnotSpanType, vKnotSpanType,
+          uParametricSpanType, vParametricSpanType, NURBSSurface, &dst) != SV_OK) {
+      delete dst;
+      api.error("Error creating a lofted solid using nurbs.");
+      return nullptr;
+  }
+
+  if (!AddGeometryToRepository(api, dstName, dst)) {
+      return nullptr;
+  }
+
+  return Py_BuildValue("s",dst->GetName());
+*/
 }
 
 // ===================================================================================
@@ -2629,66 +2697,6 @@ Geom_num_points(PyObject* self, PyObject* args)
 
 
 
-//-----------------------------
-// Geom_loft_solid_using_nurbs 
-//-----------------------------
-//
-PyDoc_STRVAR(Geom_loft_solid_using_nurbs_doc,
-  "loft_solid_using_nurbs(kernel) \n\ 
-   \n\
-   ??? Set the computational kernel used to segment image data.       \n\
-   \n\
-   Args:                                                          \n\
-     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
-");
-
-static PyObject *
-Geom_loft_solid_using_nurbs(PyObject* self, PyObject* args)
-{
-  auto api = SvPyUtilApiFunction("Osiiddssss", PyRunTimeErr, __func__);
-  PyObject* srcList;
-  char *dstName;
-  int uDegree = 2;
-  int vDegree = 2;
-  double uSpacing = 0.01;
-  double vSpacing = 0.01;
-  char *uKnotSpanType;
-  char *vKnotSpanType;
-  char *uParametricSpanType;
-  char *vParametricSpanType;
-
-  if (!PyArg_ParseTuple(args, api.format, &srcList, &dstName, &uDegree, &vDegree, &uSpacing, &vSpacing, &uKnotSpanType, &vKnotSpanType, 
-          &uParametricSpanType, &vParametricSpanType)) {
-      return api.argsError();
-  }
-
-  // Check the list of source geometries.
-  std::vector<cvPolyData*> srcs;
-  if (!GetGeometryObjects(api, srcList, srcs)) {
-      return nullptr;
-  }
-  auto numSrcs = srcs.size();
-
-  if (RepositoryGeometryExists(api, dstName)) {
-      return nullptr;
-  }
-
-  cvPolyData *dst;
-  vtkSmartPointer<vtkSVNURBSSurface> NURBSSurface = vtkSmartPointer<vtkSVNURBSSurface>::New();
-
-  if (sys_geom_loft_solid_with_nurbs(srcs.data(), numSrcs, uDegree, vDegree, uSpacing, vSpacing, uKnotSpanType, vKnotSpanType,
-          uParametricSpanType, vParametricSpanType, NURBSSurface, &dst) != SV_OK) {
-      delete dst;
-      api.error("Error creating a lofted solid using nurbs.");
-      return nullptr;
-  }
-
-  if (!AddGeometryToRepository(api, dstName, dst)) {
-      return nullptr;
-  }
-
-  return Py_BuildValue("s",dst->GetName());
-}
 
 //---------------------
 // Geom_winding_number 
@@ -3731,6 +3739,8 @@ PyMethodDef PyGeomMethods[] =
 
   {"loft_solid", (PyCFunction)Geom_loft_solid, METH_VARARGS|METH_KEYWORDS, Geom_loft_solid_doc},
 
+  {"loft_solid_using_nurbs", (PyCFunction)Geom_loft_solid_using_nurbs, METH_VARARGS|METH_KEYWORDS, Geom_loft_solid_using_nurbs_doc},
+
 
 #ifdef python_geom_module_use_old_methods
 
@@ -3793,9 +3803,6 @@ PyMethodDef PyGeomMethods[] =
 
   {"local_loop_subdivision", Geom_local_loop_subdivision, METH_VARARGS, Geom_local_loop_subdivision_doc},
 
-
-  // Rename: LoftSolidWithNURBS
-  {"loft_solid_using_nurbs", Geom_loft_solid_using_nurbs, METH_VARARGS, Geom_loft_solid_using_nurbs_doc},
 
   {"make_polys_consistent", Geom_make_polys_consistent, METH_VARARGS, Geom_make_polys_consistent_doc},
 
@@ -3931,6 +3938,13 @@ PyInit_PyGeometry(void)
     return SV_PYTHON_ERROR;
   }
 
+  // Initialize the LoftNurnsOptions class type.
+  SetLoftNurbsOptionsTypeFields(PyLoftNurbsOptionsType);
+  if (PyType_Ready(&PyLoftNurbsOptionsType) < 0) {
+    fprintf(stdout,"Error in PyLoftNurbsOptionsClassType\n");
+    return SV_PYTHON_ERROR;
+  }
+
   // Create the geometry module.
   auto module = PyModule_Create(&PyGeomModule);
 
@@ -3942,6 +3956,10 @@ PyInit_PyGeometry(void)
   Py_INCREF(&PyLoftOptionsType);
   PyModule_AddObject(module, GEOMETRY_LOFT_OPTIONS_CLASS, (PyObject*)&PyLoftOptionsType);
   SetLoftOptionsClassTypes(PyLoftOptionsType);
+
+  // Add the 'LoftNurbsOptions' class.
+  Py_INCREF(&PyLoftNurbsOptionsType);
+  PyModule_AddObject(module, GEOMETRY_LOFT_NURBS_OPTIONS_CLASS, (PyObject*)&PyLoftNurbsOptionsType);
 
   return module;
 }
