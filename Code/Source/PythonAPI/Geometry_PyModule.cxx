@@ -72,6 +72,9 @@
 // Exception type used by PyErr_SetString() to set the for the error indicator.
 static PyObject * PyRunTimeErr;
 
+// Include the definition for the geometry.LoftOptions class. 
+#include "GeometryLoftOptions_PyClass.cxx"
+
 //////////////////////////////////////////////////////
 //        U t i l i t y     F u n c t i o n s       //
 //////////////////////////////////////////////////////
@@ -79,122 +82,128 @@ static PyObject * PyRunTimeErr;
 //----------------
 // GetVtkPolyData
 //----------------
-// Get the vtkPolyData object from the Python object.
+// Get the vtkPolyData object from the Python vtkPolyData object.
 //
 static vtkPolyData * 
-GetVtkPolyData(SvPyUtilApiFunction& api, PyObject* pdObj)
+GetVtkPolyData(SvPyUtilApiFunction& api, PyObject* obj)
 {
   vtkPolyData* polydata = nullptr; 
 
- if (!PyVTKObject_Check(pdObj)) {
+ if (!PyVTKObject_Check(obj)) {
       api.error("The polydata argument is not a vtkPolyData object.");
   }
 
-  polydata = (vtkPolyData*)vtkPythonUtil::GetPointerFromObject(pdObj, "vtkPolyData");
+  polydata = (vtkPolyData*)vtkPythonUtil::GetPointerFromObject(obj, "vtkPolyData");
   if (polydata == nullptr) {
       api.error("The polydata argument is not a vtkPolyData object.");
   }
   return polydata;
 }
 
-//-----------------------
-// GetRepositoryGeometry
-//-----------------------
-// Get a geometry from the repository and check that 
-// its type is POLY_DATA_T.
-//
-static cvPolyData *
-GetRepositoryGeometry(SvPyUtilApiFunction& api, char* name)
-{ 
-  auto geom = gRepository->GetObject(name);
-  if (geom == NULL) {
-      api.error("The geometry '"+std::string(name)+"' is not in the repository.");
-      return nullptr;
-  }
-  auto type = gRepository->GetType(name);
-  if (type != POLY_DATA_T) {
-      api.error("'" + std::string(name) + "' is not polydata.");
-      return nullptr;
-  }
-
-  return (cvPolyData*)geom;
-}
-
-//--------------------------
-// RepositoryGeometryExists 
-//--------------------------
-//
-static bool
-RepositoryGeometryExists(SvPyUtilApiFunction& api, char* name)
-{
-  if (gRepository->Exists(name)) {
-      api.error("The repository object '" + std::string(name) + "' already exists.");
-      return true;
-  }
-
-  return false;
-}
-
-//-------------------------
-// AddGeometryToRepository
-//-------------------------
-// Add a geometry to the repository.
-//
-static bool
-AddGeometryToRepository(SvPyUtilApiFunction& api, char *name, cvPolyData *geom)
-{
-  if (!gRepository->Register(name, geom)) {
-    delete geom;
-    api.error("Error adding the geometry '" + std::string(name) + "' to the repository.");
-    return false;
-  }
-
-  return true;
-}
-
 //--------------------
 // GetGeometryObjects
 //--------------------
-// Get a list of geometry objects from a list of names.
+// Create a list of cvPolyData objects from a list of 
+// vtkPolyData objects.
 //
-static bool
-GetGeometryObjects(SvPyUtilApiFunction& api, PyObject* geometryNames, std::vector<cvPolyData*>& geometryObjects) 
+// [TODO:DaveP] It would be good to use shared_ptr here
+// to manage deleting cvPolyData objects but the sys_geom
+// functions don't use them. 
+//
+static std::vector<cvPolyData*>
+GetGeometryObjects(SvPyUtilApiFunction& api, PyObject* objList)
 {
-  if (!PyList_Check(geometryNames)) {
-      api.error("The source geometries argument is not a Python list.");
-      return false;
+  std::vector<cvPolyData*> cvPolyDataList;
+  auto numObjs = PyList_Size(objList);
+
+  if (numObjs == 0) { 
+      api.error("The polydata list argument is empty.");
+      return cvPolyDataList;
   }
 
-  auto numSrcs = PyList_Size(geometryNames);
-  if (numSrcs == 0) { 
-      api.error("The source geometries argument list is empty.");
-      return false;
+  for (int i = 0; i < numObjs; i++ ) {
+      auto obj = PyList_GetItem(objList, i);
+      auto polydata = GetVtkPolyData(api, obj);
+      if (polydata == nullptr) {
+          api.error("Index " + std::to_string(i) + " of the polydata list argument is not a vtkPolyData object.");
+          for (auto cvPolydata : cvPolyDataList) {
+              delete cvPolydata;
+          }
+          cvPolyDataList.clear();
+          return cvPolyDataList;
+      }
+      auto cvPolydata = new cvPolyData(polydata);
+      cvPolyDataList.push_back(cvPolydata);
   }
 
-  geometryObjects.clear();
-
-  for (int i = 0; i < numSrcs; i++ ) {
-    #if PYTHON_MAJOR_VERSION == 2
-    auto str = PyString_AsString(PyList_GetItem(geometryNames,i));
-    #endif
-    #if PYTHON_MAJOR_VERSION ==3
-    auto str = PyBytes_AsString(PyUnicode_AsUTF8String(PyList_GetItem(geometryNames,i)));
-    #endif
-    auto src = GetRepositoryGeometry(api, str);
-    if (src == NULL) {
-      return nullptr;
-    }
-    geometryObjects.push_back((cvPolyData *)src);
-  }
-
-  return true;
+  return cvPolyDataList;
 }
 
 //////////////////////////////////////////////////////
 //          M o d u l e  F u n c t i o n s          //
 //////////////////////////////////////////////////////
 //
-// Python API functions. 
+// Python 'geometry' module methods. 
+
+//--------------------
+// Geom_align_profile 
+//--------------------
+//
+PyDoc_STRVAR(Geom_align_profile_doc,
+  "align_profile(kernel) \n\ 
+   \n\
+   ??? Set the computational kernel used to segment image data.       \n\
+   \n\
+   Args:                                                          \n\
+     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+");
+
+static PyObject * 
+Geom_align_profile(PyObject* self, PyObject* args, PyObject* kwargs)
+{
+  std::cout << "========== Geom_align_profile ==========" << std::endl;
+  auto api = SvPyUtilApiFunction("OO|O!", PyRunTimeErr, __func__);
+  static char *keywords[] = {"reference", "align", "use_distance", NULL};
+  PyObject* refObj;
+  PyObject* alignObj;
+  PyObject* distArg;
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &refObj, &alignObj, &PyBool_Type, &distArg)) {
+      return api.argsError();
+  }
+  auto use_distance = PyObject_IsTrue(distArg);
+  std::cout << "[Geom_align_profile] use_distance: " << use_distance << std::endl;
+
+  // Get the vtkPolyData objects from the Python objects.
+  //
+  auto refPolydata = GetVtkPolyData(api, refObj);
+  if (refPolydata== nullptr) {
+      return nullptr;
+  }
+  cvPolyData refCvPolyData(refPolydata);
+
+  auto alignPolydata = GetVtkPolyData(api, alignObj);
+  if (alignPolydata== nullptr) {
+      return nullptr;
+  }
+  cvPolyData alignCvPolyData(alignPolydata);
+
+  // Align the profiles.
+  //
+  cvPolyData *result;
+  if (use_distance) {
+    result = sys_geom_AlignByDist(&refCvPolyData, &alignCvPolyData);
+  } else {
+    result = sys_geom_Align(&refCvPolyData, &alignCvPolyData);
+  }
+
+  if (result == nullptr) {
+      api.error("Error aligning profile operation.");
+      return nullptr;
+  }
+
+  return vtkPythonUtil::GetObjectFromPointer(result->GetVtkPolyData());
+}
 
 //--------------------
 // Geom_average_point 
@@ -228,7 +237,8 @@ Geom_average_point(PyObject* self, PyObject* args)
   } 
 
   double pt[3];
-  if (sys_geom_AvgPt(&cvPolyData(polydata), pt) != SV_OK) {
+  cvPolyData cvPolydata(polydata);
+  if (sys_geom_AvgPt(&cvPolydata, pt) != SV_OK) {
       api.error("Error calculating the average point for the polydata.");
       return nullptr;
   }
@@ -280,8 +290,9 @@ Geom_classify_point(PyObject* self, PyObject* args, PyObject* kwargs)
   }
 
   // Result is -1 if the point is outside, 1 if it is inside.
+  cvPolyData cvPolydata(polydata);
   int result;
-  if (sys_geom_Classify(&cvPolyData(polydata), point, &result) != SV_OK) {
+  if (sys_geom_Classify(&cvPolydata, point, &result) != SV_OK) {
       api.error("Error classifying a point for the geometry.");
       return nullptr;
   }
@@ -328,7 +339,8 @@ Geom_interpolate_closed_curve(PyObject* self, PyObject* args, PyObject* kwargs)
       return nullptr;
   } 
 
-  auto result = sys_geom_sampleLoop(&cvPolyData(polydata), numSamples);
+  cvPolyData cvPolydata(polydata);
+  auto result = sys_geom_sampleLoop(&cvPolydata, numSamples);
 
   if (result == NULL) {
       api.error("Error performing the sample loop operation.");
@@ -342,67 +354,81 @@ Geom_interpolate_closed_curve(PyObject* self, PyObject* args, PyObject* kwargs)
 // Geom_loft_solid 
 //-----------------
 //
-// [TODO:DaveP] need to have named arguments here. 
-//
 PyDoc_STRVAR(Geom_loft_solid_doc,
-  "loft_solid(kernel) \n\ 
+  "loft_solid(polydata_list, loft_options) \n\ 
    \n\
-   ??? Set the computational kernel used to segment image data.       \n\
+   Create a lofted surface from a list of polydata curves. \n\
    \n\
    Args:                                                          \n\
      kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
 ");
 
 static PyObject * 
-Geom_loft_solid(PyObject* self, PyObject* args)
+Geom_loft_solid(PyObject* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = SvPyUtilApiFunction("O!siiiiii|iddd", PyRunTimeErr, __func__);
-  PyObject* objListArg;
-  char *dstName;
-  int numOutPtsInSegs;
-  int numOutPtsAlongLength;
-  int numLinearPtsAlongLength;
-  int numModes;
-  int useFFT;
-  int useLinearSampleAlongLength;
-  int splineType = 0;
-  double bias = 0;
-  double tension = 0;
-  double continuity = 0;
+  std::cout << " " << std::endl;
+  std::cout << "========== Geom_loft_solid ==========" << std::endl;
 
-  if (!PyArg_ParseTuple(args, api.format, &PyList_Type, &objListArg, &dstName, &numOutPtsInSegs, &numOutPtsAlongLength, &numLinearPtsAlongLength, 
-          &numModes, &useFFT, &useLinearSampleAlongLength, &splineType, &bias, &tension, &continuity)) {
+  auto api = SvPyUtilApiFunction("O!O!", PyRunTimeErr, __func__);
+  static char *keywords[] = {"polydata_list", "loft_options", NULL};
+  PyObject* objListArg;
+  PyObject* loftOptsArg;
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &PyList_Type, &objListArg, &PyLoftOptionsType,
+        &loftOptsArg)) {
       return api.argsError();
   }
 
-  // [TODO:DaveP] we really need to check the values of all of the input arguments.
+  // Extract loft option values from the loftOptions object.
   //
-  // splineType 0?
+  int numOutPtsInSegs = LoftOptionsGetInt(loftOptsArg, LoftOptions::NUM_OUT_PTS_IN_SEGS);
+  int numOutPtsAlongLength = LoftOptionsGetInt(loftOptsArg, LoftOptions::NUM_OUT_PTS_ALONG_LENGTH);
+  int numLinearPtsAlongLength = LoftOptionsGetInt(loftOptsArg, LoftOptions::NUM_LINEAR_PTS_ALONG_LENGTH);
+  int numModes = LoftOptionsGetInt(loftOptsArg, LoftOptions::NUM_MODES);
+  int splineType = LoftOptionsGetInt(loftOptsArg, LoftOptions::SPLINE_TYPE);
+  int useFFT = LoftOptionsGetInt(loftOptsArg, LoftOptions::USE_FFT);
+  int useLinearSampleAlongLength = LoftOptionsGetInt(loftOptsArg, LoftOptions::USE_LINEAR_SAMPLE_ALONG_LENGTH);
+  double bias = LoftOptionsGetDouble(loftOptsArg, LoftOptions::BIAS);
+  double tension = LoftOptionsGetDouble(loftOptsArg, LoftOptions::TENSION);
+  double continuity = LoftOptionsGetDouble(loftOptsArg, LoftOptions::CONTINUITY);
 
-  // Check the list of source geometries.
-  std::vector<cvPolyData*> srcs;
-  if (!GetGeometryObjects(api, objListArg, srcs)) {
+  std::cout << "[Geom_loft_solid] numOutPtsInSegs: " << numOutPtsInSegs << std::endl;
+  std::cout << "[Geom_loft_solid] numOutPtsAlongLength : " << numOutPtsAlongLength << std::endl;
+  std::cout << "[Geom_loft_solid] numModes: " << numModes << std::endl;
+  std::cout << "[Geom_loft_solid] splineType: " << splineType << std::endl;
+
+  std::cout << "[Geom_loft_solid] useLinearSampleAlongLength: " << useLinearSampleAlongLength << std::endl;
+  std::cout << "[Geom_loft_solid] useFFT: " << useFFT << std::endl;
+  std::cout << "[Geom_loft_solid] bias: " << bias << std::endl;
+  std::cout << "[Geom_loft_solid] tension: " << tension << std::endl;
+  std::cout << "[Geom_loft_solid] continuity: " << continuity << std::endl;
+
+  // Check the list of source polydata.
+  auto cvPolyDataList = GetGeometryObjects(api, objListArg);
+  if (cvPolyDataList.size() == 0) {
       return nullptr;
   }
-  auto numSrcs = srcs.size();
 
-  if (RepositoryGeometryExists(api, dstName)) {
-      return nullptr;
+  // Create the lofted surface.
+  //
+  auto numSrcs = cvPolyDataList.size();
+  cvPolyData *result;
+
+  auto status = sys_geom_loft_solid(cvPolyDataList.data(), numSrcs, useLinearSampleAlongLength, useFFT, numOutPtsAlongLength, 
+                                    numOutPtsInSegs, numLinearPtsAlongLength, numModes, splineType, bias, tension, continuity, 
+                                    &result);
+
+  for (auto cvPolyData : cvPolyDataList) { 
+      delete cvPolyData;
   }
 
-  cvPolyData *dst;
-  if (sys_geom_loft_solid(srcs.data(), numSrcs,useLinearSampleAlongLength,useFFT, numOutPtsAlongLength,numOutPtsInSegs,
-          numLinearPtsAlongLength,numModes,splineType,bias,tension,continuity, &dst) != SV_OK) {
-      delete dst;
+  if (status != SV_OK) {
+      delete result;
       api.error("Error performing the loft operation.");
       return nullptr;
   }
 
-  if (!AddGeometryToRepository(api, dstName, dst)) {
-      return nullptr;
-  }
-
-  return Py_BuildValue("s",dst->GetName());
+  return vtkPythonUtil::GetObjectFromPointer(result->GetVtkPolyData());
 }
 
 // ===================================================================================
@@ -1918,66 +1944,6 @@ Geom_disorient_profile(PyObject* self, PyObject* args)
   return Py_BuildValue("s",dst->GetName());
 }
 
-//--------------------
-// Geom_align_profile 
-//--------------------
-//
-PyDoc_STRVAR(Geom_align_profile_doc,
-  "align_profile(kernel) \n\ 
-   \n\
-   ??? Set the computational kernel used to segment image data.       \n\
-   \n\
-   Args:                                                          \n\
-     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
-");
-
-static PyObject * 
-Geom_align_profile(PyObject* self, PyObject* args)
-{
-  auto api = SvPyUtilApiFunction("sssi", PyRunTimeErr, __func__);
-  char *refName;
-  char *srcName;
-  char *dstName;
-  int vecMtd = 1;
-
-  if (!PyArg_ParseTuple(args, api.format, &refName, &srcName, &dstName, &vecMtd)) {
-      return api.argsError();
-  }
-
-  auto ref = GetRepositoryGeometry(api, refName);
-  if (ref == NULL) {
-      return nullptr;
-  }
-
-  auto src = GetRepositoryGeometry(api, srcName);
-  if (src == NULL) {
-      return nullptr;
-  }
-
-  if (RepositoryGeometryExists(api, dstName)) {
-      return nullptr;
-  }
-
-  cvPolyData *dst;
-
-  if ( vecMtd ) {
-    dst = sys_geom_Align(ref, src);
-  } else {
-    dst = sys_geom_AlignByDist(ref, src);
-  }
-
-  if (dst == NULL) {
-      api.error("Error in the align profile operation between reference '" + std::string(refName) + 
-      " and source '" + std::string(refName) + "' geometries.");
-      return nullptr;
-  }
-
-  if (!AddGeometryToRepository(api, dstName, dst)) {
-      return nullptr;
-  }
-
-  return Py_BuildValue("s",dst->GetName());
-}
 
 //----------------
 // Geom_translate 
@@ -3755,20 +3721,20 @@ PyDoc_STRVAR(GeometryModule_doc,
 //
 PyMethodDef PyGeomMethods[] =
 {
-  {"average_point", Geom_average_point, METH_VARARGS, Geom_average_point_doc},
+  {"align_profile", (PyCFunction)Geom_align_profile, METH_VARARGS|METH_KEYWORDS, Geom_align_profile_doc},
 
-  {"classify_point", Geom_classify_point, METH_VARARGS|METH_KEYWORDS, Geom_classify_point_doc},
+  {"average_point", (PyCFunction)Geom_average_point, METH_VARARGS, Geom_average_point_doc},
 
-  {"interpolate_closed_curve", Geom_interpolate_closed_curve, METH_VARARGS|METH_KEYWORDS, Geom_interpolate_closed_curve_doc},
+  {"classify_point", (PyCFunction)Geom_classify_point, METH_VARARGS|METH_KEYWORDS, Geom_classify_point_doc},
 
-  {"loft_solid", Geom_loft_solid, METH_VARARGS, Geom_loft_solid_doc},
+  {"interpolate_closed_curve", (PyCFunction)Geom_interpolate_closed_curve, METH_VARARGS|METH_KEYWORDS, Geom_interpolate_closed_curve_doc},
+
+  {"loft_solid", (PyCFunction)Geom_loft_solid, METH_VARARGS|METH_KEYWORDS, Geom_loft_solid_doc},
 
 
 #ifdef python_geom_module_use_old_methods
 
   {"add_point_data", Geom_add_point_data, METH_VARARGS, Geom_add_point_data_doc},
-
-  {"align_profile", Geom_align_profile, METH_VARARGS, Geom_align_profile_doc},
 
   {"all_union", Geom_all_union, METH_VARARGS, Geom_all_union_doc},
 
@@ -3917,8 +3883,6 @@ PyMethodDef PyGeomMethods[] =
   {NULL,NULL}
 };
 
-// Include the definition for the geometry.LoftOptions class. 
-#include "GeometryLoftOptions_PyClass.cxx"
 
 //-----------------------
 // Initialize the module
@@ -3961,9 +3925,9 @@ PyInit_PyGeometry(void)
   std::cout << "========== load geometry module ==========" << std::endl;
 
   // Initialize the LoftOptions class type.
-  SetGeometryLoftOptionsTypeFields(PyGeometryLoftOptionsClassType);
-  if (PyType_Ready(&PyGeometryLoftOptionsClassType) < 0) {
-    fprintf(stdout,"Error in PyGeometryLoftOptionsClassType\n");
+  SetLoftOptionsTypeFields(PyLoftOptionsType);
+  if (PyType_Ready(&PyLoftOptionsType) < 0) {
+    fprintf(stdout,"Error in PyLoftOptionsClassType\n");
     return SV_PYTHON_ERROR;
   }
 
@@ -3975,9 +3939,9 @@ PyInit_PyGeometry(void)
   PyModule_AddObject(module, GEOMETRY_EXCEPTION_OBJECT, PyRunTimeErr);
 
   // Add the 'LoftOptions' class.
-  Py_INCREF(&PyGeometryLoftOptionsClassType);
-  PyModule_AddObject(module, GEOMETRY_LOFT_OPTIONS_CLASS, (PyObject*)&PyGeometryLoftOptionsClassType);
-  SetGeometryLoftOptionsClassTypes(PyGeometryLoftOptionsClassType);
+  Py_INCREF(&PyLoftOptionsType);
+  PyModule_AddObject(module, GEOMETRY_LOFT_OPTIONS_CLASS, (PyObject*)&PyLoftOptionsType);
+  SetLoftOptionsClassTypes(PyLoftOptionsType);
 
   return module;
 }
