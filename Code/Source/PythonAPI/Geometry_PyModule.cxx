@@ -451,52 +451,62 @@ PyDoc_STRVAR(Geom_loft_solid_using_nurbs_doc,
 static PyObject *
 Geom_loft_solid_using_nurbs(PyObject* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = SvPyUtilApiFunction("Osiiddssss", PyRunTimeErr, __func__);
-  static char *keywords[] = {"polydata_list", "loft_nurb_options", NULL};
-  PyObject* srcList;
-  char *dstName;
-  int uDegree = 2;
-  int vDegree = 2;
-  double uSpacing = 0.01;
-  double vSpacing = 0.01;
-  char *uKnotSpanType;
-  char *vKnotSpanType;
-  char *uParametricSpanType;
-  char *vParametricSpanType;
+  std::cout << " " << std::endl;
+  std::cout << "========== Geom_loft_solid_using_nurbs ==========" << std::endl;
+  auto api = SvPyUtilApiFunction("O!O!", PyRunTimeErr, __func__);
+  static char *keywords[] = {"polydata_list", "loft_nurbs_options", NULL};
+  PyObject* objListArg;
+  PyObject* loftOptsArg;
 
-  if (!PyArg_ParseTuple(args, api.format, &srcList, &dstName, &uDegree, &vDegree, &uSpacing, &vSpacing, &uKnotSpanType, &vKnotSpanType, 
-          &uParametricSpanType, &vParametricSpanType)) {
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &PyList_Type, &objListArg, 
+        &PyLoftNurbsOptionsType, &loftOptsArg)) {
       return api.argsError();
   }
 
-/*
-  // Check the list of source geometries.
-  std::vector<cvPolyData*> srcs;
-  if (!GetGeometryObjects(api, srcList, srcs)) {
+  // Extract loft option values from the loftOptions object.
+  //
+  int uDegree = LoftNurbsOptionsGetInt(loftOptsArg, LoftNurbsOptions::U_DEGREE);
+  int vDegree = LoftNurbsOptionsGetInt(loftOptsArg, LoftNurbsOptions::V_DEGREE);
+  double uSpacing = LoftNurbsOptionsGetDouble(loftOptsArg, LoftNurbsOptions::U_SPACING);
+  double vSpacing = LoftNurbsOptionsGetDouble(loftOptsArg, LoftNurbsOptions::V_SPACING);
+  char* uKnotSpanType = LoftNurbsOptionsGetString(loftOptsArg, LoftNurbsOptions::U_KNOT_SPAN_TYPE);
+  char* vKnotSpanType = LoftNurbsOptionsGetString(loftOptsArg, LoftNurbsOptions::V_KNOT_SPAN_TYPE);
+  char* uParametricSpanType = LoftNurbsOptionsGetString(loftOptsArg, LoftNurbsOptions::U_PARAMETRIC_SPAN_TYPE);
+  char* vParametricSpanType = LoftNurbsOptionsGetString(loftOptsArg, LoftNurbsOptions::V_PARAMETRIC_SPAN_TYPE);
+
+  std::cout << "[Geom_loft_solid_using_nurbs] uDegree: " << uDegree << std::endl;
+  std::cout << "[Geom_loft_solid_using_nurbs] vDegree: " << vDegree << std::endl;
+  std::cout << "[Geom_loft_solid_using_nurbs] uSpacing: " << uSpacing << std::endl;
+  std::cout << "[Geom_loft_solid_using_nurbs] vSpacing: " << vSpacing << std::endl;
+  std::cout << "[Geom_loft_solid_using_nurbs] uKnotSpanType: " << uKnotSpanType << std::endl;
+  std::cout << "[Geom_loft_solid_using_nurbs] vKnotSpanType: " << vKnotSpanType << std::endl;
+  std::cout << "[Geom_loft_solid_using_nurbs] uParametricSpanType: " << uParametricSpanType << std::endl;
+  std::cout << "[Geom_loft_solid_using_nurbs] vParametricSpanType: " << vParametricSpanType << std::endl;
+
+  // Check the list of source polydata.
+  auto cvPolyDataList = GetGeometryObjects(api, objListArg);
+  if (cvPolyDataList.size() == 0) {
       return nullptr;
   }
-  auto numSrcs = srcs.size();
+  auto numSrcs = cvPolyDataList.size();
 
-  if (RepositoryGeometryExists(api, dstName)) {
-      return nullptr;
-  }
-
-  cvPolyData *dst;
+  cvPolyData *result;
   vtkSmartPointer<vtkSVNURBSSurface> NURBSSurface = vtkSmartPointer<vtkSVNURBSSurface>::New();
 
-  if (sys_geom_loft_solid_with_nurbs(srcs.data(), numSrcs, uDegree, vDegree, uSpacing, vSpacing, uKnotSpanType, vKnotSpanType,
-          uParametricSpanType, vParametricSpanType, NURBSSurface, &dst) != SV_OK) {
-      delete dst;
+  auto status = sys_geom_loft_solid_with_nurbs(cvPolyDataList.data(), numSrcs, uDegree, vDegree, uSpacing, vSpacing, 
+          uKnotSpanType, vKnotSpanType, uParametricSpanType, vParametricSpanType, NURBSSurface, &result);
+
+  for (auto cvPolyData : cvPolyDataList) { 
+      delete cvPolyData;
+  }
+
+  if (status != SV_OK) {
+      delete result;
       api.error("Error creating a lofted solid using nurbs.");
       return nullptr;
   }
 
-  if (!AddGeometryToRepository(api, dstName, dst)) {
-      return nullptr;
-  }
-
-  return Py_BuildValue("s",dst->GetName());
-*/
+  return vtkPythonUtil::GetObjectFromPointer(result->GetVtkPolyData());
 }
 
 // ===================================================================================

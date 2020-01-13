@@ -102,6 +102,16 @@ LoftNurbsOptionsGetDouble(PyObject* loftOptions, std::string name)
   return value;
 }
 
+static char * 
+LoftNurbsOptionsGetString(PyObject* loftOptions, std::string name)
+{
+  auto obj = PyObject_GetAttrString(loftOptions, name.c_str());
+  auto value = PyString_AsString(obj);
+  Py_DECREF(obj);
+  return value;
+}
+
+
 ////////////////////////////////////////////////////////
 //          C l a s s    M e t h o d s                //
 ////////////////////////////////////////////////////////
@@ -171,7 +181,15 @@ PyLoftNurbsOptionsInit(PyLoftNurbsOptionsClass* self, PyObject* args, PyObject* 
 {
   auto api = SvPyUtilApiFunction("|O", PyRunTimeErr, __func__);
   static char *keywords[] = {"u_knot_span_type", NULL};
+
+  int u_degree = 2;
+  int v_degree = 2;
+  double u_spacing = 0.01;
+  double v_spacing = 0.01;
   PyObject* u_knot_span_type = nullptr;
+  PyObject* v_knot_span_type = nullptr;
+  PyObject* u_parametric_span_type = nullptr;
+  PyObject* v_parametric_span_type = nullptr;
   PyObject* tmp; 
 
   if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &u_knot_span_type)) {
@@ -179,11 +197,45 @@ PyLoftNurbsOptionsInit(PyLoftNurbsOptionsClass* self, PyObject* args, PyObject* 
       return -1;
   }
 
+  self->u_degree = u_degree;
+  self->v_degree = v_degree;
+  self->u_spacing = u_spacing;
+  self->v_spacing = v_spacing;
+
   if (u_knot_span_type) {
       tmp = self->u_knot_span_type;
       Py_INCREF(u_knot_span_type);
       self->u_knot_span_type = u_knot_span_type;
       Py_XDECREF(tmp);
+  } else {
+      self->u_knot_span_type = Py_BuildValue("s", "equal");
+  }
+
+  if (v_knot_span_type) {
+      tmp = self->v_knot_span_type;
+      Py_INCREF(v_knot_span_type);
+      self->v_knot_span_type = v_knot_span_type;
+      Py_XDECREF(tmp);
+  } else {
+      self->v_knot_span_type = Py_BuildValue("s", "equal");
+  }
+
+  if (u_parametric_span_type) {
+      tmp = self->u_parametric_span_type;
+      Py_INCREF(u_parametric_span_type);
+      self->u_parametric_span_type = u_parametric_span_type;
+      Py_XDECREF(tmp);
+  } else {
+      self->u_parametric_span_type = Py_BuildValue("s", "equal");
+  }
+
+  if (v_parametric_span_type) {
+      tmp = self->v_parametric_span_type;
+      Py_INCREF(v_parametric_span_type);
+      self->v_parametric_span_type = v_parametric_span_type;
+      Py_XDECREF(tmp);
+  } else {
+      self->v_parametric_span_type = Py_BuildValue("s", "equal");
   }
 
   return 0;
