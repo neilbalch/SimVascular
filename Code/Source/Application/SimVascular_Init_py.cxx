@@ -73,8 +73,9 @@
 #endif
 
 #ifdef SV_USE_TETGEN
-  #include "sv_mesh_init_py.h"
-  #include "sv_tetgen_mesh_init_py.h"
+  //#include "sv_mesh_init_py.h"
+  //#include "sv_tetgen_mesh_init_py.h"
+  #include "Meshing_PyModule.h"
 #endif
 
 #ifdef SV_USE_MMG
@@ -145,13 +146,13 @@ void SimVascular_pyInit()
     #endif
 
     #ifdef SV_USE_TETGEN
-    PyImport_AppendInittab("mesh", PyInit_pyMeshObject);
-    PyImport_AppendInittab("tetgen_mesh", PyInit_pyMeshTetgen);
+    PyImport_AppendInittab("meshing", PyInit_PyMeshing);
+    //PyImport_AppendInittab("tetgen_mesh", PyInit_pyMeshTetgen);
     #endif
 
     #ifdef SV_USE_MMG
-    PyImport_AppendInittab("mesh", PyInit_pyMeshObject);
-    PyImport_AppendInittab("mesh_util", PyInit_pyMeshUtil);
+    //PyImport_AppendInittab("meshing", PyInit_PyMeshingObject);
+    //PyImport_AppendInittab("mesh_util", PyInit_pyMeshUtil);
     #endif
 
     #ifdef SV_USE_ITK
