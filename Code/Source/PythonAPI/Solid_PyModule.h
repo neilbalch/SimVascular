@@ -45,6 +45,10 @@ typedef cvSolidModel * (*CreateSolidModelObjectFunction)();
 
 extern "C" SV_EXPORT_SOLID void PyAPI_InitParasolid(CreateSolidModelObjectFunction createObject);
 
+//extern "C" SV_EXPORT_SOLID SolidModel_KernelT SolidKernel_NameToEnum(std::string& name);
+
+SolidModel_KernelT SolidKernel_NameToEnum(std::string name);
+
 //--------------
 // PySolidModel
 //--------------

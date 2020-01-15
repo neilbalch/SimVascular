@@ -65,6 +65,11 @@ typedef struct {
 PyObject_HEAD
 } SolidKernelObject;
 
+//----------------------
+// SolidKernel_get_name
+//----------------------
+// Get the name equivalent to the enum.
+//
 std::string 
 SolidKernel_get_name(SolidModel_KernelT kernelType)
 {
@@ -74,6 +79,22 @@ SolidKernel_get_name(SolidModel_KernelT kernelType)
       }
   }
   return "";
+}
+
+//------------------------
+// SolidKernel_NameToEnum
+//------------------------
+// Get the enum for the given name. 
+//
+SolidModel_KernelT 
+SolidKernel_NameToEnum(std::string name)
+{
+  for (auto const& entry : kernelNameEnumMap) {
+      if (name == entry.first) {
+          return entry.second;
+      }
+  }
+  return SM_KT_INVALID;
 }
 
 ////////////////////////////////////////////////////////

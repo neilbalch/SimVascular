@@ -37,7 +37,6 @@
 #include "svMeshObjectExports.h"
 #include "sv_MeshObject.h"
 
-
 extern "C" SV_EXPORT_MESH int Mesh_pyInit();
 
 // [TODO:DaveP] why is this in the header, it is not

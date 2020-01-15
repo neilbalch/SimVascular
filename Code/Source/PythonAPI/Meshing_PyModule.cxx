@@ -44,6 +44,8 @@
 #include "sv_mesh_init_py.h"
 #include "vtkPythonUtil.h"
 #include "sv_PyUtils.h"
+#include "Solid_PyModule.h"
+#include "sv_TetGenMeshObject.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -68,14 +70,61 @@ static PyObject * PyRunTimeErr;
 
 // Include mesh Kernel class that defines a map between 
 // mesh kernel name and enum type.
-//
 #include "MeshingKernel_PyClass.cxx"
+
+// Include the definition for the meshing.TetGenOptions classes. 
+#include "MeshingTetGenOptions_PyClass.cxx"
+
+// Include mesh.Mesher definition.
+#include "MeshingMesher_PyClass.cxx"
 
 //////////////////////////////////////////////////////
 //          M o d u l e  F u n c t i o n s          //
 //////////////////////////////////////////////////////
 //
 // Python API functions. 
+
+//-------------------------
+// PyMeshing_create_mesher 
+//-------------------------
+//
+PyDoc_STRVAR(PyMeshing_create_mesher_doc,
+  "create_mesher(kernel)  \n\ 
+   \n\
+   Set the control points for the contour. \n\
+   \n\
+   Args:                                    \n\
+     None \n\
+");
+
+static PyObject*
+PyMeshing_create_mesher(PyTypeObject *type, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  char* kernelName = nullptr;
+
+  if (!PyArg_ParseTuple(args, api.format, &kernelName)) {
+      return api.argsError();
+  }
+
+  // Check the kernel name.
+  //
+  cvMeshObject::KernelType kernel;
+  try {
+      kernel = kernelNameEnumMap.at(std::string(kernelName));
+  } catch (const std::out_of_range& except) {
+      auto msg = "Unknown kernel name '" + std::string(kernelName) + "'." +
+          " Valid names are: " + kernelValidNames + ".";
+      api.error(msg);
+      return nullptr;
+  }
+
+  // Create a mesher for the given kernel.
+  auto mesher = PyCreateMesher(kernel);
+  Py_INCREF(mesher);
+
+  return mesher;
+}
 
 ////////////////////////////////////////////////////////
 //          M o d u l e   D e f i n i t i o n         //
@@ -87,6 +136,7 @@ static PyObject * PyRunTimeErr;
 //
 static PyMethodDef PyMeshingModuleMethods[] =
 {
+  {"create_mesher", (PyCFunction)PyMeshing_create_mesher, METH_VARARGS, PyMeshing_create_mesher_doc},
 /*
   {"logging_off", (PyCFunction)Mesh_logging_off, METH_NOARGS, Mesh_logging_off_doc },
 
@@ -110,8 +160,8 @@ static char* MESHING_MODULE_EXCEPTION_OBJECT = "MeshingError";
 
 PyDoc_STRVAR(Meshing_module_doc, "meshing module functions");
 
-// Include mesh.Mesh definition.
-#include "MeshGenerator_PyClass.cxx"
+// Include mesh.Mesher definition.
+//#include "MeshingMesher_PyClass.cxx"
 
 //---------------------------------------------------------------------------
 //                           PYTHON_MAJOR_VERSION 3                         
@@ -147,10 +197,24 @@ PyInit_PyMeshing()
 {
   std::cout << "[PyInit_PyMeshing] ========== load meshing module ==========" << std::endl;
 
+  // Initialize the TetGenOptions class type.
+  SetTetGenOptionsTypeFields(PyTetGenOptionsType);
+  if (PyType_Ready(&PyTetGenOptionsType) < 0) {
+    fprintf(stdout,"Error in PyTetGenClassType\n");
+    return SV_PYTHON_ERROR;
+  }
+
   // Initialize the mesh generator class type.
-  SetMeshGeneratorTypeFields(PyMeshGeneratorClassType);
-  if (PyType_Ready(&PyMeshGeneratorClassType) < 0) {
+  SetMesherTypeFields(PyMeshingMesherClassType);
+  if (PyType_Ready(&PyMeshingMesherClassType) < 0) {
       std::cout << "Error creating Meshing type" << std::endl;
+      return nullptr;
+  }
+
+  // Initialize the TetGen mesh generator class type.
+  SetMeshingTetGenTypeFields(PyMeshingTetGenClassType);
+  if (PyType_Ready(&PyMeshingTetGenClassType) < 0) {
+      std::cout << "Error creating Meshing TetGen type" << std::endl;
       return nullptr;
   }
 
@@ -173,9 +237,18 @@ PyInit_PyMeshing()
   PyRunTimeErr = PyErr_NewException(MESHING_MODULE_EXCEPTION, NULL, NULL);
   PyModule_AddObject(module, MESHING_MODULE_EXCEPTION_OBJECT, PyRunTimeErr);
 
-  // Add the 'meshing.MeshGenerator' class.
-  Py_INCREF(&PyMeshGeneratorClassType);
-  PyModule_AddObject(module, MESH_GENERATOR_CLASS, (PyObject*)&PyMeshGeneratorClassType);
+  // Add the 'MeshingOptions' class.
+  Py_INCREF(&PyTetGenOptionsType);
+  PyModule_AddObject(module, MESHING_TETGEN_OPTIONS_CLASS, (PyObject*)&PyTetGenOptionsType);
+  SetTetGenOptionsClassTypes(PyTetGenOptionsType);
+
+  // Add the 'meshing.MeshingMesher' class.
+  Py_INCREF(&PyMeshingMesherClassType);
+  PyModule_AddObject(module, MESH_GENERATOR_CLASS, (PyObject*)&PyMeshingMesherClassType);
+
+  // Add the 'meshing.TetGen' class.
+  Py_INCREF(&PyMeshingTetGenClassType);
+  PyModule_AddObject(module, MESHING_TETGEN_CLASS, (PyObject*)&PyMeshingTetGenClassType);
 
   // Add the 'mesh.Kernel' class.
   Py_INCREF(&PyMeshingKernelClassType);
