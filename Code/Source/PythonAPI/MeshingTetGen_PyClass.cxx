@@ -64,9 +64,9 @@ MeshingTetGen_available(PyObject* self, PyObject* args )
 //
 static PyObject *
 //static PyMeshingTetGenOptionsClass *
-MeshingTetGen_create_options(PyObject* self, PyObject* args )
+MeshingTetGen_create_options(PyObject* self, PyObject* args, PyObject* kwargs )
 {
-  return CreateTetGenOptionsType();
+  return CreateTetGenOptionsType(args, kwargs);
 }
 
 //---------------------------
@@ -85,9 +85,14 @@ MeshingTetGen_set_options(PyObject* self, PyObject* args )
       return api.argsError();
   }
 
-  double global_edge_size = PyTetGenOptionsGetDouble(options, TetGenOption::PY_GLOBAL_EDGE_SIZE);
+  // double global_edge_size = PyTetGenOptionsGetDouble(options, TetGenOption::GlobalEdgeSize);
+  // std::cout << "[MeshingTetGen_set_options] global_edge_size: " << global_edge_size << std::endl;
 
-  std::cout << "[MeshingTetGen_set_options] global_edge_size: " << global_edge_size << std::endl;
+  for (auto const& entry : TetGenOption::pyToSvNameMap) {
+      auto pyName = entry.first;
+      double value = PyTetGenOptionsGetDouble(options, pyName);
+      //std::cout << "[MeshingTetGen_set_options] name: " << pyName << "  value: " << value << std::endl;
+  }
 
   Py_RETURN_NONE;
 }
@@ -110,7 +115,7 @@ PyDoc_STRVAR(PyMeshingTetGenClass_doc, "TetGen mesh generator class methods.");
 //
 static PyMethodDef PyMeshingTetGenMethods[] = {
   {"available", (PyCFunction)MeshingTetGen_available, METH_VARARGS, NULL},
-  {"create_options", (PyCFunction)MeshingTetGen_create_options, METH_VARARGS, NULL},
+  {"create_options", (PyCFunction)MeshingTetGen_create_options, METH_VARARGS|METH_KEYWORDS , NULL},
   {"set_options", (PyCFunction)MeshingTetGen_set_options, METH_VARARGS, NULL},
   {NULL, NULL}
 };
