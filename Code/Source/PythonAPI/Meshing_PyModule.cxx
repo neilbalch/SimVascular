@@ -120,7 +120,7 @@ PyMeshing_create_mesher(PyTypeObject *type, PyObject* args)
   }
 
   // Create a mesher for the given kernel.
-  auto mesher = PyCreateMesher(kernel);
+  auto mesher = PyMesherCreateObject(kernel);
   Py_INCREF(mesher);
 
   return mesher;
@@ -244,7 +244,7 @@ PyInit_PyMeshing()
 
   // Add the 'meshing.MeshingMesher' class.
   Py_INCREF(&PyMeshingMesherClassType);
-  PyModule_AddObject(module, MESH_GENERATOR_CLASS, (PyObject*)&PyMeshingMesherClassType);
+  PyModule_AddObject(module, MESHING_MESHER_CLASS, (PyObject*)&PyMeshingMesherClassType);
 
   // Add the 'meshing.TetGen' class.
   Py_INCREF(&PyMeshingTetGenClassType);

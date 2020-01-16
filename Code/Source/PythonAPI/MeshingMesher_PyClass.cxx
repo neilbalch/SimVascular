@@ -29,9 +29,12 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// The functions defined here implement the SV Python API mesh module Mesher class. 
-// The 'Mesher' class used to store mesh data. 
+// The functions defined here implement the SV Python API meshing module 
+// 'Mesher' mesh generator class. The class used is a base classs for 
+// mesh generators (e.g. TetGen and MeshSim). 
 //
+
+#include <functional>
 
 #include "sv_TetGenMeshObject.h"
 
@@ -51,10 +54,9 @@ typedef struct {
 //          U t i l i t y  F u n c t i o n s        //
 //////////////////////////////////////////////////////
 
-
-//---------------------
+//-----------------------
 // CheckMesherLoadUpdate
-//---------------------
+//-----------------------
 //
 static bool 
 CheckMesherLoadUpdate(cvMeshObject *meshObject, std::string& msg) 
@@ -74,36 +76,15 @@ CheckMesherLoadUpdate(cvMeshObject *meshObject, std::string& msg)
   return true;
 }
 
-//---------------
-// CheckMesher
-//---------------
-// Check if the mesh object has meshObjectetry.
-//
-// This is really used to set the error message 
-// in a single place. 
-//
-static cvMeshObject *
-CheckMesher(SvPyUtilApiFunction& api, PyMeshingMesherClass *self)
-{
-  auto meshObject = self->mesher;
-  if (meshObject == NULL) {
-      api.error("The Mesher object does not have meshObjectetry.");
-      return nullptr;
-  }
-
-  return meshObject;
-}
-
 /////////////////////////////////////////////////////////////////
 //              C l a s s   F u n c t i o n s                  //
 /////////////////////////////////////////////////////////////////
 //
 // Python API functions for the Mesher class. 
 
-
-//--------------------------
+//-------------------
 // Mesher_load_model
-//--------------------------
+//-------------------
 //
 PyDoc_STRVAR(Mesher_load_model_doc,
   "load_model(name)  \n\ 
@@ -135,9 +116,9 @@ Mesher_load_model(PyMeshingMesherClass* self, PyObject* args, PyObject* kwargs)
   Py_RETURN_NONE; 
 }
 
-//-----------------------------------
+//----------------------------
 // Mesher_set_meshing_options
-//-----------------------------------
+//----------------------------
 //
 PyDoc_STRVAR(Mesher_set_meshing_options_doc,
 " set_meshing_options(name)  \n\ 
@@ -180,9 +161,9 @@ Mesher_set_meshing_options(PyMeshingMesherClass* self, PyObject* args)
   Py_RETURN_NONE; 
 }
 
-//----------------------------------------
+//---------------------------------
 // Mesher_set_solid_modeler_kernel 
-//----------------------------------------
+//---------------------------------
 //
 PyDoc_STRVAR(Mesher_set_solid_modeler_kernel_doc,
   "set_solid_kernel(kernel)  \n\ 
@@ -1119,11 +1100,11 @@ Mesher_get_model_face_info(PyMeshingMesherClass* self, PyObject* args)
 //           C l a s s    D e f i n i t i o n         //
 ////////////////////////////////////////////////////////
 
-static char* MESH_GENERATOR_CLASS = "Mesher";
+static char* MESHING_MESHER_CLASS = "Mesher";
 
 // Dotted name that includes both the module name and 
 // the name of the type within the module.
-static char* MESH_GENERATOR_MODULE_CLASS = "mesh.Mesher";
+static char* MESHING_MESHER_MODULE_CLASS = "mesh.Mesher";
 
 PyDoc_STRVAR(MesherClass_doc, "mesher class methods.");
 
@@ -1205,7 +1186,7 @@ static PyMethodDef PyMeshingMesherMethods[] = {
 //
 static PyTypeObject PyMeshingMesherClassType = {
   PyVarObject_HEAD_INIT(NULL, 0)
-  MESH_GENERATOR_MODULE_CLASS,
+  MESHING_MESHER_MODULE_CLASS,
   sizeof(PyMeshingMesherClass)
 };
 
@@ -1215,29 +1196,30 @@ static PyTypeObject PyMeshingMesherClassType = {
 //-----------------
 // PyMesherCtorMap
 //-----------------
-// Define an object factory for creating Python Mesher derived objects.
+// Define a factory for creating Python Mesher derived objects.
 //
-// An entry for SM_KT_PARASOLID is added later in PyAPI_InitParasolid() 
-// if the Parasolid interface is defined (by loading the Parasolid plugin).
+// An entry for KERNEL_MESHSIM is added later in PyAPI_InitMeshSim() 
+// if the MeshSim interface is defined (by loading the MeshSim plugin).
 //
 using PyMesherCtorMapType = std::map<cvMeshObject::KernelType, std::function<PyObject*()>>;
 PyMesherCtorMapType PyMesherCtorMap = {
   {cvMeshObject::KernelType::KERNEL_TETGEN, []()->PyObject* {return PyObject_CallObject((PyObject*)&PyMeshingTetGenClassType, NULL);}},
 };
 
-//----------------
-// CreatePyMesher 
-//----------------
+//-----------------------
+// PyMesherCreateObject 
+//-----------------------
+// Create a Python mesher object for the given kernel.
 //
 static PyObject *
-CreatePyMesher(cvMeshObject::KernelType kernel)
+PyMesherCreateObject(cvMeshObject::KernelType kernel)
 {
-  std::cout << "[CreatePyMesher] ========== CreatePyMesher ==========" << std::endl;
+  std::cout << "[PyCreateMesher] ========== PyCreateMesher ==========" << std::endl;
   PyObject* mesher;
 
   try {
       mesher = PyMesherCtorMap[kernel]();
-  } catch (const std::bad_function_call& except) {
+  } catch (...) {
       return nullptr;
   }
 
@@ -1363,21 +1345,3 @@ CreateMesherType()
   return PyObject_New(PyMeshingMesherClass, &PyMeshingMesherClassType);
 }
 
-//----------------
-// PyCreateMesher 
-//----------------
-//
-static PyObject *
-PyCreateMesher(cvMeshObject::KernelType kernel)
-{
-  std::cout << "[PyCreateMesher] ========== PyCreateMesher ==========" << std::endl;
-  PyObject* mesher;
-
-  try {
-      mesher = PyMesherCtorMap[kernel]();
-  } catch (...) {
-      return nullptr;
-  }
-
-  return mesher;
-}
