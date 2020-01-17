@@ -87,12 +87,12 @@ CheckMesherLoadUpdate(cvMeshObject *meshObject, std::string& msg)
 //-------------------
 //
 PyDoc_STRVAR(Mesher_load_model_doc,
-  "load_model(name)  \n\ 
+  "load_model(file_name)  \n\ 
   \n\
-  ??? Add the unstructured grid mesh to the repository. \n\
+  Load a solid model from a file into the mesher. \n\
   \n\
   Args:                                    \n\
-    name (str): Name in the repository to store the unstructured grid. \n\
+    file_name (str): Name in the solid model file. \n\
 ");
 
 static PyObject * 
@@ -109,7 +109,7 @@ Mesher_load_model(PyMeshingMesherClass* self, PyObject* args, PyObject* kwargs)
 
   // Read in the solid model file.
   if (mesher->LoadModel(fileName) == SV_ERROR) {
-      api.error("Error loading solid model from the file '" + std::string(fileName) + "'."); 
+      api.error("Error loading a solid model from the file '" + std::string(fileName) + "'."); 
       return nullptr;
   }
 
