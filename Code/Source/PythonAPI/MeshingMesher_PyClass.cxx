@@ -493,6 +493,7 @@ PyDoc_STRVAR(Mesher_write_mesh_doc,
 static PyObject * 
 Mesher_write_mesh(PyMeshingMesherClass* self, PyObject* args, PyObject* kwargs)
 {
+  std::cout << "[Mesher_write_mesh] ========== Mesher_write_mesh ==========" << std::endl;
   auto api = SvPyUtilApiFunction("s|i", PyRunTimeErr, __func__); 
   static char *keywords[] = {"file_name", NULL};
   char *fileName;
@@ -509,6 +510,7 @@ Mesher_write_mesh(PyMeshingMesherClass* self, PyObject* args, PyObject* kwargs)
       return nullptr;
   }
 
+  std::cout << "[Mesher_write_mesh] fileName: " << fileName << std::endl;
   // Write the mesh to a file.
   if (mesher->WriteMesh(fileName,smsver) == SV_ERROR) {
       api.error("Error writing the mesh to the file '" + std::string(fileName) + "'."); 

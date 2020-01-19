@@ -579,18 +579,23 @@ int TGenUtils_WriteVTU(char *filename,vtkUnstructuredGrid *UGrid)
 {
   vtkSmartPointer<vtkXMLUnstructuredGridWriter> writer = vtkSmartPointer<vtkXMLUnstructuredGridWriter>::New();
 
+  /* [TODO:DaveP] This is the original code, why?
   std::string fn = "out.vtu";
   writer->SetFileName(fn.c_str());
+  */
+  writer->SetFileName(filename);
+
 #if VTK_MAJOR_VERSION <= 5
   writer->SetInput(UGrid);
 #else
   writer->SetInputData(UGrid);
 #endif
 
-  writer->Write();
+  if (writer->Write() == 0) {
+      return SV_ERROR;
+  }
 
   return SV_OK;
-
 }
 
 // -----------------------------

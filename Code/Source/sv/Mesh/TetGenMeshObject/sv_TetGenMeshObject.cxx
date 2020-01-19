@@ -1630,20 +1630,26 @@ int cvTetGenMeshObject::GenerateMesh() {
   return SV_OK;
 }
 
-/**
- * @brief Function to convert mesh back into vtkPolyData
- * @return *result: SV_ERROR if the output mesh doesn't exist. SV_OK if
- * function returns properly.
- * @note This function actually doesn't write a mesh! it only converts back
- * to vtkPolyData from TetGen structures. If you want to have a volume or
- * surface mesh, or manipulate the mesh, this function must be called
- */
-
+//-----------
+// WriteMesh
+//-----------
+// Write the mesh to a VTK XML UnstructuredGrid format file.
+//
 int cvTetGenMeshObject::WriteMesh(char *filename, int smsver) {
 
-  // No action
+  // Mesh must be created first
+  if (volumemesh_ == NULL) {
+    return SV_ERROR;
+  }
 
-  return SV_OK;
+  // Check that the file can be written.
+  FILE *fp = fopen(filename, "w");
+  if (fp == NULL) {
+    return SV_ERROR;
+  }
+  fclose(fp);
+
+  return TGenUtils_WriteVTU(filename, volumemesh_);
 }
 
 int cvTetGenMeshObject::WriteStats(char *filename) {
