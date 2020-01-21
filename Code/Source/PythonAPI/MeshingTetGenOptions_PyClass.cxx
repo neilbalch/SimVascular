@@ -74,7 +74,7 @@
 // epsilon: not sure what range is valid 
 // global_edge_size: 
 // hausd: 
-// local_edge_size: {'region_id':int, 'size':double}
+// local_edge_size: {'face_id':int, 'edge_size':double}
 // mesh_wall_first: set option to true without value 
 // new_region_boundary_layer: set option to true without value 
 // no_bisect: set option to true without value 
@@ -157,11 +157,11 @@ namespace TetGenOption {
   // Parameter names for the 'local_edge_size' option.
   //
   std::string LocalEdgeSize_Type = "dictionary "; 
-  std::string LocalEdgeSize_Format = "{ 'region_id':int, 'size':double }";            
+  std::string LocalEdgeSize_Format = "{ 'face_id':int, 'edge_size':double }";            
   std::string LocalEdgeSize_Desc = LocalEdgeSize_Type + LocalEdgeSize_Format; 
   // Use char* for these because they are used in the Python C API functions.
-  char* LocalEdgeSize_RegionIDParam = "region_id";            
-  char* LocalEdgeSize_SizeParam = "size";            
+  char* LocalEdgeSize_FaceIDParam = "face_id";            
+  char* LocalEdgeSize_EdgeSizeParam = "edge_size";            
 
   // Create a map beteen Python and SV names. The SV names are needed when
   // setting mesh options.
@@ -198,6 +198,52 @@ namespace TetGenOption {
 //          U t i l i t y  F u n c t i o n s        //
 //////////////////////////////////////////////////////
 
+//---------------------------------------
+// PyTetGenOptionsGetLocalEdgeSizeValues
+//---------------------------------------
+// Get the parameter values for the LocalEdgeSize option. 
+//
+bool
+PyTetGenOptionsGetLocalEdgeSizeValues(PyObject* obj, int& regionID, double& edgeSize) 
+{
+  static std::string errorMsg = "The local_edge_size parameter must be a " + TetGenOption::LocalEdgeSize_Desc; 
+
+  // Check the LocalEdgeSize_RegionIDParam key.
+  //
+  PyObject* regionIDItem = PyDict_GetItemString(obj, TetGenOption::LocalEdgeSize_FaceIDParam);
+  if (regionIDItem == nullptr) {
+      PyErr_SetString(PyExc_ValueError, errorMsg.c_str());
+      return false;
+  }
+  regionID = PyLong_AsLong(regionIDItem);
+  if (PyErr_Occurred()) {
+      return false;
+  }
+  if (regionID <= 0) {
+      PyErr_SetString(PyExc_ValueError, "The region ID paramter must be > 0.");
+      return false;
+  }
+
+  // Check the LocalEdgeSize_SizeParam key.
+  //
+  PyObject* sizeItem = PyDict_GetItemString(obj, TetGenOption::LocalEdgeSize_EdgeSizeParam);
+  if (sizeItem == nullptr) {
+      PyErr_SetString(PyExc_ValueError, errorMsg.c_str());
+      return false;
+  }
+
+  edgeSize = PyFloat_AsDouble(sizeItem);
+  if (PyErr_Occurred()) {
+      return false;
+  }
+  if (edgeSize <= 0) {
+      PyErr_SetString(PyExc_ValueError, "The size parameter must be > 0.");
+      return false;
+  }
+
+  return true;
+}
+
 //--------------------------
 // PyTetGenOptionsGetValues
 //--------------------------
@@ -227,6 +273,12 @@ PyTetGenOptionsGetValues(PyObject* meshingOptions, std::string name)
           auto value = PyFloat_AsDouble(item);
           values.push_back(value);
       }
+  } else if (name == TetGenOption::LocalEdgeSize) {
+      int regionID;
+      double edgeSize;
+      PyTetGenOptionsGetLocalEdgeSizeValues(obj, regionID, edgeSize);
+      values.push_back((double)regionID);
+      values.push_back(edgeSize);
   }
 
   Py_DECREF(obj);
@@ -310,34 +362,34 @@ PyDoc_STRVAR(PyTetGenOptions_create_local_edge_size_parameter_doc,
   \n\
   Args:  \n\
     region_id (int): The ID of the region.  \n\
-    size (double): The size for the region.  \n\
+    size (double): The edge size for the face.  \n\
 ");
 
 static PyObject *
 PyTetGenOptions_create_local_edge_size_parameter(PyMeshingTetGenOptionsClass* self, PyObject* args, PyObject* kwargs)
 {
   auto api = SvPyUtilApiFunction("id", PyRunTimeErr, __func__);
-  static char *keywords[] = { TetGenOption::LocalEdgeSize_RegionIDParam, TetGenOption::LocalEdgeSize_SizeParam, NULL }; 
-  int regionID = 0;
-  double size = 0.0;
+  static char *keywords[] = { TetGenOption::LocalEdgeSize_FaceIDParam, TetGenOption::LocalEdgeSize_EdgeSizeParam, NULL }; 
+  int faceID = 0;
+  double edgeSize = 0.0;
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &regionID, &size)) {
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &faceID, &edgeSize)) {
       return api.argsError();
   }
 
-  if (size <= 0) {
-      api.error("The '" + std::string(TetGenOption::LocalEdgeSize_SizeParam) + "' must be > 0.");
+  if (edgeSize <= 0) {
+      api.error("The '" + std::string(TetGenOption::LocalEdgeSize_EdgeSizeParam) + "' must be > 0.");
       return nullptr;
   }
 
-  if (regionID <= 0) {
-      api.error("The '" + std::string(TetGenOption::LocalEdgeSize_RegionIDParam) + "' must be > 0.");
+  if (faceID <= 0) {
+      api.error("The '" + std::string(TetGenOption::LocalEdgeSize_FaceIDParam) + "' must be > 0.");
       return nullptr;
   }
 
   // Create and return parameter.
-  return Py_BuildValue("{s:i, s:d}", TetGenOption::LocalEdgeSize_RegionIDParam, regionID, 
-                                     TetGenOption::LocalEdgeSize_SizeParam, size);
+  return Py_BuildValue("{s:i, s:d}", TetGenOption::LocalEdgeSize_FaceIDParam, faceID, 
+                                     TetGenOption::LocalEdgeSize_EdgeSizeParam, edgeSize);
 }
 
 //----------------------------
@@ -389,6 +441,7 @@ PyTetGenOptions_get_values(PyMeshingTetGenOptionsClass* self, PyObject* args)
 //------------------------------
 // PyTetGenOptions_set_defaults
 //------------------------------
+// Set the default options parameter values.
 //
 static PyObject *
 PyTetGenOptions_set_defaults(PyMeshingTetGenOptionsClass* self)
@@ -431,7 +484,7 @@ static PyMethodDef PyTetGenOptionsMethods[] = {
   {NULL, NULL}
 };
 
-///////////////////////////////////////////////////////
+////////////////////////////////////////////////////////
 //          C l a s s    M e m b e r s                //
 ////////////////////////////////////////////////////////
 //
@@ -606,36 +659,11 @@ PyTetGenOptions_set_local_edge_size(PyMeshingTetGenOptionsClass* self, PyObject*
       return -1;
   }
 
-  // Check the LocalEdgeSize_RegionIDParam key.
+  // Check that the option is vaild. 
   //
-  PyObject* regionIDItem = PyDict_GetItemString(value, TetGenOption::LocalEdgeSize_RegionIDParam);
-  if (regionIDItem == nullptr) { 
-      PyErr_SetString(PyExc_ValueError, errorMsg.c_str()); 
-      return -1;
-  }
-  auto regionID = PyLong_AsLong(regionIDItem);
-  if (PyErr_Occurred()) {
-      return -1;
-  }
-  if (regionID <= 0) { 
-      PyErr_SetString(PyExc_ValueError, "The region ID paramter must be > 0.");
-      return -1;
-  }
-
-  // Check the LocalEdgeSize_SizeParam key.
-  //
-  PyObject* sizeItem = PyDict_GetItemString(value, TetGenOption::LocalEdgeSize_SizeParam);
-  if (sizeItem == nullptr) { 
-      PyErr_SetString(PyExc_ValueError, errorMsg.c_str()); 
-      return -1;
-  }
-
-  auto size = PyFloat_AsDouble(sizeItem);
-  if (PyErr_Occurred()) {
-      return -1;
-  }
-  if (size <= 0) { 
-      PyErr_SetString(PyExc_ValueError, "The size parameter must be > 0.");
+  int regionID;
+  double edgeSize;
+  if (!PyTetGenOptionsGetLocalEdgeSizeValues(value, regionID, edgeSize)) {
       return -1;
   }
 

@@ -159,6 +159,7 @@ class SV_EXPORT_TETGEN_MESH cvTetGenMeshObject : public cvMeshObject {
   int GetNodeCoords(int node);
   cvPolyData *GetPolyData();
   cvPolyData *GetSolid();
+  bool HasSolid();
   cvUnstructuredGrid *GetUnstructuredGrid();
   int GetModelFaceInfo(char rtnstr[99999]);
 

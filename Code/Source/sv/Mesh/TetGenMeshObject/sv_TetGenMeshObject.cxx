@@ -572,6 +572,21 @@ cvPolyData* cvTetGenMeshObject::GetSolid() {
 
 }
 
+//-----------
+// HasSolid
+//-----------
+// Check if the mesh has a solid model defined for it.
+//
+bool cvTetGenMeshObject::HasSolid() {
+
+  if (polydatasolid_ == NULL) {
+    return false;
+  }
+
+  return true;
+}
+
+
 // -----------------------
 // GetPolyData
 // -----------------------
@@ -1026,6 +1041,12 @@ int cvTetGenMeshObject::SetMeshOptions(char *flags,int numValues,double *values)
       fprintf(stderr,"Must give face id and local edge size\n");
       return SV_ERROR;
     }
+
+    if (polydatasolid_ == nullptr) {
+      fprintf(stderr,"A model is not defined for the mesh.\n");
+      return SV_ERROR;
+    }
+
     meshoptions_.functionbasedmeshing = 1;
     //Create a new mesh sizing function and call TGenUtils to compute function.
     //Store in the member data vtkDouble Array meshsizingfunction

@@ -42,6 +42,43 @@ typedef struct {
   PyMeshingMesherClass super;
 } PyMeshingTetGenClass;
 
+//////////////////////////////////////////////////////
+//          U t i l i t y  F u n c t i o n s        //
+//////////////////////////////////////////////////////
+
+//-------------------------------
+// MeshingTetGenCheckModelLoaded
+//-------------------------------
+// Check if the mesh has a solid model.
+//
+bool
+MeshingTetGenCheckModelLoaded(PyMeshingTetGenClass* self)
+{
+  auto mesher = self->super.mesher;
+  return mesher->HasSolid();
+}
+
+//--------------------------
+// MeshingTetGenCheckOption
+//--------------------------
+// Check if an option can be correctly set for the mesh. 
+//
+// The LocalEdgeSize option needs to have a model defined for the mesh.
+//
+bool
+MeshingTetGenCheckOption(PyMeshingTetGenClass* self, std::string& name, SvPyUtilApiFunction& api)
+{
+  // The LocalEdgeSize option needs to have the model set for the mesh.
+  if (name == TetGenOption::LocalEdgeSize) {
+      if (!MeshingTetGenCheckModelLoaded(self)) {
+          api.error("A model must be defined for the mesh. Use the 'load_model' method to define a model for the mesh.");
+          return false;
+      }
+  }
+
+  return true;
+}
+
 /////////////////////////////////////////////////////////////////
 //              C l a s s   F u n c t i o n s                  //
 /////////////////////////////////////////////////////////////////
@@ -104,6 +141,7 @@ MeshingTetGen_set_options(PyMeshingTetGenClass* self, PyObject* args )
   if (!PyArg_ParseTuple(args, api.format, &PyTetGenOptionsType, &options)) {
       return api.argsError();
   }
+
   auto mesher = self->super.mesher;
 
   for (auto const& entry : TetGenOption::pyToSvNameMap) {
@@ -114,6 +152,12 @@ MeshingTetGen_set_options(PyMeshingTetGenClass* self, PyObject* args )
       if (numValues == 0) { 
           continue;
       }
+
+      // Check if an option can be correctly set for the mesh. 
+      if (!MeshingTetGenCheckOption(self, pyName, api)) {
+          return nullptr;
+      }
+
       std::cout << "[MeshingTetGen_set_options] name: " << svName << "  num values: " << numValues << "  values: ";
       for (auto const val : values) {
           std::cout << val << " "; 

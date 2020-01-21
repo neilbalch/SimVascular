@@ -133,6 +133,7 @@ public:
   virtual int GetNodeCoords(int node) = 0;
   virtual cvPolyData *GetPolyData() = 0;
   virtual cvPolyData *GetSolid() = 0;
+  virtual bool HasSolid() = 0;
   virtual cvUnstructuredGrid *GetUnstructuredGrid() = 0;
   virtual int GetModelFaceInfo(char rtnstr[99999]) = 0;
 
