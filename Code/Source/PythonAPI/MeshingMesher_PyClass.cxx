@@ -77,6 +77,33 @@ CheckMesherLoadUpdate(cvMeshObject* mesher, std::string& msg)
 //
 // Python API functions for the Mesher class. 
 
+//--------------
+// Mesher_adapt
+//--------------
+//
+PyDoc_STRVAR(Mesher_adapt_doc,
+" adapt()  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+");
+
+static PyObject * 
+Mesher_adapt(PyMeshingMesherClass* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__); 
+  std::string emsg;
+
+  auto mesher = self->mesher;
+
+  if (mesher->Adapt() != SV_OK) {
+      api.error("Error performing adapt mesh operation."); 
+      return nullptr;
+  }
+
+  return SV_PYTHON_OK;
+}
+
 //-------------------------------------
 // Mesher_compute_model_boundary_faces 
 //-------------------------------------
@@ -271,6 +298,41 @@ Mesher_get_model_polydata(PyMeshingMesherClass* self, PyObject* args)
   return svPyUtilGetVtkObject(api, polydata); 
 }
 
+//------------------
+// Mesher_load_mesh
+//------------------
+//
+PyDoc_STRVAR(Mesher_load_mesh_doc,
+" load_mesh(file_name)  \n\ 
+  \n\
+  Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args:                                    \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject * 
+Mesher_load_mesh(PyMeshingMesherClass* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("s|s", PyRunTimeErr, __func__); 
+  char *fileName;
+  char *surfFileName = 0;
+
+  if (!PyArg_ParseTuple(args, api.format, &fileName, &surfFileName)) {
+    return api.argsError();
+  }
+
+  auto mesher = self->mesher; 
+
+  // Read in the mesh file.
+  if (mesher->LoadMesh(fileName, surfFileName) == SV_ERROR) {
+      api.error("Error reading in a mesh from the file '" + std::string(fileName) + "'."); 
+      return nullptr;
+  }
+
+  Py_RETURN_NONE; 
+}
+
 //-------------------
 // Mesher_load_model
 //-------------------
@@ -305,21 +367,19 @@ Mesher_load_model(PyMeshingMesherClass* self, PyObject* args, PyObject* kwargs)
   Py_RETURN_NONE; 
 }
 
-//----------------------
-// Mesher_get_polydata 
-//----------------------
+//--------------------
+// Mesher_get_surface 
+//--------------------
 
-PyDoc_STRVAR(Mesher_get_polydata_doc,
-" get_polydata()  \n\ 
+PyDoc_STRVAR(Mesher_get_surface_doc,
+" get_surface()  \n\ 
   \n\
-  Add the mesh meshObjectetry to the repository. \n\
+  Get the mesh surface as VTK polydata. \n\
   \n\
-  Args:                                    \n\
-    name (str): Name in the repository to store the meshObjectetry. \n\
 ");
 
 static PyObject * 
-Mesher_get_polydata(PyMeshingMesherClass* self, PyObject* args)
+Mesher_get_surface(PyMeshingMesherClass* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__); 
 
@@ -340,6 +400,55 @@ Mesher_get_polydata(PyMeshingMesherClass* self, PyObject* args)
   vtkSmartPointer<vtkPolyData> polydata = vtkSmartPointer<vtkPolyData>::New();
   polydata = cvPolydata->GetVtkPolyData();
   return svPyUtilGetVtkObject(api, polydata); 
+}
+
+//---------------------------
+// Mesher_set_boundary_layer
+//---------------------------
+
+PyDoc_STRVAR(Mesher_set_boundary_layer_options_doc,
+" set_boundary_layer(number_of_layers, constant_thickness, thickness_factor, layer_decreasing_ratio)  \n\ 
+  \n\
+  Set the options for boundary layer meshing. \n\
+  \n\
+  Args:                                    \n\
+    number_of_layers (int): The number of boundary layers to create. \n\
+    constant_thickness (bool): If True then the boundary layers will have a constant thickness. \n\
+    thickness_factor (float):  \n\
+    layer_decreasing_ratio (float):  \n\
+");
+
+static PyObject * 
+Mesher_set_boundary_layer_options(PyMeshingMesherClass* self, PyObject* args, PyObject* kwargs)
+{
+  auto api = SvPyUtilApiFunction("iO!dd", PyRunTimeErr, __func__); 
+  static char *keywords[] = {"number_of_layers", "constant_thickness", "thickness_factor", "layer_decreasing_ratio", NULL};
+  int numLayers;
+  int constant_thickness; 
+  double thickness_factor;
+  double layer_decreasing_ratio;
+
+  PyObject* layerRatioArg;
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &numLayers, &PyBool_Type, &constant_thickness, &thickness_factor, 
+        &layer_decreasing_ratio)) { 
+    return api.argsError();
+  }
+
+  // Set the options for boundary layer meshing.
+  //
+  // type, id and side are not used.
+  //
+  int type = 0;
+  int id = 0;
+  int side = 0;
+  double paramValues[3] = { thickness_factor, layer_decreasing_ratio, static_cast<double>(constant_thickness) };
+  if (self->mesher->SetBoundaryLayer(type, id, side, numLayers, paramValues) == SV_ERROR) {
+      api.error("Error setting boundary layer.");
+      return nullptr;
+  }
+
+  Py_RETURN_NONE; 
 }
 
 //----------------------------
@@ -694,43 +803,6 @@ Mesher_logging_off(PyObject* self, PyObject* args)
 
 
 
-//----------------
-// Mesher_load_mesh
-//----------------
-//
-PyDoc_STRVAR(Mesher_load_mesh_doc,
-" load_mesh(name)  \n\ 
-  \n\
-  Add the unstructured grid mesh to the repository. \n\
-  \n\
-  Args:                                    \n\
-    name (str): Name in the repository to store the unstructured grid. \n\
-");
-
-static PyObject * 
-Mesher_load_mesh(PyMeshingMesherClass* self, PyObject* args)
-{
-  auto api = SvPyUtilApiFunction("s|s", PyRunTimeErr, __func__); 
-  char *FileName;
-  char *SurfFileName = 0;
-
-  if (!PyArg_ParseTuple(args, api.format, &FileName, &SurfFileName)) {
-    return api.argsError();
-  }
-
-  auto meshObject = CheckMesher(api, self);
-  if (meshObject == nullptr) {
-      return nullptr;
-  }
-
-  // Read in the mesh file.
-  if (meshObject->LoadMesher(FileName,SurfFileName) == SV_ERROR) {
-      api.error("Error reading in a mesh from the file '" + std::string(FileName) + "'."); 
-      return nullptr;
-  }
-
-  return SV_PYTHON_OK;
-}
 
 PyDoc_STRVAR(Mesher_write_stats_doc,
 " write_stats(name)  \n\ 
@@ -766,37 +838,6 @@ Mesher_write_stats(PyMeshingMesherClass* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
-//------------
-// Mesher_adapt
-//------------
-//
-PyDoc_STRVAR(Mesher_adapt_doc,
-" adapt(name)  \n\ 
-  \n\
-  ??? Add the unstructured grid mesh to the repository. \n\
-  \n\
-  Args:                                    \n\
-    name (str): Name in the repository to store the unstructured grid. \n\
-");
-
-static PyObject * 
-Mesher_adapt(PyMeshingMesherClass* self, PyObject* args)
-{
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__); 
-  std::string emsg;
-  auto meshObject = self->meshObject;
-  if (!CheckMesherLoadUpdate(meshObject, emsg)) {
-      api.error(emsg);
-      return nullptr;
-  }
-
-  if (meshObject->Adapt() != SV_OK) {
-      api.error("Error performing adapt mesh operation."); 
-      return nullptr;
-  }
-
-  return SV_PYTHON_OK;
-}
 
 
 //-------------------
@@ -986,53 +1027,6 @@ Mesher_set_cylinder_refinement(PyMeshingMesherClass* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
-//-------------------------
-// Mesher_set_boundary_layer
-//-------------------------
-
-PyDoc_STRVAR(Mesher_set_boundary_layer_doc,
-" set_boundary_layer(name)  \n\ 
-  \n\
-  ??? Add the unstructured grid mesh to the repository. \n\
-  \n\
-  Args:                                    \n\
-    name (str): Name in the repository to store the unstructured grid. \n\
-");
-
-static PyObject * 
-Mesher_set_boundary_layer(PyMeshingMesherClass* self, PyObject* args)
-{
-  auto api = SvPyUtilApiFunction("iiiiO", PyRunTimeErr, __func__); 
-  int type = 0;
-  int id = 0;
-  int side = 0;
-  int nL = 0;
-  PyObject* Hlist;
-
-  if (!PyArg_ParseTuple(args, api.format, &type, &id, &side, &nL, &Hlist)) {
-    return api.argsError();
-  }
-
-  auto meshObject = CheckMesher(api, self);
-  if (meshObject == nullptr) {
-      return nullptr;
-  }
-
-  // Parse coordinate lists:
-  int numH = PyList_Size(Hlist);
-  auto H = new double [numH];
-  for (int i=0; i<numH;i++) {
-    H[i] = PyFloat_AsDouble(PyList_GetItem(Hlist,i));
-  }
-
-  if (meshObject->SetBoundaryLayer(type,id,side,nL,H) == SV_ERROR ) {
-      delete [] H;
-      api.error("Error setting boundary layer.");
-      return nullptr;
-  }
-
-  return SV_PYTHON_OK;
-}
 
 #endif // use_old_class_funcs
 
@@ -1055,6 +1049,9 @@ PyDoc_STRVAR(MesherClass_doc, "mesher class methods.");
 //
 static PyMethodDef PyMeshingMesherMethods[] = {
 
+  // [TODO:DaveP] Adapt crashes so don't expose it.
+  //{ "adapt",  (PyCFunction)Mesher_adapt, METH_VARARGS, Mesher_adapt_doc },
+
   { "compute_model_boundary_faces", (PyCFunction)Mesher_compute_model_boundary_faces, METH_VARARGS|METH_KEYWORDS, Mesher_compute_model_boundary_faces_doc},
 
   { "generate_mesh", (PyCFunction)Mesher_generate_mesh, METH_VARARGS|METH_KEYWORDS, Mesher_generate_mesh_doc},
@@ -1067,9 +1064,13 @@ static PyMethodDef PyMeshingMesherMethods[] = {
 
   { "get_model_polydata", (PyCFunction)Mesher_get_model_polydata, METH_VARARGS, Mesher_get_model_polydata_doc },
 
-  { "get_polydata", (PyCFunction)Mesher_get_polydata, METH_VARARGS, Mesher_get_polydata_doc },
+  { "get_surface", (PyCFunction)Mesher_get_surface, METH_VARARGS, Mesher_get_surface_doc },
+
+  { "load_mesh", (PyCFunction)Mesher_load_mesh, METH_VARARGS, Mesher_load_mesh_doc },
 
   { "load_model", (PyCFunction)Mesher_load_model, METH_VARARGS|METH_KEYWORDS, Mesher_load_model_doc },
+
+  { "set_boundary_layer_options", (PyCFunction)Mesher_set_boundary_layer_options, METH_VARARGS|METH_KEYWORDS, Mesher_set_boundary_layer_options_doc },
 
   { "set_meshing_options", (PyCFunction)Mesher_set_meshing_options, METH_VARARGS, Mesher_set_meshing_options_doc },
 
@@ -1083,13 +1084,7 @@ static PyMethodDef PyMeshingMesherMethods[] = {
 //================================================  o l d  c l a s s   f u n c t i o n s ================================
 
 #ifdef use_old_class_funcs
-  { "adapt",  (PyCFunction)Mesher_adapt, METH_VARARGS, Mesher_adapt_doc },
-
   { "get_kernel", (PyCFunction)Mesher_get_kernel, METH_VARARGS, Mesher_get_kernel_doc },
-
-  { "load_mesh", (PyCFunction)Mesher_load_mesh, METH_VARARGS, Mesher_load_mesh_doc },
-
-  { "set_boundary_layer", (PyCFunction)Mesher_set_boundary_layer, METH_VARARGS, NULL },
 
   { "set_cylinder_refinement", (PyCFunction)Mesher_set_cylinder_refinement, METH_VARARGS, Mesher_set_cylinder_refinement_doc },
 
