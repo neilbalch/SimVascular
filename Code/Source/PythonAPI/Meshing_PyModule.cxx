@@ -68,7 +68,7 @@
 // Exception type used by PyErr_SetString() to set the for the error indicator.
 static PyObject * PyRunTimeErr;
 
-// Include mesh Kernel class that defines a map between 
+// Include meshing Kernel class that defines a map between 
 // mesh kernel name and enum type.
 #include "MeshingKernel_PyClass.cxx"
 
@@ -78,11 +78,63 @@ static PyObject * PyRunTimeErr;
 // Include mesh.Mesher definition.
 #include "MeshingMesher_PyClass.cxx"
 
+// Include adaptive meshing Kernel class that defines a map between 
+// adaptive mesh kernel name and enum type.
+#include "MeshingAdaptKernel_PyClass.cxx"
+
+// Include the definition for the meshing.TetGenApaptiveOptions classes. 
+#include "MeshingTetGenAdaptOptions_PyClass.cxx"
+
+// Include mesh.Adaptive definition.
+#include "MeshingAdaptive_PyClass.cxx"
+
 //////////////////////////////////////////////////////
 //          M o d u l e  F u n c t i o n s          //
 //////////////////////////////////////////////////////
 //
 // Python API functions. 
+
+//-------------------------
+// PyMeshing_create_mesher 
+//-------------------------
+//
+PyDoc_STRVAR(PyMeshing_create_adaptive_mesher_doc,
+  "create_adaptive_mesher(kernel)  \n\ 
+   \n\
+   Create an adaptive mesh generator. \n\
+   \n\
+   Args: \n\
+     None \n\
+");
+
+static PyObject*
+PyMeshing_create_adaptive_mesher(PyTypeObject *type, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  char* kernelName = nullptr;
+
+  if (!PyArg_ParseTuple(args, api.format, &kernelName)) {
+      return api.argsError();
+  }
+
+  // Check the kernel name.
+  //
+  KernelType kernel;
+  try {
+      kernel = adaptKernelNameEnumMap.at(std::string(kernelName));
+  } catch (const std::out_of_range& except) {
+      auto msg = "Unknown adaptive kernel name '" + std::string(kernelName) + "'." +
+          " Valid names are: " + adaptKernelValidNames + ".";
+      api.error(msg);
+      return nullptr;
+  }
+
+  // Create an adaptive mesher for the given kernel.
+  auto mesher = PyAdaptCreateObject(kernel);
+  Py_INCREF(mesher);
+
+  return mesher;
+}
 
 //-------------------------
 // PyMeshing_create_mesher 
@@ -136,6 +188,8 @@ PyMeshing_create_mesher(PyTypeObject *type, PyObject* args)
 //
 static PyMethodDef PyMeshingModuleMethods[] =
 {
+  {"create_adaptive_mesher", (PyCFunction)PyMeshing_create_adaptive_mesher, METH_VARARGS, PyMeshing_create_adaptive_mesher_doc},
+
   {"create_mesher", (PyCFunction)PyMeshing_create_mesher, METH_VARARGS, PyMeshing_create_mesher_doc},
 /*
   {"logging_off", (PyCFunction)Mesh_logging_off, METH_NOARGS, Mesh_logging_off_doc },
@@ -197,6 +251,10 @@ PyInit_PyMeshing()
 {
   std::cout << "[PyInit_PyMeshing] ========== load meshing module ==========" << std::endl;
 
+  //--------------------------------
+  // Initialize Meshing Class Types 
+  //--------------------------------
+  //
   // Initialize the TetGenOptions class type.
   SetTetGenOptionsTypeFields(PyTetGenOptionsType);
   if (PyType_Ready(&PyTetGenOptionsType) < 0) {
@@ -225,7 +283,42 @@ PyInit_PyMeshing()
       return nullptr;
   }
 
-  // Create the 'meshing' module. 
+  //-----------------------------------------
+  // Initialize Adaptive Meshing Class Types 
+  //-----------------------------------------
+  //
+  // Initialize the TetGenAdaptiveOptions class type.
+  SetTetGenAdaptOptTypeFields(PyTetGenAdaptOptType);
+  if (PyType_Ready(&PyTetGenAdaptOptType) < 0) {
+    fprintf(stdout,"Error in PyTetGenAdaptClassType\n");
+    return SV_PYTHON_ERROR;
+  }
+
+  // Initialize the adaptive mesh generator class type.
+  SetAdaptTypeFields(PyMeshingAdaptiveClassType);
+  if (PyType_Ready(&PyMeshingAdaptiveClassType) < 0) {
+      std::cout << "Error creating Adaptive type" << std::endl;
+      return nullptr;
+  }
+
+  // Initialize the TetGen adaptive mesh generator class type.
+  SetTetGenAdaptTypeFields(PyTetGenAdaptClassType);
+  if (PyType_Ready(&PyTetGenAdaptClassType) < 0) {
+      std::cout << "Error creating Meshing TetGen adaptive type" << std::endl;
+      return nullptr;
+  }
+
+  // Initialize the adaptive meshing kernel class type.
+  SetMeshingAdaptiveKernelTypeFields(PyMeshingAdaptiveKernelClassType);
+  if (PyType_Ready(&PyMeshingAdaptiveKernelClassType) < 0) {
+      std::cout << "Error creating MeshingAdaptiveKernel type" << std::endl;
+      return nullptr;
+  }
+
+  //-----------------------------
+  // Create the 'meshing' module
+  //-----------------------------
+  //
   std::cout << "[PyInit_PyMeshing] Create the 'meshing' module. " << std::endl;
   auto module = PyModule_Create(&PyMeshingModule);
   if (module == NULL) {
@@ -233,16 +326,23 @@ PyInit_PyMeshing()
     return SV_PYTHON_ERROR;
   }
 
-  // Add meshing.MeshingException exception.
+  //----------------------------------------
+  // Add meshing.MeshingException exception
+  //----------------------------------------
+  //
   PyRunTimeErr = PyErr_NewException(MESHING_MODULE_EXCEPTION, NULL, NULL);
   PyModule_AddObject(module, MESHING_MODULE_EXCEPTION_OBJECT, PyRunTimeErr);
 
-  // Add the 'MeshingOptions' class.
+  //---------------------
+  // Add Meshing Classes 
+  //---------------------
+  //
+  // Add the 'meshing.TetGenOptions' class.
   Py_INCREF(&PyTetGenOptionsType);
   PyModule_AddObject(module, MESHING_TETGEN_OPTIONS_CLASS, (PyObject*)&PyTetGenOptionsType);
   SetTetGenOptionsClassTypes(PyTetGenOptionsType);
 
-  // Add the 'meshing.MeshingMesher' class.
+  // Add the 'meshing.Mesher' class.
   Py_INCREF(&PyMeshingMesherClassType);
   PyModule_AddObject(module, MESHING_MESHER_CLASS, (PyObject*)&PyMeshingMesherClassType);
 
@@ -256,6 +356,30 @@ PyInit_PyMeshing()
 
   // Set the kernel names in the MeshingKernelType dictionary.
   SetMeshingKernelClassTypes(PyMeshingKernelClassType);
+
+  //------------------------------
+  // Add Adaptive Meshing Classes 
+  //------------------------------
+  //
+  // Add the 'meshing.TetGenAdaptiveOptions' class.
+  Py_INCREF(&PyTetGenAdaptOptType);
+  PyModule_AddObject(module, MESHING_TETGEN_ADAPTIVE_OPTIONS_CLASS, (PyObject*)&PyTetGenAdaptOptType);
+  SetTetGenAdaptOptClassTypes(PyTetGenAdaptOptType);
+
+  // Add the 'meshing.Adaptive' class.
+  Py_INCREF(&PyMeshingAdaptiveClassType);
+  PyModule_AddObject(module, MESHING_ADAPTIVE_CLASS, (PyObject*)&PyMeshingAdaptiveClassType);
+
+  // Add the 'meshing.TetGenAdaptive' class.
+  Py_INCREF(&PyTetGenAdaptClassType);
+  PyModule_AddObject(module, MESHING_TETGEN_ADAPTIVE_CLASS, (PyObject*)&PyTetGenAdaptClassType);
+
+  // Add the 'mesh.AdaptiveKernel' class.
+  Py_INCREF(&PyMeshingAdaptiveKernelClassType);
+  PyModule_AddObject(module, MESHING_ADAPTIVE_KERNEL_CLASS, (PyObject*)&PyMeshingAdaptiveKernelClassType);
+
+  // Set the kernel names in the MeshingAdaptiveKernelType dictionary.
+  SetMeshingAdaptiveKernelClassTypes(PyMeshingAdaptiveKernelClassType);
 
   return module;
 }

@@ -31,7 +31,7 @@
 
 // The functions defined here implement the SV Python API meshing module TetGen mesh generator class. 
 //
-// The class name is 'MeshingTetGen'.
+// The class name is 'meshing.TetGen'.
 
 //----------------------
 // PyMeshingTetGenClass

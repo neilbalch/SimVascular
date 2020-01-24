@@ -69,6 +69,7 @@ target_link_libraries(${lib}
   ${OpenCASCADE_LIBRARIES}
   ${SV_LIB_MODULE_MODEL_OCCT_NAME}
   ${SV_LIB_TETGEN_MESH_NAME}
+  ${SV_LIB_TETGEN_ADAPTOR_NAME}
   org_sv_pythondatanodes
 )
 
