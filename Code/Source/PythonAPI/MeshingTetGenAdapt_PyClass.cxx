@@ -29,7 +29,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// The functions defined here implement the SV Python API TetGen adapt module. 
+// The functions defined here implement the SV Python API TetGen adapt class. 
 //
 // The class name is 'meshing.TetGenAdaptive'.
 
@@ -64,12 +64,6 @@ pyCreateTetGenAdapt()
 //
 // Python API functions for the PyMeshingTetGenAdaptClass class. 
 
-static PyObject *  
-TetGenAdapt_AvailableCmd(PyObject* self, PyObject* args)
-{
-  return Py_BuildValue("s","TetGen Adaption Available");
-}
-
 //------------------------------
 // MeshingTetGen_create_options
 //------------------------------
@@ -79,17 +73,74 @@ PyDoc_STRVAR(TetGenAdapt_create_options_doc,
   \n\
   Create a TetGenAdaptiveOptions object. \n\
   \n\
-  Args:                                    \n\
-    global_edge_size (float): The value used to set the global_edge_size parameter. \n\
-    surface_mesh_flag (int): The value used to set the surface_mesh_flag parameter. \n\
-    volume_mesh_flag (int): The value used to set the volume_mesh_flag parameter. \n\
-    mesh_wall_first (int): The value used to set the mesh_wall_first parameter. \n\
 ");
 
 static PyObject *
 TetGenAdapt_create_options(PyObject* self, PyObject* args, PyObject* kwargs )
 {
   return CreateTetGenAdaptOptType(args, kwargs);
+}
+
+//-------------------
+// Adapt_set_options
+//-------------------
+//
+PyDoc_STRVAR(TetGenAdapt_set_options_doc,
+  "set_options() \n\ 
+   \n\
+   Create a new mesh object. \n\
+   \n\
+   Args: \n\
+     name (str): Name of the new mesh object to store in the repository. \n\
+");
+
+static PyObject *
+TetGenAdapt_set_options(PyTetGenAdaptClass* self, PyObject* args)
+{
+  std::cout << "[TetGenAdapt_set_options] " << std::endl;
+  std::cout << "[TetGenAdapt_set_options] ========== TetGenAdapt_set_options =========" << std::endl;
+  auto api = SvPyUtilApiFunction("O!", PyRunTimeErr, __func__);
+  PyObject* options;
+
+  if (!PyArg_ParseTuple(args, api.format, &PyTetGenAdaptOptType, &options)) {
+      return api.argsError();
+  }
+
+  // Check if using multiple solver steps.
+  double value;
+  PyTetGenAdaptOptGetValue(options, TetGenAdaptOption::use_multiple_steps, value); 
+  bool useMultipleSteps;
+  if (value == 1.0) {
+      useMultipleSteps = true;
+  } else {
+      useMultipleSteps = false;
+  }
+
+  auto mesher = self->super.adaptive_mesher;
+
+  for (auto const& entry : TetGenAdaptOption::pyToSvNameMap) {
+      auto pyName = entry.first;
+      auto svName = entry.second;
+      double value; 
+      if (!PyTetGenAdaptOptGetValue(options, pyName, value)) { 
+          continue;
+      }
+      std::cout << "[TetGenAdapt_set_options] pyName: " << pyName << "  value: " << value << std::endl;
+
+      // If using a single simulation step then set 'end_step' with the value of the 
+      // 'step' option, SV uses the 'end_step' option for both the simulation end step
+      // and step, the Python API has both 'step' and 'end_step'.
+      if (!useMultipleSteps && (svName == TetGenAdaptOption::step)) {
+          svName = TetGenAdaptOption::pyToSvNameMap[TetGenAdaptOption::end_step];
+      }
+
+      if (mesher->SetAdaptOptions(svName, value) != SV_OK) {
+          api.error("Error setting TetGen adaptive meshing '" + std::string(pyName) + "' option.");
+          return nullptr;
+      }
+  }
+
+  Py_RETURN_NONE;
 }
 
 ////////////////////////////////////////////////////////
@@ -110,9 +161,9 @@ PyDoc_STRVAR(PyTetGenAdaptClass_doc, "TetGen adaptive mesh generator class metho
 //
 PyMethodDef PyTetGenAdaptMethods[] = {
 
-  {"Available", TetGenAdapt_AvailableCmd,METH_NOARGS,NULL},
-
   {"create_options", (PyCFunction)TetGenAdapt_create_options, METH_VARARGS|METH_KEYWORDS, TetGenAdapt_create_options_doc},
+
+  { "set_options", (PyCFunction)TetGenAdapt_set_options, METH_VARARGS, TetGenAdapt_set_options_doc},
 
   {NULL, NULL}
 };
@@ -198,7 +249,7 @@ SetTetGenAdaptTypeFields(PyTypeObject& mesherType)
   //.tp_new = PyType_GenericNew,
 
   // Subclass to PyMeshingMesherClassType.
-  mesherType.tp_base = &PyMeshingMesherClassType; 
+  mesherType.tp_base = &PyMeshingAdaptiveClassType; 
 
   mesherType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
   mesherType.tp_init = (initproc)PyTetGenAdaptInit;

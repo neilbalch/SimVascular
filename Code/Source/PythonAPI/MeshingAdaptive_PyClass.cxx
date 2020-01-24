@@ -30,50 +30,14 @@
  */
 
 // The functions defined here implement the SV Python API meshing module 
-// 'Adaptive' mesh generator class. The class used is a base classs for 
+// 'Adaptive' mesh generator class. The class is used as a base classs for 
 // adaptive mesh generators for TetGen and MeshSim. 
 //
-
 #include "sv_AdaptObject.h"
 
-/*
-#include "SimVascular.h"
-#include "SimVascular_python.h"
-
-#include <map>
-#include <stdio.h>
-#include <string.h>
-#include "sv_Repository.h"
-//#include "sv_adapt_init_py.h"
-#include "sv_arg.h"
-#include "sv_misc_utils.h"
-#include "sv_vtk_utils.h"
-#include "sv_PolyData.h"
-#include "sv_sys_geom.h"
-#include "vtkPythonUtil.h"
-#include "sv_PyUtils.h"
-
-#include "sv_FactoryRegistrar.h"
-
-#include "Python.h"
-// Needed for Windows
-#ifdef GetObject
-#undef GetObject
-#endif
-
-#include "sv2_globals.h"
-
-// Exception type used by PyErr_SetString() to set the for the error indicator.
-PyObject* PyRunTimeErr;
-
-// Include mesh Kernel class that defines a map between 
-// mesh kernel name and enum type.
-#include "AdaptiveMeshingKernel_PyClass.cxx"
-*/
-
-//---------------------
+//------------------------
 // PyMeshingAdaptiveClass 
-//---------------------
+//------------------------
 //
 typedef struct {
   PyObject_HEAD
@@ -109,6 +73,73 @@ CheckAdaptMesh(SvPyUtilApiFunction& api, PyMeshingAdaptiveClass* self)
 //
 // Python API functions for the Adaptive class. 
 
+//---------------------
+// Adapt_check_options
+//---------------------
+//
+PyDoc_STRVAR(Adapt_check_options_doc,
+  "check_options() \n\ 
+   \n\
+   Create a new mesh object. \n\
+   \n\
+   Args: \n\
+     name (str): Name of the new mesh object to store in the repository. \n\
+");
+
+static PyObject * 
+Adapt_check_options(PyMeshingAdaptiveClass* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+
+  if (self->adaptive_mesher->CheckOptions() == SV_OK) {
+      api.error("Error checking options.");
+      return nullptr;
+  }
+
+  return SV_PYTHON_OK;
+}
+
+//-------------------------
+// Adapt_set_adapt_options 
+//-------------------------
+//
+PyDoc_STRVAR(Adapt_set_adapt_options_doc,
+  "set_adapt_options() \n\ 
+   \n\
+   Create a new mesh object. \n\
+   \n\
+   Args: \n\
+     name (str): Name of the new mesh object to store in the repository. \n\
+");
+
+static PyObject * 
+Adapt_set_adapt_options(PyMeshingAdaptiveClass* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("sd", PyRunTimeErr, __func__);
+  char *flag = NULL;
+  double value=0;
+
+  if(!(PyArg_ParseTuple(args, api.format,&flag,&value))) {
+      return api.argsError();
+  }
+
+  auto adapt = CheckAdaptMesh(api, self);
+  if (adapt == nullptr) { 
+      return nullptr;
+  }
+
+  if (adapt->SetAdaptOptions(flag,value) != SV_OK) {
+      api.error("The options flag '"+ std::string(flag) + "' is not a valid."); 
+      return nullptr;
+  }
+
+  return SV_PYTHON_OK;
+}
+
+
+//====================================================================== old methods =============================================//
+#ifdef use_adapt_old_methods
+
 //------------------
 // Adapt_registrars
 //------------------
@@ -140,12 +171,12 @@ Adapt_registrars(PyObject* self, PyObject* args)
 }
 
 //--------------------
-// cvAdapt_new_object
+// Adapt_new_object
 //--------------------
 //
 // [TODO:DaveP] pass in meshing kernel name. 
 //
-PyDoc_STRVAR(cvAdapt_new_object_doc,
+PyDoc_STRVAR(Adapt_new_object_doc,
   " new_object()  \n\ 
   \n\
   ??? Add the unstructured grid mesh to the repository. \n\
@@ -153,7 +184,7 @@ PyDoc_STRVAR(cvAdapt_new_object_doc,
 ");
 
 static PyObject * 
-cvAdapt_new_object(PyMeshingAdaptiveClass* self, PyObject* args)
+Adapt_new_object(PyMeshingAdaptiveClass* self, PyObject* args)
 {
 /*
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
@@ -207,10 +238,10 @@ cvAdapt_new_object(PyMeshingAdaptiveClass* self, PyObject* args)
 }
 
 //-------------------------------------
-// cvAdapt_create_internal_mesh_object 
+// Adapt_create_internal_mesh_object 
 //-------------------------------------
 //
-PyDoc_STRVAR(cvAdapt_create_internal_mesh_object_doc,
+PyDoc_STRVAR(Adapt_create_internal_mesh_object_doc,
   " create_internal_mesh_object()  \n\ 
   \n\
   ??? Add the unstructured grid mesh to the repository. \n\
@@ -218,7 +249,7 @@ PyDoc_STRVAR(cvAdapt_create_internal_mesh_object_doc,
 ");
 
 static PyObject * 
-cvAdapt_create_internal_mesh_object(PyMeshingAdaptiveClass* self, PyObject* args)
+Adapt_create_internal_mesh_object(PyMeshingAdaptiveClass* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *meshFileName = NULL;
@@ -242,10 +273,10 @@ cvAdapt_create_internal_mesh_object(PyMeshingAdaptiveClass* self, PyObject* args
 }
 
 //--------------------
-// cvAdapt_load_model 
+// Adapt_load_model 
 //--------------------
 //
-PyDoc_STRVAR(cvAdapt_load_model_doc,
+PyDoc_STRVAR(Adapt_load_model_doc,
   "load_model() \n\ 
    \n\
    Create a new mesh object. \n\
@@ -255,7 +286,7 @@ PyDoc_STRVAR(cvAdapt_load_model_doc,
 ");
 
 static PyObject * 
-cvAdapt_load_model(PyMeshingAdaptiveClass* self, PyObject* args)
+Adapt_load_model(PyMeshingAdaptiveClass* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *solidFileName = NULL;
@@ -278,10 +309,10 @@ cvAdapt_load_model(PyMeshingAdaptiveClass* self, PyObject* args)
 }
 
 //-------------------
-// cvAdapt_load_mesh 
+// Adapt_load_mesh 
 //-------------------
 //
-PyDoc_STRVAR(cvAdapt_load_mesh_doc,
+PyDoc_STRVAR(Adapt_load_mesh_doc,
   "load_mesh() \n\ 
    \n\
    Create a new mesh object. \n\
@@ -291,7 +322,7 @@ PyDoc_STRVAR(cvAdapt_load_mesh_doc,
 ");
 
 static PyObject * 
-cvAdapt_load_mesh(PyMeshingAdaptiveClass* self, PyObject* args)
+Adapt_load_mesh(PyMeshingAdaptiveClass* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *meshFileName = NULL;
@@ -314,10 +345,10 @@ cvAdapt_load_mesh(PyMeshingAdaptiveClass* self, PyObject* args)
 }
 
 //---------------------------------
-// cvAdapt_load_solution_from_file 
+// Adapt_load_solution_from_file 
 //---------------------------------
 //
-PyDoc_STRVAR(cvAdapt_load_solution_from_file_doc,
+PyDoc_STRVAR(Adapt_load_solution_from_file_doc,
   "load_solution_from_file() \n\ 
    \n\
    Create a new mesh object. \n\
@@ -327,7 +358,7 @@ PyDoc_STRVAR(cvAdapt_load_solution_from_file_doc,
 ");
 
 static PyObject * 
-cvAdapt_load_solution_from_file(PyMeshingAdaptiveClass* self, PyObject* args)
+Adapt_load_solution_from_file(PyMeshingAdaptiveClass* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *fileName = NULL;
@@ -350,10 +381,10 @@ cvAdapt_load_solution_from_file(PyMeshingAdaptiveClass* self, PyObject* args)
 }
 
 //-----------------------------
-// cvAdapt_load_ybar_from_file 
+// Adapt_load_ybar_from_file 
 //-----------------------------
 //
-PyDoc_STRVAR(cvAdapt_load_ybar_from_file_doc,
+PyDoc_STRVAR(Adapt_load_ybar_from_file_doc,
   "load_ybar_from_file() \n\ 
    \n\
    Create a new mesh object. \n\
@@ -363,7 +394,7 @@ PyDoc_STRVAR(cvAdapt_load_ybar_from_file_doc,
 ");
 
 static PyObject * 
-cvAdapt_load_ybar_from_file(PyMeshingAdaptiveClass* self, PyObject* args)
+Adapt_load_ybar_from_file(PyMeshingAdaptiveClass* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *fileName = NULL;
@@ -389,7 +420,7 @@ cvAdapt_load_ybar_from_file(PyMeshingAdaptiveClass* self, PyObject* args)
 // load_avg_speed_from_file  
 //--------------------------
 //
-PyDoc_STRVAR(cvAdapt_load_avg_speed_from_file_doc,
+PyDoc_STRVAR(Adapt_load_avg_speed_from_file_doc,
   "load_avg_speed_from_file() \n\ 
    \n\
    Create a new mesh object. \n\
@@ -399,7 +430,7 @@ PyDoc_STRVAR(cvAdapt_load_avg_speed_from_file_doc,
 ");
 
 static PyObject * 
-cvAdapt_load_avg_speed_from_file(PyMeshingAdaptiveClass* self, PyObject* args)
+Adapt_load_avg_speed_from_file(PyMeshingAdaptiveClass* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *fileName = NULL;
@@ -422,10 +453,10 @@ cvAdapt_load_avg_speed_from_file(PyMeshingAdaptiveClass* self, PyObject* args)
 }
 
 //--------------------------------
-// cvAdapt_load_hessian_from_file 
+// Adapt_load_hessian_from_file 
 //--------------------------------
 //
-PyDoc_STRVAR(cvAdapt_load_hessian_from_file_doc,
+PyDoc_STRVAR(Adapt_load_hessian_from_file_doc,
   "load_hessian_from_file() \n\ 
    \n\
    Create a new mesh object. \n\
@@ -435,7 +466,7 @@ PyDoc_STRVAR(cvAdapt_load_hessian_from_file_doc,
 ");
 
 static PyObject * 
-cvAdapt_load_hessian_from_file(PyMeshingAdaptiveClass* self, PyObject* args)
+Adapt_load_hessian_from_file(PyMeshingAdaptiveClass* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *fileName = NULL;
@@ -458,10 +489,10 @@ cvAdapt_load_hessian_from_file(PyMeshingAdaptiveClass* self, PyObject* args)
 }
 
 //---------------------------------
-// cvAdapt_read_solution_from_mesh 
+// Adapt_read_solution_from_mesh 
 //---------------------------------
 //
-PyDoc_STRVAR(cvAdapt_read_solution_from_mesh_doc,
+PyDoc_STRVAR(Adapt_read_solution_from_mesh_doc,
   "read_solution_from_mesh() \n\ 
    \n\
    Create a new mesh object. \n\
@@ -471,7 +502,7 @@ PyDoc_STRVAR(cvAdapt_read_solution_from_mesh_doc,
 ");
 
 static PyObject * 
-cvAdapt_read_solution_from_mesh(PyMeshingAdaptiveClass* self, PyObject* args)
+Adapt_read_solution_from_mesh(PyMeshingAdaptiveClass* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
   auto adapt = CheckAdaptMesh(api, self);
@@ -488,10 +519,10 @@ cvAdapt_read_solution_from_mesh(PyMeshingAdaptiveClass* self, PyObject* args)
 }
 
 //-----------------------------
-// cvAdapt_read_ybar_from_mesh 
+// Adapt_read_ybar_from_mesh 
 //-----------------------------
 //
-PyDoc_STRVAR(cvAdapt_read_ybar_from_mesh_doc,
+PyDoc_STRVAR(Adapt_read_ybar_from_mesh_doc,
   "read_ybar_from_mesh() \n\ 
    \n\
    Create a new mesh object. \n\
@@ -501,7 +532,7 @@ PyDoc_STRVAR(cvAdapt_read_ybar_from_mesh_doc,
 ");
 
 static PyObject * 
-cvAdapt_read_ybar_from_mesh(PyMeshingAdaptiveClass* self, PyObject* args)
+Adapt_read_ybar_from_mesh(PyMeshingAdaptiveClass* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
   auto adapt = CheckAdaptMesh(api, self);
@@ -518,10 +549,10 @@ cvAdapt_read_ybar_from_mesh(PyMeshingAdaptiveClass* self, PyObject* args)
 }
 
 //----------------------------------
-// cvAdapt_read_avg_speed_from_mesh 
+// Adapt_read_avg_speed_from_mesh 
 //----------------------------------
 //
-PyDoc_STRVAR(cvAdapt_read_avg_speed_from_mesh_doc,
+PyDoc_STRVAR(Adapt_read_avg_speed_from_mesh_doc,
   "read_avg_speed_from_mesh() \n\ 
    \n\
    Create a new mesh object. \n\
@@ -531,7 +562,7 @@ PyDoc_STRVAR(cvAdapt_read_avg_speed_from_mesh_doc,
 ");
 
 static PyObject * 
-cvAdapt_read_avg_speed_from_mesh(PyMeshingAdaptiveClass* self, PyObject* args)
+Adapt_read_avg_speed_from_mesh(PyMeshingAdaptiveClass* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
   auto adapt = CheckAdaptMesh(api, self);
@@ -547,78 +578,13 @@ cvAdapt_read_avg_speed_from_mesh(PyMeshingAdaptiveClass* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
-//---------------------------
-// cvAdapt_set_adapt_options 
-//---------------------------
-//
-PyDoc_STRVAR(cvAdapt_set_adapt_options_doc,
-  "set_adapt_options() \n\ 
-   \n\
-   Create a new mesh object. \n\
-   \n\
-   Args: \n\
-     name (str): Name of the new mesh object to store in the repository. \n\
-");
 
-static PyObject * 
-cvAdapt_set_adapt_options(PyMeshingAdaptiveClass* self, PyObject* args)
-{
-  auto api = SvPyUtilApiFunction("sd", PyRunTimeErr, __func__);
-  char *flag = NULL;
-  double value=0;
-
-  if(!(PyArg_ParseTuple(args, api.format,&flag,&value))) {
-      return api.argsError();
-  }
-
-  auto adapt = CheckAdaptMesh(api, self);
-  if (adapt == nullptr) { 
-      return nullptr;
-  }
-
-  if (adapt->SetAdaptOptions(flag,value) != SV_OK) {
-      api.error("The options flag '"+ std::string(flag) + "' is not a valid."); 
-      return nullptr;
-  }
-
-  return SV_PYTHON_OK;
-}
-
-//-----------------------
-// cvAdapt_check_options
-//-----------------------
-//
-PyDoc_STRVAR(cvAdapt_check_options_doc,
-  "check_options() \n\ 
-   \n\
-   Create a new mesh object. \n\
-   \n\
-   Args: \n\
-     name (str): Name of the new mesh object to store in the repository. \n\
-");
-
-static PyObject * 
-cvAdapt_check_options(PyMeshingAdaptiveClass* self, PyObject* args)
-{
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
-  auto adapt = CheckAdaptMesh(api, self);
-  if (adapt == nullptr) { 
-      return nullptr;
-  }
-
-  if (adapt->CheckOptions() == SV_OK) {
-      api.error("Error checking options.");
-      return nullptr;
-  }
-
-  return SV_PYTHON_OK;
-}
 
 //--------------------
-// cvAdapt_set_metric 
+// Adapt_set_metric 
 //--------------------
 //
-PyDoc_STRVAR(cvAdapt_set_metric_doc,
+PyDoc_STRVAR(Adapt_set_metric_doc,
   "set_metric() \n\ 
    \n\
    Create a new mesh object. \n\
@@ -628,7 +594,7 @@ PyDoc_STRVAR(cvAdapt_set_metric_doc,
 ");
 
 static PyObject * 
-cvAdapt_set_metric(PyMeshingAdaptiveClass* self, PyObject* args)
+Adapt_set_metric(PyMeshingAdaptiveClass* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("s|ii", PyRunTimeErr, __func__);
   char *fileName = NULL;
@@ -653,10 +619,10 @@ cvAdapt_set_metric(PyMeshingAdaptiveClass* self, PyObject* args)
 }
 
 //--------------------
-// cvAdapt_setup_mesh 
+// Adapt_setup_mesh 
 //--------------------
 //
-PyDoc_STRVAR(cvAdapt_setup_mesh_doc,
+PyDoc_STRVAR(Adapt_setup_mesh_doc,
   "setup_mesh() \n\ 
    \n\
    Create a new mesh object. \n\
@@ -666,7 +632,7 @@ PyDoc_STRVAR(cvAdapt_setup_mesh_doc,
 ");
 
 static PyObject * 
-cvAdapt_setup_mesh(PyMeshingAdaptiveClass* self, PyObject* args)
+Adapt_setup_mesh(PyMeshingAdaptiveClass* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
 
@@ -684,10 +650,10 @@ cvAdapt_setup_mesh(PyMeshingAdaptiveClass* self, PyObject* args)
 }
 
 //---------------------
-// cvAdapt_run_adaptor 
+// Adapt_run_adaptor 
 //---------------------
 //
-PyDoc_STRVAR(cvAdapt_run_adaptor_doc,
+PyDoc_STRVAR(Adapt_run_adaptor_doc,
   "run_adaptor() \n\ 
    \n\
    Create a new mesh object. \n\
@@ -697,7 +663,7 @@ PyDoc_STRVAR(cvAdapt_run_adaptor_doc,
 ");
 
 static PyObject * 
-cvAdapt_run_adaptor(PyMeshingAdaptiveClass* self, PyObject* args)
+Adapt_run_adaptor(PyMeshingAdaptiveClass* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
 
@@ -715,10 +681,10 @@ cvAdapt_run_adaptor(PyMeshingAdaptiveClass* self, PyObject* args)
 }
 
 //--------------------------
-// cvAdapt_print_statistics 
+// Adapt_print_statistics 
 //--------------------------
 //
-PyDoc_STRVAR(cvAdapt_print_statistics_doc,
+PyDoc_STRVAR(Adapt_print_statistics_doc,
   "print_statistics() \n\ 
    \n\
    Create a new mesh object. \n\
@@ -728,7 +694,7 @@ PyDoc_STRVAR(cvAdapt_print_statistics_doc,
 ");
 
 static PyObject * 
-cvAdapt_print_statistics(PyMeshingAdaptiveClass* self, PyObject* args)
+Adapt_print_statistics(PyMeshingAdaptiveClass* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
 
@@ -746,10 +712,10 @@ cvAdapt_print_statistics(PyMeshingAdaptiveClass* self, PyObject* args)
 }
 
 //--------------------------
-// cvAdapt_get_adapted_mesh 
+// Adapt_get_adapted_mesh 
 //--------------------------
 //
-PyDoc_STRVAR(cvAdapt_get_adapted_mesh_doc,
+PyDoc_STRVAR(Adapt_get_adapted_mesh_doc,
   "get_adapted_mesh() \n\ 
    \n\
    Create a new mesh object. \n\
@@ -759,7 +725,7 @@ PyDoc_STRVAR(cvAdapt_get_adapted_mesh_doc,
 ");
 
 static PyObject * 
-cvAdapt_get_adapted_mesh(PyMeshingAdaptiveClass* self, PyObject* args)
+Adapt_get_adapted_mesh(PyMeshingAdaptiveClass* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
 
@@ -777,10 +743,10 @@ cvAdapt_get_adapted_mesh(PyMeshingAdaptiveClass* self, PyObject* args)
 }
 
 //---------------------------
-// cvAdapt_transfer_solution 
+// Adapt_transfer_solution 
 //---------------------------
 //
-PyDoc_STRVAR(cvAdapt_transfer_solution_doc,
+PyDoc_STRVAR(Adapt_transfer_solution_doc,
   "transfer_solution() \n\ 
    \n\
    Create a new mesh object. \n\
@@ -790,7 +756,7 @@ PyDoc_STRVAR(cvAdapt_transfer_solution_doc,
 ");
 
 static PyObject * 
-cvAdapt_transfer_solution(PyMeshingAdaptiveClass* self, PyObject* args)
+Adapt_transfer_solution(PyMeshingAdaptiveClass* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
 
@@ -808,10 +774,10 @@ cvAdapt_transfer_solution(PyMeshingAdaptiveClass* self, PyObject* args)
 }
 
 //--------------------------
-// cvAdapt_transfer_regions 
+// Adapt_transfer_regions 
 //--------------------------
 //
-PyDoc_STRVAR(cvAdapt_transfer_regions_doc,
+PyDoc_STRVAR(Adapt_transfer_regions_doc,
   "transfer_regions() \n\ 
    \n\
    Create a new mesh object. \n\
@@ -821,7 +787,7 @@ PyDoc_STRVAR(cvAdapt_transfer_regions_doc,
 ");
 
 static PyObject * 
-cvAdapt_transfer_regions(PyMeshingAdaptiveClass* self, PyObject* args)
+Adapt_transfer_regions(PyMeshingAdaptiveClass* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
 
@@ -839,10 +805,10 @@ cvAdapt_transfer_regions(PyMeshingAdaptiveClass* self, PyObject* args)
 }
 
 //-----------------------------
-// cvAdapt_write_adapted_model 
+// Adapt_write_adapted_model 
 //-----------------------------
 //
-PyDoc_STRVAR(cvAdapt_write_adapted_model_doc,
+PyDoc_STRVAR(Adapt_write_adapted_model_doc,
   "_write_adapted_model() \n\ 
    \n\
    Create a new mesh object. \n\
@@ -852,7 +818,7 @@ PyDoc_STRVAR(cvAdapt_write_adapted_model_doc,
 ");
 
 static PyObject * 
-cvAdapt_write_adapted_model(PyMeshingAdaptiveClass* self, PyObject* args)
+Adapt_write_adapted_model(PyMeshingAdaptiveClass* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *fileName = NULL;
@@ -875,10 +841,10 @@ cvAdapt_write_adapted_model(PyMeshingAdaptiveClass* self, PyObject* args)
 }
 
 //----------------------------
-// cvAdapt_write_adapted_mesh 
+// Adapt_write_adapted_mesh 
 //----------------------------
 //
-PyDoc_STRVAR(cvAdapt_write_adapted_mesh_doc,
+PyDoc_STRVAR(Adapt_write_adapted_mesh_doc,
   "write_adapted_mesh() \n\ 
    \n\
    Create a new mesh object. \n\
@@ -888,7 +854,7 @@ PyDoc_STRVAR(cvAdapt_write_adapted_mesh_doc,
 ");
 
 static PyObject * 
-cvAdapt_write_adapted_mesh(PyMeshingAdaptiveClass* self, PyObject* args)
+Adapt_write_adapted_mesh(PyMeshingAdaptiveClass* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *fileName = NULL;
@@ -911,10 +877,10 @@ cvAdapt_write_adapted_mesh(PyMeshingAdaptiveClass* self, PyObject* args)
 }
 
 //--------------------------------
-// cvAdapt_write_adapted_solution 
+// Adapt_write_adapted_solution 
 //--------------------------------
 //
-PyDoc_STRVAR(cvAdapt_write_adapted_solution_doc,
+PyDoc_STRVAR(Adapt_write_adapted_solution_doc,
   "write_adapted_solution() \n\ 
    \n\
    Create a new mesh object. \n\
@@ -924,7 +890,7 @@ PyDoc_STRVAR(cvAdapt_write_adapted_solution_doc,
 ");
 
 static PyObject * 
-cvAdapt_write_adapted_solution(PyMeshingAdaptiveClass* self, PyObject* args)
+Adapt_write_adapted_solution(PyMeshingAdaptiveClass* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *fileName = NULL;
@@ -946,6 +912,8 @@ cvAdapt_write_adapted_solution(PyMeshingAdaptiveClass* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
+#endif  // ifdef use_adapt_old_methods
+
 ////////////////////////////////////////////////////////
 //           C l a s s    D e f i n i t i o n         //
 ////////////////////////////////////////////////////////
@@ -956,71 +924,75 @@ static char* MESHING_ADAPTIVE_CLASS = "Adaptive";
 // the name of the type within the module.
 static char* MESHING_ADAPTIVE_MODULE_CLASS = "meshing.Adaptive";
 
-PyDoc_STRVAR(AdaptiveClass_doc, "adaptive class methods.");
+PyDoc_STRVAR(AdaptiveClass_doc, "Adaptive meshing methods.");
 
-//----------------------------
+//-------------------------------
 // PyMeshingAdaptiveClassMethods 
-//----------------------------
+//-------------------------------
 //
 static PyMethodDef PyMeshingAdaptMethods[] = {
 
-/* ================= old methods ============================================
+  { "check_options", (PyCFunction)Adapt_check_options, METH_VARARGS, Adapt_check_options_doc},
 
-  { "check_options", (PyCFunction)cvAdapt_check_options,METH_VARARGS,cvAdapt_check_options_doc},
+  // [DaveP] Set options for each adapt object ?
+  // { "set_options", (PyCFunction)Adapt_set_adapt_options, METH_VARARGS, Adapt_set_adapt_options_doc},
 
-  { "create_internal_mesh_object", (PyCFunction)cvAdapt_create_internal_mesh_object, METH_VARARGS, cvAdapt_create_internal_mesh_object_doc},
 
-  { "get_adapted_mesh", (PyCFunction)cvAdapt_get_adapted_mesh,METH_VARARGS,cvAdapt_get_adapted_mesh_doc},
+// ================= old methods ============================================
 
-  { "load_avg_speed_from_file", (PyCFunction)cvAdapt_load_avg_speed_from_file,METH_VARARGS,cvAdapt_load_avg_speed_from_file_doc},
+#ifdef use_adapt_old_methods
 
-  { "load_hessian_from_file", (PyCFunction)cvAdapt_load_hessian_from_file,METH_VARARGS,cvAdapt_load_hessian_from_file_doc},
+  { "create_internal_mesh_object", (PyCFunction)Adapt_create_internal_mesh_object, METH_VARARGS, Adapt_create_internal_mesh_object_doc},
 
-  { "load_model", (PyCFunction)cvAdapt_load_model,METH_VARARGS,cvAdapt_load_model_doc},
+  { "get_adapted_mesh", (PyCFunction)Adapt_get_adapted_mesh,METH_VARARGS,Adapt_get_adapted_mesh_doc},
 
-  { "load_mesh", (PyCFunction)cvAdapt_load_mesh, METH_VARARGS, cvAdapt_load_mesh_doc},
+  { "load_avg_speed_from_file", (PyCFunction)Adapt_load_avg_speed_from_file,METH_VARARGS,Adapt_load_avg_speed_from_file_doc},
 
-  { "load_solution_from_file", (PyCFunction)cvAdapt_load_solution_from_file, METH_VARARGS, cvAdapt_load_solution_from_file_doc},
+  { "load_hessian_from_file", (PyCFunction)Adapt_load_hessian_from_file,METH_VARARGS,Adapt_load_hessian_from_file_doc},
 
-  { "load_ybar_from_file", (PyCFunction)cvAdapt_load_ybar_from_file,METH_VARARGS,cvAdapt_load_ybar_from_file_doc},
+  { "load_model", (PyCFunction)Adapt_load_model,METH_VARARGS,Adapt_load_model_doc},
 
-  {"new_object", (PyCFunction)cvAdapt_new_object, METH_VARARGS, cvAdapt_new_object_doc},
+  { "load_mesh", (PyCFunction)Adapt_load_mesh, METH_VARARGS, Adapt_load_mesh_doc},
 
-  { "print_statistics", (PyCFunction)cvAdapt_print_statistics,METH_VARARGS,cvAdapt_print_statistics_doc},
+  { "load_solution_from_file", (PyCFunction)Adapt_load_solution_from_file, METH_VARARGS, Adapt_load_solution_from_file_doc},
 
-  { "read_solution_from_mesh", (PyCFunction)cvAdapt_read_solution_from_mesh,METH_VARARGS,cvAdapt_read_solution_from_mesh_doc},
+  { "load_ybar_from_file", (PyCFunction)Adapt_load_ybar_from_file,METH_VARARGS,Adapt_load_ybar_from_file_doc},
 
-  { "read_ybar_from_mesh", (PyCFunction)cvAdapt_read_ybar_from_mesh,METH_VARARGS,cvAdapt_read_ybar_from_mesh_doc},
+  {"new_object", (PyCFunction)Adapt_new_object, METH_VARARGS, Adapt_new_object_doc},
 
-  { "read_avg_speed_from_mesh", (PyCFunction)cvAdapt_read_avg_speed_from_mesh,METH_VARARGS,cvAdapt_read_avg_speed_from_mesh_doc},
+  { "print_statistics", (PyCFunction)Adapt_print_statistics,METH_VARARGS,Adapt_print_statistics_doc},
 
-  { "run_adaptor", (PyCFunction)cvAdapt_run_adaptor,METH_VARARGS,cvAdapt_run_adaptor_doc},
+  { "read_solution_from_mesh", (PyCFunction)Adapt_read_solution_from_mesh,METH_VARARGS,Adapt_read_solution_from_mesh_doc},
 
-  { "set_adapt_options", (PyCFunction)cvAdapt_set_adapt_options,METH_VARARGS,cvAdapt_set_adapt_options_doc},
+  { "read_ybar_from_mesh", (PyCFunction)Adapt_read_ybar_from_mesh,METH_VARARGS,Adapt_read_ybar_from_mesh_doc},
 
-  { "set_metric", (PyCFunction)cvAdapt_set_metric,METH_VARARGS,cvAdapt_set_metric_doc},
+  { "read_avg_speed_from_mesh", (PyCFunction)Adapt_read_avg_speed_from_mesh,METH_VARARGS,Adapt_read_avg_speed_from_mesh_doc},
 
-  { "setup_mesh", (PyCFunction)cvAdapt_setup_mesh,METH_VARARGS,cvAdapt_setup_mesh_doc},
+  { "run_adaptor", (PyCFunction)Adapt_run_adaptor,METH_VARARGS,Adapt_run_adaptor_doc},
 
-  { "transfer_solution", (PyCFunction)cvAdapt_transfer_solution,METH_VARARGS,cvAdapt_transfer_solution_doc},
+  { "set_metric", (PyCFunction)Adapt_set_metric,METH_VARARGS,Adapt_set_metric_doc},
 
-  { "transfer_regions", (PyCFunction)cvAdapt_transfer_regions,METH_VARARGS,cvAdapt_transfer_regions_doc},
+  { "setup_mesh", (PyCFunction)Adapt_setup_mesh,METH_VARARGS,Adapt_setup_mesh_doc},
 
-  { "write_adapted_model", (PyCFunction)cvAdapt_write_adapted_model,METH_VARARGS,cvAdapt_write_adapted_model_doc},
+  { "transfer_solution", (PyCFunction)Adapt_transfer_solution,METH_VARARGS,Adapt_transfer_solution_doc},
 
-  { "write_adapted_mesh", (PyCFunction)cvAdapt_write_adapted_mesh,METH_VARARGS,cvAdapt_write_adapted_mesh_doc},
+  { "transfer_regions", (PyCFunction)Adapt_transfer_regions,METH_VARARGS,Adapt_transfer_regions_doc},
 
-  { "write_adapted_solution", (PyCFunction)cvAdapt_write_adapted_solution,METH_VARARGS,cvAdapt_write_adapted_solution_doc},
+  { "write_adapted_model", (PyCFunction)Adapt_write_adapted_model,METH_VARARGS,Adapt_write_adapted_model_doc},
 
-*/
+  { "write_adapted_mesh", (PyCFunction)Adapt_write_adapted_mesh,METH_VARARGS,Adapt_write_adapted_mesh_doc},
+
+  { "write_adapted_solution", (PyCFunction)Adapt_write_adapted_solution,METH_VARARGS,Adapt_write_adapted_solution_doc},
+
+#endif 
 
   {NULL, NULL}
 
 };
 
-//-------------------------
+//----------------------------
 // PyMeshingAdaptiveClassType 
-//-------------------------
+//----------------------------
 // This is the definition of the Python Adaptive class.
 //
 // The type object stores a large number of values, mostly C function pointers, 
@@ -1035,9 +1007,9 @@ static PyTypeObject PyMeshingAdaptiveClassType = {
 // Include derived mesh generator classes.
 #include "MeshingTetGenAdapt_PyClass.cxx"
 
-//-----------------
+//----------------
 // PyAdaptCtorMap
-//-----------------
+//----------------
 // Define a factory for creating Python Adaptive derived objects.
 //
 // An entry for KERNEL_MESHSIM is added later in PyAPI_InitMeshSim() 

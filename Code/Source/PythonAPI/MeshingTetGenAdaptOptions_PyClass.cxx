@@ -81,6 +81,9 @@
 //
 // strategy: meshing strategy. values=isotropic. should be named 'method' ?
 //
+// SV uses the 'end_step' option for both the simulation end step and step. The Python API 
+// has both a 'step' and a 'end_step' option.
+//
 typedef struct {
   PyObject_HEAD
   // These options map directly to sv options.
@@ -146,7 +149,7 @@ namespace TetGenAdaptOption {
       //{std::string(sphere), "sphere"},                      
       {std::string(start_step), "instep"},                      
       {std::string(step_increment), "step_incr"},                      
-      {std::string(use_isotropic_meshing), "use_isotropic_meshing"}                      
+      //{std::string(use_isotropic_meshing), "use_isotropic_meshing"}                      
    };
 
 };
@@ -156,38 +159,32 @@ namespace TetGenAdaptOption {
 //////////////////////////////////////////////////////
 
 //--------------------------
-// PyTetGenAdaptOptGetValues
+// PyTetGenAdaptOptGetValue
 //--------------------------
 // Get attribute values from the MeshingOptions object.
 //
-// Return a vector of doubles to mimic how SV processes options.
-//
-static std::vector<double> 
-PyTetGenAdaptOptGetValues(PyObject* meshingOptions, std::string name)
+static bool 
+PyTetGenAdaptOptGetValue(PyObject* meshingOptions, std::string name, double& value)
 {
-  std::vector<double> values;
+  //std::cout << "[PyTetGenAdaptOptGetValues] " << std::endl;
+  //std::cout << "[PyTetGenAdaptOptGetValues] ---- PyTetGenAdaptOptGetValues ---- " << std::endl;
   auto obj = PyObject_GetAttrString(meshingOptions, name.c_str());
   if (obj == Py_None) {
-      return values;
+      return false;
   } 
+  if (obj == nullptr) {
+      std::cout << "[PyTetGenAdaptOptGetValues] Error: option name '" << name << "' not defined." << std::endl;
+      return false;
+  }
 
   if (PyFloat_Check(obj)) {
-      auto value = PyFloat_AsDouble(obj);
-      values.push_back(value);
+      value = PyFloat_AsDouble(obj);
   } else if (PyInt_Check(obj)) {
-      auto value = PyLong_AsDouble(obj);
-      values.push_back(value);
-  } else if (PyTuple_Check(obj)) {
-      int num = PyTuple_Size(obj);
-      for (int i = 0; i < num; i++) {
-          auto item = PyTuple_GetItem(obj, i);
-          auto value = PyFloat_AsDouble(item);
-          values.push_back(value);
-      }
+      value = PyLong_AsDouble(obj);
   }
 
   Py_DECREF(obj);
-  return values;
+  return true;
 }
 
 ////////////////////////////////////////////////////////
@@ -249,9 +246,9 @@ PyTetGenAdaptOpt_set_defaults(PyMeshingTetGenAdaptOptClass* self)
   Py_RETURN_NONE;
 }
 
-//------------------------
+//-------------------------
 // PyTetGenAdaptOptMethods 
-//------------------------
+//-------------------------
 //
 static PyMethodDef PyTetGenAdaptOptMethods[] = {
   //{"create_sphere_parameter", (PyCFunction)PyTetGenAdaptOpt_create_sphere_parameter, METH_VARARGS|METH_KEYWORDS, PyTetGenAdaptOpt_create_sphere_parameter_doc},
@@ -267,6 +264,10 @@ static PyMethodDef PyTetGenAdaptOptMethods[] = {
 //
 // The attributes can be set/get directly in from the MeshingOptions object.
 //
+PyDoc_STRVAR(end_step_doc, 
+" Simulation end step (int). The last simulation step. \n\
+");
+
 PyDoc_STRVAR(error_reduction_factor_doc, 
 " Error reduction factor (float). The value multiplied by the average interpolation error in order to get a target uniform \n\
   local error distribution. This should be a value between zero and one. A smaller factor will attempt to achieve a \n\
@@ -290,13 +291,19 @@ PyDoc_STRVAR(use_isotropic_meshing_doc,
 PyDoc_STRVAR(use_multiple_steps_doc, "If True then use multiple simlation steps.");
 
 static PyMemberDef PyTetGenAdaptOptMembers[] = {
-    {TetGenAdaptOption::error_reduction_factor, T_DOUBLE, offsetof(PyMeshingTetGenAdaptOptClass, error_reduction_factor), 0, error_reduction_factor_doc},
+
+    {TetGenAdaptOption::end_step, T_INT, offsetof(PyMeshingTetGenAdaptOptClass, end_step), 0, end_step_doc},
+
     {TetGenAdaptOption::max_edge_size, T_DOUBLE, offsetof(PyMeshingTetGenAdaptOptClass, max_edge_size), 0, max_edge_size_doc},
+
     {TetGenAdaptOption::min_edge_size, T_DOUBLE, offsetof(PyMeshingTetGenAdaptOptClass, min_edge_size), 0, min_edge_size_doc},
+
     {TetGenAdaptOption::start_step, T_INT, offsetof(PyMeshingTetGenAdaptOptClass, start_step), 0, "Simulation start step"},
-    {TetGenAdaptOption::step, T_INT, offsetof(PyMeshingTetGenAdaptOptClass, step), 0, "Simulation step"},
+
     {TetGenAdaptOption::step_increment, T_INT, offsetof(PyMeshingTetGenAdaptOptClass, step_increment), 0, "Simulation step increment."},
+
     {TetGenAdaptOption::use_multiple_steps, T_BOOL, offsetof(PyMeshingTetGenAdaptOptClass, use_multiple_steps), 0, use_multiple_steps_doc},
+
     {TetGenAdaptOption::use_isotropic_meshing, T_BOOL, offsetof(PyMeshingTetGenAdaptOptClass, use_isotropic_meshing), READONLY, use_isotropic_meshing_doc},
     {NULL, NULL}  
 };
@@ -307,12 +314,77 @@ static PyMemberDef PyTetGenAdaptOptMembers[] = {
 //
 // Define setters/getters for certain options.
 
+//------------------------
+// error_reduction_factor
+//------------------------
+//
+static PyObject*
+PyTetGenOptions_get_error_reduction_factor(PyMeshingTetGenAdaptOptClass* self, void* closure)
+{
+  return Py_BuildValue("d", self->error_reduction_factor);
+}
+
+static int
+PyTetGenOptions_set_error_reduction_factor(PyMeshingTetGenAdaptOptClass* self, PyObject* arg, void* closure)
+{
+  double value = PyFloat_AsDouble(arg);
+  if (PyErr_Occurred()) {
+      return -1;
+  }
+
+  if (value < 0) {
+      PyErr_SetString(PyExc_ValueError, "error_reduction_factor must be positive.");
+      return -1;
+  }
+
+  if (value > 1.0) {
+      PyErr_SetString(PyExc_ValueError, "error_reduction_factor must be <= 1.0.");
+      return -1;
+  }
+
+  self->error_reduction_factor = value;
+  return 0;
+}
+
+//------
+// step 
+//------
+//
+static PyObject*
+PyTetGenOptions_get_step(PyMeshingTetGenAdaptOptClass* self, void* closure)
+{
+  return Py_BuildValue("i", self->step);
+}
+
+static int
+PyTetGenOptions_set_step(PyMeshingTetGenAdaptOptClass* self, PyObject* arg, void* closure)
+{
+  int value = PyLong_AsLong(arg);
+  if (PyErr_Occurred()) {
+      return -1;
+  }
+
+  if (value < 0) {
+      PyErr_SetString(PyExc_ValueError, "The TetGen step option must be positive.");
+      return -1;
+  }
+
+  self->step = value;
+  return 0;
+}
+
 //-------------------------
 // PyTetGenAdaptOptGetSets
 //-------------------------
 //
 PyGetSetDef PyTetGenAdaptOptGetSets[] = {
-    //{ TetGenAdaptOption::sphere, (getter)PyTetGenAdaptOpt_get_sphere, (setter)PyTetGenAdaptOpt_set_sphere, NULL,  NULL },
+
+    { TetGenAdaptOption::error_reduction_factor, 
+          (getter)PyTetGenOptions_get_error_reduction_factor, (setter)PyTetGenOptions_set_error_reduction_factor, NULL,  error_reduction_factor_doc },
+
+    { TetGenAdaptOption::step, 
+          (getter)PyTetGenOptions_get_step, (setter)PyTetGenOptions_set_step, NULL,  NULL },
+
     {NULL, NULL}
 };
 

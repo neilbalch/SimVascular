@@ -367,8 +367,12 @@ PyInit_PyMeshing()
   SetTetGenAdaptOptClassTypes(PyTetGenAdaptOptType);
 
   // Add the 'meshing.Adaptive' class.
-  Py_INCREF(&PyMeshingAdaptiveClassType);
-  PyModule_AddObject(module, MESHING_ADAPTIVE_CLASS, (PyObject*)&PyMeshingAdaptiveClassType);
+  //
+  // Don't expose the 'meshing.Adaptive' class, it is a base class and should 
+  // not be used to create objects.
+  //
+  //Py_INCREF(&PyMeshingAdaptiveClassType);
+  //PyModule_AddObject(module, MESHING_ADAPTIVE_CLASS, (PyObject*)&PyMeshingAdaptiveClassType);
 
   // Add the 'meshing.TetGenAdaptive' class.
   Py_INCREF(&PyTetGenAdaptClassType);
