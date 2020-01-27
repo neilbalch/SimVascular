@@ -46,6 +46,7 @@
 #include "sv_PyUtils.h"
 #include "Solid_PyModule.h"
 #include "sv_TetGenMeshObject.h"
+#include "sv_TetGenMeshSystem.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -356,6 +357,13 @@ PyInit_PyMeshing()
 
   // Set the kernel names in the MeshingKernelType dictionary.
   SetMeshingKernelClassTypes(PyMeshingKernelClassType);
+
+  // Add TetGen meshing system (whatever that is).
+  auto tetGenSystem = new cvTetGenMeshSystem();
+  if ((cvMeshSystem::RegisterKernel(cvMeshObject::KERNEL_TETGEN,tetGenSystem) != SV_OK)) {
+    fprintf(stdout, "Error adding cvTetGenMeshSystem when initializing the meshing module.\n");
+    return SV_PYTHON_ERROR;
+  }
 
   //------------------------------
   // Add Adaptive Meshing Classes 

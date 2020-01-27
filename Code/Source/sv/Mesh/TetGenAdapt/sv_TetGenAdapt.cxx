@@ -303,10 +303,11 @@ int cvTetGenAdapt::CreateInternalMeshObject(Tcl_Interp *interp,
 // -----------------------
 //  CreateInternalMeshObject for python
 // -----------------------
-int cvTetGenAdapt::CreateInternalMeshObject(
-		char *meshFileName,
-		char *solidFileName)
+int cvTetGenAdapt::CreateInternalMeshObject( char *meshFileName, char *solidFileName)
 {
+  std::cout << "[cvTetGenAdapt::CreateInternalMeshObject] ========== CreateInternalMeshObject ==========" << std::endl;
+  std::cout << "[cvTetGenAdapt::CreateInternalMeshObject] cvAdaptObject::gCurrentKernel: " << cvAdaptObject::gCurrentKernel << std::endl;
+
   if (meshobject_ != NULL)
   {
     fprintf(stderr,"Cannot create a mesh object, one already exists\n");
@@ -314,14 +315,20 @@ int cvTetGenAdapt::CreateInternalMeshObject(
   }
 
   char* mesh_name = "adaptInternalMeshobject";
+
+  /*
   if ( gRepository->Exists(mesh_name) ) {
     fprintf(stderr,"Object %s already exists\n",mesh_name);
     return TCL_ERROR;
   }
+  */
+
   cvMeshObject::KernelType newkernel = cvMeshObject::GetKernelType("TetGen");
+  std::cout << "[cvTetGenAdapt::CreateInternalMeshObject] newkernel: " << newkernel << std::endl;
   meshobject_ = cvMeshSystem::DefaultInstantiateMeshObject(meshFileName,solidFileName);
+
   if ( meshobject_ == NULL ) {
-    fprintf(stderr,"Mesh Object is null after instantiation!\n");
+    fprintf(stderr,"[cvTetGenAdapt::CreateInternalMeshObject] Mesh Object is null after instantiation!\n");
     return SV_ERROR;
   }
 

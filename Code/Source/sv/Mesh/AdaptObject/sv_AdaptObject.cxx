@@ -38,7 +38,7 @@
 
 #ifdef SV_USE_PYTHON
 #include "Python.h"
-#include "sv_adapt_init_py.h"
+//#include "sv_adapt_init_py.h"
 #endif
 
 #include <string.h>
@@ -101,6 +101,8 @@ cvAdaptObject* cvAdaptObject::DefaultInstantiateAdaptObject( Tcl_Interp *interp,
 #ifdef SV_USE_PYTHON
 cvAdaptObject* cvAdaptObject::DefaultInstantiateAdaptObject(KernelType t )
 {
+/* DaveP - Comment out this redistry junk.
+
   // Get the adapt object factory registrar associated with the python interpreter
   
   PyObject* pyGlobal = PySys_GetObject("AdaptObjectRegistrar");
@@ -124,5 +126,7 @@ cvAdaptObject* cvAdaptObject::DefaultInstantiateAdaptObject(KernelType t )
   }
 
   return adaptor;
+*/
+  return nullptr;
 }
 #endif

@@ -34,13 +34,22 @@
 // adaptive mesh generators for TetGen and MeshSim. 
 //
 #include "sv_AdaptObject.h"
+#include "sv_MeshSystem.h"
 
 //------------------------
 // PyMeshingAdaptiveClass 
 //------------------------
 //
+// It seems that SV defines two different meshing kernels 
+//  
+//    1) cvMeshObject::KernelType
+//  
+//    2) KernelType (defined in sv_AdaptObject.h) 
+//
 typedef struct {
   PyObject_HEAD
+  KernelType adaptKernel;
+  cvMeshObject::KernelType meshKernel;
   cvAdaptObject* adaptive_mesher;
   std::string name;
   int id;
@@ -99,6 +108,83 @@ Adapt_check_options(PyMeshingAdaptiveClass* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
+//-----------------------------------
+// Adapt_create_internal_mesh_object 
+//-----------------------------------
+//
+PyDoc_STRVAR(Adapt_create_internal_mesh_doc,
+  " create_internal_mesh(mesh_file, model_file)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  Args:                                    \n\
+    mesh_file (str): The mame of the mesh file. \n\
+    solid_file (str): The name of the solid model file. \n\
+  \n\
+");
+
+static PyObject * 
+Adapt_create_internal_mesh(PyMeshingAdaptiveClass* self, PyObject* args, PyObject* kwargs)
+{
+  std::cout << "[Adapt_create_internal_mesh] ========== Adapt_create_internal_mesh ==========" << std::endl;
+  auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
+  static char *keywords[] = {"mesh_file", "model_file", NULL};
+
+  char *meshFileName = NULL;
+  char *solidFileName = NULL;
+
+  if (!(PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &meshFileName, &solidFileName))) {
+      return api.argsError();
+  }
+
+  // [TODO:DaveP] Must remove using this global.
+  // 
+  std::cout << "[Adapt_create_internal_mesh] meshKernel: " << self->meshKernel << std::endl;
+  //cvAdaptObject::gCurrentKernel = self->kernel;
+  cvMeshSystem::SetCurrentKernel(self->meshKernel);
+  auto mesher = self->adaptive_mesher;
+
+  if (mesher->CreateInternalMeshObject(meshFileName, solidFileName) != SV_OK) {
+      api.error("Error creating the internal mesh."); 
+      return nullptr;
+  }
+
+  Py_RETURN_NONE; 
+}
+
+//------------------
+// Adapt_load_model 
+//------------------
+//
+PyDoc_STRVAR(Adapt_load_model_doc,
+  "load_model(file_name) \n\ 
+  \n\
+  Load a solid model from a file into the mesher. \n\
+  \n\
+  Args:                                    \n\
+    file_name (str): Name in the solid model file. \n\
+");
+
+static PyObject * 
+Adapt_load_model(PyMeshingAdaptiveClass* self, PyObject* args, PyObject* kwargs)
+{
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  static char *keywords[] = {"file_name", NULL};
+  char *fileName = NULL;
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &fileName)) {
+    return api.argsError();
+  }
+
+  auto mesher = self->adaptive_mesher;
+
+  if (mesher->LoadModel(fileName) != SV_OK) {
+      api.error("Error loading a solid model from the file '" + std::string(fileName) + "'."); 
+      return nullptr;
+  }
+
+  Py_RETURN_NONE; 
+}
+
 //-------------------------
 // Adapt_set_adapt_options 
 //-------------------------
@@ -140,173 +226,7 @@ Adapt_set_adapt_options(PyMeshingAdaptiveClass* self, PyObject* args)
 //====================================================================== old methods =============================================//
 #ifdef use_adapt_old_methods
 
-//------------------
-// Adapt_registrars
-//------------------
-// This routine is used for debugging the registrar/factory system.
-//
-PyDoc_STRVAR(Adapt_registrars_doc,
-" registrars()  \n\ 
-  \n\
-  ??? Add the unstructured grid mesh to the repository. \n\
-  \n\
-");
 
-static PyObject * 
-Adapt_registrars(PyObject* self, PyObject* args)
-{
-  cvFactoryRegistrar *adaptObjectRegistrar = (cvFactoryRegistrar *) PySys_GetObject( "AdaptObjectRegistrar");
-
-  char result[255];
-  sprintf( result, "Adapt object registrar ptr -> %p\n", adaptObjectRegistrar );
-  PyObject* pyList = PyList_New(6);
-  PyList_SetItem(pyList,0,PyBytes_FromFormat(result));
-
-  for (int i = 0; i < 5; i++) {
-    sprintf( result, "GetFactoryMethodPtr(%i) = %p\n", i, (adaptObjectRegistrar->GetFactoryMethodPtr(i)));
-    PyList_SetItem(pyList,i+1,PyBytes_FromFormat(result));
-  }
-
-  return pyList;
-}
-
-//--------------------
-// Adapt_new_object
-//--------------------
-//
-// [TODO:DaveP] pass in meshing kernel name. 
-//
-PyDoc_STRVAR(Adapt_new_object_doc,
-  " new_object()  \n\ 
-  \n\
-  ??? Add the unstructured grid mesh to the repository. \n\
-  \n\
-");
-
-static PyObject * 
-Adapt_new_object(PyMeshingAdaptiveClass* self, PyObject* args)
-{
-/*
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
-  char *resultName = NULL;
-
-  if (!PyArg_ParseTuple(args, api.format,&resultName)) {
-      return api.argsError();
-  }
-
-  // Make sure the specified result object does not exist:
-  if (gRepository->Exists(resultName)) {
-      api.error("The Mesh object '" + std::string(resultName) + "' is already in the repository.");
-      return nullptr;
-  }
-
-  // Set the meshing kernel.
-  //
-  // [TODO:DaveP] get rid of using global.
-  auto meshType = KERNEL_INVALID;
-  auto kernelName = cvMeshSystem::GetCurrentKernelName();
-  try {
-        meshType = adaptKernelNameEnumMap.at(std::string(kernelName));
-  } catch (const std::out_of_range& except) {
-      auto msg = "Invalid adaptive meshing kernel '" + std::string(kernelName) + "'. " + validKernelNames;
-      api.error(msg);
-      return nullptr;
-  }
-
-  // Create the adaptor object.
-  auto adaptor = cvAdaptObject::DefaultInstantiateAdaptObject(meshType);
-  if (adaptor == NULL) {
-    api.error("Error creating the adaptive mesh object '" + std::string(resultName) + "'.");
-    return nullptr;
-  }
-
-  // Register the solid:
-  if (!gRepository->Register(resultName, adaptor)) {
-      delete adaptor;
-      api.error("Error adding the adaptive mesh object '" + std::string(resultName) + "' to the repository.");
-      return nullptr;
-  }
-
-  Py_INCREF(adaptor);
-
-  adaptive_mesher = adaptor;
-  self->name = std::string(resultName);
-
-  Py_DECREF(adaptor);
-*/
-  return SV_PYTHON_OK;
-}
-
-//-------------------------------------
-// Adapt_create_internal_mesh_object 
-//-------------------------------------
-//
-PyDoc_STRVAR(Adapt_create_internal_mesh_object_doc,
-  " create_internal_mesh_object()  \n\ 
-  \n\
-  ??? Add the unstructured grid mesh to the repository. \n\
-  \n\
-");
-
-static PyObject * 
-Adapt_create_internal_mesh_object(PyMeshingAdaptiveClass* self, PyObject* args)
-{
-  auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
-  char *meshFileName = NULL;
-  char *solidFileName = NULL;
-
-  if (!(PyArg_ParseTuple(args,"ss",&meshFileName,&solidFileName))) {
-      return api.argsError();
-  }
-
-  auto adapt = CheckAdaptMesh(api, self);
-  if (adapt == nullptr) { 
-      return nullptr;
-  }
-
-  if (adapt->CreateInternalMeshObject(meshFileName,solidFileName) != SV_OK) {
-      api.error("Error creating the internal mesh."); 
-      return nullptr;
-  }
-
-  return SV_PYTHON_OK;
-}
-
-//--------------------
-// Adapt_load_model 
-//--------------------
-//
-PyDoc_STRVAR(Adapt_load_model_doc,
-  "load_model() \n\ 
-   \n\
-   Create a new mesh object. \n\
-   \n\
-   Args: \n\
-     name (str): Name of the new mesh object to store in the repository. \n\
-");
-
-static PyObject * 
-Adapt_load_model(PyMeshingAdaptiveClass* self, PyObject* args)
-{
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
-  char *solidFileName = NULL;
-
-  if (!PyArg_ParseTuple(args, api.format, &solidFileName)) {
-      return api.argsError();
-  }
-
-  auto adapt = CheckAdaptMesh(api, self);
-  if (adapt == nullptr) { 
-      return nullptr;
-  }
-
-  if (adapt->LoadModel(solidFileName) != SV_OK) {
-      api.error("Error loading a model from the file '" + std::string(solidFileName) + "'."); 
-      return nullptr;
-  }
-
-  return SV_PYTHON_OK;
-}
 
 //-------------------
 // Adapt_load_mesh 
@@ -934,6 +854,11 @@ static PyMethodDef PyMeshingAdaptMethods[] = {
 
   { "check_options", (PyCFunction)Adapt_check_options, METH_VARARGS, Adapt_check_options_doc},
 
+  { "create_internal_mesh", (PyCFunction)Adapt_create_internal_mesh, METH_VARARGS|METH_KEYWORDS, Adapt_create_internal_mesh_doc},
+
+  { "load_model", (PyCFunction)Adapt_load_model, METH_VARARGS|METH_KEYWORDS, Adapt_load_model_doc},
+
+
   // [DaveP] Set options for each adapt object ?
   // { "set_options", (PyCFunction)Adapt_set_adapt_options, METH_VARARGS, Adapt_set_adapt_options_doc},
 
@@ -942,7 +867,6 @@ static PyMethodDef PyMeshingAdaptMethods[] = {
 
 #ifdef use_adapt_old_methods
 
-  { "create_internal_mesh_object", (PyCFunction)Adapt_create_internal_mesh_object, METH_VARARGS, Adapt_create_internal_mesh_object_doc},
 
   { "get_adapted_mesh", (PyCFunction)Adapt_get_adapted_mesh,METH_VARARGS,Adapt_get_adapted_mesh_doc},
 
@@ -950,15 +874,11 @@ static PyMethodDef PyMeshingAdaptMethods[] = {
 
   { "load_hessian_from_file", (PyCFunction)Adapt_load_hessian_from_file,METH_VARARGS,Adapt_load_hessian_from_file_doc},
 
-  { "load_model", (PyCFunction)Adapt_load_model,METH_VARARGS,Adapt_load_model_doc},
-
   { "load_mesh", (PyCFunction)Adapt_load_mesh, METH_VARARGS, Adapt_load_mesh_doc},
 
   { "load_solution_from_file", (PyCFunction)Adapt_load_solution_from_file, METH_VARARGS, Adapt_load_solution_from_file_doc},
 
   { "load_ybar_from_file", (PyCFunction)Adapt_load_ybar_from_file,METH_VARARGS,Adapt_load_ybar_from_file_doc},
-
-  {"new_object", (PyCFunction)Adapt_new_object, METH_VARARGS, Adapt_new_object_doc},
 
   { "print_statistics", (PyCFunction)Adapt_print_statistics,METH_VARARGS,Adapt_print_statistics_doc},
 

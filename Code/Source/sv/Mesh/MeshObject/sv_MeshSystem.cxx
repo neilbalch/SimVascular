@@ -153,16 +153,31 @@ cvMeshObject* cvMeshSystem::DefaultInstantiateMeshObject(
   char *const meshFileName,
   char *const solidFileName )
 {
+std::cout << "========================= cvMeshSystem::DefaultInstantiateMeshObject =====================" << std::endl;
+
 cvMeshSystem* meshSystem = NULL;
 cvMeshObject* meshObject = NULL;
+std::cout << "[cvMeshSystem::DefaultInstantiateMeshObject] gCurrentKernel: " << gCurrentKernel << std::endl;
+
+if (gCurrentKernel == cvMeshObject::KERNEL_TETGEN) {
+    std::cout << "[cvMeshSystem::DefaultInstantiateMeshObject] kernel is KERNEL_TETGEN  " << std::endl;
+}
+
+if (gCurrentKernel == cvMeshObject::KERNEL_MESHSIM) {
+    std::cout << "[cvMeshSystem::DefaultInstantiateMeshObject] kernel is KERNEL_MESHSIM " << std::endl;
+}
+
 if (gCurrentKernel == cvMeshObject::KERNEL_MESHSIM || gCurrentKernel == cvMeshObject::KERNEL_TETGEN)
 {
+  std::cout << "[cvMeshSystem::DefaultInstantiateMeshObject] #### kernel is KERNEL_TETGEN  " << std::endl;
   if (gMeshSystems[gCurrentKernel] == NULL)
   {
+    std::cout << "[cvMeshSystem::DefaultInstantiateMeshObject] no meshSystem: avail " << std::endl;
     fprintf( stdout, "current kernel is not available");
     return NULL;
   }
   meshSystem = gMeshSystems[gCurrentKernel];
+  std::cout << "[cvMeshSystem::DefaultInstantiateMeshObject] meshSystem: " << meshSystem << std::endl;
 
   meshObject = (cvMeshObject *) (meshSystem->CreateMeshObject());
   if (meshObject == NULL)
@@ -179,6 +194,8 @@ else
 {
   fprintf(stdout,"current kernel is not valid");
 }
+
+std::cout << "[cvMeshSystem::DefaultInstantiateMeshObject] meshObject: " << meshObject << std::endl;
 
 return meshObject;
 }

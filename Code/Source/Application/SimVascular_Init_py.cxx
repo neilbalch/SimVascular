@@ -88,8 +88,8 @@
 #endif
 
 #ifdef SV_USE_TETGEN_ADAPTOR
-  #include "sv_adapt_init_py.h"
-  #include "sv_tetgen_adapt_init_py.h"
+  //#include "sv_adapt_init_py.h"
+  //#include "sv_tetgen_adapt_init_py.h"
 #endif
 
 //---------------------------------------------------------------------------
@@ -161,8 +161,8 @@ void SimVascular_pyInit()
     #endif
 
     #ifdef SV_USE_TETGEN_ADAPTOR
-    PyImport_AppendInittab("mesh_adapt",PyInit_pyMeshAdapt);
-    PyImport_AppendInittab("tetgen_adapt",PyInit_pyTetGenAdapt);
+    //PyImport_AppendInittab("mesh_adapt",PyInit_pyMeshAdapt);
+    //PyImport_AppendInittab("tetgen_adapt",PyInit_pyTetGenAdapt);
     #endif
 
 }

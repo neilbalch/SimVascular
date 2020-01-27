@@ -181,6 +181,8 @@ PyTetGenAdaptInit(PyTetGenAdaptClass* self, PyObject* args, PyObject *kwds)
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, "TetGen adaptive mesh generator");
   static int numObjs = 1;
   std::cout << "[PyTetGenAdaptClassInit] New PyTetGenAdaptClass object: " << numObjs << std::endl;
+  self->super.adaptKernel = KernelType::KERNEL_TETGEN; 
+  self->super.meshKernel = cvMeshObject::KERNEL_TETGEN; 
   self->super.adaptive_mesher = new cvTetGenAdapt();
   numObjs += 1;
   return 0;
