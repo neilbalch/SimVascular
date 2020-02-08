@@ -127,7 +127,7 @@ Adapt_create_internal_mesh(PyMeshingAdaptiveClass* self, PyObject* args, PyObjec
 {
   std::cout << "[Adapt_create_internal_mesh] ========== Adapt_create_internal_mesh ==========" << std::endl;
   auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
-  static char *keywords[] = {"mesh_file", "model_file", NULL};
+  static char *keywords[] = {"results_file", "model_file", NULL};
 
   char *meshFileName = NULL;
   char *solidFileName = NULL;
@@ -857,7 +857,6 @@ static PyMethodDef PyMeshingAdaptMethods[] = {
   { "create_internal_mesh", (PyCFunction)Adapt_create_internal_mesh, METH_VARARGS|METH_KEYWORDS, Adapt_create_internal_mesh_doc},
 
   { "load_model", (PyCFunction)Adapt_load_model, METH_VARARGS|METH_KEYWORDS, Adapt_load_model_doc},
-
 
   // [DaveP] Set options for each adapt object ?
   // { "set_options", (PyCFunction)Adapt_set_adapt_options, METH_VARARGS, Adapt_set_adapt_options_doc},

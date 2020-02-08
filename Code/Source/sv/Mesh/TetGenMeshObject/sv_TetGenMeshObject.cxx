@@ -875,6 +875,8 @@ int cvTetGenMeshObject::GetBoundaryFaces(double angle)
  */
 int cvTetGenMeshObject::LoadMesh(char *filename,char *surfilename) {
 
+  std::cout << "[cvTetGenMeshObject::LoadMesh] ========== LoadMesh ==========" << std::endl;
+
   if (filename == NULL) {
     return SV_ERROR;
   }

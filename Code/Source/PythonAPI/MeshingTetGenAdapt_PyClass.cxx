@@ -58,6 +58,72 @@ pyCreateTetGenAdapt()
     return new cvTetGenAdapt();
 }
 
+//-----------------------
+// TetGenAdaptSetOptions
+//-----------------------
+//
+bool 
+TetGenAdaptSetOptions(PyMeshingAdaptiveClass* self, SvPyUtilApiFunction& api, PyObject* options)
+{
+  std::cout << "[TetGenAdaptSetOptions] " << std::endl;
+  std::cout << "[TetGenAdaptSetOptions] ========== TetGenAdaptSetOptions =========" << std::endl;
+
+  // Check if using multiple solver steps.
+  //
+  // metric_option can either be 1 or 2.
+  //
+  double multiStep;
+  bool useMultipleSteps;
+  double metric_option;
+  PyTetGenAdaptOptGetValue(options, TetGenAdaptOption::use_multiple_steps, multiStep); 
+  std::cout << "[TetGenAdaptSetOptions] multiStep: " << multiStep << std::endl;
+
+  if (multiStep == 1.0) {
+      useMultipleSteps = true;
+      metric_option = 2.0;
+  } else {
+      useMultipleSteps = false;
+      metric_option = 2.0;
+  }
+
+  auto mesher = self->adaptive_mesher;
+
+  for (auto const& entry : TetGenAdaptOption::pyToSvNameMap) {
+      auto pyName = entry.first;
+      auto svName = entry.second;
+      double value; 
+      if (!PyTetGenAdaptOptGetValue(options, pyName, value)) { 
+          continue;
+      }
+      std::cout << "[TetGenAdaptSetOptions] pyName: " << pyName << "  svName: " << svName << "  value: " << value << std::endl;
+
+      if (mesher->SetAdaptOptions(svName, value) != SV_OK) {
+          api.error("Error setting TetGen adaptive meshing '" + std::string(pyName) + "' option.");
+          return nullptr;
+      }
+  }
+
+  // Set outstep option.
+  if (!useMultipleSteps) { 
+      double value; 
+      PyTetGenAdaptOptGetValue(options, TetGenAdaptOption::step, value);
+      auto svName = TetGenAdaptOption::pyToSvNameMap[TetGenAdaptOption::end_step];
+      std::cout << "[TetGenAdaptSetOptions] set svName: " << svName << "  value: " << value << std::endl;
+      if (mesher->SetAdaptOptions(svName, value) != SV_OK) {
+          api.error("Error setting TetGen adaptive meshing '" + std::string(TetGenAdaptOption::step) + "' option.");
+          return nullptr;
+      }
+  }
+
+  // Set metric option.
+  if (mesher->SetAdaptOptions(TetGenAdaptOption::metric_option, metric_option) != SV_OK) {
+      api.error("Error setting TetGen adaptive meshing '" + std::string(TetGenAdaptOption::metric_option) + "' option.");
+      return nullptr;
+  }
+
+  return true; 
+}
+
 /////////////////////////////////////////////////////////////////
 //              C l a s s   F u n c t i o n s                  //
 /////////////////////////////////////////////////////////////////
@@ -79,6 +145,70 @@ static PyObject *
 TetGenAdapt_create_options(PyObject* self, PyObject* args, PyObject* kwargs )
 {
   return CreateTetGenAdaptOptType(args, kwargs);
+}
+
+//---------------------------
+// TetGenAdapt_generate_mesh
+//---------------------------
+//
+PyDoc_STRVAR(TetGenAdapt_generate_mesh_doc,
+  "generate_mesh(results_file, model_file, options)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  Args:                                    \n\
+    results_file (str): The mame of the simulation results (.vtu) file. \n\
+    solid_file (str): The name of the solid model file. \n\
+  \n\
+");
+
+static PyObject * 
+TetGenAdapt_generate_mesh(PyMeshingAdaptiveClass* self, PyObject* args, PyObject* kwargs)
+{
+  std::cout << "[TetGenAdapt_generate_mesh] ========== TetGenAdapt_generate_mesh ==========" << std::endl;
+  auto api = SvPyUtilApiFunction("ssO!", PyRunTimeErr, __func__);
+  static char *keywords[] = {"results_file", "model_file", "options", NULL};
+  char *resultsFileName = NULL;
+  char *modelFileName = NULL;
+  PyObject* options;
+
+  if (!(PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &resultsFileName, &modelFileName, &PyTetGenAdaptOptType, &options))) {
+      return api.argsError();
+  }
+
+  auto adaptMesher = dynamic_cast<cvTetGenAdapt*>(self->adaptive_mesher);
+
+  // Load the simulation results from a file.
+  if (adaptMesher->LoadMesh(resultsFileName) == SV_ERROR) {
+      api.error("Error loading simulation results from the file '" + std::string(resultsFileName) + "'."); 
+      return nullptr;
+  }
+
+  // Create a cvTetGenMeshObject object that is used to perform 
+  // the actual adaptive mesh generation.
+  auto mesher = new cvTetGenMeshObject(NULL);
+  adaptMesher->SetMeshObject(mesher);
+
+  // Load the solid model from a file.
+  if (adaptMesher->LoadModel(modelFileName) == SV_ERROR) {
+      api.error("Error loading simulation results from the file '" + std::string(modelFileName) + "'."); 
+      return nullptr;
+  }
+
+  if (!TetGenAdaptSetOptions(self, api, options)) {
+      return nullptr;
+  }
+
+  // Setup for meshing, taken from sv4guiMeshTetGenAdaptor::Adapt().
+  // 
+  char *input = nullptr;
+  int option = -1; 
+  int strategy = -1;
+  adaptMesher->SetMetric(input, option, strategy);
+
+  adaptMesher->SetupMesh();
+  adaptMesher->RunAdaptor();
+
+  Py_RETURN_NONE; 
 }
 
 //-------------------
@@ -162,6 +292,8 @@ PyDoc_STRVAR(PyTetGenAdaptClass_doc, "TetGen adaptive mesh generator class metho
 PyMethodDef PyTetGenAdaptMethods[] = {
 
   {"create_options", (PyCFunction)TetGenAdapt_create_options, METH_VARARGS|METH_KEYWORDS, TetGenAdapt_create_options_doc},
+
+  {"generate_mesh", (PyCFunction)TetGenAdapt_generate_mesh, METH_VARARGS|METH_KEYWORDS, TetGenAdapt_generate_mesh_doc},
 
   { "set_options", (PyCFunction)TetGenAdapt_set_options, METH_VARARGS, TetGenAdapt_set_options_doc},
 

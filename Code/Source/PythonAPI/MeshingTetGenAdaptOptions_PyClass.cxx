@@ -116,7 +116,7 @@ namespace TetGenAdaptOption {
   char* max_edge_size = "max_edge_size";                      
   char* min_edge_size = "min_edge_size";                      
   char* start_step = "start_step";                      
-  //char* metric_option = "metric_option";                      
+  char* metric_option = "metric_option";                      
   char* end_step = "end_step";                      
   //char* polynomial_order = "polynomial_order";                      
   char* error_reduction_factor = "error_reduction_factor";                      
@@ -127,7 +127,7 @@ namespace TetGenAdaptOption {
   char* step = "step";                      
   char* use_multiple_steps = "use_multiple_steps";                      
 
-  // Parameter names for the 'spher' option.
+  // Parameter names for the 'sphere' option.
   //
   std::string SphereOption_Type = "dictionary "; 
   std::string SphereOption_Format = "{ 'coordinate':[x,y,z], 'region_size':int }";            

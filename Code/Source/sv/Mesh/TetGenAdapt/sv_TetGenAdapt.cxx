@@ -73,6 +73,7 @@
 cvTetGenAdapt::cvTetGenAdapt()
   : cvAdaptObject(KERNEL_TETGEN)
 {
+  std::cout << "========== cvTetGenAdapt ctor ==========" << std::endl;
   meshobject_ = NULL;
   inmesh_  = NULL;
   insurface_mesh_ = NULL;
@@ -392,6 +393,9 @@ int cvTetGenAdapt::CreateInternalMeshObject( char *meshFileName, char *solidFile
 // -----------------------
 int cvTetGenAdapt::LoadModel(char *fileName)
 {
+  std::cout << "========== cvTetGenAdapt::LoadModel filename ==========" << std::endl;
+  std::cout << "[cvTetGenAdapt::LoadModel] meshobject_: " << meshobject_ << std::endl;
+
   if (!AdaptUtils_file_exists(fileName))
   {
     fprintf(stderr,"File %s does not exist\n",fileName);
@@ -426,6 +430,9 @@ int cvTetGenAdapt::LoadModel(char *fileName)
 
 int cvTetGenAdapt::LoadModel(vtkPolyData *pd)
 {
+  std::cout << "========== cvTetGenAdapt::LoadModel pd ==========" << std::endl;
+  std::cout << "[cvTetGenAdapt::LoadModel] meshobject_: " << meshobject_ << std::endl;
+
   if (pd==NULL)
     return SV_ERROR;
 
@@ -457,6 +464,7 @@ int cvTetGenAdapt::LoadModel(vtkPolyData *pd)
 // -----------------------
 int cvTetGenAdapt::LoadMesh(char *fileName)
 {
+  std::cout << "========== cvTetGenAdapt::LoadMesh fileName ==========" << std::endl;
   if (!AdaptUtils_file_exists(fileName))
   {
     fprintf(stderr,"File %s does not exist\n",fileName);
@@ -482,6 +490,7 @@ int cvTetGenAdapt::LoadMesh(char *fileName)
 
 int cvTetGenAdapt::LoadMesh(vtkUnstructuredGrid* ug)
 {
+  std::cout << "========== cvTetGenAdapt::LoadMesh ug ==========" << std::endl;
   if (ug==NULL)
     return SV_ERROR;
 
@@ -741,6 +750,9 @@ int cvTetGenAdapt::ReadYbarFromMesh()
 // ---------------
 int cvTetGenAdapt::ReadAvgSpeedFromMesh()
 {
+  std::cout << "========== cvTetGenAdapt::ReadAvgSpeedFromMesh ==========" << std::endl;
+  std::cout << "[cvTetGenAdapt::ReadAvgSpeedFromMesh] options.outstep_: " << options.outstep_ << std::endl;
+
   if (inmesh_ == NULL)
   {
     fprintf(stderr,"Must load mesh before checking to see if solution exists\n");
@@ -854,6 +866,20 @@ int cvTetGenAdapt::CheckOptions()
 // -----------------------
 int cvTetGenAdapt::SetMetric(char *input,int option, int strategy)
 {
+  std::cout << "========== cvTetGenAdapt::SetMetric ==========" << std::endl;
+  if (input == NULL) {
+      std::cout << "[cvTetGenAdapt::SetMetric] input: null" << std::endl;
+  } else {
+      std::cout << "[cvTetGenAdapt::SetMetric] input: " << input << std::endl;
+  }
+  std::cout << "[cvTetGenAdapt::SetMetric] option: " << option << std::endl;
+  std::cout << "[cvTetGenAdapt::SetMetric] strategy: " << strategy << std::endl;
+
+  std::cout << "[cvTetGenAdapt::SetMetric] options.metric_option_: " << options.metric_option_ << std::endl;
+  std::cout << "[cvTetGenAdapt::SetMetric] options.instep_: " << options.instep_ << std::endl;
+  std::cout << "[cvTetGenAdapt::SetMetric] avgspeed_: " << avgspeed_ << std::endl;
+
+
   if (option != -1)
     options.metric_option_ = option;
   if (strategy != -1)
