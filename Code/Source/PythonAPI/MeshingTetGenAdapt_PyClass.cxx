@@ -40,8 +40,12 @@
 //---------------------------
 // Define the PyMeshingTetGenAdaptClass class.
 //
+// mesher - The cvTetGenMeshObject object that is used to perform the actual adaptive mesh generation.
+//
 typedef struct {
   PyMeshingAdaptiveClass super;
+  cvTetGenMeshObject* mesher;
+  bool meshGenerated;
 } PyTetGenAdaptClass;
 
 //////////////////////////////////////////////////////
@@ -63,7 +67,8 @@ pyCreateTetGenAdapt()
 //-----------------------
 //
 bool 
-TetGenAdaptSetOptions(PyMeshingAdaptiveClass* self, SvPyUtilApiFunction& api, PyObject* options)
+TetGenAdaptSetOptions(PyTetGenAdaptClass* self, SvPyUtilApiFunction& api, PyObject* options)
+//TetGenAdaptSetOptions(PyMeshingAdaptiveClass* self, SvPyUtilApiFunction& api, PyObject* options)
 {
   std::cout << "[TetGenAdaptSetOptions] " << std::endl;
   std::cout << "[TetGenAdaptSetOptions] ========== TetGenAdaptSetOptions =========" << std::endl;
@@ -86,7 +91,8 @@ TetGenAdaptSetOptions(PyMeshingAdaptiveClass* self, SvPyUtilApiFunction& api, Py
       metric_option = 2.0;
   }
 
-  auto mesher = self->adaptive_mesher;
+  auto mesher = self->super.adaptive_mesher;
+  //auto mesher = self->adaptive_mesher;
 
   for (auto const& entry : TetGenAdaptOption::pyToSvNameMap) {
       auto pyName = entry.first;
@@ -152,30 +158,43 @@ TetGenAdapt_create_options(PyObject* self, PyObject* args, PyObject* kwargs )
 //---------------------------
 //
 PyDoc_STRVAR(TetGenAdapt_generate_mesh_doc,
-  "generate_mesh(results_file, model_file, options)  \n\ 
+  "generate_mesh(results_file, model_file, options, log_file)  \n\ 
   \n\
   ??? Add the unstructured grid mesh to the repository. \n\
   Args:                                    \n\
     results_file (str): The mame of the simulation results (.vtu) file. \n\
     solid_file (str): The name of the solid model file. \n\
+    options (TetGenAdaptiveOptions): The meshing options. \n\
+    log_file (str): (optional) The name of the meshing log file. \n\
   \n\
 ");
 
 static PyObject * 
-TetGenAdapt_generate_mesh(PyMeshingAdaptiveClass* self, PyObject* args, PyObject* kwargs)
+TetGenAdapt_generate_mesh(PyTetGenAdaptClass* self, PyObject* args, PyObject* kwargs)
+//TetGenAdapt_generate_mesh(PyMeshingAdaptiveClass* self, PyObject* args, PyObject* kwargs)
 {
   std::cout << "[TetGenAdapt_generate_mesh] ========== TetGenAdapt_generate_mesh ==========" << std::endl;
-  auto api = SvPyUtilApiFunction("ssO!", PyRunTimeErr, __func__);
-  static char *keywords[] = {"results_file", "model_file", "options", NULL};
+  auto api = SvPyUtilApiFunction("ssO!|s", PyRunTimeErr, __func__);
+  static char *keywords[] = {"results_file", "model_file", "options", "log_file", NULL};
   char *resultsFileName = NULL;
   char *modelFileName = NULL;
+  char *logFileName = NULL;
   PyObject* options;
 
-  if (!(PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &resultsFileName, &modelFileName, &PyTetGenAdaptOptType, &options))) {
+  if (!(PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &resultsFileName, &modelFileName, &PyTetGenAdaptOptType, &options, 
+          &logFileName))) {
       return api.argsError();
   }
 
-  auto adaptMesher = dynamic_cast<cvTetGenAdapt*>(self->adaptive_mesher);
+  auto adaptMesher = dynamic_cast<cvTetGenAdapt*>(self->super.adaptive_mesher);
+  //auto adaptMesher = dynamic_cast<cvTetGenAdapt*>(self->adaptive_mesher);
+
+  // Redirect stdout to the 'mesh.log' file. 
+  if (logFileName == NULL) {
+      logFileName = "/dev/null";
+  }
+  int stdout_dupe = dup(fileno(stdout));
+  freopen(logFileName, "w", stdout);
 
   // Load the simulation results from a file.
   if (adaptMesher->LoadMesh(resultsFileName) == SV_ERROR) {
@@ -183,9 +202,7 @@ TetGenAdapt_generate_mesh(PyMeshingAdaptiveClass* self, PyObject* args, PyObject
       return nullptr;
   }
 
-  // Create a cvTetGenMeshObject object that is used to perform 
-  // the actual adaptive mesh generation.
-  auto mesher = new cvTetGenMeshObject(NULL);
+  auto mesher = self->mesher;
   adaptMesher->SetMeshObject(mesher);
 
   // Load the solid model from a file.
@@ -205,10 +222,71 @@ TetGenAdapt_generate_mesh(PyMeshingAdaptiveClass* self, PyObject* args, PyObject
   int strategy = -1;
   adaptMesher->SetMetric(input, option, strategy);
 
-  adaptMesher->SetupMesh();
-  adaptMesher->RunAdaptor();
+  if (adaptMesher->SetupMesh() == SV_ERROR) {
+      api.error("Error generating an adaptive mesh."); 
+      return nullptr;
+  }
 
+  if (adaptMesher->RunAdaptor() == SV_ERROR) {
+      api.error("Error generating an adaptive mesh."); 
+      return nullptr;
+  }
+
+  // Reset stdout.
+  dup2(stdout_dupe, fileno(stdout));
+  close(stdout_dupe);
+
+  self->meshGenerated = true;
   Py_RETURN_NONE; 
+}
+
+//----------------------
+// TetGenAdapt_get_mesh
+//----------------------
+//
+// [TODO:DaveP] This should be in the AdaptObject interface but I
+// will put it here for now, don't want to mess around with the 
+// interface right now.
+//
+PyDoc_STRVAR(TetGenAdapt_get_mesh_doc,
+  "get_mesh() \n\ 
+   \n\
+   Get the new adaptive mesh. \n\
+   \n\
+");
+
+static PyObject *
+TetGenAdapt_get_mesh(PyTetGenAdaptClass* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+
+  if (!self->meshGenerated) {
+      api.error("An adaptive mesh has not been generated.");
+      return nullptr;
+  }
+
+  auto adaptMesher = dynamic_cast<cvTetGenAdapt*>(self->super.adaptive_mesher);
+
+  if (adaptMesher->GetAdaptedMesh() == SV_ERROR) {
+      api.error("Error getting the adaptive mesh.");
+      return nullptr;
+  }
+
+  // Get the adaptive surface and volume meshes.
+  //
+  // [TODO:DaveP] Do this another way later.
+  //
+  auto mesher = self->mesher;
+  auto volumeMesh = vtkUnstructuredGrid::New();
+  auto surfaceMesh = vtkPolyData::New();
+  mesher->GetAdaptedMesh(volumeMesh, surfaceMesh);
+  if (volumeMesh->GetNumberOfPoints() == 0) { 
+      api.error("Error getting the adaptive mesh.");
+      return nullptr;
+  }
+
+  // [TODO:DaveP] Does this leak memory? 
+  return vtkPythonUtil::GetObjectFromPointer(volumeMesh);
 }
 
 //-------------------
@@ -295,7 +373,9 @@ PyMethodDef PyTetGenAdaptMethods[] = {
 
   {"generate_mesh", (PyCFunction)TetGenAdapt_generate_mesh, METH_VARARGS|METH_KEYWORDS, TetGenAdapt_generate_mesh_doc},
 
-  { "set_options", (PyCFunction)TetGenAdapt_set_options, METH_VARARGS, TetGenAdapt_set_options_doc},
+  {"get_mesh", (PyCFunction)TetGenAdapt_get_mesh, METH_VARARGS|METH_KEYWORDS, TetGenAdapt_get_mesh_doc},
+
+  {"set_options", (PyCFunction)TetGenAdapt_set_options, METH_VARARGS, TetGenAdapt_set_options_doc},
 
   {NULL, NULL}
 };
@@ -316,6 +396,10 @@ PyTetGenAdaptInit(PyTetGenAdaptClass* self, PyObject* args, PyObject *kwds)
   self->super.adaptKernel = KernelType::KERNEL_TETGEN; 
   self->super.meshKernel = cvMeshObject::KERNEL_TETGEN; 
   self->super.adaptive_mesher = new cvTetGenAdapt();
+  // Create a cvTetGenMeshObject object that is used to perform 
+  // the actual adaptive mesh generation.
+  self->mesher = new cvTetGenMeshObject(NULL);
+  self->meshGenerated = false;
   numObjs += 1;
   return 0;
 }

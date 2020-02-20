@@ -112,6 +112,8 @@ Adapt_check_options(PyMeshingAdaptiveClass* self, PyObject* args)
 // Adapt_create_internal_mesh_object 
 //-----------------------------------
 //
+// [TODO:DaveP] This method will probably not be used. 
+//
 PyDoc_STRVAR(Adapt_create_internal_mesh_doc,
   " create_internal_mesh(mesh_file, model_file)  \n\ 
   \n\
@@ -151,9 +153,46 @@ Adapt_create_internal_mesh(PyMeshingAdaptiveClass* self, PyObject* args, PyObjec
   Py_RETURN_NONE; 
 }
 
+//----------------
+// Adapt_get_mesh
+//----------------
+//
+// [TODO:DaveP] This should be in the AdaptObject interface but I
+// will put in the subclass interface for now, don't want to mess
+// around with the interface right now.
+//
+PyDoc_STRVAR(Adapt_get_mesh_doc,
+  "get_mesh() \n\ 
+   \n\
+   Get the new adaptive mesh. \n\
+   \n\
+   Args: \n\
+     name (str): Name of the new mesh object to store in the repository. \n\
+");
+
+static PyObject *
+Adapt_get_mesh(PyMeshingAdaptiveClass* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+
+  auto mesher = self->adaptive_mesher;
+
+/*
+  if (mesher->GetAdaptedMesh() != SV_OK) {
+      api.error("Error getting adapted mesh.");
+      return nullptr;
+  }
+
+  auto vtkUnstructuredGrid = mesher->GetAdaptedVolumeMesh();
+  return vtkPythonUtil::GetObjectFromPointer(vtkUnstructuredGrid);
+*/
+}
+
 //------------------
 // Adapt_load_model 
 //------------------
+//
+// [TODO:DaveP] This method will probably not be used. 
 //
 PyDoc_STRVAR(Adapt_load_model_doc,
   "load_model(file_name) \n\ 
@@ -854,9 +893,13 @@ static PyMethodDef PyMeshingAdaptMethods[] = {
 
   { "check_options", (PyCFunction)Adapt_check_options, METH_VARARGS, Adapt_check_options_doc},
 
-  { "create_internal_mesh", (PyCFunction)Adapt_create_internal_mesh, METH_VARARGS|METH_KEYWORDS, Adapt_create_internal_mesh_doc},
+  // { "get_mesh", (PyCFunction)Adapt_get_mesh, METH_VARARGS, Adapt_get_mesh_doc},
 
-  { "load_model", (PyCFunction)Adapt_load_model, METH_VARARGS|METH_KEYWORDS, Adapt_load_model_doc},
+  // [DaveP] Not needed with new interface. 
+  //{ "create_internal_mesh", (PyCFunction)Adapt_create_internal_mesh, METH_VARARGS|METH_KEYWORDS, Adapt_create_internal_mesh_doc},
+
+  // [DaveP] Not needed with new interface. 
+  //{ "load_model", (PyCFunction)Adapt_load_model, METH_VARARGS|METH_KEYWORDS, Adapt_load_model_doc},
 
   // [DaveP] Set options for each adapt object ?
   // { "set_options", (PyCFunction)Adapt_set_adapt_options, METH_VARARGS, Adapt_set_adapt_options_doc},
