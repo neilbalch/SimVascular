@@ -65,7 +65,7 @@
 //#include "sv4gui_Vis_init_py.h"
 
 #ifdef SV_USE_VMTK
-  #include "sv_vmtk_utils_init_py.h"
+  #include "Vmtk_PyModule.h"
 #endif
 
 #ifdef SV_USE_OpenCASCADE
@@ -138,7 +138,7 @@ void SimVascular_pyInit()
     //------------------
 
     #ifdef SV_USE_VMTK
-    PyImport_AppendInittab("vmtk_utils",PyInit_pyVMTKUtils);
+    PyImport_AppendInittab("vmtk", PyInit_PyVmtk);
     #endif
 
     #ifdef SV_USE_OpenCASCADE

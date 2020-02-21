@@ -44,10 +44,6 @@ endif()
 SET(CXXSRCS sv_vmtk_utils.cxx)
 SET(HDRS sv_vmtk_utils.h)
 
-if(SV_USE_PYTHON)
-  list(APPEND CXXSRCS sv_vmtk_utils_init_py.cxx)
-endif()
-
 add_library(${lib} ${SV_LIBRARY_TYPE} ${CXXSRCS} sv_vmtk_utils_init.cxx)
 
 if(SV_USE_PYTHON)

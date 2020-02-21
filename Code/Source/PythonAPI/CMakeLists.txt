@@ -46,6 +46,7 @@ list (APPEND CXXSRCS
   Geometry_PyModule.cxx
   Meshing_PyModule.cxx
   Solid_PyModule.cxx
+  Vmtk_PyModule.cxx
 )
 
 add_library(${lib} ${SV_LIBRARY_TYPE} ${CXXSRCS})
