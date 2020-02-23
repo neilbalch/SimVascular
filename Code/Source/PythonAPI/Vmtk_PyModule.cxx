@@ -85,6 +85,76 @@ GetVtkPolyData(SvPyUtilApiFunction& api, PyObject* obj)
   return polydata;
 }
 
+//-------------------------
+// ConvertFaceIdsToNodeIds
+//-------------------------
+// Convert a list of face IDs to node IDs.
+//
+// The face ID is mapped to the node ID that is closest to the face center.
+//
+static std::vector<int> 
+ConvertFaceIdsToNodeIds(SvPyUtilApiFunction& api, vtkPolyData* polydata, std::vector<int>& faceIds)
+{
+  std::cout << "---------- ConvertFaceIdsToNodeIds ---------- " << std::endl;
+  std::vector<int> nodeIds;
+  int numCells = polydata->GetNumberOfCells();
+  auto points = polydata->GetPoints();
+  auto cellData = vtkIntArray::SafeDownCast(polydata->GetCellData()->GetArray("ModelFaceID"));
+  std::cout << "[ConvertFaceIdsToNodeIds] cellData: " << cellData << std::endl;
+  for (auto const& faceID : faceIds) {
+      int cellID = -1;
+      std::vector<int> cellIds;
+      for (int i = 0; i < numCells; i++) {
+          if (cellData->GetValue(i) == faceID) {
+              cellIds.push_back(i);
+          }
+      }
+      if (cellIds.size() == 0) { 
+          api.error("No node found for face ID '" + std::to_string(faceID) + "'.");
+          return nodeIds;
+      }
+
+      // Get face center.
+      std::vector<int> faceNodeIds;
+      int numFacePts = 0;
+      double point[3];
+      double center[3] = {0.0, 0.0, 0.0};
+      for (auto const& cellID : cellIds) {
+          auto cell = polydata->GetCell(cellID);
+          auto ids = cell->GetPointIds();
+          for (vtkIdType i = 0; i < ids->GetNumberOfIds(); i++) {
+              int id = ids->GetId(i);
+              faceNodeIds.push_back(id);
+              points->GetPoint(id, point);
+              center[0] += point[0];
+              center[1] += point[1];
+              center[2] += point[2];
+              numFacePts += 1;
+          }
+      }
+
+      center[0] /= numFacePts; 
+      center[1] /= numFacePts; 
+      center[2] /= numFacePts; 
+      double min_d = 1e6;
+      int min_id = -1;
+      for (auto const& id : faceNodeIds) {
+          points->GetPoint(id, point);
+          auto dx = point[0] - center[0];
+          auto dy = point[1] - center[1];
+          auto dz = point[2] - center[2];
+          auto d = dx*dx + dy*dy + dz*dz; 
+          if (d < min_d) {
+              min_d = d;
+              min_id = id;
+          }
+      }
+      nodeIds.push_back(min_id);
+      std::cout << "[ConvertFaceIdsToNodeIds] faceID " << faceID << " mapped to node ID " << min_id << std::endl;
+  }
+
+  return nodeIds;
+}
 
 //////////////////////////////////////////////////////
 //          M o d u l e  F u n c t i o n s          //
@@ -93,6 +163,81 @@ GetVtkPolyData(SvPyUtilApiFunction& api, PyObject* obj)
 // Python 'vmtk' module methods. 
 
 #ifdef SV_USE_VMTK
+
+//----------
+// Vmtk_cap
+//----------
+//
+PyDoc_STRVAR(Vmtk_cap_doc,
+  "cap(surface, use_center)  \n\ 
+  \n\
+  Fill the holes in a surface mesh with planar faces. \n\
+  \n\
+  Args:                                    \n\
+    surface (vtkPolyData): A polygonal surface. \n\
+    use_center (bool): If true then planar faces are constructed using polygons connected to hole centers. \n\
+");
+
+static PyObject *
+Vmtk_cap(PyObject* self, PyObject* args,  PyObject* kwargs)
+{
+  auto api = SvPyUtilApiFunction("O|O!", PyRunTimeErr, __func__);
+  static char *keywords[] = {"surface", "use_center", NULL};
+  PyObject* surfaceArg;
+  PyObject* useCenterArg;
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &surfaceArg, &PyBool_Type, &useCenterArg)) {
+      return api.argsError();
+  }
+
+  // Set cap type. 
+  //
+  //  This determines whether to cap regularly or cap with a point  in the center. 
+  //      0 - regular, 
+  //      1 - point in center
+  int captype = 0;
+  if ((useCenterArg != nullptr) && PyObject_IsTrue(useCenterArg)) {
+    captype = 1;
+  }
+
+  // Get the vtkPolyData objectsfrom the Python object.
+  //
+  auto surfPolydata = GetVtkPolyData(api, surfaceArg);
+  if (surfPolydata == nullptr) {
+      return nullptr;
+  }
+  cvPolyData cvSurfPolydata(surfPolydata);
+
+  // Perform cap operation.
+  //
+  cvPolyData *result = NULL;
+  int numIds, *ids;
+  if (sys_geom_cap(&cvSurfPolydata, &result, &numIds, &ids, captype) != SV_OK) {
+    api.error("Error capping model.");
+    return nullptr; 
+  }
+
+/*
+  // [TODO:DaveP] what are the IDs that were not found?
+  if (numIds == 0) {
+      api.error("No cap IDs were found."); 
+      return nullptr;
+  }
+
+  // Build return list of IDs.
+  //
+  PyObject* pyList = PyList_New(numIds);
+  for (int i = 0; i < numIds; i++) {
+      PyObject* pint = Py_BuildValue("i", ids[i]);
+      PyList_SetItem(pyList, i, pint);
+  }
+
+  delete [] ids;
+  return pyList;
+*/
+
+  return vtkPythonUtil::GetObjectFromPointer(result->GetVtkPolyData());
+}
 
 //-------------------
 // Geom_cap_with_ids
@@ -134,7 +279,6 @@ Vmtk_cap_with_ids(PyObject* self, PyObject* args, PyObject* kwargs)
 
   if (fillIdArg != nullptr) { 
       fillId = PyInt_AsLong(fillIdArg);
-      std::cout << "[Vmtk_cap_with_ids] fillId: " << fillId  << std::endl;
       if (fillId < 0) { 
           api.error("Cap fill ID must be >= 0.");
           return nullptr;
@@ -148,6 +292,8 @@ Vmtk_cap_with_ids(PyObject* self, PyObject* args, PyObject* kwargs)
           }
       }
   }
+  std::cout << "[Vmtk_cap_with_ids] fillId: " << fillId << std::endl;
+  std::cout << "[Vmtk_cap_with_ids] fillType: " << fillType << std::endl;
 
   // Get the vtkPolyData objectsfrom the Python object.
   //
@@ -170,6 +316,113 @@ Vmtk_cap_with_ids(PyObject* self, PyObject* args, PyObject* kwargs)
   }
 
   return vtkPythonUtil::GetObjectFromPointer(result->GetVtkPolyData());
+}
+
+//------------------
+// Vmtk_centerlines 
+//------------------
+//
+PyDoc_STRVAR(Vmtk_centerlines_doc,
+  " Geom_centerlines(name)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+  Args:                                    \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject * 
+Vmtk_centerlines(PyObject* self, PyObject* args, PyObject* kwargs)
+{
+  std::cout << "========== Vmtk_centerlines ==========" << std::endl;
+  auto api = SvPyUtilApiFunction("OO!O!|O!", PyRunTimeErr, __func__);
+  static char *keywords[] = {"surface", "inlet_ids", "outlet_ids", "use_face_ids", NULL};
+  PyObject* surfaceArg;
+  PyObject* inletIdsArg;
+  PyObject* outletIdsArg;
+  PyObject* useFaceIdsArg = nullptr;
+  bool useFaceIds = false;
+ 
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &surfaceArg, &PyList_Type, &inletIdsArg, &PyList_Type, &outletIdsArg,
+          &PyBool_Type, &useFaceIdsArg)) {
+      return api.argsError();
+  }
+
+  // Check inlet IDs.
+  //
+  // [TODO:DaveP] Add this as a util function.
+  //
+  std::vector<int> sources;
+  int numInletIds = PyList_Size(inletIdsArg);
+  if (numInletIds == 0) { 
+    api.error("The 'inlet_ids' argument is empty.");
+    return nullptr;
+  }
+  std::cout << "[Vmtk_centerlines] numInletIds: " << numInletIds << std::endl;
+  for (int i = 0; i < numInletIds; i++) {
+      auto item = PyList_GetItem(inletIdsArg, i);
+      if (!PyLong_Check(item)) {
+          api.error("The 'inlet_ids' argument is not a list of integers.");
+          return nullptr;
+      }
+      int id = PyLong_AsLong(item);
+      std::cout << "[Vmtk_centerlines]   ID: " << id << std::endl;
+      sources.push_back(id);
+  }
+
+  // Get the target IDs.
+  //
+  int numOutletIds = PyList_Size(outletIdsArg);
+  std::vector<int> targets;
+  if (numOutletIds == 0) {
+    api.error("The 'outlet_ids' argument is empty.");
+    return nullptr;
+  }
+  std::cout << "[Vmtk_centerlines] numOutletIds: " << numOutletIds << std::endl;
+  for (int i = 0; i < numOutletIds; i++) {
+      auto item = PyList_GetItem(outletIdsArg, i);
+      if (!PyLong_Check(item)) {
+          api.error("The 'outlet_ids' argument is not a list of integers.");
+          return nullptr;
+      }
+      int id = PyLong_AsLong(item);
+      std::cout << "[Vmtk_centerlines]   ID: " << id << std::endl;
+      targets.push_back(id);
+  }
+
+  // Get the vtkPolyData object from the Python object.
+  //
+  auto surfPolydata = GetVtkPolyData(api, surfaceArg);
+  if (surfPolydata == nullptr) {
+      return nullptr;
+  }
+  std::cout << "[Vmtk_centerlines] Done. " << std::endl;
+  cvPolyData cvSurfPolydata(surfPolydata);
+
+  // If use face IDs the map the face IDs for
+  // the source and targets to node IDs.
+  //
+  if (useFaceIdsArg != nullptr) {
+      useFaceIds = PyObject_IsTrue(useFaceIdsArg);
+  }
+  if (useFaceIds) { 
+      std::cout << "[Vmtk_centerlines] Use face IDs. " << std::endl;
+      sources = ConvertFaceIdsToNodeIds(api, surfPolydata, sources);
+      targets = ConvertFaceIdsToNodeIds(api, surfPolydata, targets);
+  }
+
+  // Calculate the centerlines.
+  cvPolyData* linesDst = nullptr;
+  cvPolyData* voronoiDst = nullptr;
+  std::cout << "[Vmtk_centerlines] Calculate centerlines ... " << std::endl;
+
+  if (sys_geom_centerlines(&cvSurfPolydata, sources.data(), numInletIds, targets.data(), numOutletIds, &linesDst, &voronoiDst) != SV_OK) {
+      api.error("Error calculating centerlines.");
+      return nullptr; 
+  }
+  std::cout << "[Vmtk_centerlines] Done. " << std::endl;
+
+  return vtkPythonUtil::GetObjectFromPointer(linesDst->GetVtkPolyData());
 }
 
 #ifdef VMTK_PYMODULE_OLD_METHODS
@@ -694,8 +947,11 @@ PyMethodDef PyVmtkMethods[] =
 {
 #ifdef SV_USE_VMTK
 
+  { "cap", (PyCFunction)Vmtk_cap, METH_VARARGS|METH_KEYWORDS, Vmtk_cap_doc},
+
   { "cap_with_ids", (PyCFunction)Vmtk_cap_with_ids, METH_VARARGS|METH_KEYWORDS, Vmtk_cap_with_ids_doc},
 
+  { "centerlines", (PyCFunction)Vmtk_centerlines, METH_VARARGS|METH_KEYWORDS, Vmtk_centerlines_doc},
 
 #ifdef VMTK_PYMODULE_OLD_METHODS
 
