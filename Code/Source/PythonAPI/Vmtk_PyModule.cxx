@@ -37,8 +37,12 @@
 #include "SimVascular.h"
 #include "SimVascular_python.h"
 
+#include <iostream>
+#include <iterator>
+#include <sstream>
 #include <stdio.h>
 #include <string.h>
+
 #include "sv_Repository.h"
 #include "sv_RepositoryData.h"
 #include "sv_PolyData.h"
@@ -95,12 +99,17 @@ GetVtkPolyData(SvPyUtilApiFunction& api, PyObject* obj)
 static std::vector<int> 
 ConvertFaceIdsToNodeIds(SvPyUtilApiFunction& api, vtkPolyData* polydata, std::vector<int>& faceIds)
 {
-  std::cout << "---------- ConvertFaceIdsToNodeIds ---------- " << std::endl;
   std::vector<int> nodeIds;
   int numCells = polydata->GetNumberOfCells();
   auto points = polydata->GetPoints();
   auto cellData = vtkIntArray::SafeDownCast(polydata->GetCellData()->GetArray("ModelFaceID"));
-  std::cout << "[ConvertFaceIdsToNodeIds] cellData: " << cellData << std::endl;
+  if (cellData == nullptr) { 
+      api.error("No 'ModelFaceID' data found for the input polydata.");
+      return nodeIds;
+  }
+
+  // Find the node ID for each face ID.
+  //
   for (auto const& faceID : faceIds) {
       int cellID = -1;
       std::vector<int> cellIds;
@@ -136,6 +145,8 @@ ConvertFaceIdsToNodeIds(SvPyUtilApiFunction& api, vtkPolyData* polydata, std::ve
       center[0] /= numFacePts; 
       center[1] /= numFacePts; 
       center[2] /= numFacePts; 
+
+      // Find the closest node.
       double min_d = 1e6;
       int min_id = -1;
       for (auto const& id : faceNodeIds) {
@@ -150,7 +161,6 @@ ConvertFaceIdsToNodeIds(SvPyUtilApiFunction& api, vtkPolyData* polydata, std::ve
           }
       }
       nodeIds.push_back(min_id);
-      std::cout << "[ConvertFaceIdsToNodeIds] faceID " << faceID << " mapped to node ID " << min_id << std::endl;
   }
 
   return nodeIds;
@@ -323,12 +333,15 @@ Vmtk_cap_with_ids(PyObject* self, PyObject* args, PyObject* kwargs)
 //------------------
 //
 PyDoc_STRVAR(Vmtk_centerlines_doc,
-  " Geom_centerlines(name)  \n\ 
+  "centerlines(surface, inlet_ids, outlet_ids, use_face_ids=False)  \n\ 
   \n\
-  ??? Add the unstructured grid mesh to the repository. \n\
+  Calculate the centerlines for a closed surface. \n\
   \n\
   Args:                                    \n\
-    name (str): Name in the repository to store the unstructured grid. \n\
+    surface (vtkPolyData): The vtkPolyData object representing a closed surface. \n\
+    inlet_ids (list[int]): The list of integer IDs identifying the vessel inlet faces. \n\
+    outlet_ids (list[int]): The list of integer IDs identifying the vessel outlet faces. \n\
+    use_face_ids (bool): (optional) If True then the input IDs are face IDs, else they are node IDs. \n\
 ");
 
 static PyObject * 
@@ -358,7 +371,6 @@ Vmtk_centerlines(PyObject* self, PyObject* args, PyObject* kwargs)
     api.error("The 'inlet_ids' argument is empty.");
     return nullptr;
   }
-  std::cout << "[Vmtk_centerlines] numInletIds: " << numInletIds << std::endl;
   for (int i = 0; i < numInletIds; i++) {
       auto item = PyList_GetItem(inletIdsArg, i);
       if (!PyLong_Check(item)) {
@@ -378,7 +390,6 @@ Vmtk_centerlines(PyObject* self, PyObject* args, PyObject* kwargs)
     api.error("The 'outlet_ids' argument is empty.");
     return nullptr;
   }
-  std::cout << "[Vmtk_centerlines] numOutletIds: " << numOutletIds << std::endl;
   for (int i = 0; i < numOutletIds; i++) {
       auto item = PyList_GetItem(outletIdsArg, i);
       if (!PyLong_Check(item)) {
@@ -386,8 +397,19 @@ Vmtk_centerlines(PyObject* self, PyObject* args, PyObject* kwargs)
           return nullptr;
       }
       int id = PyLong_AsLong(item);
-      std::cout << "[Vmtk_centerlines]   ID: " << id << std::endl;
       targets.push_back(id);
+  }
+
+  // Check for IDs given as both sources and targets.
+  //
+  std::vector<int> commonIds; 
+  std::set_intersection(sources.begin(), sources.end(), targets.begin(), targets.end(), std::back_inserter(commonIds));
+  if (commonIds.size() != 0) {
+      std::ostringstream ids; 
+      std::copy(commonIds.begin(), commonIds.end()-1, std::ostream_iterator<int>(ids, ", ")); 
+      ids << commonIds.back();
+      api.error("The 'inlet_ids' and 'outlet_ids' arguments contain identical IDs '" + ids.str() + "'.");
+      return nullptr;
   }
 
   // Get the vtkPolyData object from the Python object.
@@ -396,19 +418,20 @@ Vmtk_centerlines(PyObject* self, PyObject* args, PyObject* kwargs)
   if (surfPolydata == nullptr) {
       return nullptr;
   }
-  std::cout << "[Vmtk_centerlines] Done. " << std::endl;
   cvPolyData cvSurfPolydata(surfPolydata);
 
-  // If use face IDs the map the face IDs for
+  // If use face IDs then map the face IDs for
   // the source and targets to node IDs.
   //
   if (useFaceIdsArg != nullptr) {
       useFaceIds = PyObject_IsTrue(useFaceIdsArg);
   }
   if (useFaceIds) { 
-      std::cout << "[Vmtk_centerlines] Use face IDs. " << std::endl;
       sources = ConvertFaceIdsToNodeIds(api, surfPolydata, sources);
       targets = ConvertFaceIdsToNodeIds(api, surfPolydata, targets);
+      if ((sources.size() == 0) || (targets.size() == 0)) {
+          return nullptr;
+      }
   }
 
   // Calculate the centerlines.
@@ -423,6 +446,59 @@ Vmtk_centerlines(PyObject* self, PyObject* args, PyObject* kwargs)
   std::cout << "[Vmtk_centerlines] Done. " << std::endl;
 
   return vtkPythonUtil::GetObjectFromPointer(linesDst->GetVtkPolyData());
+}
+
+//------------------------------
+// Vmtk_distance_to_centerlines
+//------------------------------
+//
+PyDoc_STRVAR(Vmtk_distance_to_centerlines_doc,
+  "distance_to_centerlines(surface, centerlines)  \n\ 
+  \n\
+  Compute the distance beteen centerlines and surface points. \n\
+  \n\
+  Args:                                    \n\
+    surface (vtkPolyData): The vtkPolyData object representing a closed surface. \n\
+    centerlines (vtkPolyData): The vtkPolyData object returned from a centerlines calculation. \n\
+  \n\
+  Returns a vtkPolyData object of the original surface with a 'DistanceToCenterlines' point data array storing the distances.\n\
+");
+
+static PyObject *
+Vmtk_distance_to_centerlines(PyObject* self, PyObject* args, PyObject* kwargs)
+{
+  auto api = SvPyUtilApiFunction("OO", PyRunTimeErr, __func__);
+  static char *keywords[] = {"surface", "line", NULL};
+  PyObject* surfaceArg;
+  PyObject* linesArg;
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &surfaceArg, &linesArg)) {
+      return api.argsError();
+  }
+
+  // Get the vtkPolyData object from the Python object.
+  //
+  auto surfPolydata = GetVtkPolyData(api, surfaceArg);
+  if (surfPolydata == nullptr) {
+      return nullptr;
+  }
+  cvPolyData cvSurfPolydata(surfPolydata);
+
+  auto linesPolydata = GetVtkPolyData(api, linesArg);
+  if (linesPolydata == nullptr) {
+      return nullptr;
+  }
+  cvPolyData cvLinesPolydata(linesPolydata);
+
+
+  // Perform distance to lines operation.
+  cvPolyData* result = nullptr;
+  if (sys_geom_distancetocenterlines(&cvSurfPolydata, &cvLinesPolydata, &result) != SV_OK) {
+      api.error("Error getting distance to centerlines.");
+      return nullptr; 
+  }
+
+  return vtkPythonUtil::GetObjectFromPointer(result->GetVtkPolyData());
 }
 
 #ifdef VMTK_PYMODULE_OLD_METHODS
@@ -580,58 +656,6 @@ Geom_group_polydata(PyObject* self, PyObject* args)
   return Py_BuildValue("s",groupedDst->GetName()) ;
 }
 
-//------------------------------
-// Geom_distance_to_centerlines
-//------------------------------
-//
-PyDoc_STRVAR(Geom_distance_to_centerlines_doc,
-  "distance_to_centerlines(name)  \n\ 
-  \n\
-  ??? Add the unstructured grid mesh to the repository. \n\
-  \n\
-  Args:                                    \n\
-    name (str): Name in the repository to store the unstructured grid. \n\
-");
-
-static PyObject *
-Geom_distance_to_centerlines(PyObject* self, PyObject* args)
-{
-  auto api = SvPyUtilApiFunction("sss", PyRunTimeErr, __func__);
-  char *geomName;
-  char *linesName;
-  char *distanceName;
-
-  if (!PyArg_ParseTuple(args, api.format,&geomName, &linesName, &distanceName)) {
-      return api.argsError();
-  }
-
-  // Get repository data.
-  //
-  auto geomSrc = GetRepositoryData(api, geomName, POLY_DATA_T);
-  if (geomSrc == nullptr) {
-      return nullptr;
-  }
-
-  auto linesSrc = GetRepositoryData(api, linesName, POLY_DATA_T);
-  if (linesSrc == NULL) {
-      return nullptr;
-  }
-
-  // Perform distance to lines operation.
-  cvRepositoryData *distanceDst = NULL;
-  if (sys_geom_distancetocenterlines((cvPolyData*)geomSrc, (cvPolyData*)linesSrc, (cvPolyData**)&distanceDst) != SV_OK) {
-      api.error("Error getting distance to centerlines.");
-      return nullptr; 
-  }
-
-  if (!gRepository->Register(distanceName, distanceDst)) {
-      delete distanceDst;
-      api.error("Error adding the distance to centerlines '" + std::string(distanceName) + "' to the repository.");
-      return nullptr;
-  }
-
-  return Py_BuildValue("s", distanceDst->GetName()) ;
-}
 
 //---------------------------
 // Geom_separate_centerlines
@@ -953,19 +977,15 @@ PyMethodDef PyVmtkMethods[] =
 
   { "centerlines", (PyCFunction)Vmtk_centerlines, METH_VARARGS|METH_KEYWORDS, Vmtk_centerlines_doc},
 
+  { "distance_to_centerlines", Vmtk_distance_to_centerlines, METH_VARARGS|METH_KEYWORDS, Vmtk_distance_to_centerlines_doc},
+
 #ifdef VMTK_PYMODULE_OLD_METHODS
 
-  { "centerlines", Geom_centerlines, METH_VARARGS, Geom_centerlines_doc},
-
   { "group_polydata", Geom_group_polydata, METH_VARARGS, Geom_group_polydata_doc},
-
-  { "distance_to_centerlines", Geom_distance_to_centerlines, METH_VARARGS, Geom_distance_to_centerlines_doc},
 
   { "separate_centerlines", Geom_separate_centerlines, METH_VARARGS, Geom_separate_centerlines_doc},
 
   { "merge_centerlines", Geom_merge_centerlines, METH_VARARGS, Geom_merge_centerlines_doc},
-
-  { "cap", Geom_cap, METH_VARARGS, Geom_cap_doc},
 
   { "map_and_correct_ids", Geom_map_and_correct_ids, METH_VARARGS, Geom_map_and_correct_ids_doc},
 
