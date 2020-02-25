@@ -80,7 +80,7 @@
 
 #ifdef SV_USE_MMG
   #include "sv_mesh_init_py.h"
-  #include "sv_mmg_mesh_init_py.h"
+  #include "MeshUtils_PyModule.h"
 #endif
 
 #ifdef SV_USE_ITK
@@ -152,7 +152,7 @@ void SimVascular_pyInit()
 
     #ifdef SV_USE_MMG
     //PyImport_AppendInittab("meshing", PyInit_PyMeshingObject);
-    //PyImport_AppendInittab("mesh_util", PyInit_pyMeshUtil);
+    PyImport_AppendInittab("mesh_utils", PyInit_PyMeshUtils);
     #endif
 
     #ifdef SV_USE_ITK

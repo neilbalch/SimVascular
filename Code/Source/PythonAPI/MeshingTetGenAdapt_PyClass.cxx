@@ -190,6 +190,10 @@ TetGenAdapt_generate_mesh(PyTetGenAdaptClass* self, PyObject* args, PyObject* kw
   //auto adaptMesher = dynamic_cast<cvTetGenAdapt*>(self->adaptive_mesher);
 
   // Redirect stdout to the 'mesh.log' file. 
+  //
+  // [TODO:DaveP] Need to put this in a class so stdout can be reset when
+  // it goes out of scope.
+  //
   if (logFileName == NULL) {
       logFileName = "/dev/null";
   }

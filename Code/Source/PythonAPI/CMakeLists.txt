@@ -45,6 +45,7 @@ list (APPEND CXXSRCS
   Contour_PyModule.cxx
   Geometry_PyModule.cxx
   Meshing_PyModule.cxx
+  MeshUtils_PyModule.cxx
   Solid_PyModule.cxx
   Vmtk_PyModule.cxx
 )
