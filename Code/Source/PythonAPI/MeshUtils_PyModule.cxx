@@ -91,6 +91,13 @@ GetVtkPolyData(SvPyUtilApiFunction& api, PyObject* obj)
 //
 // Python API functions. 
 
+PyDoc_STRVAR(MeshUtils_remesh_doc,
+" remesh(surface, hmin=0.1, hmax=0.1, angle=45.0, hgrad=1.1, hausd=0.01, log_file=None)  \n\ 
+  \n\
+  ??? Add the unstructured grid mesh to the repository. \n\
+  \n\
+");
+
 //------------
 // MMG_remesh
 //------------
@@ -178,7 +185,7 @@ PyDoc_STRVAR(MeshUtils_doc, "mesh_util functions");
 //
 PyMethodDef PyMeshUtilsMethods[] =
 {
-  {"remesh", MeshUtils_remesh, METH_VARARGS|METH_KEYWORDS, NULL },
+  {"remesh", (PyCFunction)MeshUtils_remesh, METH_VARARGS|METH_KEYWORDS, MeshUtils_remesh_doc},
 
   {NULL,NULL}
 };
