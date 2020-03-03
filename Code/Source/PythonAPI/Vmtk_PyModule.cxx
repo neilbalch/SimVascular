@@ -194,7 +194,7 @@ Vmtk_cap(PyObject* self, PyObject* args,  PyObject* kwargs)
   auto api = SvPyUtilApiFunction("O|O!", PyRunTimeErr, __func__);
   static char *keywords[] = {"surface", "use_center", NULL};
   PyObject* surfaceArg;
-  PyObject* useCenterArg;
+  PyObject* useCenterArg = nullptr;
 
   if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &surfaceArg, &PyBool_Type, &useCenterArg)) {
       return api.argsError();
@@ -977,7 +977,7 @@ PyMethodDef PyVmtkMethods[] =
 
   { "centerlines", (PyCFunction)Vmtk_centerlines, METH_VARARGS|METH_KEYWORDS, Vmtk_centerlines_doc},
 
-  { "distance_to_centerlines", Vmtk_distance_to_centerlines, METH_VARARGS|METH_KEYWORDS, Vmtk_distance_to_centerlines_doc},
+  { "distance_to_centerlines", (PyCFunction)Vmtk_distance_to_centerlines, METH_VARARGS|METH_KEYWORDS, Vmtk_distance_to_centerlines_doc},
 
 #ifdef VMTK_PYMODULE_OLD_METHODS
 
