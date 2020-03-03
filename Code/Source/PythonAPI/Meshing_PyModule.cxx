@@ -44,12 +44,14 @@
 #include "sv_mesh_init_py.h"
 #include "vtkPythonUtil.h"
 #include "sv_PyUtils.h"
+#include "Meshing_PyModule.h"
 #include "Solid_PyModule.h"
 #include "sv_TetGenMeshObject.h"
 #include "sv_TetGenMeshSystem.h"
 
 #include <stdio.h>
 #include <string.h>
+#include <functional>
 #include "sv_Repository.h"
 #include "sv_RepositoryData.h"
 #include "sv_PolyData.h"
@@ -72,6 +74,19 @@ static PyObject * PyRunTimeErr;
 // Include meshing Kernel class that defines a map between 
 // mesh kernel name and enum type.
 #include "MeshingKernel_PyClass.cxx"
+
+//-----------------
+// CvMesherCtorMap
+//-----------------
+// Define an object factory for creating cvMeshObject objects.
+//
+// An entry for KERNEL_MESHSIM is added later in PyAPI_InitMeshSim() 
+// if the MeshSim interface is defined (by loading the MeshSim plugin).
+//
+using MesherCtorMapType = std::map<cvMeshObject::KernelType, std::function<cvMeshObject*()>>;
+MesherCtorMapType CvMesherCtorMap = {
+    {cvMeshObject::KERNEL_TETGEN, []() -> cvMeshObject* { return new cvTetGenMeshObject(); } },
+};
 
 // Include the definition for the meshing.TetGenOptions classes. 
 #include "MeshingTetGenOptions_PyClass.cxx"
@@ -174,6 +189,10 @@ PyMeshing_create_mesher(PyTypeObject *type, PyObject* args)
 
   // Create a mesher for the given kernel.
   auto mesher = PyMesherCreateObject(kernel);
+  if (mesher == nullptr) { 
+      api.error("Unable to create a mesher for kernel '" + std::string(kernelName) + "'." );
+      return nullptr;
+  }
   Py_INCREF(mesher);
 
   return mesher;

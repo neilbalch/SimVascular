@@ -1120,6 +1120,7 @@ static PyTypeObject PyMeshingMesherClassType = {
 
 // Include derived mesh generator classes.
 #include "MeshingTetGen_PyClass.cxx"
+#include "MeshingMeshSim_PyClass.cxx"
 
 //-----------------
 // PyMesherCtorMap
@@ -1148,6 +1149,7 @@ PyMesherCreateObject(cvMeshObject::KernelType kernel)
   try {
       mesher = PyMesherCtorMap[kernel]();
   } catch (...) {
+      std::cout << "[PyCreateMesher] No mesh class for kernel " << kernel << std::endl;
       return nullptr;
   }
 

@@ -29,8 +29,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef CVMESH_INIT_PY_H
-#define CVMESH_INIT_PY_H
+#ifndef MESHING_PY_MODULE_H
+#define MESHING_PY_MODULE_H 
 
 #include "SimVascular.h"
 #include "Python.h"
@@ -38,6 +38,10 @@
 #include "sv_MeshObject.h"
 
 extern "C" SV_EXPORT_MESH int Mesh_pyInit();
+
+typedef cvMeshObject * (*CreateMesherObjectFunction)();
+
+extern "C" SV_EXPORT_MESH void PyAPI_InitMeshSim(CreateMesherObjectFunction createObject);
 
 // [TODO:DaveP] why is this in the header, it is not
 // referenced anywhere else.
