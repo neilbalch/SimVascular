@@ -296,6 +296,13 @@ PyInit_PyMeshing()
       return nullptr;
   }
 
+  // Initialize the MeshSim mesh generator class type.
+  SetMeshingMeshSimTypeFields(PyMeshingMeshSimClassType);
+  if (PyType_Ready(&PyMeshingMeshSimClassType) < 0) {
+      std::cout << "Error creating Meshing TetGen type" << std::endl;
+      return nullptr;
+  }
+
   // Initialize the meshing kernel class type.
   SetMeshingKernelTypeFields(PyMeshingKernelClassType);
   if (PyType_Ready(&PyMeshingKernelClassType) < 0) {
@@ -370,6 +377,10 @@ PyInit_PyMeshing()
   Py_INCREF(&PyMeshingTetGenClassType);
   PyModule_AddObject(module, MESHING_TETGEN_CLASS, (PyObject*)&PyMeshingTetGenClassType);
 
+  // Add the 'meshing.MeshSim' class.
+  Py_INCREF(&PyMeshingMeshSimClassType);
+  PyModule_AddObject(module, MESHING_MESHSIM_CLASS, (PyObject*)&PyMeshingMeshSimClassType);
+
   // Add the 'mesh.Kernel' class.
   Py_INCREF(&PyMeshingKernelClassType);
   PyModule_AddObject(module, MESHING_KERNEL_CLASS, (PyObject*)&PyMeshingKernelClassType);
@@ -411,6 +422,9 @@ PyInit_PyMeshing()
 
   // Set the kernel names in the MeshingAdaptiveKernelType dictionary.
   SetMeshingAdaptiveKernelClassTypes(PyMeshingAdaptiveKernelClassType);
+
+  // Setup creating TetGen mesh generation objects.
+  PyAPI_InitTetGen();
 
   return module;
 }

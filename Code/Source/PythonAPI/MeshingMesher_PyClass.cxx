@@ -512,12 +512,14 @@ PyDoc_STRVAR(Mesher_set_solid_modeler_kernel_doc,
 static PyObject * 
 Mesher_set_solid_modeler_kernel(PyMeshingMesherClass* self, PyObject* args)
 {
+  std::cout << "[Mesher_set_solid_modeler_kernel] ========== Mesher_set_solid_modeler_kernel ==========" << std::endl;
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__); 
   char *kernelName;
   if (!PyArg_ParseTuple(args, api.format, &kernelName)) {
       return api.argsError();
   }
   auto mesher = self->mesher;
+  std::cout << "[Mesher_set_solid_modeler_kernel] mesher: " << mesher << std::endl;
 
   // Check for a valid kernel name.
   //
@@ -1118,10 +1120,6 @@ static PyTypeObject PyMeshingMesherClassType = {
   sizeof(PyMeshingMesherClass)
 };
 
-// Include derived mesh generator classes.
-#include "MeshingTetGen_PyClass.cxx"
-#include "MeshingMeshSim_PyClass.cxx"
-
 //-----------------
 // PyMesherCtorMap
 //-----------------
@@ -1132,18 +1130,24 @@ static PyTypeObject PyMeshingMesherClassType = {
 //
 using PyMesherCtorMapType = std::map<cvMeshObject::KernelType, std::function<PyObject*()>>;
 PyMesherCtorMapType PyMesherCtorMap = {
-  {cvMeshObject::KernelType::KERNEL_TETGEN, []()->PyObject* {return PyObject_CallObject((PyObject*)&PyMeshingTetGenClassType, NULL);}},
+  //{cvMeshObject::KernelType::KERNEL_TETGEN, []()->PyObject* {return PyObject_CallObject((PyObject*)&PyMeshingTetGenClassType, NULL);}},
 };
 
-//-----------------------
+// Include derived mesh generator classes.
+#include "MeshingTetGen_PyClass.cxx"
+#include "MeshingMeshSim_PyClass.cxx"
+
+//----------------------
 // PyMesherCreateObject 
-//-----------------------
+//----------------------
 // Create a Python mesher object for the given kernel.
 //
 static PyObject *
 PyMesherCreateObject(cvMeshObject::KernelType kernel)
 {
   std::cout << "[PyCreateMesher] ========== PyCreateMesher ==========" << std::endl;
+  std::cout << "[PyCreateMesher] kernel: " << kernel << std::endl;
+  std::cout << "[PyCreateMesher] PyMesherCtorMap.size(): " << PyMesherCtorMap.size() << std::endl;
   PyObject* mesher;
 
   try {
@@ -1153,6 +1157,7 @@ PyMesherCreateObject(cvMeshObject::KernelType kernel)
       return nullptr;
   }
 
+  std::cout << "[PyCreateMesher] mesher: " << mesher << kernel << std::endl;
   return mesher;
 }
 

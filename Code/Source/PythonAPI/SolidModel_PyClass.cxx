@@ -686,6 +686,7 @@ static PyMethodDef PySolidModelClassMethods[] = {
 static int
 PySolidModelInit(PySolidModelClass* self, PyObject* args, PyObject *kwds)
 {
+  std::cout << "[PySolidModelInit] ========== PySolidModelInit ========== " << std::endl;
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, "SolidModel");
   static int numObjs = 1;
   std::cout << "[PySolidModelInit] New PySolidModel object: " << numObjs << std::endl;
