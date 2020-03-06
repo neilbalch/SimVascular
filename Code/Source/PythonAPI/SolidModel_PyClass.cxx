@@ -711,9 +711,9 @@ PySolidModelInit(PySolidModelClass* self, PyObject* args, PyObject *kwds)
   return 0;
 }
 
-//------------------
-// PySolidModelType 
-//------------------
+//-----------------------
+// PySolidModelClassType 
+//-----------------------
 // This is the definition of the SolidModel class.
 //
 // The type object stores a large number of values, mostly C function pointers, 

@@ -245,9 +245,9 @@ CreatePySolidModelObject(SolidModel_KernelT kernel)
   return CreatePySolidModelObject(cvSolidModel);
 }
 
-//--------------------
-// CreatePySolidModel
-//--------------------
+//--------------------------
+// CreatePySolidModelObject 
+//--------------------------
 // Create a Python SolidModel object for the given cvSolidModel object.
 //
 static PyObject *

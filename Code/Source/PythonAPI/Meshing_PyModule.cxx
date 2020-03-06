@@ -155,6 +155,10 @@ PyMeshing_create_adaptive_mesher(PyTypeObject *type, PyObject* args)
 //-------------------------
 // PyMeshing_create_mesher 
 //-------------------------
+// [TODO:DaveP] I'm not sure if we want this or not since
+// a mesher can be created using a class name
+//
+//     mesher = sv.meshing.TetGen()
 //
 PyDoc_STRVAR(PyMeshing_create_mesher_doc,
   "create_mesher(kernel)  \n\ 
@@ -363,8 +367,12 @@ PyInit_PyMeshing()
   SetTetGenOptionsClassTypes(PyTetGenOptionsType);
 
   // Add the 'meshing.Mesher' class.
-  Py_INCREF(&PyMeshingMesherClassType);
-  PyModule_AddObject(module, MESHING_MESHER_CLASS, (PyObject*)&PyMeshingMesherClassType);
+  // 
+  // Don't expose the 'meshing.Mesher' class, it is a base class and should 
+  // not be used to create objects.
+  //
+  //Py_INCREF(&PyMeshingMesherClassType);
+  //PyModule_AddObject(module, MESHING_MESHER_CLASS, (PyObject*)&PyMeshingMesherClassType);
 
   // Add the 'meshing.TetGen' class.
   Py_INCREF(&PyMeshingTetGenClassType);

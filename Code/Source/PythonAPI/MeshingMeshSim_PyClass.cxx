@@ -85,12 +85,9 @@ static int
 PyMeshingMeshSimInit(PyMeshingMeshSimClass* self, PyObject* args, PyObject *kwds)
 {
   std::cout << "[PyMeshingMeshSimInit] New MeshSim object: " << std::endl;
-/* [TODO:DaveP] what goes here?
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, "MeshGenerator");
   static int numObjs = 1;
-  std::cout << "[PyMeshingMeshSimClassInit] New PyMeshingMeshSimClass object: " << numObjs << std::endl;
-  self->super.mesher = new cvMeshSimMeshObject();
-*/
+  self->super.mesher = PyCreateMeshSimObject();
   return 0;
 }
 
@@ -175,10 +172,10 @@ SetMeshingMeshSimTypeFields(PyTypeObject& mesherType)
 void
 PyAPI_InitMeshSim(CreateMesherObjectFunction create_object)
 {
-  // Set the function to create Parasolid modeling objects.
+  // Set the function to create MeshSim mesh generator objects.
   PyCreateMeshSimObject = create_object;
 
-  // Add a method to create a Parasolid modeling object.
+  // Add a method to create a MeshSim mesh generator object.
   CvMesherCtorMap[cvMeshObject::KERNEL_MESHSIM] = []()-> cvMeshObject*{ return PyCreateMeshSimObject(); };
 }
 
