@@ -172,10 +172,14 @@ SetMeshingMeshSimTypeFields(PyTypeObject& mesherType)
 void
 PyAPI_InitMeshSim(CreateMesherObjectFunction create_object)
 {
-  // Set the function to create MeshSim mesh generator objects.
+  // Set the function to create MeshSim mesh generation objects.
   PyCreateMeshSimObject = create_object;
 
-  // Add a method to create a MeshSim mesh generator object.
+  // Add a method to create a MeshSim mesh generation object.
   CvMesherCtorMap[cvMeshObject::KERNEL_MESHSIM] = []()-> cvMeshObject*{ return PyCreateMeshSimObject(); };
+
+  // Add a method to create a MeshSim mesh generation PyObject.
+  PyMesherCtorMap[cvMeshObject::KERNEL_MESHSIM] = []()->PyObject*{ return PyObject_CallObject((PyObject*)&PyMeshingMeshSimClassType, NULL); };
+
 }
 

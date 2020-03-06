@@ -284,3 +284,16 @@ SetMeshingTetGenTypeFields(PyTypeObject& mesherType)
   mesherType.tp_methods = PyMeshingTetGenMethods;
 };
 
+//------------------
+// PyAPI_InitTetGen
+//------------------
+// Setup creating TetGen mesh generation objects.
+//
+// This is called from 'meshing' module init function PyInit_PyMeshing(). 
+//
+void
+PyAPI_InitTetGen()
+{
+  PyMesherCtorMap[cvMeshObject::KERNEL_TETGEN] = []()->PyObject* {return PyObject_CallObject((PyObject*)&PyMeshingTetGenClassType, NULL);};
+}
+
