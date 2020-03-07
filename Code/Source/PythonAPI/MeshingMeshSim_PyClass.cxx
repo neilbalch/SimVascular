@@ -48,11 +48,159 @@ CreateMesherObjectFunction PyCreateMeshSimObject = nullptr;
 //          U t i l i t y  F u n c t i o n s        //
 //////////////////////////////////////////////////////
 
+//-------------------------------
+// MeshingMeshSimCheckModelLoaded
+//-------------------------------
+// Check if the mesh has a solid model.
+//
+bool
+MeshingMeshSimCheckModelLoaded(PyMeshingMeshSimClass* self)
+{
+  auto mesher = self->super.mesher;
+  return mesher->HasSolid();
+}
+
+//--------------------------
+// MeshingTetGenCheckOption
+//--------------------------
+// Check if an option can be correctly set for the mesh. 
+//
+// The LocalEdgeSize option needs to have a model defined for the mesh.
+//
+bool
+MeshingMeshSimCheckOption(PyMeshingMeshSimClass* self, std::string& name, SvPyUtilApiFunction& api)
+{
+  // The LocalEdgeSize option needs to have the model set for the mesh.
+  if (name == MeshSimOption::LocalEdgeSize) {
+      if (!MeshingMeshSimCheckModelLoaded(self)) {
+          api.error("A model must be defined for the mesh. Use the 'load_model' method to define a model for the mesh.");
+          return false;
+      }
+  }
+
+  return true;
+}
+
 /////////////////////////////////////////////////////////////////
 //              C l a s s   F u n c t i o n s                  //
 /////////////////////////////////////////////////////////////////
 //
 // Python API functions for the PyMeshingMeshSimClass class. 
+
+//-------------------------------
+// MeshingMeshSim_create_options
+//-------------------------------
+//
+PyDoc_STRVAR(MeshingMeshSim_create_options_doc,
+  "create_options(global_edge_size, surface_mesh_flag=True, volume_mesh_flag=True, )  \n\ 
+  \n\
+  Create a MeshSimOptions object. \n\
+  \n\
+  Args:                                    \n\
+    global_edge_size (float): The value used to set the global_edge_size parameter. \n\
+    surface_mesh_flag (bool): The value used to set the surface_mesh_flag parameter. \n\
+    volume_mesh_flag (bool): The value used to set the volume_mesh_flag parameter. \n\
+");
+
+static PyObject *
+MeshingMeshSim_create_options(PyObject* self, PyObject* args, PyObject* kwargs )
+{
+  return CreateMeshSimOptionsType(args, kwargs);
+}
+
+//-------------------
+// Mesher_load_model
+//-------------------
+//
+PyDoc_STRVAR(MeshingMeshSim_load_model_doc,
+  "load_model(file_name)  \n\ 
+  \n\
+  Load a solid model from a file into the mesher. \n\
+  \n\
+  Args:                                    \n\
+    file_name (str): Name in the solid model file. \n\
+");
+
+static PyObject *
+MeshingMeshSim_load_model(PyMeshingMesherClass* self, PyObject* args, PyObject* kwargs)
+{
+  std::cout << "======================= MeshingMeshSim_load_model ================" << std::endl;
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  static char *keywords[] = {"file_name", NULL};
+  char *fileName;
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &fileName)) {
+    return api.argsError();
+  }
+  auto mesher = self->mesher;
+
+  // Read in the solid model file.
+  if (mesher->LoadModel(fileName) == SV_ERROR) {
+      api.error("Error loading a solid model from the file '" + std::string(fileName) + "'.");
+      return nullptr;
+  }
+
+  // Need to create an initial mesh.
+  mesher->NewMesh();
+
+  Py_RETURN_NONE;
+}
+
+//----------------------------
+// MeshingMeshSim_set_options
+//----------------------------
+//
+PyDoc_STRVAR(MeshingMeshSim_set_options_doc,
+  "set_options(options)  \n\ 
+  \n\
+  Set the MeshSim mesh generation options. \n\
+  \n\
+  Args:                                    \n\
+    options (meshing.MeshSimOptions): A MeshSimOptions options object containing option values. \n\
+");
+
+static PyObject *
+MeshingMeshSim_set_options(PyMeshingMeshSimClass* self, PyObject* args )
+{
+  std::cout << "[MeshingMeshSim_set_options] " << std::endl;
+  std::cout << "[MeshingMeshSim_set_options] ========== MeshingMeshSim_set_options =========" << std::endl;
+  auto api = SvPyUtilApiFunction("O!", PyRunTimeErr, __func__);
+  PyObject* options;
+
+  if (!PyArg_ParseTuple(args, api.format, &PyMeshSimOptionsType, &options)) {
+      return api.argsError();
+  }
+
+  auto mesher = self->super.mesher;
+
+  for (auto const& entry : MeshSimOption::pyToSvNameMap) {
+      auto pyName = entry.first;
+      auto svName = entry.second;
+      auto values = PyMeshSimOptionsGetValues(options, pyName);
+      int numValues = values.size();
+      if (numValues == 0) { 
+          continue;
+      }
+
+      // Check if an option can be correctly set for the mesh. 
+      if (!MeshingMeshSimCheckOption(self, pyName, api)) {
+          return nullptr;
+      }
+
+      std::cout << "[MeshingMeshSim_set_options] name: " << svName << "  num values: " << numValues << "  values: ";
+      for (auto const val : values) {
+          std::cout << val << " "; 
+      }
+      std::cout << std::endl; 
+ 
+      if (mesher->SetMeshOptions(svName, numValues, values.data()) == SV_ERROR) {
+        api.error("Error setting MeshSim meshing '" + std::string(pyName) + "' option.");
+        return nullptr;
+      }
+  }
+
+  Py_RETURN_NONE;
+}
 
 ////////////////////////////////////////////////////////
 //           C l a s s    D e f i n i t i o n         //
@@ -71,6 +219,9 @@ PyDoc_STRVAR(PyMeshingMeshSimClass_doc, "MeshSim mesh generator class methods.")
 //-------------------------
 //
 static PyMethodDef PyMeshingMeshSimMethods[] = {
+  {"create_options", (PyCFunction)MeshingMeshSim_create_options, METH_VARARGS|METH_KEYWORDS, MeshingMeshSim_create_options_doc},
+  {"load_model", (PyCFunction)MeshingMeshSim_load_model, METH_VARARGS|METH_KEYWORDS, MeshingMeshSim_load_model_doc},
+  {"set_options", (PyCFunction)MeshingMeshSim_set_options, METH_VARARGS, MeshingMeshSim_set_options_doc},
   {NULL, NULL}
 };
 

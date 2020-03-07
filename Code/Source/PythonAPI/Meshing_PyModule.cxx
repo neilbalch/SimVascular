@@ -91,6 +91,9 @@ MesherCtorMapType CvMesherCtorMap = {
 // Include the definition for the meshing.TetGenOptions classes. 
 #include "MeshingTetGenOptions_PyClass.cxx"
 
+// Include the definition for the meshing.MeshSimOptions classes. 
+#include "MeshingMeshSimOptions_PyClass.cxx"
+
 // Include mesh.Mesher definition.
 #include "MeshingMesher_PyClass.cxx"
 
@@ -286,6 +289,13 @@ PyInit_PyMeshing()
     return SV_PYTHON_ERROR;
   }
 
+  // Initialize the MeshSimOptions class type.
+  SetMeshSimOptionsTypeFields(PyMeshSimOptionsType);
+  if (PyType_Ready(&PyMeshSimOptionsType) < 0) {
+    fprintf(stdout,"Error in PyMeshSimClassType\n");
+    return SV_PYTHON_ERROR;
+  }
+
   // Initialize the mesh generator class type.
   SetMesherTypeFields(PyMeshingMesherClassType);
   if (PyType_Ready(&PyMeshingMesherClassType) < 0) {
@@ -372,6 +382,11 @@ PyInit_PyMeshing()
   Py_INCREF(&PyTetGenOptionsType);
   PyModule_AddObject(module, MESHING_TETGEN_OPTIONS_CLASS, (PyObject*)&PyTetGenOptionsType);
   SetTetGenOptionsClassTypes(PyTetGenOptionsType);
+
+  // Add the 'meshing.MeshSimOptions' class.
+  Py_INCREF(&PyMeshSimOptionsType);
+  PyModule_AddObject(module, MESHING_MESHSIM_OPTIONS_CLASS, (PyObject*)&PyMeshSimOptionsType);
+  SetMeshSimOptionsClassTypes(PyMeshSimOptionsType);
 
   // Add the 'meshing.Mesher' class.
   // 

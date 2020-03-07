@@ -86,7 +86,7 @@ MeshingTetGenCheckOption(PyMeshingTetGenClass* self, std::string& name, SvPyUtil
 // Python API functions for the PyMeshingTetGenClass class. 
 
 //-------------------------
-// PolyDataSolid_available
+// MeshingTetGen_available 
 //-------------------------
 //
 static PyObject *
