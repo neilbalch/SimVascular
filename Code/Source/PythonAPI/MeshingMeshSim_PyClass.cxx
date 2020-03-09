@@ -33,9 +33,9 @@
 //
 // The class name is 'meshing.MeshSim'.
 
-//----------------------
+//-----------------------
 // PyMeshingMeshSimClass
-//----------------------
+//-----------------------
 // Define the PyMeshingMeshSimClass class.
 //
 typedef struct {
@@ -48,9 +48,9 @@ CreateMesherObjectFunction PyCreateMeshSimObject = nullptr;
 //          U t i l i t y  F u n c t i o n s        //
 //////////////////////////////////////////////////////
 
-//-------------------------------
+//--------------------------------
 // MeshingMeshSimCheckModelLoaded
-//-------------------------------
+//--------------------------------
 // Check if the mesh has a solid model.
 //
 bool
@@ -97,7 +97,7 @@ PyDoc_STRVAR(MeshingMeshSim_create_options_doc,
   Create a MeshSimOptions object. \n\
   \n\
   Args:                                    \n\
-    global_edge_size (float): The value used to set the global_edge_size parameter. \n\
+    global_edge_size ({'edge_size':double, 'absolute':bool}): The 'edge_size' parameter sets the global edge size. The 'absolute' paramater sets how to interpret the 'edge_size'; if true then the edge size is in absolute terms, else it is in relative terms. \n\
     surface_mesh_flag (bool): The value used to set the surface_mesh_flag parameter. \n\
     volume_mesh_flag (bool): The value used to set the volume_mesh_flag parameter. \n\
 ");
@@ -172,7 +172,10 @@ MeshingMeshSim_set_options(PyMeshingMeshSimClass* self, PyObject* args )
   }
 
   auto mesher = self->super.mesher;
+  std::cout << "[MeshingMeshSim_set_options] mesher: " << mesher << std::endl;
 
+  // Iterate over all option names to set mesher options. 
+  //
   for (auto const& entry : MeshSimOption::pyToSvNameMap) {
       auto pyName = entry.first;
       auto svName = entry.second;
@@ -195,6 +198,24 @@ MeshingMeshSim_set_options(PyMeshingMeshSimClass* self, PyObject* args )
  
       if (mesher->SetMeshOptions(svName, numValues, values.data()) == SV_ERROR) {
         api.error("Error setting MeshSim meshing '" + std::string(pyName) + "' option.");
+        return nullptr;
+      }
+  }
+
+  // Set the local edge size option.
+  //
+  // This is an a list of dictionaries.
+  //
+  auto localEdgeSizes = PyMeshSimOptionsGetLocalEdgeSizes(options, MeshSimOption::LocalEdgeSize);
+  auto svName = MeshSimOption::pyToSvNameMap[MeshSimOption::LocalEdgeSize];
+  std::cout << "[MeshingMeshSim_set_options] Set local edge sizes: " << std::endl;
+  for (auto const localEdgeSize : localEdgeSizes) {
+      int faceID = std::get<0>(localEdgeSize);
+      double edgeSize = std::get<1>(localEdgeSize);
+      bool absoluteFlag = std::get<2>(localEdgeSize);
+      double values[3] = {faceID, absoluteFlag, edgeSize};
+      if (mesher->SetMeshOptions(svName, 3, values) == SV_ERROR) {
+        api.error("Error setting MeshSim meshing '" + std::string(MeshSimOption::LocalEdgeSize) + "' option.");
         return nullptr;
       }
   }
