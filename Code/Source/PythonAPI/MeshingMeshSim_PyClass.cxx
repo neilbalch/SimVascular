@@ -213,7 +213,7 @@ MeshingMeshSim_set_options(PyMeshingMeshSimClass* self, PyObject* args )
       int faceID = std::get<0>(localEdgeSize);
       double edgeSize = std::get<1>(localEdgeSize);
       bool absoluteFlag = std::get<2>(localEdgeSize);
-      double values[3] = {faceID, absoluteFlag, edgeSize};
+      double values[3] = {(double)faceID, (double)absoluteFlag, edgeSize};
       if (mesher->SetMeshOptions(svName, 3, values) == SV_ERROR) {
         api.error("Error setting MeshSim meshing '" + std::string(MeshSimOption::LocalEdgeSize) + "' option.");
         return nullptr;
