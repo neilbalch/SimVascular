@@ -38,6 +38,9 @@
 #include "sv3_Contour.h"
 #include "sv_FactoryRegistrar.h"
 
+// Need to define US_MODULE_NAME because we are including sv4gui_ContourGroupIO.h.
+#define US_MODULE_NAME 
+
 extern "C" SV_EXPORT_PYTHON_API typedef struct
 {
   PyObject_HEAD

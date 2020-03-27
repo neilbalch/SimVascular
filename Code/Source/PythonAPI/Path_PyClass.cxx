@@ -29,49 +29,13 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// The functions defined here implement the SV Python API path Module. 
+// The functions defined here implement the SV Python API path class. 
 //
-// The module name is 'path'. The module defines a 'Path' class used
-// to store path data. The 'Path' class cannot be imported and must
-// be used prefixed by the module name. For example
+// The class name is 'Path'. 
 //
 //     path = path.Path()
 //
-// A Python exception sv.path.PathError is defined for this module. 
-// The exception can be used in a Python 'try' statement with an 'except' clause 
-// like this
-//
-//    try:
-//    except sv.path.PathError:
-//
-#include "SimVascular.h"
-#include "SimVascular_python.h"
-#include "Python.h"
-
-#include "sv3_PathElement.h"
-#include "sv3_Path_PyModule.h"
-#include "sv3_PathCalcMethod_PyClass.h"
-#include "sv_PyUtils.h"
-
-#include <stdio.h>
-#include <string.h>
-#include <array>
-#include <iostream>
-#include "sv_Repository.h"
-#include "sv_RepositoryData.h"
-#include "sv_PolyData.h"
-#include "vtkSmartPointer.h"
-#include "sv2_globals.h"
-
-// The following is needed for Windows
-#ifdef GetObject
-#undef GetObject
-#endif
-
 using sv3::PathElement;
-
-// Exception type used by PyErr_SetString() to set the for the error indicator.
-static PyObject* PyRunTimeErr;
 
 //////////////////////////////////////////////////////
 //          U t i l i t y  F u n c t i o n s        //
@@ -100,10 +64,10 @@ CreatePathCurve(PathElement* path)
 }
 
 //////////////////////////////////////////////////////
-//          M o d u l e  F u n c t i o n s          //
+//          C l a s s   M e t h o d s               //
 //////////////////////////////////////////////////////
 //
-// Python API functions. 
+// Python 'Path' class methods.
 
 //--------------------------
 //sv4Path_add_control_point 
@@ -531,24 +495,23 @@ sv4Path_get_polydata(PyPath* self, PyObject* args)
   return Py_None;
 }
 
-
 ////////////////////////////////////////////////////////
-//          M o d u l e  D e f i n i t i o n          //
+//           C l a s s   D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
 
-static char* MODULE_NAME = "path";
-static char* MODULE_PATH_CLASS = "Path";
-static char* MODULE_EXCEPTION = "path.PathError";
-static char* MODULE_EXCEPTION_OBJECT = "PathError";
+static char* PATH_CLASS = "Path";
+// Dotted name that includes both the module name and 
+// the name of the type within the module.
+static char* PATH_MODULE_CLASS = "path.Path";
 
-PyDoc_STRVAR(Path_doc, "path module functions");
+PyDoc_STRVAR(PathClass_doc, "Path class functions.");
 
-//----------------
-// PyPath_methods
-//----------------
+//--------------------
+// PyPathClassMethods 
+//--------------------
 // Path class methods.
 //
-static PyMethodDef PyPathMethods[] = {
+static PyMethodDef PyPathClassMethods[] = {
 
   {"add_control_point", (PyCFunction)sv4Path_add_control_point, METH_VARARGS, sv4Path_add_control_point_doc },
 
@@ -569,9 +532,9 @@ static PyMethodDef PyPathMethods[] = {
   {NULL,NULL}
 };
 
-//-----------------------------------
-// Define the PyPathType type object
-//-----------------------------------
+//------------
+// PyPathType 
+//------------
 // Define the Python type object that stores Path data. 
 //
 // Can't set all the fields here because g++ does not suppor non-trivial 
@@ -581,7 +544,7 @@ PyTypeObject PyPathType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   // Dotted name that includes both the module name and 
   // the name of the type within the module.
-  "path.Path", 
+  PATH_MODULE_CLASS, 
   sizeof(PyPath)
 };
 
@@ -621,9 +584,9 @@ PyPathNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
   return (PyObject *) self;
 }
 
-//--------
-// PyPath
-//--------
+//---------------
+// PyPathDealloc 
+//---------------
 //
 static void
 PyPathDealloc(PyPath* self)
@@ -652,7 +615,7 @@ SetPyPathTypeFields(PyTypeObject& pathType)
   pathType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
   pathType.tp_init = (initproc)PyPathInit;
   pathType.tp_dealloc = (destructor)PyPathDealloc;
-  pathType.tp_methods = PyPathMethods;
+  pathType.tp_methods = PyPathClassMethods;
 }
 
 //--------------
@@ -678,150 +641,4 @@ CreatePyPath(PathElement* path)
   std::cout << "[CreatePyPath] pathObj ref count: " << Py_REFCNT(pathObj) << std::endl;
   return pathObj;
 }
-
-//---------------------
-// PyPathModuleMethods
-//---------------------
-//
-static PyMethodDef PyPathModuleMethods[] =
-{
-    {NULL,NULL}
-};
-
-// Include path.Group definition.
-#include "sv3_PathGroup_PyClass.cxx"
-
-//-----------------------
-// Initialize the module
-//-----------------------
-// Define the initialization function called by the Python 
-// interpreter when the module is loaded.
-
-//---------------------------------------------------------------------------
-//                           PYTHON_MAJOR_VERSION 3                         
-//---------------------------------------------------------------------------
-
-#if PYTHON_MAJOR_VERSION == 3
-
-// Size of per-interpreter state of the module.
-// Set to -1 if the module keeps state in global variables. 
-static int perInterpreterStateSize = -1;
-
-// Always initialize this to PyModuleDef_HEAD_INIT.
-static PyModuleDef_Base m_base = PyModuleDef_HEAD_INIT;
-
-// Define the module definition struct which holds all information 
-// needed to create a module object. 
-//
-static struct PyModuleDef PyPathModule = {
-   m_base,
-   MODULE_NAME,
-   Path_doc, 
-   perInterpreterStateSize,
-   PyPathModuleMethods
-};
-
-//---------------
-// PyInit_PyPath
-//---------------
-// The initialization function called by the Python interpreter when the module is loaded.
-//
-PyMODINIT_FUNC PyInit_PyPath()
-{
-  std::cout << "========== PyInit_PyPath ==========" << std::endl;
-
-  // Setup the Path object type.
-  //
-  SetPyPathTypeFields(PyPathType);
-  if (PyType_Ready(&PyPathType) < 0) {
-    fprintf(stdout, "Error initilizing PathType \n");
-    return SV_PYTHON_ERROR;
-  }
-
-  // Setup the PathGroup object type.
-  //
-  SetPyPathGroupTypeFields(PyPathGroupType);
-  if (PyType_Ready(&PyPathGroupType) < 0) {
-    fprintf(stdout,"Error in PyPathGroupType\n");
-    return SV_PYTHON_ERROR;
-  }
-
-  // Setup the PathCalcMethod  object type.
-  //
-  SetPathCalcMethodTypeFields(PyPathCalcMethodType);
-  if (PyType_Ready(&PyPathCalcMethodType) < 0) {
-      fprintf(stdout,"Error in PyPathCalcMethodType\n");
-      return nullptr;
-  }
-
-  // Create the path module.
-  auto module = PyModule_Create(&PyPathModule);
-  if (module == NULL) {
-    fprintf(stdout,"Error in initializing 'path' module \n");
-    return SV_PYTHON_ERROR;
-  }
-
-  // Add path.PathException exception.
-  //
-  PyRunTimeErr = PyErr_NewException(MODULE_EXCEPTION, NULL, NULL);
-  PyModule_AddObject(module, MODULE_EXCEPTION_OBJECT, PyRunTimeErr);
-
-  // Add Path class.
-  Py_INCREF(&PyPathType);
-  PyModule_AddObject(module, MODULE_PATH_CLASS, (PyObject*)&PyPathType);
-
-  // Add PathGroup class.
-  Py_INCREF(&PyPathGroupType);
-  PyModule_AddObject(module, MODULE_PATH_GROUP_CLASS, (PyObject*)&PyPathGroupType);
-
-  // Add PathCalcMethod class.
-  Py_INCREF(&PyPathCalcMethodType);
-  PyModule_AddObject(module, PATH_CALC_METHOD_CLASS, (PyObject*)&PyPathCalcMethodType);
-
-  // Set the calculate method names in the PyPathCalcMethodType dictionary.
-  SetPathCalcMethodTypes(PyPathCalcMethodType);
-
-  return module;
-}
-
-#endif
-
-//---------------------------------------------------------------------------
-//                           PYTHON_MAJOR_VERSION 2                         
-//---------------------------------------------------------------------------
-
-#if PYTHON_MAJOR_VERSION == 2
-PyMODINIT_FUNC initpyPath()
-
-{
-  // Associate the mesh registrar with the python interpreter so it can be
-  // retrieved by the DLLs.
-  if (gRepository==NULL)
-  {
-    gRepository = new cvRepository();
-    fprintf(stdout,"New gRepository created from cv_mesh_init\n");
-  }
-
-  // Initialize
-  pyPathType.tp_new=PyType_GenericNew;
-  if (PyType_Ready(&pyPathType)<0)
-  {
-    fprintf(stdout,"Error in pyPathType\n");
-    return;
-  }
-  PyObject* pythonC;
-  pythonC = Py_InitModule("pyPath",pyPathModule_methods);
-  if(pythonC==NULL)
-  {
-    fprintf(stdout,"Error in initializing pyPath\n");
-    return;
-  }
-  PyRunTimeErr = PyErr_NewException("pyPath.error",NULL,NULL);
-  PyModule_AddObject(pythonC,"error",PyRunTimeErr);
-  Py_INCREF(&pyPathType);
-  PyModule_AddObject(pythonC,"pyPath",(PyObject*)&pyPathType);
-  return ;
-
-}
-#endif
 

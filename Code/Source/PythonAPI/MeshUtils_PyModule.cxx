@@ -228,7 +228,7 @@ static struct PyModuleDef PyMeshUtilsModule = {
 PyMODINIT_FUNC 
 PyInit_PyMeshUtils()
 {
-  std::cout << "========== load mesh_utils module ==========" << std::endl;
+  //std::cout << "========== load mesh_utils module ==========" << std::endl;
 
   auto module = PyModule_Create(&PyMeshUtilsModule);
 

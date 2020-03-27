@@ -162,7 +162,7 @@ PyDoc_STRVAR(Geom_align_profile_doc,
 static PyObject * 
 Geom_align_profile(PyObject* self, PyObject* args, PyObject* kwargs)
 {
-  std::cout << "========== Geom_align_profile ==========" << std::endl;
+  //std::cout << "========== Geom_align_profile ==========" << std::endl;
   auto api = SvPyUtilApiFunction("OO|O!", PyRunTimeErr, __func__);
   static char *keywords[] = {"reference", "align", "use_distance", NULL};
   PyObject* refObj;
@@ -173,7 +173,7 @@ Geom_align_profile(PyObject* self, PyObject* args, PyObject* kwargs)
       return api.argsError();
   }
   auto use_distance = PyObject_IsTrue(distArg);
-  std::cout << "[Geom_align_profile] use_distance: " << use_distance << std::endl;
+  //std::cout << "[Geom_align_profile] use_distance: " << use_distance << std::endl;
 
   // Get the vtkPolyData objects from the Python objects.
   //
@@ -266,7 +266,7 @@ PyDoc_STRVAR(Geom_classify_point_doc,
 static PyObject * 
 Geom_classify_point(PyObject* self, PyObject* args, PyObject* kwargs)
 {
-  std::cout << "========== Geom_classify_point ==========" << std::endl;
+  //std::cout << "========== Geom_classify_point ==========" << std::endl;
   auto api = SvPyUtilApiFunction("OO!", PyRunTimeErr, __func__);
   static char *keywords[] = {"polydata", "point", NULL};
   PyObject* pdObj;
@@ -370,8 +370,8 @@ PyDoc_STRVAR(Geom_loft_solid_doc,
 static PyObject * 
 Geom_loft_solid(PyObject* self, PyObject* args, PyObject* kwargs)
 {
-  std::cout << " " << std::endl;
-  std::cout << "========== Geom_loft_solid ==========" << std::endl;
+  //std::cout << " " << std::endl;
+  //std::cout << "========== Geom_loft_solid ==========" << std::endl;
 
   auto api = SvPyUtilApiFunction("O!O!", PyRunTimeErr, __func__);
   static char *keywords[] = {"polydata_list", "loft_options", NULL};
@@ -451,8 +451,8 @@ PyDoc_STRVAR(Geom_loft_solid_using_nurbs_doc,
 static PyObject *
 Geom_loft_solid_using_nurbs(PyObject* self, PyObject* args, PyObject* kwargs)
 {
-  std::cout << " " << std::endl;
-  std::cout << "========== Geom_loft_solid_using_nurbs ==========" << std::endl;
+  //std::cout << " " << std::endl;
+  //std::cout << "========== Geom_loft_solid_using_nurbs ==========" << std::endl;
   auto api = SvPyUtilApiFunction("O!O!", PyRunTimeErr, __func__);
   static char *keywords[] = {"polydata_list", "loft_nurbs_options", NULL};
   PyObject* objListArg;
@@ -3939,7 +3939,7 @@ static struct PyModuleDef PyGeomModule = {
 PyMODINIT_FUNC 
 PyInit_PyGeometry(void)
 {
-  std::cout << "========== load geometry module ==========" << std::endl;
+  //std::cout << "========== load geometry module ==========" << std::endl;
 
   // Initialize the LoftOptions class type.
   SetLoftOptionsTypeFields(PyLoftOptionsType);

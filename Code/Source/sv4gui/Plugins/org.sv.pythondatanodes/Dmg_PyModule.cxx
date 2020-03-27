@@ -29,9 +29,10 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// The functions defined here implement the SV Python API data manager module. 
-//
-// The module name is 'dmg'. 
+// The functions defined here implement the SV Python API data manager 'dmg' module. 
+// The module is used to access the SV Data Manager data nodes (e.g. Paths, Segmentations, etc.)
+// from a Python script executed in the SV Python console. A project must be opened in order
+// it use the 'dmg' module.
 //
 // A Python exception sv.dmg.DmgError is defined for this module. 
 // The exception can be used in a Python 'try' statement with an 'except' clause 
@@ -46,8 +47,8 @@
 #include "sv2_globals.h"
 #include "SimVascular_python.h"
 
-#include "sv4gui_dmg_init_py.h"
-#include "sv3_Path_PyModule.h"
+#include "Dmg_PyModule.h"
+#include "Path_PyModule.h"
 #include "sv_Repository.h"
 #include "sv_PolyData.h"
 #include "sv_StrPts.h"
@@ -118,96 +119,6 @@ namespace SvDataManagerNodes {
   static char* Repository = "svRepositoryFolder";
   static char* Segmentation = "sv4guiSegmentationFolder";
 }
-
-//////////////////////////////////////////////////////
-//  G l o b a l  U t i l i t y  F u n c t i o n s   //
-//////////////////////////////////////////////////////
-// Functions visible outside of this module.
-
-//--------------------------
-// Dmg_create_contour_group
-//--------------------------
-// Create an sV sv4guiContourGroup object.
-//
-// You can't call sv4guiContourGroup::New() directly from PythonAPI.
-//
-sv4guiContourGroup::Pointer 
-Dmg_create_contour_group()
-{
-    return sv4guiContourGroup::New();
-}
-
-//-----------------------------
-// Dmg_read_contour_group_file
-//-----------------------------
-// Read in a contour group (.ctgr) file.
-//
-sv4guiContourGroup::Pointer 
-Dmg_read_contour_group_file(std::string fileName)
-{
-    //std::cout << "[Dmg_read_contour_group_file] ========== Dmg_read_contour_group_file ==========" << std::endl;
-    //std::cout << "[Dmg_read_contour_group_file] File name: " << fileName << std::endl;
-    sv4guiContourGroup::Pointer group;
-
-    // sv4guiContourGroupIO will throw an exception if the file
-    // can't be read or is not the right type.
-    //
-    try {
-        group = sv4guiContourGroupIO().CreateGroupFromFile(std::string(fileName));
-    } catch (...) {
-        return nullptr;
-    }
-
-    if (group.IsNull()) {
-        return nullptr;
-    }
-
-    return group;
-}
-
-//------------------------------
-// Dmg_create_solid_model_group
-//------------------------------
-// Create an sV sv4guiModel object.
-//
-// You can't call sv4guiModel::New() directly from PythonAPI.
-//
-sv4guiModel::Pointer
-Dmg_create_model_group()
-{
-    return sv4guiModel::New();
-}
-
-//---------------------------
-// Dmg_read_model_group_file
-//---------------------------
-// Read in a model group (.mdl) file.
-//
-sv4guiModel::Pointer
-Dmg_read_model_group_file(std::string fileName)
-{
-    //std::cout << "[Dmg_read_contour_group_file] ========== Dmg_read_contour_group_file ==========" << std::endl;
-    //std::cout << "[Dmg_read_contour_group_file] File name: " << fileName << std::endl;
-    sv4guiModel::Pointer group;
-
-    // sv4guiContourGroupIO will throw an exception if the file
-    // can't be read or is not the right type.
-    //
-    try {
-        group = sv4guiModelIO().CreateGroupFromFile(std::string(fileName));
-    } catch (...) {
-        return nullptr;
-    }
-
-    if (group.IsNull()) {
-        return nullptr;
-    }
-
-    return group;
-}
-
-
-
 
 //////////////////////////////////////////////////////
 //        U t i l i t y     F u n c t i o n s       //
@@ -580,35 +491,28 @@ int
 AddImageFromFile(mitk::DataStorage::Pointer dataStorage, mitk::DataNode::Pointer folderNode, char* fileName, 
                  char*childName, bool copy, double scaleFactor)
 {
-    try
-    {
-        
-        mitk::DataNode::Pointer imageNode=sv4guiProjectManager::LoadDataNode(std::string(fileName));
-
-        mitk::NodePredicateDataType::Pointer isImage = mitk::NodePredicateDataType::New("Image");
-        if(imageNode.IsNull() || !isImage->CheckNode(imageNode))
-        {
-            fprintf(stderr, "Not Image!", "Please add an image.");
-            return SV_ERROR;
-        }
-
-        mitk::BaseData::Pointer mimage = imageNode->GetData();
-        if(mimage.IsNull() || !mimage->GetTimeGeometry()->IsValid())
-        {
-            fprintf(stderr,"Not Valid!", "Please add a valid image.");
-            return SV_ERROR;
-        }
-
-
-        sv4guiProjectManager::AddImage(dataStorage, fileName, imageNode, folderNode, copy, scaleFactor, childName);
-
-        return SV_OK;
-    }
-    catch(...)
-    {
-        fprintf(stderr,"Error adding image.");
+  try {
+    mitk::DataNode::Pointer imageNode=sv4guiProjectManager::LoadDataNode(std::string(fileName));
+    mitk::NodePredicateDataType::Pointer isImage = mitk::NodePredicateDataType::New("Image");
+    if(imageNode.IsNull() || !isImage->CheckNode(imageNode)) {
+        fprintf(stderr, "Not Image!", "Please add an image.");
         return SV_ERROR;
     }
+
+    mitk::BaseData::Pointer mimage = imageNode->GetData();
+    if(mimage.IsNull() || !mimage->GetTimeGeometry()->IsValid()) {
+        fprintf(stderr,"Not Valid!", "Please add a valid image.");
+        return SV_ERROR;
+    }
+
+    sv4guiProjectManager::AddImage(dataStorage, fileName, imageNode, folderNode, copy, scaleFactor, childName);
+
+  } catch(...) {
+    fprintf(stderr,"Error adding image.");
+    return SV_ERROR;
+  }
+
+  return SV_OK;
 }
 
 //--------------------
@@ -1262,23 +1166,26 @@ Dmg_export_path_to_repository(PyObject* self, PyObject* args)
 static PyObject * 
 Dmg_get_path(PyObject* self, PyObject* args)
 {
-    //std::cout << "[Dmg_get_path] ========== Dmg_get_path ==========" << std::endl;
+    std::cout << "[Dmg_get_path] ========== Dmg_get_path ==========" << std::endl;
     auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
     char* pathName = NULL;
     
     if (!PyArg_ParseTuple(args, api.format, &pathName)) {
         return api.argsError();
     }
+    std::cout << "[Dmg_get_path] Path name: " << pathName << std::endl;
     
     // Get the Data Storage node.
     auto dataStorage = GetDataStorage(api);
     if (dataStorage.IsNull()) {
+        api.error("Data Storage is not defined.");
         return nullptr;
     }
 
     // Get project folder.
     auto projFolderNode = GetProjectNode(api, dataStorage);
     if (projFolderNode.IsNull()) {
+        api.error("Project folder is not defined.");
         return nullptr;
     }
 
@@ -1291,13 +1198,16 @@ Dmg_get_path(PyObject* self, PyObject* args)
         return nullptr;
     }
 
+    std::cout << "[Dmg_get_path] Get path from node ... " << std::endl;
     auto path = dynamic_cast<sv4guiPath*>(node->GetData());
     if (path == nullptr) {
         api.error("The Path node '" + std::string(pathName) + "' does not have data.");
         return nullptr;
     }
+    std::cout << "[Dmg_get_path] Path: "<< path  << std::endl;
 
     auto pathElem = path->GetPathElement();
+    std::cout << "[Dmg_get_path] pathElem: " << pathElem << std::endl;
     auto pathElemCopy = new sv3::PathElement();
 
     switch (pathElem->GetMethod()) {
@@ -1331,9 +1241,8 @@ Dmg_get_path(PyObject* self, PyObject* args)
     pathElemCopy->CreatePathPoints();
 
     // Create Python Path object.
-    auto pyPath = CreatePyPath(pathElemCopy);
-    
-    return pyPath; 
+    auto pyPathObj = CreatePyPath(pathElemCopy);
+    return pyPathObj; 
 }
 
 //--------------
@@ -1343,7 +1252,7 @@ Dmg_get_path(PyObject* self, PyObject* args)
 static PyObject * 
 Dmg_add_path(PyObject* self, PyObject* args)
 {
-    std::cout << "[Dmg_get_path] ========== Dmg_add_path ==========" << std::endl;
+    std::cout << "[Dmg_add_path] ========== Dmg_add_path ==========" << std::endl;
     auto api = SvPyUtilApiFunction("Os", PyRunTimeErr, __func__);
     PyObject* pathArg;
     char* pathName = NULL;
@@ -1836,15 +1745,24 @@ Dmg_read_contour_group(PyObject* self, PyObject* args)
 //          M o d u l e  D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
 
-//--------------------
-// dmg module methods
-//--------------------
+static char* DMG_MODULE = "dmg";
+static char* DMG_EXCEPTION = "dmg.DmgError";
+static char* DMG_EXCEPTION_OBJECT = "DmgError";
+
+PyDoc_STRVAR(DmgModule_doc, "dmg module functions");
+
+//--------------
+// PyDmgMethods 
+//---------------
 //
 PyMethodDef PyDmgMethods[] =
 {
     {"add_path", Dmg_add_path, METH_VARARGS, NULL},
+
     {"get_path", Dmg_get_path, METH_VARARGS, Dmg_export_path_to_repository_doc},
-    {"open_project", Dmg_open_project, METH_VARARGS, NULL},
+
+    // [TODO:DaveP] This does not work.
+    // {"open_project", Dmg_open_project, METH_VARARGS, NULL},
 
     {"export_contour_to_repository", Dmg_export_contour_to_repository, METH_VARARGS, Dmg_export_contour_to_repository_doc},
 
@@ -1881,10 +1799,6 @@ PyMethodDef PyDmgMethods[] =
 // Define the initialization function called by the Python 
 // interpreter when the module is loaded.
 
-static char* MODULE_NAME = "dmg";
-
-PyDoc_STRVAR(DmgModule_doc, "dmg module functions");
-
 //---------------------------------------------------------------------------
 //                           PYTHON_MAJOR_VERSION 3                         
 //---------------------------------------------------------------------------
@@ -1903,7 +1817,7 @@ static PyModuleDef_Base m_base = PyModuleDef_HEAD_INIT;
 
 static struct PyModuleDef pyDmgmodule = {
    m_base,
-   MODULE_NAME, 
+   DMG_MODULE, 
    DmgModule_doc, 
    perInterpreterStateSize,  
    PyDmgMethods
@@ -1914,23 +1828,23 @@ static struct PyModuleDef pyDmgmodule = {
 //--------------
 //
 PyMODINIT_FUNC 
-PyInit_pyDmg(void)
+PyInit_PyDmg(void)
 {
-  PyObject *pyDmg;
-  pyDmg = PyModule_Create(&pyDmgmodule);
-
-  if ( gRepository == NULL ) {
-    gRepository = new cvRepository();
-    fprintf( stdout, "gRepository created from pyDmg\n" );
+  // Create the dmg module.
+  auto module = PyModule_Create(&pyDmgmodule);
+  if (module == NULL) {
+    fprintf(stdout, "Error initializing the dmg module.\n");
+    return SV_PYTHON_ERROR;
   }
-  
-  PyRunTimeErr = PyErr_NewException("pyDmg.error",NULL,NULL);
-  Py_INCREF(PyRunTimeErr);
-  PyModule_AddObject(pyDmg,"error",PyRunTimeErr);
-  
-  return pyDmg;
 
+  // Add dmg.DmgError exception.
+  PyRunTimeErr = PyErr_NewException(DMG_EXCEPTION, NULL, NULL);
+  Py_INCREF(PyRunTimeErr);
+  PyModule_AddObject(module, DMG_EXCEPTION_OBJECT, PyRunTimeErr);
+  
+  return module;
 }
+
 #endif
 
 //---------------------------------------------------------------------------

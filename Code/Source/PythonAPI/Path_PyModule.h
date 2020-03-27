@@ -29,15 +29,35 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef PATH_PY_MODULE_H
+#define PATH_PY_MODUL_H
+
 #include "SimVascular.h"
+#include "Python.h"
+#include "sv3_PathElement.h"
+#include "sv3PathExports.h"
 
-#include "sv_utils_init.h"
-#include "sv_math_init_py.h"
-
-/* [TODO:DaveP] What is this for?
-int Utils_pyInit()
+//--------
+// PyPath
+//--------
+//
+// [TODO:DaveP] is extern needed?
+//
+extern "C" SV_EXPORT_PATH typedef struct
 {
-  Math_pyInit();
-  return SV_OK;
-}
-*/
+  PyObject_HEAD
+  sv3::PathElement* path;
+  int id;
+} PyPath;
+
+PyObject * CreatePyPath(sv3::PathElement* path = nullptr);
+extern PyTypeObject PyPathType;
+
+#if PYTHON_MAJOR_VERSION == 2
+PyMODINIT_FUNC  initpyPath();
+#endif
+#if PYTHON_MAJOR_VERSION == 3
+PyMODINIT_FUNC PyInit_PyPath();
+#endif
+
+#endif 

@@ -116,7 +116,7 @@ static PyObject * CreatePySolidModelObject(cvSolidModel* solidModel);
 static cvSolidModel *
 CreateCvSolidModel(SolidModel_KernelT kernel)
 {
-  std::cout << "[CreateCvSolidModel] ========== CreateCvSolidModel ==========" << std::endl;
+  //std::cout << "[CreateCvSolidModel] ========== CreateCvSolidModel ==========" << std::endl;
   cvSolidModel* solidModel;
 
   try {
@@ -154,7 +154,7 @@ PySolidModule_modeler_exists(PyTypeObject *type, PyObject *args, PyObject *kwds)
       return api.argsError();
   }
 
-  std::cout << "[PySolidModeler_exists] Kernel: " << kernelName << std::endl;
+  //std::cout << "[PySolidModeler_exists] Kernel: " << kernelName << std::endl;
   SolidModel_KernelT kernel;
 
   try {
@@ -236,7 +236,7 @@ PySolidModelCtorMapType PySolidModelCtorMap = {
 static PyObject *
 CreatePySolidModelObject(SolidModel_KernelT kernel)
 {
-  std::cout << "[CreatePySolidModelObject] ========== CreatePySolidModelObject ==========" << std::endl;
+  //std::cout << "[CreatePySolidModelObject] ========== CreatePySolidModelObject ==========" << std::endl;
   auto cvSolidModel = CreateCvSolidModel(kernel);
   if (cvSolidModel == nullptr) { 
       return nullptr;
@@ -253,8 +253,8 @@ CreatePySolidModelObject(SolidModel_KernelT kernel)
 static PyObject *
 CreatePySolidModelObject(cvSolidModel* solidModel)
 {
-  std::cout << "[CreatePySolidModelObject] ========== CreatePySolidModelObject ==========" << std::endl;
-  std::cout << "[CreatePySolidModelObject] Copy from given cvSolidModel object" << std::endl;
+  //std::cout << "[CreatePySolidModelObject] ========== CreatePySolidModelObject ==========" << std::endl;
+  //std::cout << "[CreatePySolidModelObject] Copy from given cvSolidModel object" << std::endl;
   PyObject* pySolidModelObj;
   auto kernel = solidModel->GetKernelT();
 
@@ -305,10 +305,10 @@ static struct PyModuleDef PySolidModule = {
 PyMODINIT_FUNC
 PyInit_PySolid(void)
 {
-  std::cout << "[PyInit_PySolid] ========== load solid module ==========" << std::endl;
+  //std::cout << "[PyInit_PySolid] ========== load solid module ==========" << std::endl;
 
   // Initialize the SolidModeler class type.
-  std::cout << "[PyInit_PySolid] Initialize the SolidModeler class type. " << std::endl;
+  //std::cout << "[PyInit_PySolid] Initialize the SolidModeler class type. " << std::endl;
   SetSolidModelerTypeFields(PySolidModelerClassType);
   if (PyType_Ready(&PySolidModelerClassType) < 0) {
     fprintf(stdout,"Error in PySolidModelerType");
@@ -316,7 +316,7 @@ PyInit_PySolid(void)
   }
 
   // Initialize the SolidModel class type.
-  std::cout << "[PyInit_PySolid] Initialize the SolidModel class type. " << std::endl;
+  //std::cout << "[PyInit_PySolid] Initialize the SolidModel class type. " << std::endl;
   SetSolidModelTypeFields(PySolidModelClassType);
   if (PyType_Ready(&PySolidModelClassType) < 0) {
     fprintf(stdout,"Error in PySolidModelType");
@@ -331,27 +331,27 @@ PyInit_PySolid(void)
   }
 
   // Initialize the OpenCascade class type.
-  std::cout << "[PyInit_PySolid] Initialize the OpenCascade class type. " << std::endl;
+  //std::cout << "[PyInit_PySolid] Initialize the OpenCascade class type. " << std::endl;
   SetOcctSolidTypeFields(PyOcctSolidClassType);
-  std::cout << "[PyInit_PySolid] Set fields done ... " << std::endl;
+  //std::cout << "[PyInit_PySolid] Set fields done ... " << std::endl;
   if (PyType_Ready(&PyOcctSolidClassType) < 0) {
       std::cout << "Error creating OpenCascade type" << std::endl;
       return nullptr;
   }
 
   // Initialize the Parasolid class type.
-  std::cout << "[PyInit_PySolid] Initialize the Parasolid class type. " << std::endl;
+  //std::cout << "[PyInit_PySolid] Initialize the Parasolid class type. " << std::endl;
   SetParasolidSolidTypeFields(PyParasolidSolidClassType);
-  std::cout << "[PyInit_PySolid] Set fields done ... " << std::endl;
+  //std::cout << "[PyInit_PySolid] Set fields done ... " << std::endl;
   if (PyType_Ready(&PyParasolidSolidClassType) < 0) {
       std::cout << "Error creating PolydataSolid type" << std::endl;
       return nullptr;
   }
 
   // Initialize the PolyData class type.
-  std::cout << "[PyInit_PySolid] Initialize the PolyData class type. " << std::endl;
+  //std::cout << "[PyInit_PySolid] Initialize the PolyData class type. " << std::endl;
   SetPolyDataSolidTypeFields(PyPolyDataSolidClassType);
-  std::cout << "[PyInit_PySolid] Set fields done ... " << std::endl;
+  //std::cout << "[PyInit_PySolid] Set fields done ... " << std::endl;
   if (PyType_Ready(&PyPolyDataSolidClassType) < 0) {
       std::cout << "Error creating PolydataSolid type" << std::endl;
       return nullptr;
@@ -365,7 +365,7 @@ PyInit_PySolid(void)
   }
 
   // Create the 'solid' module. 
-  std::cout << "[PyInit_PySolid] Create the 'solid' module. " << std::endl;
+  //std::cout << "[PyInit_PySolid] Create the 'solid' module. " << std::endl;
   auto module = PyModule_Create(&PySolidModule);
   if (module == NULL) {
     fprintf(stdout,"Error in initializing pySolid");
@@ -377,32 +377,32 @@ PyInit_PySolid(void)
   PyModule_AddObject(module, SOLID_MODULE_EXCEPTION_OBJECT, PyRunTimeErr);
 
   // Add the 'SolidModeler' class.
-  std::cout << "[PyInit_PySolid] Add the SolidModeler class type. " << std::endl;
+  //std::cout << "[PyInit_PySolid] Add the SolidModeler class type. " << std::endl;
   Py_INCREF(&PySolidModelerClassType);
   PyModule_AddObject(module, SOLID_MODELER_CLASS, (PyObject *)&PySolidModelerClassType);
 
   // Add the 'SolidModel' class.
-  std::cout << "[PyInit_PySolid] Add the SolidModel class type. " << std::endl;
+  //std::cout << "[PyInit_PySolid] Add the SolidModel class type. " << std::endl;
   Py_INCREF(&PySolidModelClassType);
   PyModule_AddObject(module, SOLID_MODEL_CLASS, (PyObject *)&PySolidModelClassType);
 
   // Add the 'SolidGroup' class.
-  std::cout << "[PyInit_PySolid] Add the SolidGroup class type. " << std::endl;
+  //std::cout << "[PyInit_PySolid] Add the SolidGroup class type. " << std::endl;
   Py_INCREF(&PySolidGroupClassType);
   PyModule_AddObject(module, SOLID_GROUP_CLASS, (PyObject *)&PySolidGroupClassType);
 
   // Add the 'OpenCascade' class.
-  std::cout << "[PyInit_PySolid] Add the OpenCascade class type. " << std::endl;
+  //std::cout << "[PyInit_PySolid] Add the OpenCascade class type. " << std::endl;
   Py_INCREF(&PyOcctSolidClassType);
   PyModule_AddObject(module, SOLID_OCCT_CLASS, (PyObject *)&PyOcctSolidClassType);
 
   // Add the 'Parasolid' class.
-  std::cout << "[PyInit_PySolid] Add the ParasolidSolid class type. " << std::endl;
+  //std::cout << "[PyInit_PySolid] Add the ParasolidSolid class type. " << std::endl;
   Py_INCREF(&PyParasolidSolidClassType);
   PyModule_AddObject(module, SOLID_PARASOLID_CLASS, (PyObject *)&PyParasolidSolidClassType);
 
   // Add the 'PolyData' class.
-  std::cout << "[PyInit_PySolid] Add the PolyDataSolid class type. " << std::endl;
+  //std::cout << "[PyInit_PySolid] Add the PolyDataSolid class type. " << std::endl;
   Py_INCREF(&PyPolyDataSolidClassType);
   PyModule_AddObject(module, SOLID_POLYDATA_CLASS, (PyObject *)&PyPolyDataSolidClassType);
 
@@ -416,7 +416,7 @@ PyInit_PySolid(void)
   // Initialize Open Cascade.
   InitOcct();
 
-  std::cout << "[PyInit_PySolid] Done. " << std::endl;
+  //std::cout << "[PyInit_PySolid] Done. " << std::endl;
 
   return module;
 }

@@ -276,7 +276,7 @@ static struct PyModuleDef PyMeshingModule = {
 PyMODINIT_FUNC 
 PyInit_PyMeshing()
 {
-  std::cout << "[PyInit_PyMeshing] ========== load meshing module ==========" << std::endl;
+  //std::cout << "[PyInit_PyMeshing] ========== load meshing module ==========" << std::endl;
 
   //--------------------------------
   // Initialize Meshing Class Types 
@@ -360,7 +360,7 @@ PyInit_PyMeshing()
   // Create the 'meshing' module
   //-----------------------------
   //
-  std::cout << "[PyInit_PyMeshing] Create the 'meshing' module. " << std::endl;
+  //std::cout << "[PyInit_PyMeshing] Create the 'meshing' module. " << std::endl;
   auto module = PyModule_Create(&PyMeshingModule);
   if (module == NULL) {
     fprintf(stdout,"Error in initializing meshing module.\n");

@@ -46,14 +46,14 @@
 
 #include "vtkToolkits.h"
 
-#include "sv_repos_init_py.h"
+//#include "sv_repos_init_py.h"
 #include "Geometry_PyModule.h"
-#include "sv2_image_init_py.h"
+//#include "sv2_image_init_py.h"
 #include "Math_PyModule.h"
 //#include "sv_polydatasolid_init_py.h"
 
 #include "Solid_PyModule.h"
-#include "sv3_Path_PyModule.h"
+#include "Path_PyModule.h"
 //#include "sv3_PathGroup_init_py.h"
 #include "Contour_PyModule.h"
 //#include "sv3_CircleContour_init_py.h"
@@ -61,7 +61,7 @@
 //#include "sv3_ThresholdContour_init_py.h"
 //#include "sv3_SplinePolygonContour_init_py.h"
 //#include "sv3_PolygonContour_init_py.h"
-#include "sv4gui_project_init_py.h"
+#include "Project_PyModule.h"
 //#include "sv4gui_Vis_init_py.h"
 
 #ifdef SV_USE_VMTK
@@ -96,7 +96,7 @@
 //                           PYTHON_MAJOR_VERSION 3                         
 //---------------------------------------------------------------------------
 
-#if PYTHON_MAJOR_VERSION ==3
+#if PYTHON_MAJOR_VERSION == 3
 
 //--------------------
 // SimVascular_pyInit
@@ -117,7 +117,7 @@ void SimVascular_pyInit()
     //PyImport_AppendInittab("circle_contour",PyInit_pyCircleContour);
     PyImport_AppendInittab("contour", PyInit_PyContour);
     PyImport_AppendInittab("geometry", PyInit_PyGeometry);
-    PyImport_AppendInittab("image", PyInit_pyImage);
+    //PyImport_AppendInittab("image", PyInit_pyImage);
     //PyImport_AppendInittab("levelset_contour",PyInit_pylevelSetContour);
     // [DaveP] Don't expose math module.
     //PyImport_AppendInittab("math", PyInit_PyMath);
@@ -125,7 +125,7 @@ void SimVascular_pyInit()
     //PyImport_AppendInittab("path_group", PyInit_PyPathGroup);
     //PyImport_AppendInittab("polygon_contour",PyInit_pyPolygonContour);
     PyImport_AppendInittab("project", PyInit_PyProject);
-    PyImport_AppendInittab("repository", PyInit_pyRepository);
+    //PyImport_AppendInittab("repository", PyInit_pyRepository);
     PyImport_AppendInittab("solid", PyInit_PySolid);
     //PyImport_AppendInittab("solid_polydata",PyInit_pySolidPolydata);
     //PyImport_AppendInittab("spline_polygon_contour",PyInit_pySplinePolygonContour);

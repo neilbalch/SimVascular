@@ -422,7 +422,7 @@ static int
 PyTetGenAdaptOptInit(PyMeshingTetGenAdaptOptClass* self, PyObject* args, PyObject* kwargs)
 {
   static int numObjs = 1;
-  std::cout << "[PyTetGenAdaptOptInit] New MeshingOptions object: " << numObjs << std::endl;
+  //std::cout << "[PyTetGenAdaptOptInit] New MeshingOptions object: " << numObjs << std::endl;
 /*
   auto api = SvPyUtilApiFunction("d|O!O!O!", PyRunTimeErr, __func__);
   static char *keywords[] = { TetGenAdaptOption::GlobalEdgeSize, TetGenAdaptOption::SurfaceMeshFlag, TetGenAdaptOption::VolumeMeshFlag, 
@@ -466,7 +466,7 @@ PyTetGenAdaptOptInit(PyMeshingTetGenAdaptOptClass* self, PyObject* args, PyObjec
 static PyObject *
 PyTetGenAdaptOptNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
-  std::cout << "[PyTetGenAdaptOptNew] PyTetGenAdaptOptNew " << std::endl;
+  //std::cout << "[PyTetGenAdaptOptNew] PyTetGenAdaptOptNew " << std::endl;
   auto self = (PyMeshingTetGenAdaptOptClass*)type->tp_alloc(type, 0);
   if (self == NULL) {
       std::cout << "[PyTetGenAdaptOptNew] ERROR: Can't allocate type." << std::endl;
@@ -482,7 +482,7 @@ PyTetGenAdaptOptNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 static void
 PyTetGenAdaptOptDealloc(PyMeshingTetGenAdaptOptClass* self)
 {
-  std::cout << "[PyTetGenAdaptOptDealloc] Free PyTetGenAdaptOpt" << std::endl;
+  //std::cout << "[PyTetGenAdaptOptDealloc] Free PyTetGenAdaptOpt" << std::endl;
   Py_TYPE(self)->tp_free(self);
 }
 
@@ -494,7 +494,7 @@ PyTetGenAdaptOptDealloc(PyMeshingTetGenAdaptOptClass* self)
 static void
 SetTetGenAdaptOptTypeFields(PyTypeObject& meshingOpts)
  {
-  std::cout << "[SetTetGenAdaptOptTypeFields] ################ SetTetGenAdaptOptTypeFields ######## " << std::endl;
+  //std::cout << "[SetTetGenAdaptOptTypeFields] ################ SetTetGenAdaptOptTypeFields ######## " << std::endl;
   meshingOpts.tp_doc = TetGenAdaptOptClass_doc; 
   meshingOpts.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
   meshingOpts.tp_dict = PyDict_New();

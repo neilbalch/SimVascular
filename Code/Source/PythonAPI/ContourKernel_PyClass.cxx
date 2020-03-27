@@ -152,13 +152,13 @@ SetContourKernelTypeFields(PyTypeObject& contourType)
 static void
 SetContourKernelClassTypes(PyTypeObject& contourType)
 {
-  std::cout << "[SetContourKernelClassTypes] " << std::endl;
-  std::cout << "[SetContourKernelClassTypes] =============== SetContourKernelClassTypes ==========" << std::endl;
+  //std::cout << "[SetContourKernelClassTypes] " << std::endl;
+  //std::cout << "[SetContourKernelClassTypes] =============== SetContourKernelClassTypes ==========" << std::endl;
 
   // Add kernel types to ContourKernelType dictionary.
   for (auto const& entry : kernelNameEnumMap) {
       auto name = entry.first.c_str();
-      std::cout << "[SetContourKernelClassTypes] name: " << name << std::endl;
+      //std::cout << "[SetContourKernelClassTypes] name: " << name << std::endl;
       if (PyDict_SetItemString(contourType.tp_dict, name, PyUnicode_FromString(name))) {
           std::cout << "Error initializing Python API contour kernel types." << std::endl;
           return;

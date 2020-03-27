@@ -37,11 +37,6 @@ set(export_directive image)
 set(export_file_name svImageExports.h)
 
 list(APPEND CORELIBS ${lib})
-if(SV_USE_PYTHON)
-	include_directories(${PYTHON_INCLUDE_PATH}
-	  ${PYTHON_INCLUDE_DIR}
-	  ${PYTHON_INCLUDE_DIRS})
-endif()
 
 include_directories(${TCL_INCLUDE_PATH} ${TK_INCLUDE_PATH})
 
@@ -56,15 +51,7 @@ set(HDRS sv2_image.h sv2_img_offsets.h
   sv2_mask_image_in_place.h
   )
 
-if(SV_USE_PYTHON)
-  list(APPEND CXXSRCS sv2_image_init_py.cxx)
-endif()
-
 add_library(${lib} ${SV_LIBRARY_TYPE} ${CXXSRCS} sv2_image_init.cxx )
-
-if(SV_USE_PYTHON)
-  target_link_libraries(${lib} ${PYTHON_LIBRARY})
-endif()
 
 target_link_libraries(${lib}
   ${VTK_LIBRARIES} ${TCL_LIBRARY} ${TK_LIBRARY}

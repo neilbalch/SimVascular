@@ -37,12 +37,6 @@ set(export_directive utils)
 set(export_file_name svUtilsExports.h)
 
 list(APPEND CORELIBS ${lib})
-if(SV_USE_PYTHON)
-	include_directories(${PYTHON_INCLUDE_PATH}
-	  ${PYTHON_INCLUDE_DIR}
-	  ${PYTHON_INCLUDE_DIRS})
-endif()
-
 
 SET(CXXSRCS sv_misc_utils.cxx sv_vtk_utils.cxx
   sv_cgeom.cxx
@@ -57,10 +51,6 @@ SET(HDRS sv_misc_utils.h sv_vtk_utils.h
   )
 
 add_library(${lib} ${SV_LIBRARY_TYPE} ${CXXSRCS} sv_utils_init.cxx sv_math_init.cxx)
-
-if(SV_USE_PYTHON)
-  target_link_libraries(${lib} ${PYTHON_LIBRARY})
-endif()
 
 target_link_libraries(${lib}
 	${VTK_LIBRARIES} ${TCL_LIBRARY} ${TK_LIBRARY}

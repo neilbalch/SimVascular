@@ -29,15 +29,15 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __SV4_PROJECT_INIT_PY_H
-#define __SV4_PROJECTT_INIT_PY_H
+#ifndef SV4_PROJECT_PYTHON_MODULE_H
+#define SV4_PROJECT_PYTHON_MODULE_H
 
 #include "SimVascular.h"
 #include "Python.h"
 
-//--------
-// PyPath
-//--------
+//-----------
+// PyProject 
+//-----------
 //
 // [TODO:DaveP] is extern needed?
 //
@@ -47,9 +47,6 @@ typedef struct
   int id;
 } PyProject;
 
-
-// PyObject * CreatePyPath(sv3::PathElement* path = nullptr);
-// extern PyTypeObject PyPathType;
 
 #if PYTHON_MAJOR_VERSION == 2
 PyMODINIT_FUNC  initpyProject();

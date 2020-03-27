@@ -265,7 +265,7 @@ PyDoc_STRVAR(Vmtk_cap_with_ids_doc,
 static PyObject *
 Vmtk_cap_with_ids(PyObject* self, PyObject* args, PyObject* kwargs)
 {
-  std::cout << "========== Vmtk_cap_with_ids ==========" << std::endl;
+  //std::cout << "========== Vmtk_cap_with_ids ==========" << std::endl;
   auto api = SvPyUtilApiFunction("O|O!O!", PyRunTimeErr, __func__);
   static char *keywords[] = {"surface", "fill_id", "increment_id", NULL};
   //static char *keywords[] = {"surface", "fill_id", "fill_type", NULL};
@@ -302,8 +302,8 @@ Vmtk_cap_with_ids(PyObject* self, PyObject* args, PyObject* kwargs)
           }
       }
   }
-  std::cout << "[Vmtk_cap_with_ids] fillId: " << fillId << std::endl;
-  std::cout << "[Vmtk_cap_with_ids] fillType: " << fillType << std::endl;
+  //std::cout << "[Vmtk_cap_with_ids] fillId: " << fillId << std::endl;
+  //std::cout << "[Vmtk_cap_with_ids] fillType: " << fillType << std::endl;
 
   // Get the vtkPolyData objectsfrom the Python object.
   //
@@ -347,7 +347,7 @@ PyDoc_STRVAR(Vmtk_centerlines_doc,
 static PyObject * 
 Vmtk_centerlines(PyObject* self, PyObject* args, PyObject* kwargs)
 {
-  std::cout << "========== Vmtk_centerlines ==========" << std::endl;
+  //std::cout << "========== Vmtk_centerlines ==========" << std::endl;
   auto api = SvPyUtilApiFunction("OO!O!|O!", PyRunTimeErr, __func__);
   static char *keywords[] = {"surface", "inlet_ids", "outlet_ids", "use_face_ids", NULL};
   PyObject* surfaceArg;
@@ -1034,7 +1034,7 @@ static struct PyModuleDef PyVmtkModule = {
 PyMODINIT_FUNC 
 PyInit_PyVmtk()
 {
-  std::cout << "========== load vmtk module ==========" << std::endl;
+  //std::cout << "========== load vmtk module ==========" << std::endl;
 
   // Create the vmtk module.
   auto module = PyModule_Create(&PyVmtkModule);

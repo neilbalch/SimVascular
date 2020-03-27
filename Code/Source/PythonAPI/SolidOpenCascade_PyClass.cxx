@@ -120,7 +120,7 @@ static int
 PyOcctSolidInit(PyOcctSolid* self, PyObject* args, PyObject *kwds)
 { 
   static int numObjs = 1;
-  std::cout << "[PyOcctSolidInit] New OcctSolid object: " << numObjs << std::endl;
+  //std::cout << "[PyOcctSolidInit] New OcctSolid object: " << numObjs << std::endl;
   self->super.solidModel = new cvOCCTSolidModel();
   numObjs += 1;
   return 0;
@@ -133,7 +133,7 @@ PyOcctSolidInit(PyOcctSolid* self, PyObject* args, PyObject *kwds)
 static PyObject *
 PyOcctSolidNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
-  std::cout << "[PyOcctSolidNew] PyOcctSolidNew " << std::endl;
+  //std::cout << "[PyOcctSolidNew] PyOcctSolidNew " << std::endl;
   auto self = (PyOcctSolid*)type->tp_alloc(type, 0);
   if (self != NULL) {
       //self->super.id = 2;
@@ -148,7 +148,7 @@ PyOcctSolidNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 static void
 PyOcctSolidDealloc(PyOcctSolid* self)
 {
-  std::cout << "[PyOcctSolidDealloc] Free PyOcctSolid" << std::endl;
+  //std::cout << "[PyOcctSolidDealloc] Free PyOcctSolid" << std::endl;
   delete self->super.solidModel;
   Py_TYPE(self)->tp_free(self);
 }
@@ -205,8 +205,8 @@ SetOcctSolidTypeFields(PyTypeObject& solidType)
 void
 InitOcct()
 {
-  std::cout << "[InitOcct] " << std::endl;
-  std::cout << "[InitOcct] ========= InitOcct ========== " << std::endl;
+  //std::cout << "[InitOcct] " << std::endl;
+  //std::cout << "[InitOcct] ========= InitOcct ========== " << std::endl;
   Handle(XCAFApp_Application) OCCTManager = static_cast<XCAFApp_Application*>(gOCCTManager);
   OCCTManager = XCAFApp_Application::GetApplication();
   Handle(TDocStd_Document) doc;

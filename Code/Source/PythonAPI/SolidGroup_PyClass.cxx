@@ -36,7 +36,7 @@
 //
 //     aorta_solid_group = solid.Group()
 //
-#include "sv4gui_dmg_init_py.h"
+#include "sv4gui_ModelIO.h"
 
 typedef struct
 //extern "C" SV_EXPORT_PYTHON_API typedef struct
@@ -65,13 +65,15 @@ SolidGroup_read(char* fileName)
   std::cout << "========== SolidGroup_read ==========" << std::endl;
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
   std::cout << "[SolidGroup_read] fileName: " << fileName << std::endl;
-  sv4guiModel::Pointer group = Dmg_read_model_group_file(std::string(fileName));
+  sv4guiModel::Pointer group;
 
-  if (group == nullptr) {
+  try {
+      group = sv4guiModelIO().CreateGroupFromFile(std::string(fileName));
+  } catch (...) {
       api.error("Error reading the model group file '" + std::string(fileName) + "'.");
       std::cout << "[SolidGroup_read] ERROR: can't read fileName: " << fileName << std::endl;
       return nullptr;
-  } 
+  }
 
   std::cout << "[SolidGroup_read] File read and group returned." << std::endl;
   auto solidGroup = dynamic_cast<sv4guiModel*>(group.GetPointer());
@@ -311,7 +313,7 @@ PySolidGroupInit(PySolidGroup* self, PyObject* args)
       self->solidGroupPointer = SolidGroup_read(fileName);
       self->solidGroup = dynamic_cast<sv4guiModel*>(self->solidGroupPointer.GetPointer());
   } else {
-      self->solidGroup = Dmg_create_model_group();
+      self->solidGroup = sv4guiModel::New();
   }
   if (self->solidGroup == nullptr) { 
       std::cout << "[PySolidGroupInit] ERROR reading File name: " << fileName << std::endl;

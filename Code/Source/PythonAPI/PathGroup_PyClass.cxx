@@ -29,15 +29,13 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// The functions defined here implement the SV Python API path module group class. 
+// The functions defined here implement the SV Python API 'path' module 'Group' class. 
 // It provides an interface to the SV PathGroup class.
-//
-// The class name is 'Group'. It is referenced from the path module as 'path.Group'.
 //
 //     aorta_path_group = path.Group()
 //
 #include "sv3_PathGroup.h"
-#include "sv3_PathGroup_PyClass.h"
+#include "PathGroup_PyClass.h"
 #include "sv3_PathIO.h"
 
 using sv3::PathGroup;
@@ -87,7 +85,7 @@ PathGroup_read(char* fileName)
 }
 
 //////////////////////////////////////////////////////
-//       G r o u p  C l a s s  M e t h o d s        //
+//          C l a s s   M e t h o d s               //
 //////////////////////////////////////////////////////
 //
 // SV Python Path Group methods. 
@@ -466,9 +464,12 @@ PathGroup_write(PyPathGroup* self, PyObject* args)
 //          C l a s s    D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
 
-static char* MODULE_PATH_GROUP_CLASS = "Group";
+static char* PATH_GROUP_CLASS = "Group";
+// Dotted name that includes both the module name and 
+// the name of the type within the module.
+static char* PATH_GROUP_MODULE_CLASS = "path.Group";
 
-PyDoc_STRVAR(pathgroup_doc, "path.Group functions");
+PyDoc_STRVAR(PathGroup_doc, "path.Group functions.");
 
 //--------------------
 // PyPathGroupMethods 
@@ -504,9 +505,9 @@ static PyMethodDef PyPathGroupMethods[] = {
   {NULL, NULL}
 };
 
-//----------------------------------
-// Define the PyPathGroupType class 
-//----------------------------------
+//-----------------
+// PyPathGroupType 
+//-----------------
 // Define the Python type that stores PathGroup data. 
 //
 // Can't set all the fields here because g++ does not suppor non-trivial 
@@ -516,7 +517,7 @@ static PyTypeObject PyPathGroupType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   // Dotted name that includes both the module name and 
   // the name of the type within the module.
-  "path.Group",     
+  PATH_GROUP_MODULE_CLASS, 
   sizeof(PyPathGroup)
 };
 
@@ -525,12 +526,12 @@ static PyTypeObject PyPathGroupType = {
 //------------------
 // This is the __init__() method for the path.Group class. 
 //
-// This function is used to initialize an object after it is created.
+// This implements the Python __init__ method for the Group class. 
+// It is called after calling the __new__ method.
 //
-// Arguments:
-//
-//   fileName - An SV .pth file. A new PathGroup object is created from 
-//     the contents of the file. (optional)
+// Args:
+//   fileName (str): An SV .pth file. A new PathGroup object is created from 
+//       the contents of the file. (optional)
 //
 static int 
 PyPathGroupInit(PyPathGroup* self, PyObject* args)
@@ -556,8 +557,8 @@ PyPathGroupInit(PyPathGroup* self, PyObject* args)
 //----------------
 // PyPathGroupNew 
 //----------------
-// Object creation function, equivalent to the Python __new__() method. 
-// The generic handler creates a new instance using the tp_alloc field.
+// This implements the Python __new__ method. It is called before the
+// __init__ method.
 //
 static PyObject *
 PyPathGroupNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
@@ -594,7 +595,7 @@ static void
 SetPyPathGroupTypeFields(PyTypeObject& pathType)
 {
   // Doc string for this type.
-  pathType.tp_doc = "PathGroup  objects";
+  pathType.tp_doc = PathGroup_doc;
   // Object creation function, equivalent to the Python __new__() method. 
   // The generic handler creates a new instance using the tp_alloc field.
   pathType.tp_new = PyPathGroupNew;

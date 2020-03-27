@@ -36,8 +36,7 @@
 //
 //     aorta_cont_group = contour.Group()
 //
-//#include "ContourGroup_PyClass.h"
-#include "sv4gui_dmg_init_py.h"
+#include "sv4gui_ContourGroupIO.h"
 
 extern "C" SV_EXPORT_PYTHON_API typedef struct
 {
@@ -61,19 +60,20 @@ static PyObject * CreatePyContourGroup(sv4guiContourGroup::Pointer contourGroup)
 // from its contents.
 //
 static sv4guiContourGroup::Pointer 
-//static sv4guiContourGroup * 
 ContourGroup_read(char* fileName)
 {
+
   std::cout << "========== ContourGroup_read ==========" << std::endl;
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
   std::cout << "[ContourGroup_read] fileName: " << fileName << std::endl;
-  sv4guiContourGroup::Pointer group = Dmg_read_contour_group_file(std::string(fileName));
+  sv4guiContourGroup::Pointer group;
 
-  if (group == nullptr) {
+  try {
+      group = sv4guiContourGroupIO().CreateGroupFromFile(std::string(fileName));
+  } catch (...) {
       api.error("Error reading the contour group file '" + std::string(fileName) + "'.");
-      std::cout << "[ContourGroup_read] ERROR: can't read fileName: " << fileName << std::endl;
       return nullptr;
-  } 
+  }
 
   std::cout << "[ContourGroup_read] File read and group returned." << std::endl;
   auto contourGroup = dynamic_cast<sv4guiContourGroup*>(group.GetPointer());
@@ -301,7 +301,7 @@ PyContourGroupInit(PyContourGroup* self, PyObject* args)
       self->contourGroupPointer = ContourGroup_read(fileName);
       self->contourGroup = dynamic_cast<sv4guiContourGroup*>(self->contourGroupPointer.GetPointer());
   } else {
-      self->contourGroup = Dmg_create_contour_group();
+      self->contourGroup = sv4guiContourGroup::New();
   }
   if (self->contourGroup == nullptr) { 
       std::cout << "[PyContourGroupInit] ERROR reading File name: " << fileName << std::endl;

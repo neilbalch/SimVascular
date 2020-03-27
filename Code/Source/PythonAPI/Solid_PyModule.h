@@ -37,6 +37,9 @@
 #include "sv_FactoryRegistrar.h"
 #include "sv_SolidModel.h"
 
+// Need to define this when including sv4gui_ModelIO.h..
+#define US_MODULE_NAME
+
 #include "Python.h"
 
 //extern "C" SV_EXPORT_SOLID int Solid_PyInit();
