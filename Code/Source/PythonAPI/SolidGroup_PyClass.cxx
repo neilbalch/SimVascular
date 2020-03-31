@@ -38,16 +38,7 @@
 //
 #include "sv4gui_ModelIO.h"
 
-typedef struct
-//extern "C" SV_EXPORT_PYTHON_API typedef struct
-{
-  PyObject_HEAD
-  sv4guiModel::Pointer solidGroupPointer;
-  sv4guiModel* solidGroup;
-  int id;
-} PySolidGroup;
-
-static PyObject * CreatePySolidGroup(sv4guiModel::Pointer solidGroup);
+//static PyObject * CreatePySolidGroup(sv4guiModel::Pointer solidGroup);
 
 //////////////////////////////////////////////////////
 //          U t i l i t y  F u n c t i o n s        //
@@ -279,7 +270,7 @@ static PyMethodDef PySolidGroupMethods[] = {
 // Can't set all the fields here because g++ does not suppor non-trivial 
 // designated initializers. 
 //
-static PyTypeObject PySolidGroupClassType = {
+PyTypeObject PySolidGroupClassType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   SOLID_GROUP_MODULE_CLASS,     
   sizeof(PySolidGroup)
@@ -388,6 +379,8 @@ SetSolidGroupTypeFields(PyTypeObject& solidType)
 PyObject *
 CreatePySolidGroup(sv4guiModel::Pointer solidGroup)
 {
+  std::cout << std::endl;
+  std::cout << "========== CreatePySolidGroup ==========" << std::endl;
   std::cout << "[CreatePySolidGroup] Create SolidGroup object ... " << std::endl;
   auto solidGroupObj = PyObject_CallObject((PyObject*)&PySolidGroupClassType, NULL);
   auto pySolidGroup = (PySolidGroup*)solidGroupObj;

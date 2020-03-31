@@ -373,7 +373,7 @@ SetContourGroupTypeFields(PyTypeObject& contourType)
 // for the PyContourGroupType.contourGroup data.
 //
 PyObject *
-CreatePyContourGroup(sv4guiContourGroup::Pointer contourGroup)
+CreatePyContourGroup(sv4guiContourGroup* contourGroup)
 {
   std::cout << "[CreatePyContourGroup] Create ContourGroup object ... " << std::endl;
   auto contourGroupObj = PyObject_CallObject((PyObject*)&PyContourGroupClassType, NULL);
@@ -382,6 +382,7 @@ CreatePyContourGroup(sv4guiContourGroup::Pointer contourGroup)
   if (contourGroup != nullptr) {
       //delete pyContourGroup->contourGroup;
       pyContourGroup->contourGroup = contourGroup;
+      std::cout << "[CreatePyContour] Set contourGroup to: " << contourGroup << std::endl;
   }
   std::cout << "[CreatePyContour] pyContourGroup id: " << pyContourGroup->id << std::endl;
   return contourGroupObj;

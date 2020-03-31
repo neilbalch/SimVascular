@@ -50,29 +50,6 @@ typedef struct {
 //          U t i l i t y   F u n c t i o n s       //
 //////////////////////////////////////////////////////
 
-//-----------------
-// CheckSolidModel
-//-----------------
-// Check if a solid model is in the repository
-// and that its type is SOLID_MODEL_T.
-//
-static cvSolidModel *
-CheckSolidModel(SvPyUtilApiFunction& api, char* name)
-{
-  auto model = gRepository->GetObject(name);
-  if (model == NULL) {
-      api.error("The solid model '"+std::string(name)+"' is not in the repository.");
-      return nullptr;
-  }
-  auto type = gRepository->GetType(name);
-  if (type != SOLID_MODEL_T) {
-      api.error("'" + std::string(name) + "' is not a solid model.");
-      return nullptr;
-  }
-
-  return (cvSolidModel*)model;
-}
-
 //-------------------------
 // CheckSimplificationName
 //-------------------------

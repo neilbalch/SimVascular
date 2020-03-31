@@ -37,6 +37,7 @@
 #include "svPythonAPIExports.h"
 #include "sv3_Contour.h"
 #include "sv_FactoryRegistrar.h"
+#include "sv4gui_ContourGroup.h"
 
 // Need to define US_MODULE_NAME because we are including sv4gui_ContourGroupIO.h.
 #define US_MODULE_NAME 
@@ -53,6 +54,8 @@ extern "C" SV_EXPORT_SEGMENTATION typedef struct
   PyObject_HEAD
   cvFactoryRegistrar* registrar;
 } pyContourFactoryRegistrar;
+
+PyObject* CreatePyContourGroup(sv4guiContourGroup* contourGroup);
 
 #if PYTHON_MAJOR_VERSION == 2
 PyMODINIT_FUNC  initpyContour();
