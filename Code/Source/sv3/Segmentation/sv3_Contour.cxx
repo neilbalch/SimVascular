@@ -153,6 +153,7 @@ int Contour::GetContourID()
 
 void Contour::SetContourID(int contourID)
 {
+    std::cout << "####### Contour::SetContourID: contourID: " << contourID << std::endl;
     m_ContourID=contourID;
 }
 

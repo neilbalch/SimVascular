@@ -34,13 +34,13 @@ set(SRC_CPP_FILES
 
 set(INTERNAL_CPP_FILES
   Dmg_PyModule.cxx 
-  Project_PyModule.cxx 
+  #Project_PyModule.cxx 
   sv4gui_PythonDataNodesPluginActivator.cxx
 )
 
 set(MOC_H_FILES
   Dmg_PyModule.h 
-  Project_PyModule.h
+  #Project_PyModule.h
   sv4gui_PythonDataNodesPluginActivator.h
 )
 

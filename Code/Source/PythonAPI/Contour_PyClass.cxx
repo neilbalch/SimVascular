@@ -188,6 +188,31 @@ Contour_get_control_points(PyContour* self, PyObject* args)
   return Py_BuildValue("N", pointList); 
 }
 
+//----------------
+// Contour_get_id
+//----------------
+//
+PyDoc_STRVAR(Contour_get_id_doc,
+  "get_id()  \n\ 
+   \n\
+   Get the contour ID. \n\
+   \n\
+   Args:                                    \n\
+     None \n\
+   \n\
+   Returns int: The contour id. \n\
+");
+
+static PyObject *
+Contour_get_id(PyContour* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto contour = self->contour;
+  auto id = contour->GetContourID();
+  std::cout << "######### Contour_get_id: id: " << id << std::endl;
+  return Py_BuildValue("i", id); 
+}
+
 //------------------------
 // Contour_get_path_point
 //------------------------
@@ -664,6 +689,8 @@ static PyMethodDef PyContourClassMethods[] = {
   {"get_contour_points", (PyCFunction)Contour_get_contour_points, METH_NOARGS, Contour_get_contour_points_doc}, 
 
   {"get_control_points", (PyCFunction)Contour_get_control_points, METH_NOARGS, Contour_get_control_points_doc}, 
+
+  {"get_id", (PyCFunction)Contour_get_id, METH_NOARGS, Contour_get_id_doc}, 
 
   {"get_path_point", (PyCFunction)Contour_get_path_point, METH_NOARGS, Contour_get_path_point_doc}, 
 

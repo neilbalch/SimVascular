@@ -568,7 +568,7 @@ PyPathGroupNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
   if (self != NULL) {
       self->id = 1;
   }
-  return (PyObject *) self;
+  return (PyObject*)self;
 }
 
 //--------------------
@@ -578,7 +578,7 @@ PyPathGroupNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 static void
 PyPathGroupDealloc(PyPathGroup* self)
 {
-  std::cout << "[PyPathGroupDealloc] Free PyPathGroup" << std::endl;
+  std::cout << "[PyPathGroupDealloc] **** Free PyPathGroup **** " << std::endl;
   delete self->pathGroup;
   Py_TYPE(self)->tp_free(self);
 }
