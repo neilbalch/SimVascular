@@ -442,6 +442,123 @@ sv4Path_get_control_points(PyPath* self, PyObject* args)
   return output;
 }
 
+//--------------------------
+// sv4Path_get_curve_normal  
+//-------------------------
+//
+PyDoc_STRVAR(sv4Path_get_curve_normal_doc,
+  "get_curve_normal(index) \n\ 
+   \n\
+   Get the path curve normal at a given index. \n\
+   \n\
+   Args: \n\
+     index (int): The index into the path's curve normals. \n\
+");
+
+static PyObject * 
+sv4Path_get_curve_normal(PyPath* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("i", PyRunTimeErr, __func__);
+  int indexArg;
+
+  if (!PyArg_ParseTuple(args, api.format, &indexArg)) {
+      return api.argsError();
+  }
+
+  auto path = self->path;
+  if (path == NULL) {
+    api.error("The path element data has not be created.");
+    return nullptr;
+  }
+
+  int num = path->GetPathPointNumber();
+  if ((indexArg < 0) || (indexArg >= num)) {
+    api.error("The path index must be between 0 and " + std::to_string(num-1) + ".");
+    return nullptr;
+  }  
+
+  auto pathPoint = path->GetPathPoint(indexArg);
+  return Py_BuildValue("[d, d, d]", pathPoint.rotation[0], pathPoint.rotation[1], pathPoint.rotation[2]);
+}
+
+//-------------------------
+// sv4Path_get_curve_point 
+//-------------------------
+//
+PyDoc_STRVAR(sv4Path_get_curve_point_doc,
+  "get_curve_point(index) \n\ 
+   \n\
+   Get the path curve point at a given index. \n\
+   \n\
+   Args: \n\
+     index (int): The index into the path's curve points. \n\
+");
+
+static PyObject * 
+sv4Path_get_curve_point(PyPath* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("i", PyRunTimeErr, __func__);
+  int indexArg;
+
+  if (!PyArg_ParseTuple(args, api.format, &indexArg)) {
+      return api.argsError();
+  }
+
+  auto path = self->path;
+  if (path == NULL) {
+    api.error("The path element data has not be created.");
+    return nullptr;
+  }
+
+  int num = path->GetPathPointNumber();
+  if ((indexArg < 0) || (indexArg >= num)) {
+    api.error("The path index must be between 0 and " + std::to_string(num-1) + ".");
+    return nullptr;
+  }  
+
+  std::array<double,3> pos = path->GetPathPosPoint(indexArg);
+  return Py_BuildValue("[d, d, d]", pos[0], pos[1], pos[2]);
+}
+
+//---------------------------
+// sv4Path_get_curve_tangent 
+//--------------------------
+//
+PyDoc_STRVAR(sv4Path_get_curve_tangent_doc,
+  "get_curve_tangent(index) \n\ 
+   \n\
+   Get the path curve tangent at a given index. \n\
+   \n\
+   Args: \n\
+     index (int): The index into the path's curve tangents. \n\
+");
+
+static PyObject * 
+sv4Path_get_curve_tangent(PyPath* self, PyObject* args)
+{
+  auto api = SvPyUtilApiFunction("i", PyRunTimeErr, __func__);
+  int indexArg;
+
+  if (!PyArg_ParseTuple(args, api.format, &indexArg)) {
+      return api.argsError();
+  }
+
+  auto path = self->path;
+  if (path == NULL) {
+    api.error("The path element data has not be created.");
+    return nullptr;
+  }
+
+  int num = path->GetPathPointNumber();
+  if ((indexArg < 0) || (indexArg >= num)) {
+    api.error("The path index must be between 0 and " + std::to_string(num-1) + ".");
+    return nullptr;
+  }  
+
+  auto pathPoint = path->GetPathPoint(indexArg);
+  return Py_BuildValue("[d, d, d]", pathPoint.tangent[0], pathPoint.tangent[1], pathPoint.tangent[2]);
+}
+
 //----------------------
 // sv4Path_get_polydata
 //----------------------
@@ -517,7 +634,10 @@ static PyMethodDef PyPathClassMethods[] = {
 
   {"get_control_points", (PyCFunction)sv4Path_get_control_points, METH_NOARGS, sv4Path_get_control_points_doc },
 
+  {"get_curve_normal", (PyCFunction)sv4Path_get_curve_normal, METH_VARARGS, sv4Path_get_curve_normal_doc },
+  {"get_curve_point", (PyCFunction)sv4Path_get_curve_point, METH_VARARGS, sv4Path_get_curve_point_doc },
   {"get_curve_points", (PyCFunction)sv4Path_get_curve_points, METH_NOARGS, sv4Path_get_curve_points_doc },
+  {"get_curve_tangent", (PyCFunction)sv4Path_get_curve_tangent, METH_VARARGS, sv4Path_get_curve_tangent_doc },
 
   {"get_num_curve_points", (PyCFunction)sv4Path_get_num_curve_points, METH_NOARGS, sv4Path_get_num_curve_points_doc },
 

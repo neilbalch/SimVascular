@@ -748,14 +748,14 @@ static int
 PyContourInit(PyContour* self, PyObject* args, PyObject *kwds)
 {
   static int numObjs = 1;
-  std::cout << "[PyContourInit] New Contour object: " << numObjs << std::endl;
+  //std::cout << "[PyContourInit] New Contour object: " << numObjs << std::endl;
   char* kernelName = nullptr;
   if (!PyArg_ParseTuple(args, "|s", &kernelName)) {
       return -1;
   }
 
   if (kernelName != nullptr) { 
-      std::cout << "[ContourObjectInit] Kernel name: " << kernelName << std::endl;
+      //std::cout << "[ContourObjectInit] Kernel name: " << kernelName << std::endl;
   }
   self->contour = new Contour();
   self->id = numObjs; 
@@ -774,7 +774,7 @@ PyContourInit(PyContour* self, PyObject* args, PyObject *kwds)
 static PyObject *
 PyContourNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
-  std::cout << "[PyContourNew] PyContourNew " << std::endl;
+  //std::cout << "[PyContourNew] PyContourNew " << std::endl;
   auto self = (PyContour*)type->tp_alloc(type, 0);
   if (self != NULL) {
       //self->id = 1;
@@ -790,7 +790,7 @@ PyContourNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 static void
 PyContourDealloc(PyContour* self)
 {
-  std::cout << "[PyContourDealloc] Free PyContour: " << self->id << std::endl;
+  //std::cout << "[PyContourDealloc] Free PyContour: " << self->id << std::endl;
   //delete self->contour;
   Py_TYPE(self)->tp_free(self);
 }

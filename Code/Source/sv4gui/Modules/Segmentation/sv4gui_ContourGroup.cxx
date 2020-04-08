@@ -42,9 +42,6 @@ sv4guiContourGroup::sv4guiContourGroup()
     , m_DataModified(false)
     , m_ResliceSize(5.0)
 {
-   std::cout << "#################### sv4guiContourGroup ctor ############" << std::endl;
-   std::cout << "#################### m_PathName: " << m_PathName << std::endl;
-   std::cout << "#################### m_PathID: " << m_PathID << std::endl;
     this->InitializeEmpty();
     m_LoftingParam=new svLoftingParam();
 }

@@ -109,9 +109,9 @@ PyMethodDef PySplinePolygonContourMethods[] = {
   {NULL, NULL}
 };
 
-//---------------------
+//----------------------------
 // PySplinePolygonContourInit 
-//---------------------
+//----------------------------
 // This is the __init__() method for the Contour class. 
 //
 // This function is used to initialize an object after it is created.
@@ -120,21 +120,21 @@ static int
 PySplinePolygonContourInit(PySplinePolygonContour* self, PyObject* args, PyObject *kwds)
 {
   static int numObjs = 1;
-  std::cout << "[PySplinePolygonContourInit] New SplinePolygon Contour object: " << numObjs << std::endl;
+  //std::cout << "[PySplinePolygonContourInit] New SplinePolygon Contour object: " << numObjs << std::endl;
   //self->super.count = numObjs;
   self->super.contour = new sv3::ContourSplinePolygon();
   numObjs += 1;
   return 0;
 }
 
-//--------------------
+//---------------------------
 // PySplinePolygonContourNew 
-//--------------------
+//---------------------------
 //
 static PyObject *
 PySplinePolygonContourNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 { 
-  std::cout << "[PySplinePolygonContourNew] PySplinePolygonContourNew " << std::endl;
+  //std::cout << "[PySplinePolygonContourNew] PySplinePolygonContourNew " << std::endl;
   auto self = (PySplinePolygonContour*)type->tp_alloc(type, 0);
   if (self != NULL) {
       //self->super.id = 2;
@@ -142,14 +142,14 @@ PySplinePolygonContourNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
   return (PyObject *) self;
 }
 
-//------------------------
+//-------------------------------
 // PySplinePolygonContourDealloc 
-//------------------------
+//-------------------------------
 //
 static void
 PySplinePolygonContourDealloc(PySplinePolygonContour* self)
 { 
-  std::cout << "[PySplinePolygonContourDealloc] Free PySplinePolygonContour" << std::endl;
+  //std::cout << "[PySplinePolygonContourDealloc] Free PySplinePolygonContour" << std::endl;
   delete self->super.contour;
   Py_TYPE(self)->tp_free(self);
 }
@@ -170,9 +170,9 @@ static PyTypeObject PySplinePolygonContourClassType = {
   .tp_basicsize = sizeof(PySplinePolygonContour)
 };
 
-//----------------------------
+//-----------------------------------
 // SetSplinePolygonContourTypeFields
-//----------------------------
+//-----------------------------------
 // Set the Python type object fields that stores Contour data. 
 //
 // Need to set the fields here because g++ does not suppor non-trivial 

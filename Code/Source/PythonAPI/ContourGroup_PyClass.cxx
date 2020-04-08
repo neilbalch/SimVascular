@@ -63,9 +63,9 @@ static sv4guiContourGroup::Pointer
 ContourGroup_read(char* fileName)
 {
 
-  std::cout << "========== ContourGroup_read ==========" << std::endl;
+  //std::cout << "========== ContourGroup_read ==========" << std::endl;
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
-  std::cout << "[ContourGroup_read] fileName: " << fileName << std::endl;
+  //std::cout << "[ContourGroup_read] fileName: " << fileName << std::endl;
   sv4guiContourGroup::Pointer group;
 
   try {
@@ -75,10 +75,10 @@ ContourGroup_read(char* fileName)
       return nullptr;
   }
 
-  std::cout << "[ContourGroup_read] File read and group returned." << std::endl;
+  //std::cout << "[ContourGroup_read] File read and group returned." << std::endl;
   auto contourGroup = dynamic_cast<sv4guiContourGroup*>(group.GetPointer());
   int numContours = contourGroup->GetSize();
-  std::cout << "[ContourGroup_read] Number of contours: " << numContours << std::endl;
+  //std::cout << "[ContourGroup_read] Number of contours: " << numContours << std::endl;
 
   return group;
 }
@@ -132,7 +132,7 @@ ContourGroup_number_of_contours(PyContourGroup* self, PyObject* args)
 {
   auto contourGroup = self->contourGroup;
   int numContours = contourGroup->GetSize();
-  std::cout << "[ContourGroup_number_of_contours] Number of contours: " << numContours << std::endl;
+  //std::cout << "[ContourGroup_number_of_contours] Number of contours: " << numContours << std::endl;
   return Py_BuildValue("i", numContours); 
 }
 
@@ -161,7 +161,7 @@ ContourGroup_get_contour(PyContourGroup* self, PyObject* args)
 
   auto contourGroup = self->contourGroup;
   int numContours = contourGroup->GetSize();
-  std::cout << "[ContourGroup_get_contour] Number of contours: " << numContours << std::endl;
+  //std::cout << "[ContourGroup_get_contour] Number of contours: " << numContours << std::endl;
 
   // Check for valid index.
   if ((index < 0) || (index > numContours-1)) {
@@ -181,9 +181,9 @@ ContourGroup_get_contour(PyContourGroup* self, PyObject* args)
   auto kernel = contour->GetKernel();
   auto ctype = contour->GetType();
   auto contourType = ContourKernel_get_name(kernel);
-  std::cout << "[ContourGroup_get_contour] ctype: " << ctype << std::endl;
-  std::cout << "[ContourGroup_get_contour] kernel: " << kernel << std::endl;
-  std::cout << "[ContourGroup_get_contour] Contour type: " << contourType << std::endl;
+  //std::cout << "[ContourGroup_get_contour] ctype: " << ctype << std::endl;
+  //std::cout << "[ContourGroup_get_contour] kernel: " << kernel << std::endl;
+  //std::cout << "[ContourGroup_get_contour] Contour type: " << contourType << std::endl;
 
   // Create a PyContour object from the SV Contour object 
   // and return it as a PyObject*.
@@ -289,7 +289,7 @@ static int
 PyContourGroupInit(PyContourGroup* self, PyObject* args)
 {
   static int numObjs = 1;
-  std::cout << "[PyContourGroupInit] New ContourGroup object: " << numObjs << std::endl;
+  //std::cout << "[PyContourGroupInit] New ContourGroup object: " << numObjs << std::endl;
   auto api = SvPyUtilApiFunction("|s", PyRunTimeErr, __func__);
   char* fileName = nullptr;
   if (!PyArg_ParseTuple(args, api.format, &fileName)) {
@@ -297,7 +297,7 @@ PyContourGroupInit(PyContourGroup* self, PyObject* args)
       return 1;
   }
   if (fileName != nullptr) {
-      std::cout << "[PyContourGroupInit] File name: " << fileName << std::endl;
+      //std::cout << "[PyContourGroupInit] File name: " << fileName << std::endl;
       self->contourGroupPointer = ContourGroup_read(fileName);
       self->contourGroup = dynamic_cast<sv4guiContourGroup*>(self->contourGroupPointer.GetPointer());
   } else {
@@ -320,7 +320,7 @@ PyContourGroupInit(PyContourGroup* self, PyObject* args)
 static PyObject *
 PyContourGroupNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
-  std::cout << "[PyContourGroupNew] PyContourGroupNew " << std::endl;
+  //std::cout << "[PyContourGroupNew] PyContourGroupNew " << std::endl;
   auto self = (PyContour*)type->tp_alloc(type, 0);
   if (self == NULL) {
       std::cout << "[PyContourGroupNew] ERROR: Can't allocate type." << std::endl;
@@ -336,7 +336,7 @@ PyContourGroupNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 static void
 PyContourGroupDealloc(PyContourGroup* self)
 {
-  std::cout << "[PyContourGroupDealloc] Free PyContourGroup" << std::endl;
+  //std::cout << "[PyContourGroupDealloc] Free PyContourGroup" << std::endl;
   // Can't delete contourGroup because it has a protected detructor.
   //delete self->contourGroup;
   Py_TYPE(self)->tp_free(self);
