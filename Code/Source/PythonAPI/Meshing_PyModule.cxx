@@ -241,8 +241,8 @@ static char* MESHING_MODULE_EXCEPTION_OBJECT = "MeshingError";
 
 PyDoc_STRVAR(Meshing_module_doc, "meshing module functions");
 
-// Include mesh.Mesher definition.
-//#include "MeshingMesher_PyClass.cxx"
+// Include meshing.Group definition.
+#include "MeshingGroup_PyClass.cxx"
 
 //---------------------------------------------------------------------------
 //                           PYTHON_MAJOR_VERSION 3                         
@@ -300,6 +300,13 @@ PyInit_PyMeshing()
   SetMesherTypeFields(PyMeshingMesherClassType);
   if (PyType_Ready(&PyMeshingMesherClassType) < 0) {
       std::cout << "Error creating Meshing type" << std::endl;
+      return nullptr;
+  }
+
+  // Initialize the group class type.
+  SetMeshingGroupTypeFields(PyMeshingGroupClassType);
+  if (PyType_Ready(&PyMeshingGroupClassType) < 0) {
+      std::cout << "Error creating MeshingGroup type" << std::endl;
       return nullptr;
   }
 
@@ -395,6 +402,11 @@ PyInit_PyMeshing()
   //
   //Py_INCREF(&PyMeshingMesherClassType);
   //PyModule_AddObject(module, MESHING_MESHER_CLASS, (PyObject*)&PyMeshingMesherClassType);
+
+  // Add the 'MeshingGroup' class.
+  //std::cout << "[PyInit_PyMeshing] Add the MeshingGroup class type. " << std::endl;
+  Py_INCREF(&PyMeshingGroupClassType);
+  PyModule_AddObject(module, MESHING_GROUP_CLASS, (PyObject *)&PyMeshingGroupClassType);
 
   // Add the 'meshing.TetGen' class.
   Py_INCREF(&PyMeshingTetGenClassType);

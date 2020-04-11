@@ -1271,7 +1271,7 @@ SetMesherTypeFields(PyTypeObject& meshType)
   meshType.tp_methods = PyMeshingMesherMethods;
 };
 
-//-----------------
+//------------------
 // CreateMesherType 
 //------------------
 static PyMeshingMesherClass *

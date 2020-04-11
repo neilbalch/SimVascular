@@ -44,13 +44,13 @@
 //          U t i l i t y  F u n c t i o n s        //
 //////////////////////////////////////////////////////
 
-//-------------------
+//-----------------
 // SolidGroup_read
-//-------------------
-// Read in an SV .pth file and create a SolidGroup object
+//-----------------
+// Read in an SV .mdl file and create a SolidGroup object
 // from its contents.
 //
-static sv4guiModel::Pointer 
+sv4guiModel::Pointer 
 SolidGroup_read(char* fileName)
 {
   std::cout << "========== SolidGroup_read ==========" << std::endl;

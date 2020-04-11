@@ -36,12 +36,27 @@
 #include "Python.h"
 #include "svMeshObjectExports.h"
 #include "sv_MeshObject.h"
+#include "sv4gui_Mesh.h"
+#include "sv4gui_MitkMesh.h"
 
 extern "C" SV_EXPORT_MESH int Mesh_pyInit();
 
 typedef cvMeshObject * (*CreateMesherObjectFunction)();
 
 extern "C" SV_EXPORT_MESH void PyAPI_InitMeshSim(CreateMesherObjectFunction createObject);
+
+//----------------
+// PyMeshingGroup
+//----------------
+//
+typedef struct PyMeshingGroup
+{
+  PyObject_HEAD
+  sv4guiMitkMesh::Pointer meshingGroupPointer;
+  sv4guiMitkMesh* meshingGroup;
+  int id;
+  std::string fileName;
+} PyMeshingGroup;
 
 // [TODO:DaveP] why is this in the header, it is not
 // referenced anywhere else.

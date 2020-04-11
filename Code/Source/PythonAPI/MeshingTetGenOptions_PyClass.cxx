@@ -56,8 +56,11 @@
 #ifndef PYAPI_MESHING_TETGEN_OPTIONS_H
 #define PYAPI_MESHING_TETGEN_OPTIONS_H 
 
+#include <regex>
 #include <string>
 #include <structmember.h>
+
+PyObject * CreateTetGenOptionsType(PyObject* args, PyObject* kwargs);
 
 //---------------------
 // MeshingOptionsClass 
@@ -283,6 +286,97 @@ PyTetGenOptionsGetValues(PyObject* meshingOptions, std::string name)
 
   Py_DECREF(obj);
   return values;
+}
+
+//---------------------------------
+// PyTetGenOptionsAddLocalEdgeSize
+//---------------------------------
+//
+void
+PyTetGenOptionsAddLocalEdgeSize(PyMeshingTetGenOptionsClass* options, std::vector<std::string>& vals)
+{
+  auto faceID = std::stoi(vals[0]);
+  auto edgeSize = std::stod(vals[1]);
+}
+
+//-------------------------------
+// PyTetGenOptionsCreateFromList
+//-------------------------------
+// Create an TetGen options object from a list of commands.
+//
+// The list is obtained from a mesh .msh file. For example
+//
+//  <command_history>
+//    <command content="option surface 1" />
+//    <command content="option volume 1" />
+//    <command content="option UseMMG 1" />
+//    <command content="option GlobalEdgeSize 0.20" />
+//    <command content="setWalls" />
+//    <command content="AllowMultipleRegions 0" />
+// </command_history>
+//
+// Some of the commands have an 'option' prefix designating them 
+// as options passed on to TetGen.
+//
+// The 'setWalls' option is used as a flag to set the
+// set the mesh wall IDs using SetWalls().
+//
+// In SV the commads are parsed in sv4guiMeshTetGen::ParseCommand().
+//
+// Note: The options need to be processed after the solid model is loaded
+// because the 'setWalls' option.
+//
+PyObject *
+PyTetGenOptionsCreateFromList(std::vector<std::string>& optionList)
+{
+  // Define a map to set the values in PyMeshingTetGenOptionsClass.
+  //
+  // Note that some of the option names in the .msh file are not the
+  // same as those used for TetGen options (e.g. surface = SurfaceMeshFlag).
+  //
+  using SetValueMapType  = std::map<std::string, std::function<void(PyMeshingTetGenOptionsClass*,std::vector<std::string>&)>>;
+  using ArgType = std::vector<std::string>&; 
+  SetValueMapType SetValueMap = {
+    {"AllowMultipleRegions", [](PyMeshingTetGenOptionsClass* options, ArgType vals) -> void { options->allow_multiple_regions = std::stod(vals[0]); }},
+    {"GlobalEdgeSize", [](PyMeshingTetGenOptionsClass* options, ArgType vals) -> void { options->global_edge_size = std::stof(vals[0]); }},
+    {"localSize", [](PyMeshingTetGenOptionsClass* options, ArgType vals) -> void { PyTetGenOptionsAddLocalEdgeSize(options,vals); }},
+    {"NoBisect", [](PyMeshingTetGenOptionsClass* options, ArgType vals) -> void { options->no_bisect = Py_BuildValue("i", 1); }},
+    {"Optimization", [](PyMeshingTetGenOptionsClass* options, ArgType vals) -> void { options->optimization = std::stoi(vals[0]); }},
+    {"QualityRatio", [](PyMeshingTetGenOptionsClass* options, ArgType vals) -> void { options->quality_ratio = std::stod(vals[0]); }},
+    {"surface", [](PyMeshingTetGenOptionsClass* options, ArgType vals) -> void { options->surface_mesh_flag = std::stoi(vals[0]); }},
+    {"UseMMG", [](PyMeshingTetGenOptionsClass* options, ArgType vals) -> void { options->use_mmg = std::stoi(vals[0]); }},
+    {"volume", [](PyMeshingTetGenOptionsClass* options, ArgType vals) -> void { options->volume_mesh_flag = std::stoi(vals[0]); }},
+  };
+
+  // Create an options object.
+  PyObject *args = Py_BuildValue("()");
+  PyObject* kwargs = Py_BuildValue("{}"); 
+  auto optionsObj = CreateTetGenOptionsType(args, kwargs);
+  auto options = (PyMeshingTetGenOptionsClass*)optionsObj;
+
+  // Set option values given in the option list.
+  std::cout << std::endl;
+  std::cout << "=========== PyTetGenOptionsCreateFromList =========== " << std::endl;
+  std::cout << "[PyTetGenOptionsCreateFromList] List: " << std::endl;
+  for (auto const& option : optionList) {
+      std::cout << "[PyTetGenOptionsCreateFromList]   option  '" << option << "'" << std::endl;
+      std::regex regex{R"([\s,]+)"}; // split on space and comma
+      std::sregex_token_iterator it{option.begin(), option.end(), regex, -1};
+      std::vector<std::string> tokens{it, {}};
+      if (tokens[0] == "option") {
+          tokens.erase(tokens.begin());
+      }
+      auto name = tokens[0];
+      std::cout << "[PyTetGenOptionsCreateFromList]       name: '" << name << "'" << std::endl;
+      tokens.erase(tokens.begin());
+      try {
+          SetValueMap[name](options, tokens);
+      } catch (const std::bad_function_call& except) {
+          std::cout << "[PyTetGenOptionsCreateFromList]       Unknown name: " << name << std::endl;
+      }
+  }
+
+  return optionsObj;
 }
 
 ////////////////////////////////////////////////////////
@@ -719,7 +813,7 @@ PyTetGenOptionsInit(PyMeshingTetGenOptionsClass* self, PyObject* args, PyObject*
 {
   static int numObjs = 1;
   std::cout << "[PyTetGenOptionsInit] New MeshingOptions object: " << numObjs << std::endl;
-  auto api = SvPyUtilApiFunction("d|O!O!O!", PyRunTimeErr, __func__);
+  auto api = SvPyUtilApiFunction("|dO!O!O!", PyRunTimeErr, __func__);
   static char *keywords[] = { TetGenOption::GlobalEdgeSize, TetGenOption::SurfaceMeshFlag, TetGenOption::VolumeMeshFlag, 
                               TetGenOption::MeshWallFirst, NULL};
   double global_edge_size = 0.0;
@@ -845,12 +939,15 @@ CreateTetGenOptionsType()
 }
 */
 
-static PyObject *
+//-------------------------
+// CreateTetGenOptionsType
+//-------------------------
+//
+PyObject *
 CreateTetGenOptionsType(PyObject* args, PyObject* kwargs)
 {
   return PyObject_Call((PyObject*)&PyTetGenOptionsType, args, kwargs);
 }
-
 
 #endif
 
