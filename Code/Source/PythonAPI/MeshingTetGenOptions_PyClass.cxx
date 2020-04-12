@@ -77,7 +77,7 @@ PyObject * CreateTetGenOptionsType(PyObject* args, PyObject* kwargs);
 // epsilon: not sure what range is valid 
 // global_edge_size: 
 // hausd: 
-// local_edge_size: {'face_id':int, 'edge_size':double}
+// local_edge_size: list({'face_id':int, 'edge_size':double})
 // mesh_wall_first: set option to true without value 
 // new_region_boundary_layer: set option to true without value 
 // no_bisect: set option to true without value 
@@ -195,11 +195,37 @@ namespace TetGenOption {
       {std::string(VolumeMeshFlag), "VolumeMeshFlag"}
    };
 
+  std::set<std::string> ListOptions { LocalEdgeSize };
+
 };
 
 //////////////////////////////////////////////////////
 //          U t i l i t y  F u n c t i o n s        //
 //////////////////////////////////////////////////////
+
+//-----------------------------------------
+// PyTetGenOptionsCreateLocalEdgeSizeValue
+//-----------------------------------------
+//
+PyObject * 
+PyTetGenOptionsCreateLocalEdgeSizeValue(SvPyUtilApiFunction& api, int faceID, double edgeSize) 
+{
+  if (edgeSize <= 0) {
+      api.error("The '" + std::string(TetGenOption::LocalEdgeSize_EdgeSizeParam) + "' must be > 0.");
+      return nullptr;
+  }
+  
+  if (faceID <= 0) {
+      api.error("The '" + std::string(TetGenOption::LocalEdgeSize_FaceIDParam) + "' must be > 0.");
+      return nullptr;
+  }
+  
+  // Create a local edge size dict. 
+  auto value = Py_BuildValue("{s:i, s:d}", TetGenOption::LocalEdgeSize_FaceIDParam, faceID, TetGenOption::LocalEdgeSize_EdgeSizeParam, edgeSize);
+  Py_INCREF(value);
+
+  return value;
+}
 
 //---------------------------------------
 // PyTetGenOptionsGetLocalEdgeSizeValues
@@ -207,23 +233,23 @@ namespace TetGenOption {
 // Get the parameter values for the LocalEdgeSize option. 
 //
 bool
-PyTetGenOptionsGetLocalEdgeSizeValues(PyObject* obj, int& regionID, double& edgeSize) 
+PyTetGenOptionsGetLocalEdgeSizeValues(PyObject* obj, int& faceID, double& edgeSize) 
 {
   static std::string errorMsg = "The local_edge_size parameter must be a " + TetGenOption::LocalEdgeSize_Desc; 
 
   // Check the LocalEdgeSize_RegionIDParam key.
   //
-  PyObject* regionIDItem = PyDict_GetItemString(obj, TetGenOption::LocalEdgeSize_FaceIDParam);
-  if (regionIDItem == nullptr) {
+  PyObject* faceIDItem = PyDict_GetItemString(obj, TetGenOption::LocalEdgeSize_FaceIDParam);
+  if (faceIDItem == nullptr) {
       PyErr_SetString(PyExc_ValueError, errorMsg.c_str());
       return false;
   }
-  regionID = PyLong_AsLong(regionIDItem);
+  faceID = PyLong_AsLong(faceIDItem);
   if (PyErr_Occurred()) {
       return false;
   }
-  if (regionID <= 0) {
-      PyErr_SetString(PyExc_ValueError, "The region ID paramter must be > 0.");
+  if (faceID <= 0) {
+      PyErr_SetString(PyExc_ValueError, "The face ID paramter must be > 0.");
       return false;
   }
 
@@ -277,10 +303,10 @@ PyTetGenOptionsGetValues(PyObject* meshingOptions, std::string name)
           values.push_back(value);
       }
   } else if (name == TetGenOption::LocalEdgeSize) {
-      int regionID;
+      int faceID;
       double edgeSize;
-      PyTetGenOptionsGetLocalEdgeSizeValues(obj, regionID, edgeSize);
-      values.push_back((double)regionID);
+      PyTetGenOptionsGetLocalEdgeSizeValues(obj, faceID, edgeSize);
+      values.push_back((double)faceID);
       values.push_back(edgeSize);
   }
 
@@ -288,15 +314,75 @@ PyTetGenOptionsGetValues(PyObject* meshingOptions, std::string name)
   return values;
 }
 
+//--------------------------
+// PyTetGenOptionsGetValues
+//--------------------------
+// Get attribute values from the MeshingOptions object.
+//
+// Return a vector of doubles to mimic how SV processes options.
+//
+static std::vector<std::vector<double>>
+PyTetGenOptionsGetListValues(PyObject* meshingOptions, std::string name)
+{
+  //std::cout << "========== PyTetGenOptionsGetListValues ==========" << std::endl;
+  std::vector<std::vector<double>> listValues;
+  auto obj = PyObject_GetAttrString(meshingOptions, name.c_str());
+  if (obj == Py_None) {
+      return listValues;
+  }
+
+  if (!PyList_Check(obj)) {
+      return listValues;
+  }
+
+  auto num = PyList_Size(obj);
+  for (int i = 0; i < num; i++) {
+      auto item = PyList_GetItem(obj, i);
+      if (name == TetGenOption::LocalEdgeSize) {
+          int faceID;
+          double edgeSize;
+          PyTetGenOptionsGetLocalEdgeSizeValues(item, faceID, edgeSize);
+          //std::cout << "[PyTetGenOptionsGetListValues] faceID: " << faceID << "  edgSize: " << edgeSize << std::endl;
+          std::vector<double> values = { static_cast<double>(faceID), edgeSize };
+          listValues.push_back(values);
+      }
+  }
+
+  return listValues;
+}
+
 //---------------------------------
 // PyTetGenOptionsAddLocalEdgeSize
 //---------------------------------
+// Add a local (face) edge size option.
+//
+// The face ID is a string but must be mapped to an int.
+//
+//   <command content="localSize wall_aorta 0.5" />
 //
 void
-PyTetGenOptionsAddLocalEdgeSize(PyMeshingTetGenOptionsClass* options, std::vector<std::string>& vals)
+PyTetGenOptionsAddLocalEdgeSize(PyMeshingTetGenOptionsClass* options, std::vector<std::string>& vals, std::map<std::string,int>& faceMap)
 {
-  auto faceID = std::stoi(vals[0]);
+  std::cout << "================ PyTetGenOptionsAddLocalEdgeSize ================" << std::endl;
+  std::cout << "[PyTetGenOptionsAddLocalEdgeSize] vals[0]: " << vals[0] << std::endl;
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  std::cout << "[PyTetGenOptionsAddLocalEdgeSize] face mape: " << std::endl;
+  for (auto const& item : faceMap) {
+      std::cout << "[PyTetGenOptionsAddLocalEdgeSize]   face: " << item.first << std::endl;
+  }
+  // Map the string face name to an int ID.
+  int faceID = faceMap[vals[0]];
   auto edgeSize = std::stod(vals[1]);
+  auto value = PyTetGenOptionsCreateLocalEdgeSizeValue(api, faceID, edgeSize);
+
+  // Create a new list or add the edge size to an existing list. 
+  if (options->local_edge_size == Py_None) { 
+      auto edgeList = PyList_New(1);
+      PyList_SetItem(edgeList, 0, value);
+      options->local_edge_size = edgeList; 
+  } else {
+      PyList_Append(options->local_edge_size, value);
+  }
 }
 
 //-------------------------------
@@ -327,25 +413,32 @@ PyTetGenOptionsAddLocalEdgeSize(PyMeshingTetGenOptionsClass* options, std::vecto
 // because the 'setWalls' option.
 //
 PyObject *
-PyTetGenOptionsCreateFromList(std::vector<std::string>& optionList)
+PyTetGenOptionsCreateFromList(std::vector<std::string>& optionList, std::map<std::string,int>& faceMap)
 {
+  std::cout << "================ PyTetGenOptionsCreateFromList ================" << std::endl;
+  std::cout << "[PyTetGenOptionsCreateFromList] faceMap: " << faceMap.size() << std::endl;
+
   // Define a map to set the values in PyMeshingTetGenOptionsClass.
   //
   // Note that some of the option names in the .msh file are not the
   // same as those used for TetGen options (e.g. surface = SurfaceMeshFlag).
   //
-  using SetValueMapType  = std::map<std::string, std::function<void(PyMeshingTetGenOptionsClass*,std::vector<std::string>&)>>;
+  // We need to have 'faceMap' to map string face IDs to ints.
+  //
+  using OptType = PyMeshingTetGenOptionsClass*;
   using ArgType = std::vector<std::string>&; 
+  using MapType = std::map<std::string,int>&;
+  using SetValueMapType  = std::map<std::string, std::function<void(OptType, ArgType, MapType)>>;
   SetValueMapType SetValueMap = {
-    {"AllowMultipleRegions", [](PyMeshingTetGenOptionsClass* options, ArgType vals) -> void { options->allow_multiple_regions = std::stod(vals[0]); }},
-    {"GlobalEdgeSize", [](PyMeshingTetGenOptionsClass* options, ArgType vals) -> void { options->global_edge_size = std::stof(vals[0]); }},
-    {"localSize", [](PyMeshingTetGenOptionsClass* options, ArgType vals) -> void { PyTetGenOptionsAddLocalEdgeSize(options,vals); }},
-    {"NoBisect", [](PyMeshingTetGenOptionsClass* options, ArgType vals) -> void { options->no_bisect = Py_BuildValue("i", 1); }},
-    {"Optimization", [](PyMeshingTetGenOptionsClass* options, ArgType vals) -> void { options->optimization = std::stoi(vals[0]); }},
-    {"QualityRatio", [](PyMeshingTetGenOptionsClass* options, ArgType vals) -> void { options->quality_ratio = std::stod(vals[0]); }},
-    {"surface", [](PyMeshingTetGenOptionsClass* options, ArgType vals) -> void { options->surface_mesh_flag = std::stoi(vals[0]); }},
-    {"UseMMG", [](PyMeshingTetGenOptionsClass* options, ArgType vals) -> void { options->use_mmg = std::stoi(vals[0]); }},
-    {"volume", [](PyMeshingTetGenOptionsClass* options, ArgType vals) -> void { options->volume_mesh_flag = std::stoi(vals[0]); }},
+    {"AllowMultipleRegions", [](OptType opt, ArgType vals, MapType fmap) -> void { opt->allow_multiple_regions = std::stod(vals[0]); }},
+    {"GlobalEdgeSize", [](OptType opt, ArgType vals, MapType fmap) -> void { opt->global_edge_size = std::stof(vals[0]); }},
+    {"localSize", [](OptType opt, ArgType vals, MapType fmap) -> void { PyTetGenOptionsAddLocalEdgeSize(opt,vals,fmap); }},
+    {"NoBisect", [](OptType opt, ArgType vals, MapType fmap) -> void { opt->no_bisect = Py_BuildValue("i", 1); }},
+    {"Optimization", [](OptType opt, ArgType vals, MapType fmap) -> void { opt->optimization = std::stoi(vals[0]); }},
+    {"QualityRatio", [](OptType opt, ArgType vals, MapType fmap) -> void { opt->quality_ratio = std::stod(vals[0]); }},
+    {"surface", [](OptType opt, ArgType vals, MapType fmap) -> void { opt->surface_mesh_flag = std::stoi(vals[0]); }},
+    {"UseMMG", [](OptType opt, ArgType vals, MapType fmap) -> void { opt->use_mmg = std::stoi(vals[0]); }},
+    {"volume", [](OptType opt, ArgType vals, MapType fmap) -> void { opt->volume_mesh_flag = std::stoi(vals[0]); }},
   };
 
   // Create an options object.
@@ -370,7 +463,7 @@ PyTetGenOptionsCreateFromList(std::vector<std::string>& optionList)
       std::cout << "[PyTetGenOptionsCreateFromList]       name: '" << name << "'" << std::endl;
       tokens.erase(tokens.begin());
       try {
-          SetValueMap[name](options, tokens);
+          SetValueMap[name](options, tokens, faceMap);
       } catch (const std::bad_function_call& except) {
           std::cout << "[PyTetGenOptionsCreateFromList]       Unknown name: " << name << std::endl;
       }
@@ -384,6 +477,45 @@ PyTetGenOptionsCreateFromList(std::vector<std::string>& optionList)
 ////////////////////////////////////////////////////////
 //
 // Methods for the TetGenOptions class.
+
+PyDoc_STRVAR(PyTetGenOptions_add_local_edge_size_parameter_doc,
+  " add_local_edge_size(face_id, size)  \n\ 
+  \n\
+  Add a local edge size parameter to the local_edge_size option lisz. \n\
+  \n\
+  Args:  \n\
+    face_id (int): The ID of the face to set the edge size for.  \n\
+    edge_size (double): The edge size for the face.  \n\
+");
+
+static PyObject *
+PyTetGenOptions_add_local_edge_size_parameter(PyMeshingTetGenOptionsClass* self, PyObject* args, PyObject* kwargs)
+{
+  auto api = SvPyUtilApiFunction("id", PyRunTimeErr, __func__);
+  static char *keywords[] = { TetGenOption::LocalEdgeSize_FaceIDParam, TetGenOption::LocalEdgeSize_EdgeSizeParam, NULL }; 
+  int faceID = 0;
+  double edgeSize = 0.0;
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &faceID, &edgeSize)) {
+      return api.argsError();
+  }
+
+  auto value = PyTetGenOptionsCreateLocalEdgeSizeValue(api, faceID, edgeSize);
+  if (value == nullptr) { 
+      return nullptr;
+  }
+
+  // Create a new list or add the edge size to an existing list. 
+  if (self->local_edge_size == Py_None) { 
+      auto edgeList = PyList_New(1);
+      PyList_SetItem(edgeList, 0, value);
+      self->local_edge_size = edgeList; 
+  } else {
+      PyList_Append(self->local_edge_size, value);
+  }
+
+  Py_RETURN_NONE;
+}
 
 //------------------------------------------------
 // PyTetGenOptions_create_add_subdomain_parameter
@@ -450,12 +582,12 @@ PyTetGenOptions_create_add_subdomain_parameter(PyMeshingTetGenOptionsClass* self
 // [TODO:DaveP] figure out what the parameters are.
 //
 PyDoc_STRVAR(PyTetGenOptions_create_local_edge_size_parameter_doc,
-  " create_local_edge_size(region_id, size)  \n\ 
+  " create_local_edge_size(face_id, size)  \n\ 
   \n\
   Create a parameter for the local_edge_size option. \n\
   \n\
   Args:  \n\
-    region_id (int): The ID of the region.  \n\
+    face_id (int): The ID of the face to set the edge size for.  \n\
     size (double): The edge size for the face.  \n\
 ");
 
@@ -471,19 +603,12 @@ PyTetGenOptions_create_local_edge_size_parameter(PyMeshingTetGenOptionsClass* se
       return api.argsError();
   }
 
-  if (edgeSize <= 0) {
-      api.error("The '" + std::string(TetGenOption::LocalEdgeSize_EdgeSizeParam) + "' must be > 0.");
+  auto value = PyTetGenOptionsCreateLocalEdgeSizeValue(api, faceID, edgeSize);
+  if (value == nullptr) { 
       return nullptr;
   }
 
-  if (faceID <= 0) {
-      api.error("The '" + std::string(TetGenOption::LocalEdgeSize_FaceIDParam) + "' must be > 0.");
-      return nullptr;
-  }
-
-  // Create and return parameter.
-  return Py_BuildValue("{s:i, s:d}", TetGenOption::LocalEdgeSize_FaceIDParam, faceID, 
-                                     TetGenOption::LocalEdgeSize_EdgeSizeParam, edgeSize);
+  return value; 
 }
 
 //----------------------------
@@ -572,6 +697,7 @@ PyTetGenOptions_set_defaults(PyMeshingTetGenOptionsClass* self)
 //------------------------
 //
 static PyMethodDef PyTetGenOptionsMethods[] = {
+  {"add_local_edge_size_parameter", (PyCFunction)PyTetGenOptions_add_local_edge_size_parameter, METH_VARARGS|METH_KEYWORDS, PyTetGenOptions_add_local_edge_size_parameter_doc},
   {"create_add_subdomain_parameter", (PyCFunction)PyTetGenOptions_create_add_subdomain_parameter, METH_VARARGS|METH_KEYWORDS, PyTetGenOptions_create_add_subdomain_parameter_doc},
   {"create_local_edge_size_parameter", (PyCFunction)PyTetGenOptions_create_local_edge_size_parameter, METH_VARARGS|METH_KEYWORDS, PyTetGenOptions_create_local_edge_size_parameter_doc},
   {"get_values", (PyCFunction)PyTetGenOptions_get_values, METH_NOARGS, PyTetGenOptions_get_values_doc},
@@ -761,7 +887,11 @@ PyTetGenOptions_set_local_edge_size(PyMeshingTetGenOptionsClass* self, PyObject*
       return -1;
   }
 
-  self->local_edge_size = value;
+  // Create a list of dicts.
+  //
+  auto edgeList = PyList_New(1);
+  PyList_SetItem(edgeList, 0, value);
+  self->local_edge_size = edgeList;
   Py_INCREF(value);
 
   return 0;

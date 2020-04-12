@@ -144,18 +144,24 @@ MeshingTetGen_set_options(PyMeshingTetGenClass* self, PyObject* args )
 
   auto mesher = self->super.mesher;
 
+  // Set options that are not a list.
+  //
   for (auto const& entry : TetGenOption::pyToSvNameMap) {
       auto pyName = entry.first;
-      auto svName = entry.second;
-      auto values = PyTetGenOptionsGetValues(options, pyName);
-      int numValues = values.size();
-      if (numValues == 0) { 
+      if (TetGenOption::ListOptions.count(std::string(pyName)) != 0) {
           continue;
       }
 
       // Check if an option can be correctly set for the mesh. 
       if (!MeshingTetGenCheckOption(self, pyName, api)) {
           return nullptr;
+      }
+
+      auto svName = entry.second;
+      auto values = PyTetGenOptionsGetValues(options, pyName);
+      int numValues = values.size();
+      if (numValues == 0) { 
+          continue;
       }
 
       std::cout << "[MeshingTetGen_set_options] name: " << svName << "  num values: " << numValues << "  values: ";
@@ -167,6 +173,33 @@ MeshingTetGen_set_options(PyMeshingTetGenClass* self, PyObject* args )
       if (mesher->SetMeshOptions(svName, numValues, values.data()) == SV_ERROR) {
         api.error("Error setting TetGen meshing '" + std::string(pyName) + "' option.");
         return nullptr;
+      }
+  }
+
+  // Set options that are a list.
+  //
+  for (auto const& entry : TetGenOption::pyToSvNameMap) {
+      auto pyName = entry.first;
+      if (TetGenOption::ListOptions.count(std::string(pyName)) == 0) {
+          continue;
+      }
+      auto svName = entry.second;
+      auto valuesList = PyTetGenOptionsGetListValues(options, pyName);
+      int numListValues = valuesList.size();
+      std::cout << "[MeshingTetGen_set_options] list name: " << svName << "  num values: " << numListValues << std::endl;
+      if (numListValues == 0) { 
+          continue;
+      }
+      for (auto& values : valuesList) { 
+          std::cout << "[MeshingTetGen_set_options] name: " << svName << "  num values: " << values.size() << "  values: ";
+          for (auto const val : values) {
+              std::cout << val << " "; 
+          }
+          std::cout << std::endl; 
+          if (mesher->SetMeshOptions(svName, values.size(), values.data()) == SV_ERROR) {
+            api.error("Error setting TetGen meshing '" + std::string(pyName) + "' option.");
+            return nullptr;
+          }
       }
   }
 

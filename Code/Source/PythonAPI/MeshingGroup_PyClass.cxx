@@ -90,11 +90,12 @@ MeshingGroupRead(char* fileName)
 //
 bool 
 MeshingGroupSetModel(SvPyUtilApiFunction& api, cvMeshObject* mesher, sv4guiMitkMesh* meshingGroup, 
-    int index, std::string fileName)
+    int index, std::string fileName, std::map<std::string,int>& faceIDMap)
 {
+  std::cout << "[MeshingGroupSetModel] ========== MeshingGroupSetModel ========== " << std::endl;
   // Get the file name of the solid model used by the mesher.
   auto modelName = meshingGroup->GetModelName();
-  std::cout << "[MeshingGroup_get_mesh] Model name: " << modelName << std::endl;
+  std::cout << "[MeshingGroupSetModel] Model name: " << modelName << std::endl;
   size_t strIndex = 0;
   strIndex = fileName.find("Meshes", strIndex);
   if (strIndex == std::string::npos) {
@@ -104,7 +105,7 @@ MeshingGroupSetModel(SvPyUtilApiFunction& api, cvMeshObject* mesher, sv4guiMitkM
   fileName.erase(strIndex);
   auto modelDirName = fileName + "Models/";
   fileName = modelDirName + modelName + ".mdl";
-  std::cout << "[MeshingGroup_get_mesh] fileName: " << fileName << std::endl;
+  std::cout << "[MeshingGroupSetModel] fileName: " << fileName << std::endl;
 
   // Read the model .mdl file.
   sv4guiModel::Pointer solidGroupPtr = SolidGroup_read(const_cast<char*>(fileName.c_str()));
@@ -126,7 +127,7 @@ MeshingGroupSetModel(SvPyUtilApiFunction& api, cvMeshObject* mesher, sv4guiMitkM
   auto solidType = solidGroup->GetType();
   std::transform(solidType.begin(), solidType.end(), solidType.begin(), ::toupper);
   auto solidKernel = SolidKernel_NameToEnum(solidType);
-  std::cout << "[MeshingGroup_get_mesh] Solid type: " << solidType << std::endl;
+  std::cout << "[MeshingGroupSetModel] Solid type: " << solidType << std::endl;
   mesher->SetSolidModelKernel(solidKernel);
 
   // Load the solid model.
@@ -143,6 +144,7 @@ MeshingGroupSetModel(SvPyUtilApiFunction& api, cvMeshObject* mesher, sv4guiMitkM
       ext = ".xmt_txt";
   }
 
+  std::cout << "[MeshingGroupSetModel] Load solid model " << std::endl;
   fileName = modelDirName + modelName + ext;
   if (mesher->LoadModel(const_cast<char*>(fileName.c_str())) == SV_ERROR) {
       api.error("Error loading a solid model from the file '" + std::string(fileName) + "'.");
@@ -150,12 +152,17 @@ MeshingGroupSetModel(SvPyUtilApiFunction& api, cvMeshObject* mesher, sv4guiMitkM
   }
 
   // Set wall face IDs.
+  std::cout << "[MeshingGroupSetModel] Set wall face IDs " << std::endl;
   std::vector<int> wallFaceIDs = solidModelElement->GetWallFaceIDs();
+  std::cout << "[MeshingGroupSetModel] wall face IDs: " << wallFaceIDs.size() << std::endl;
   if (mesher->SetWalls(wallFaceIDs.size(), &wallFaceIDs[0]) != SV_OK) {
       api.error("Error setting wall IDs."); 
       return false;
   }
- 
+
+  std::cout << "[MeshingGroupSetModel] GetFaceNameIDMap " << std::endl;
+  faceIDMap = solidModelElement->GetFaceNameIDMap();
+  std::cout << "[MeshingGroupSetModel] Done. " << std::endl;
   return true;
 }
 
@@ -230,7 +237,6 @@ static PyObject *
 MeshingGroup_get_mesh(PyMeshingGroup* self, PyObject* args)
 {
   std::cout << "================ MeshingGroup_get_mesh ================" << std::endl;
-
   auto api = SvPyUtilApiFunction("i", PyRunTimeErr, __func__);
   int index;
 
@@ -275,17 +281,20 @@ MeshingGroup_get_mesh(PyMeshingGroup* self, PyObject* args)
   auto mesher = ((PyMeshingMesherClass*)pyMesherObj)->mesher;
 
   // Set the solid model associated with the mesher.
+  std::map<std::string,int> faceIDMap;
   auto fileName = self->fileName;
-  if (!MeshingGroupSetModel(api, mesher, meshingGroup, index, fileName)) { 
+  if (!MeshingGroupSetModel(api, mesher, meshingGroup, index, fileName, faceIDMap)) { 
       return nullptr;
   }
+  std::cout << "[MeshingGroup_get_mesh] faceIDMap: " << faceIDMap.size() <<  std::endl;
 
   // Create an options object from the command history from the .msh file.
   //
   // Note: The options need to be processed after the solid model is loaded.
   //
+  std::cout << "[MeshingGroup_get_mesh] Create an options object. " <<  std::endl;
   auto commands = guiMesh->GetCommandHistory();
-  PyObject *options = PyTetGenOptionsCreateFromList(commands);
+  PyObject *options = PyTetGenOptionsCreateFromList(commands, faceIDMap);
 
   // Load the volume and surface meshes.
   size_t strIndex = 0;

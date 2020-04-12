@@ -211,6 +211,7 @@ public:
     int GetFaceIndex(int id) const;
 
     int GetFaceID(std::string name) const;
+    std::map<std::string,int> GetFaceNameIDMap() const;
 
     int GetMaxFaceID() const;
 

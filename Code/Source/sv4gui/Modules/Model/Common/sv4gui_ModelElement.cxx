@@ -260,6 +260,21 @@ int sv4guiModelElement::GetFaceID(std::string name) const
     return -1;
 }
 
+//------------------
+// GetFaceNameIDMap
+//------------------
+// Get a map between face names and IDs.
+//
+std::map<std::string,int> 
+sv4guiModelElement::GetFaceNameIDMap() const
+{
+    std::map<std::string,int> faceIDMap;
+    for (auto const& face : m_Faces) {
+        faceIDMap[face->name] = face->id;
+    }
+    return faceIDMap;
+}
+
 int sv4guiModelElement::GetMaxFaceID() const
 {
     int maxID=0;
@@ -547,7 +562,6 @@ cvSolidModel* sv4guiModelElement::GetInnerSolid()
 
 void sv4guiModelElement::SetInnerSolid(cvSolidModel* innerSolid)
 {
-    std::cout << "######### >>>> sv4guiModelElement::SetInnerSolid  #########" << std::endl;
     m_InnerSolid=innerSolid;
 }
 
