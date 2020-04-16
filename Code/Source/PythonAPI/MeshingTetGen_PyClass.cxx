@@ -33,6 +33,8 @@
 //
 // The class name is 'meshing.TetGen'.
 
+ //void (*CreateOptionsFromList)(cvMeshObject*, std::vector<std::string>&, std::map<std::string,int>&, PyObject**);
+
 //----------------------
 // PyMeshingTetGenClass
 //----------------------
@@ -41,6 +43,13 @@
 typedef struct {
   PyMeshingMesherClass super;
 } PyMeshingTetGenClass;
+
+// Define the names assocuted with TetGen meshing parameters.
+//
+namespace MeshingTetGenParameters {
+  // Parameter names.
+  std::string AllowMultipleRegions("AllowMultipleRegions");
+};
 
 //////////////////////////////////////////////////////
 //          U t i l i t y  F u n c t i o n s        //
@@ -57,6 +66,37 @@ MeshingTetGenCheckModelLoaded(PyMeshingTetGenClass* self)
   auto mesher = self->super.mesher;
   return mesher->HasSolid();
 }
+
+/* [TODO:DaveP] I don't think we need this
+//------------------------
+// MeshingTetGenSetOption
+//------------------------
+bool
+MeshingTetGenSetOption(cvMeshObject* mesher, std::string& name, std::vector<double>& values)
+{
+  std::cout << "[MeshingTetGenSetOption]  ========= name '" << name << "' ==============" << std::endl;
+  if (name == std::string(TetGenOption::SphereRefinement))  {
+      std::cout << "[MeshingTetGenSetOption]  @@@@@@ not option @@@@@@ " << name << std::endl;
+      double edgeSize = values[0];
+      double radius = values[1];
+      double center[3] = { values[2], values[3], values[4] };
+      if (mesher->SetSphereRefinement(edgeSize, radius, center) != SV_OK) {
+          return false;
+      }
+
+  } else { 
+      std::cout << "[MeshingTetGenSetOption]  ###### option ###### " << name << std::endl;
+      if (mesher->SetMeshOptions(const_cast<char*>(name.c_str()), values.size(), values.data()) == SV_ERROR) {
+          return false; 
+      }
+  }
+  if (mesher->SetMeshOptions(const_cast<char*>(name.c_str()), values.size(), values.data()) == SV_ERROR) {
+    return false; 
+  }
+
+ return true;
+}
+*/
 
 //--------------------------
 // MeshingTetGenCheckOption
@@ -78,6 +118,30 @@ MeshingTetGenCheckOption(PyMeshingTetGenClass* self, std::string& name, SvPyUtil
 
   return true;
 }
+
+//---------------------------
+// MeshingTetGenSetParameter 
+//---------------------------
+// Set meshing parameters.
+//
+// These are meshing parameters that are set using cvMeshObject methods.
+//
+void
+MeshingTetGenSetParameter(cvTetGenMeshObject* mesher, std::string& name, std::vector<std::string>& tokens)
+{
+  if (name == MeshingParameters::SphereRefinement) {
+      auto edgeSize = std::stod(tokens[0]);
+      auto radius = std::stod(tokens[1]);
+      double center[3] = {std::stod(tokens[2]), std::stod(tokens[3]), std::stod(tokens[4])};
+      if (mesher->SetSphereRefinement(edgeSize, radius, center) != SV_OK) {
+          throw("Failed to set sphere refinement parameter.");
+      }
+  } else if (name == MeshingTetGenParameters::AllowMultipleRegions) {
+       bool value = (std::stoi(tokens[0]) == 1);
+       mesher->SetAllowMultipleRegions(value);
+  }
+}
+
 
 /////////////////////////////////////////////////////////////////
 //              C l a s s   F u n c t i o n s                  //
@@ -170,7 +234,7 @@ MeshingTetGen_set_options(PyMeshingTetGenClass* self, PyObject* args )
       }
       std::cout << std::endl; 
  
-      if (mesher->SetMeshOptions(svName, numValues, values.data()) == SV_ERROR) {
+      if (mesher->SetMeshOptions(svName, values.size(), values.data()) == SV_ERROR) {
         api.error("Error setting TetGen meshing '" + std::string(pyName) + "' option.");
         return nullptr;
       }
@@ -178,6 +242,9 @@ MeshingTetGen_set_options(PyMeshingTetGenClass* self, PyObject* args )
 
   // Set options that are a list.
   //
+  // For example local_edge_size is a list of dicts.
+  //
+  std::cout << "[MeshingTetGen_set_options] --------- process lists --------- " << std::endl;
   for (auto const& entry : TetGenOption::pyToSvNameMap) {
       auto pyName = entry.first;
       if (TetGenOption::ListOptions.count(std::string(pyName)) == 0) {
@@ -242,6 +309,7 @@ PyMeshingTetGenInit(PyMeshingTetGenClass* self, PyObject* args, PyObject *kwds)
   static int numObjs = 1;
   std::cout << "[PyMeshingTetGenClassInit] New PyMeshingTetGenClass object: " << numObjs << std::endl;
   self->super.mesher = new cvTetGenMeshObject();
+  self->super.CreateOptionsFromList = PyTetGenOptionsCreateFromList;
   numObjs += 1;
   return 0;
 }

@@ -60,6 +60,8 @@
 #include <string>
 #include <structmember.h>
 
+extern void MeshingTetGenSetParameter(cvTetGenMeshObject* mesher, std::string& name, std::vector<std::string>& tokens);
+
 PyObject * CreateTetGenOptionsType(PyObject* args, PyObject* kwargs);
 
 //---------------------
@@ -69,7 +71,6 @@ PyObject * CreateTetGenOptionsType(PyObject* args, PyObject* kwargs);
 //
 // add_hole: [x,y,z]
 // add_subdomain: { 'coordinate':[x,y,z], 'region_size':int } 
-// allow_multiple_regions: bool
 // boundary_layer_direction: int
 // check: set option to true without value
 // coarsen_percent: value / 100.0
@@ -95,7 +96,6 @@ typedef struct {
   PyObject_HEAD
   PyObject* add_hole;
   PyObject* add_subdomain;
-  int allow_multiple_regions;
   int boundary_layer_direction;
   PyObject* check;
   double coarsen_percent;
@@ -126,7 +126,6 @@ typedef struct {
 namespace TetGenOption {
   char* AddHole = "add_hole";                      
   char* AddSubDomain = "add_subdomain";            
-  char* AllowMultipleRegions = "allow_multiple_regions";           
   char* BoundaryLayerDirection = "boundary_layer_direction";     
   char* Check = "check";
   char* CoarsenPercent = "coarsen_percent";
@@ -172,7 +171,7 @@ namespace TetGenOption {
   std::map<std::string,char*> pyToSvNameMap = {
       {std::string(AddHole), "AddHole"}, 
       {std::string(AddSubDomain), "AddSubDomain"},
-      {std::string(AllowMultipleRegions), "AllowMultipleRegions"},
+      //{std::string(AllowMultipleRegions), "AllowMultipleRegions"},
       {std::string(BoundaryLayerDirection), "BoundaryLayerDirection"},
       {std::string(Check), "Check"},
       {std::string(CoarsenPercent), "CoarsenPercent"},
@@ -188,6 +187,7 @@ namespace TetGenOption {
       {std::string(Optimization), "Optimization"},
       {std::string(QualityRatio), "QualityRatio"},
       {std::string(Quiet), "Quiet"},
+      // {std::string(SphereRefinement), "sphereRefinement"},  this is a meshing parameter.
       {std::string(StartWithVolume), "StartWithVolume"},
       {std::string(SurfaceMeshFlag), "SurfaceMeshFlag"},
       {std::string(UseMMG), "UseMMG"},
@@ -195,7 +195,22 @@ namespace TetGenOption {
       {std::string(VolumeMeshFlag), "VolumeMeshFlag"}
    };
 
+  // Create a set of options that can be a list.
+  //
+  // This is used when setting options.
   std::set<std::string> ListOptions { LocalEdgeSize };
+
+  // Create a map between .msg file option names.
+  //
+  // Some of the options in the .msh file don't have an 'option' before it.
+  // Look in sv4guiMeshTetGen::ParseCommand() to see which parameters are 
+  // progrmatically set to be options.
+  //
+  std::map<std::string,std::string> MshFileOptionNamesMap = {
+    { "localSize", pyToSvNameMap[LocalEdgeSize] },
+    { "surface", pyToSvNameMap[SurfaceMeshFlag] },
+    { "volume", pyToSvNameMap[VolumeMeshFlag] }
+  };
 
 };
 
@@ -206,6 +221,7 @@ namespace TetGenOption {
 //-----------------------------------------
 // PyTetGenOptionsCreateLocalEdgeSizeValue
 //-----------------------------------------
+// Create a PyObject dict for LocalEdgeSize option.
 //
 PyObject * 
 PyTetGenOptionsCreateLocalEdgeSizeValue(SvPyUtilApiFunction& api, int faceID, double edgeSize) 
@@ -237,7 +253,7 @@ PyTetGenOptionsGetLocalEdgeSizeValues(PyObject* obj, int& faceID, double& edgeSi
 {
   static std::string errorMsg = "The local_edge_size parameter must be a " + TetGenOption::LocalEdgeSize_Desc; 
 
-  // Check the LocalEdgeSize_RegionIDParam key.
+  // Check the LocalEdgeSize_FaceIDParam key.
   //
   PyObject* faceIDItem = PyDict_GetItemString(obj, TetGenOption::LocalEdgeSize_FaceIDParam);
   if (faceIDItem == nullptr) {
@@ -253,7 +269,7 @@ PyTetGenOptionsGetLocalEdgeSizeValues(PyObject* obj, int& faceID, double& edgeSi
       return false;
   }
 
-  // Check the LocalEdgeSize_SizeParam key.
+  // Check the LocalEdgeSize_EdgeSizeParam key.
   //
   PyObject* sizeItem = PyDict_GetItemString(obj, TetGenOption::LocalEdgeSize_EdgeSizeParam);
   if (sizeItem == nullptr) {
@@ -266,7 +282,7 @@ PyTetGenOptionsGetLocalEdgeSizeValues(PyObject* obj, int& faceID, double& edgeSi
       return false;
   }
   if (edgeSize <= 0) {
-      PyErr_SetString(PyExc_ValueError, "The size parameter must be > 0.");
+      PyErr_SetString(PyExc_ValueError, "The edge size parameter must be > 0.");
       return false;
   }
 
@@ -314,28 +330,32 @@ PyTetGenOptionsGetValues(PyObject* meshingOptions, std::string name)
   return values;
 }
 
-//--------------------------
-// PyTetGenOptionsGetValues
-//--------------------------
-// Get attribute values from the MeshingOptions object.
+//------------------------------
+// PyTetGenOptionsGetListValues 
+//------------------------------
+// Get a list of attribute values from the MeshingOptions object.
 //
-// Return a vector of doubles to mimic how SV processes options.
+// Return a vector of vector of doubles to mimic how SV processes options.
 //
 static std::vector<std::vector<double>>
 PyTetGenOptionsGetListValues(PyObject* meshingOptions, std::string name)
 {
   //std::cout << "========== PyTetGenOptionsGetListValues ==========" << std::endl;
+  //std::cout << "[PyTetGenOptionsGetListValues] name: " << name << std::endl;
   std::vector<std::vector<double>> listValues;
   auto obj = PyObject_GetAttrString(meshingOptions, name.c_str());
   if (obj == Py_None) {
+      //std::cout << "[PyTetGenOptionsGetListValues] obj == Py_None " << std::endl;
       return listValues;
   }
 
   if (!PyList_Check(obj)) {
+      //std::cout << "[PyTetGenOptionsGetListValues] ERROR: not a list " << std::endl;
       return listValues;
   }
 
   auto num = PyList_Size(obj);
+  //std::cout << "[PyTetGenOptionsGetListValues] num: " << num << std::endl;
   for (int i = 0; i < num; i++) {
       auto item = PyList_GetItem(obj, i);
       if (name == TetGenOption::LocalEdgeSize) {
@@ -346,6 +366,17 @@ PyTetGenOptionsGetListValues(PyObject* meshingOptions, std::string name)
           std::vector<double> values = { static_cast<double>(faceID), edgeSize };
           listValues.push_back(values);
       }
+      /* [TODO:DaveP] I don't think we need this
+      else if (name == TetGenOption::SphereRefinement) {
+          double edgeSize;
+          double radius;
+          std::vector<double> center;
+          PyTetGenOptionsGetSphereRefinementValues(item, edgeSize, radius, center);
+          std::vector<double> values = { edgeSize, radius, center[0], center[1], center[2] };
+          listValues.push_back(values);
+     
+      }
+      */
   }
 
   return listValues;
@@ -388,7 +419,8 @@ PyTetGenOptionsAddLocalEdgeSize(PyMeshingTetGenOptionsClass* options, std::vecto
 //-------------------------------
 // PyTetGenOptionsCreateFromList
 //-------------------------------
-// Create an TetGen options object from a list of commands.
+// Create an TetGen options object from a list of commands read from 
+// an SV Meshes .msh file.
 //
 // The list is obtained from a mesh .msh file. For example
 //
@@ -412,8 +444,8 @@ PyTetGenOptionsAddLocalEdgeSize(PyMeshingTetGenOptionsClass* options, std::vecto
 // Note: The options need to be processed after the solid model is loaded
 // because the 'setWalls' option.
 //
-PyObject *
-PyTetGenOptionsCreateFromList(std::vector<std::string>& optionList, std::map<std::string,int>& faceMap)
+void 
+PyTetGenOptionsCreateFromList(cvMeshObject* mesher, std::vector<std::string>& optionList, std::map<std::string,int>& faceMap, PyObject** optionsReturn)
 {
   std::cout << "================ PyTetGenOptionsCreateFromList ================" << std::endl;
   std::cout << "[PyTetGenOptionsCreateFromList] faceMap: " << faceMap.size() << std::endl;
@@ -425,20 +457,20 @@ PyTetGenOptionsCreateFromList(std::vector<std::string>& optionList, std::map<std
   //
   // We need to have 'faceMap' to map string face IDs to ints.
   //
+  using namespace TetGenOption;
   using OptType = PyMeshingTetGenOptionsClass*;
   using ArgType = std::vector<std::string>&; 
   using MapType = std::map<std::string,int>&;
   using SetValueMapType  = std::map<std::string, std::function<void(OptType, ArgType, MapType)>>;
   SetValueMapType SetValueMap = {
-    {"AllowMultipleRegions", [](OptType opt, ArgType vals, MapType fmap) -> void { opt->allow_multiple_regions = std::stod(vals[0]); }},
-    {"GlobalEdgeSize", [](OptType opt, ArgType vals, MapType fmap) -> void { opt->global_edge_size = std::stof(vals[0]); }},
-    {"localSize", [](OptType opt, ArgType vals, MapType fmap) -> void { PyTetGenOptionsAddLocalEdgeSize(opt,vals,fmap); }},
-    {"NoBisect", [](OptType opt, ArgType vals, MapType fmap) -> void { opt->no_bisect = Py_BuildValue("i", 1); }},
-    {"Optimization", [](OptType opt, ArgType vals, MapType fmap) -> void { opt->optimization = std::stoi(vals[0]); }},
-    {"QualityRatio", [](OptType opt, ArgType vals, MapType fmap) -> void { opt->quality_ratio = std::stod(vals[0]); }},
-    {"surface", [](OptType opt, ArgType vals, MapType fmap) -> void { opt->surface_mesh_flag = std::stoi(vals[0]); }},
-    {"UseMMG", [](OptType opt, ArgType vals, MapType fmap) -> void { opt->use_mmg = std::stoi(vals[0]); }},
-    {"volume", [](OptType opt, ArgType vals, MapType fmap) -> void { opt->volume_mesh_flag = std::stoi(vals[0]); }},
+    {pyToSvNameMap[GlobalEdgeSize], [](OptType opt, ArgType vals, MapType fmap) -> void { opt->global_edge_size = std::stof(vals[0]); }},
+    {pyToSvNameMap[LocalEdgeSize], [](OptType opt, ArgType vals, MapType fmap) -> void { PyTetGenOptionsAddLocalEdgeSize(opt,vals,fmap); }},
+    {pyToSvNameMap[NoBisect], [](OptType opt, ArgType vals, MapType fmap) -> void { opt->no_bisect = Py_BuildValue("i", 1); }},
+    {pyToSvNameMap[Optimization], [](OptType opt, ArgType vals, MapType fmap) -> void { opt->optimization = std::stoi(vals[0]); }},
+    {pyToSvNameMap[QualityRatio], [](OptType opt, ArgType vals, MapType fmap) -> void { opt->quality_ratio = std::stod(vals[0]); }},
+    {pyToSvNameMap[SurfaceMeshFlag], [](OptType opt, ArgType vals, MapType fmap) -> void { opt->surface_mesh_flag = std::stoi(vals[0]); }},
+    {pyToSvNameMap[UseMMG], [](OptType opt, ArgType vals, MapType fmap) -> void { opt->use_mmg = std::stoi(vals[0]); }},
+    {pyToSvNameMap[VolumeMeshFlag], [](OptType opt, ArgType vals, MapType fmap) -> void { opt->volume_mesh_flag = std::stoi(vals[0]); }},
   };
 
   // Create an options object.
@@ -452,24 +484,39 @@ PyTetGenOptionsCreateFromList(std::vector<std::string>& optionList, std::map<std
   std::cout << "=========== PyTetGenOptionsCreateFromList =========== " << std::endl;
   std::cout << "[PyTetGenOptionsCreateFromList] List: " << std::endl;
   for (auto const& option : optionList) {
-      std::cout << "[PyTetGenOptionsCreateFromList]   option  '" << option << "'" << std::endl;
       std::regex regex{R"([\s,]+)"}; // split on space and comma
       std::sregex_token_iterator it{option.begin(), option.end(), regex, -1};
       std::vector<std::string> tokens{it, {}};
+      bool isOption = false;
       if (tokens[0] == "option") {
           tokens.erase(tokens.begin());
+          isOption = true;
       }
       auto name = tokens[0];
-      std::cout << "[PyTetGenOptionsCreateFromList]       name: '" << name << "'" << std::endl;
-      tokens.erase(tokens.begin());
-      try {
-          SetValueMap[name](options, tokens, faceMap);
-      } catch (const std::bad_function_call& except) {
-          std::cout << "[PyTetGenOptionsCreateFromList]       Unknown name: " << name << std::endl;
+
+      // Map .msh file option names. 
+      if (MshFileOptionNamesMap.count(name)) {
+          name = MshFileOptionNamesMap[name];
+          isOption = true;
+      }
+
+      if (isOption) { 
+          tokens.erase(tokens.begin());
+          std::cout << "[PyTetGenOptionsCreateFromList]   option  '" << name << "'" << std::endl;
+          try {
+              SetValueMap[name](options, tokens, faceMap);
+          } catch (const std::bad_function_call& except) {
+              std::cout << "[PyTetGenOptionsCreateFromList]       Unknown name: " << name << std::endl;
+          }
+      } else {
+          std::cout << "[PyTetGenOptionsCreateFromList]   parameter '" << option << "'" << std::endl;
+          tokens.erase(tokens.begin());
+          auto tetGenMesher = dynamic_cast<cvTetGenMeshObject*>(mesher);
+          MeshingTetGenSetParameter(tetGenMesher, name, tokens);
       }
   }
 
-  return optionsObj;
+  *optionsReturn = optionsObj;
 }
 
 ////////////////////////////////////////////////////////
@@ -478,8 +525,12 @@ PyTetGenOptionsCreateFromList(std::vector<std::string>& optionList, std::map<std
 //
 // Methods for the TetGenOptions class.
 
+//-----------------------------------------------
+// PyTetGenOptions_add_local_edge_size_parameter
+//-----------------------------------------------
+//
 PyDoc_STRVAR(PyTetGenOptions_add_local_edge_size_parameter_doc,
-  " add_local_edge_size(face_id, size)  \n\ 
+  "add_local_edge_size(face_id, edge_size)  \n\ 
   \n\
   Add a local edge size parameter to the local_edge_size option lisz. \n\
   \n\
@@ -516,6 +567,72 @@ PyTetGenOptions_add_local_edge_size_parameter(PyMeshingTetGenOptionsClass* self,
 
   Py_RETURN_NONE;
 }
+
+/* [TODO:DaveP] I don't think we need this
+
+//-------------------------------------------------
+// PyTetGenOptions_add_sphere_refinement_parameter
+//-------------------------------------------------
+//
+PyDoc_STRVAR(PyTetGenOptions_add_sphere_refinement_parameter_doc,
+  "add_sphere_refinement(edge_size, radius, center)  \n\ 
+  \n\
+  Add a sphere refinement parameter to the local_edge_size option lisz. \n\
+  \n\
+  Args:  \n\
+    edge_size (double): The edge size.  \n\
+    radius: (double): The sphere radius.  \n\
+    center: (list[double,double,double]): The sphere center.  \n\
+");
+
+static PyObject *
+PyTetGenOptions_add_sphere_refinement_parameter(PyMeshingTetGenOptionsClass* self, PyObject* args, PyObject* kwargs)
+{
+  auto api = SvPyUtilApiFunction("ddO", PyRunTimeErr, __func__);
+  static char *keywords[] = { TetGenOption::SphereRefinement_EdgeSizeParam, TetGenOption::SphereRefinement_RadiusParam, 
+           TetGenOption::SphereRefinement_CenterParam, NULL }; 
+  double edgeSize = 0.0;
+  double radius = 0.0;
+  PyObject* centerArg;
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &edgeSize, &radius, &centerArg)) {
+      return api.argsError();
+  }
+
+  // Get center.
+  auto num = PyList_Size(centerArg);
+  if (num != 3) {
+      api.error("The '" + std::string(TetGenOption::SphereRefinement_CenterParam) + "' must be a list of three floats.");
+      return nullptr;
+  }
+  double center[3];
+  for (int i = 0; i < num; i++) {
+      auto item = PyList_GetItem(centerArg, i);
+      auto coord = PyFloat_AsDouble(item);
+      if (PyErr_Occurred()) {
+          api.error("The '" + std::string(TetGenOption::SphereRefinement_CenterParam) + "' must be a list of three floats.");
+          return nullptr;
+      }
+      center[i] = coord;
+  }
+
+  auto value = PyTetGenOptionsCreateSphereRefinementValue(api, edgeSize, radius, center);
+  if (value == nullptr) { 
+      return nullptr;
+  }
+
+  // Create a new list or add the edge size to an existing list. 
+  if (self->sphere_refinement == Py_None) { 
+      auto valueList = PyList_New(1);
+      PyList_SetItem(valueList, 0, value);
+      self->sphere_refinement = valueList; 
+  } else {
+      PyList_Append(self->sphere_refinement, value);
+  }
+
+  Py_RETURN_NONE;
+}
+*/
 
 //------------------------------------------------
 // PyTetGenOptions_create_add_subdomain_parameter
@@ -630,7 +747,7 @@ PyTetGenOptions_get_values(PyMeshingTetGenOptionsClass* self, PyObject* args)
 
   PyDict_SetItemString(values, TetGenOption::AddHole, self->add_hole);
   PyDict_SetItemString(values, TetGenOption::AddSubDomain, self->add_subdomain);
-  PyDict_SetItemString(values, TetGenOption::AllowMultipleRegions, PyBool_FromLong(self->allow_multiple_regions));
+  //PyDict_SetItemString(values, TetGenOption::AllowMultipleRegions, PyBool_FromLong(self->allow_multiple_regions));
   PyDict_SetItemString(values, TetGenOption::BoundaryLayerDirection, Py_BuildValue("i", self->boundary_layer_direction));
   PyDict_SetItemString(values, TetGenOption::Check, self->check);
   PyDict_SetItemString(values, TetGenOption::CoarsenPercent, Py_BuildValue("d", self->coarsen_percent));
@@ -646,10 +763,9 @@ PyTetGenOptions_get_values(PyMeshingTetGenOptionsClass* self, PyObject* args)
   PyDict_SetItemString(values, TetGenOption::Optimization, Py_BuildValue("i", self->optimization));
   PyDict_SetItemString(values, TetGenOption::QualityRatio, Py_BuildValue("d", self->quality_ratio));
   PyDict_SetItemString(values, TetGenOption::Quiet, self->quiet);
+  //PyDict_SetItemString(values, TetGenOption::SphereRefinement, self->sphere_refinement);
   PyDict_SetItemString(values, TetGenOption::StartWithVolume, self->start_with_volume);
-
   PyDict_SetItemString(values, TetGenOption::SurfaceMeshFlag, PyBool_FromLong(self->surface_mesh_flag));
-
   PyDict_SetItemString(values, TetGenOption::UseMMG, Py_BuildValue("i", self->use_mmg));
   PyDict_SetItemString(values, TetGenOption::Verbose, self->verbose);
   PyDict_SetItemString(values, TetGenOption::VolumeMeshFlag, PyBool_FromLong(self->volume_mesh_flag));
@@ -667,7 +783,6 @@ PyTetGenOptions_set_defaults(PyMeshingTetGenOptionsClass* self)
 {
   self->add_hole = Py_BuildValue("");
   self->add_subdomain = Py_BuildValue("");
-  self->allow_multiple_regions = 0;
   self->boundary_layer_direction = 0;
   self->check = Py_BuildValue("");
   self->coarsen_percent = 0;
@@ -713,7 +828,7 @@ static PyMethodDef PyTetGenOptionsMethods[] = {
 // The attributes can be set/get directly in from the MeshingOptions object.
 //
 static PyMemberDef PyTetGenOptionsMembers[] = {
-    {TetGenOption::AllowMultipleRegions, T_BOOL, offsetof(PyMeshingTetGenOptionsClass, allow_multiple_regions), 0, "allow_multiple_regions"},
+    //{TetGenOption::AllowMultipleRegions, T_BOOL, offsetof(PyMeshingTetGenOptionsClass, allow_multiple_regions), 0, "allow_multiple_regions"},
     {TetGenOption::BoundaryLayerDirection, T_INT, offsetof(PyMeshingTetGenOptionsClass, boundary_layer_direction), 0, "boundary_layer_direction"},
     {TetGenOption::Check, T_OBJECT_EX, offsetof(PyMeshingTetGenOptionsClass, check), 0, "check"},
     {TetGenOption::CoarsenPercent, T_DOUBLE, offsetof(PyMeshingTetGenOptionsClass, coarsen_percent), 0, "coarsen_percent"},
@@ -881,9 +996,9 @@ PyTetGenOptions_set_local_edge_size(PyMeshingTetGenOptionsClass* self, PyObject*
 
   // Check that the option is vaild. 
   //
-  int regionID;
+  int faceID;
   double edgeSize;
-  if (!PyTetGenOptionsGetLocalEdgeSizeValues(value, regionID, edgeSize)) {
+  if (!PyTetGenOptionsGetLocalEdgeSizeValues(value, faceID, edgeSize)) {
       return -1;
   }
 
@@ -897,6 +1012,54 @@ PyTetGenOptions_set_local_edge_size(PyMeshingTetGenOptionsClass* self, PyObject*
   return 0;
 }
 
+/* [TODO:DaveP] I don't think we need this
+//---------------------------------------
+// PyTetGenOptions_get_sphere_refinement 
+//---------------------------------------
+//
+static PyObject*
+PyTetGenOptions_get_sphere_refinement(PyMeshingTetGenOptionsClass* self, void* closure)
+{
+  return self->sphere_refinement;
+}
+
+static int
+PyTetGenOptions_set_sphere_refinement(PyMeshingTetGenOptionsClass* self, PyObject* value, void* closure)
+{
+  static std::string errorMsg = "The sphere_refinement parameter must be a " + TetGenOption::SphereRefinement_Desc; 
+  std::cout << "[PyTetGenOptions_set_sphere_refinement]  " << std::endl;
+  if (!PyDict_Check(value)) {
+      PyErr_SetString(PyExc_ValueError, errorMsg.c_str());
+      return -1;
+  }
+
+  int num = PyDict_Size(value);
+  if (num != 3) {
+      PyErr_SetString(PyExc_ValueError, errorMsg.c_str()); 
+      return -1;
+  }
+
+  // Check that the option is vaild. 
+  //
+  double edgeSize;
+  double radius;
+  std::vector<double> center;
+  if (!PyTetGenOptionsGetSphereRefinementValues(value, edgeSize, radius, center)) {
+      return -1;
+  }
+
+  // Create a list of dicts.
+  //
+  auto valueList = PyList_New(1);
+  PyList_SetItem(valueList, 0, value);
+  self->sphere_refinement = valueList;
+
+  Py_INCREF(value);
+
+  return 0;
+}
+*/
+
 //------------------------
 // PyTetGenOptionsGetSets
 //------------------------
@@ -905,9 +1068,9 @@ PyGetSetDef PyTetGenOptionsGetSets[] = {
     { TetGenOption::AddHole, (getter)PyTetGenOptions_get_add_hole, (setter)PyTetGenOptions_set_add_hole, NULL,  NULL },
     { TetGenOption::AddSubDomain, (getter)PyTetGenOptions_get_add_subdomain, (setter)PyTetGenOptions_set_add_subdomain, NULL,  NULL },
     { TetGenOption::LocalEdgeSize, (getter)PyTetGenOptions_get_local_edge_size, (setter)PyTetGenOptions_set_local_edge_size, NULL,  NULL },
+    //{ TetGenOption::SphereRefinement, (getter)PyTetGenOptions_get_sphere_refinement, (setter)PyTetGenOptions_set_sphere_refinement, NULL,  NULL },
     {NULL}
 };
-
 
 ////////////////////////////////////////////////////////
 //          C l a s s    D e f i n i t i o n          //

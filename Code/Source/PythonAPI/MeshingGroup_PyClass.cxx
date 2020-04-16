@@ -288,14 +288,6 @@ MeshingGroup_get_mesh(PyMeshingGroup* self, PyObject* args)
   }
   std::cout << "[MeshingGroup_get_mesh] faceIDMap: " << faceIDMap.size() <<  std::endl;
 
-  // Create an options object from the command history from the .msh file.
-  //
-  // Note: The options need to be processed after the solid model is loaded.
-  //
-  std::cout << "[MeshingGroup_get_mesh] Create an options object. " <<  std::endl;
-  auto commands = guiMesh->GetCommandHistory();
-  PyObject *options = PyTetGenOptionsCreateFromList(commands, faceIDMap);
-
   // Load the volume and surface meshes.
   size_t strIndex = 0;
   strIndex = fileName.find(".msh", strIndex);
@@ -304,6 +296,21 @@ MeshingGroup_get_mesh(PyMeshingGroup* self, PyObject* args)
   auto surfFileName = fileName + ".vtp";
   mesher->LoadMesh(const_cast<char*>(volFileName.c_str()), const_cast<char*>(surfFileName.c_str()));
 
+  // Create an options object and set meshing parameters from the 
+  // command history read from the .msh file.
+  //
+  // Options must be processed after the solid model is loaded.
+  //
+  std::cout << "[MeshingGroup_get_mesh] Create an options object. " <<  std::endl;
+  auto commands = guiMesh->GetCommandHistory();
+  PyObject *options;
+  try {
+      ((PyMeshingMesherClass*)pyMesherObj)->CreateOptionsFromList(mesher, commands, faceIDMap, &options);
+  } catch (const std::exception& exception) {
+      api.error(exception.what());
+      return nullptr;
+  }
+
   // Return mesh and options objects.
   return Py_BuildValue("N,N", pyMesherObj, options); 
 }
@@ -311,6 +318,8 @@ MeshingGroup_get_mesh(PyMeshingGroup* self, PyObject* args)
 //--------------------
 // MeshingGroup_write
 //--------------------
+//
+// [TODO:DaveP] finish implementing this.
 //
 PyDoc_STRVAR(MeshingGroup_write_doc,
   "write(file_name) \n\ 
