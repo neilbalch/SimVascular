@@ -88,10 +88,13 @@ MesherCtorMapType CvMesherCtorMap = {
     {cvMeshObject::KERNEL_TETGEN, []() -> cvMeshObject* { return new cvTetGenMeshObject(); } },
 };
 
-// Include the definition for the meshing.TetGenOptions classes. 
+// Include the definition for the meshing.TetGenOptions classes 
 #include "MeshingTetGenOptions_PyClass.cxx"
 
-// Include the definition for the meshing.MeshSimOptions classes. 
+// Include the definition for the meshing.TetGenRadiusBased class. 
+//#include "MeshingTetGenRadiusBased_PyClass.cxx"
+
+// Include the definition for the meshing.MeshSimOptions class. 
 #include "MeshingMeshSimOptions_PyClass.cxx"
 
 // Include mesh.Mesher definition.
@@ -317,6 +320,13 @@ PyInit_PyMeshing()
       return nullptr;
   }
 
+  // Initialize the TetGenRadiusBased class type.
+  SetTetGenRadiusBasedTypeFields(PyTetGenRadiusBasedType);
+  if (PyType_Ready(&PyTetGenRadiusBasedType) < 0) {
+    fprintf(stdout,"Error in PyTetGenClassType\n");
+    return SV_PYTHON_ERROR;
+  }
+
   // Initialize the MeshSim mesh generator class type.
   SetMeshingMeshSimTypeFields(PyMeshingMeshSimClassType);
   if (PyType_Ready(&PyMeshingMeshSimClassType) < 0) {
@@ -411,6 +421,10 @@ PyInit_PyMeshing()
   // Add the 'meshing.TetGen' class.
   Py_INCREF(&PyMeshingTetGenClassType);
   PyModule_AddObject(module, MESHING_TETGEN_CLASS, (PyObject*)&PyMeshingTetGenClassType);
+
+  // Add the 'meshing.TetGenRadiusBased' class.
+  Py_INCREF(&PyTetGenRadiusBasedType);
+  PyModule_AddObject(module, MESHING_TETGEN_RADIUS_BASED_CLASS, (PyObject*)&PyTetGenRadiusBasedType);
 
   // Add the 'meshing.MeshSim' class.
   Py_INCREF(&PyMeshingMeshSimClassType);

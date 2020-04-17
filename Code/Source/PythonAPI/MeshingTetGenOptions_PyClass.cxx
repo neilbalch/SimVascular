@@ -1173,6 +1173,7 @@ PyTetGenOptionsDealloc(PyMeshingTetGenOptionsClass* self)
 {
   std::cout << "[PyTetGenOptionsDealloc] Free PyTetGenOptions" << std::endl;
   Py_TYPE(self)->tp_free(self);
+  std::cout << "[PyTetGenOptionsDealloc] Done. " << std::endl;
 }
 
 //----------------------------

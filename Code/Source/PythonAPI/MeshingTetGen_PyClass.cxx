@@ -33,6 +33,8 @@
 //
 // The class name is 'meshing.TetGen'.
 
+#include "sv4gui_ModelUtils.h"
+
  //void (*CreateOptionsFromList)(cvMeshObject*, std::vector<std::string>&, std::map<std::string,int>&, PyObject**);
 
 //----------------------
@@ -66,37 +68,6 @@ MeshingTetGenCheckModelLoaded(PyMeshingTetGenClass* self)
   auto mesher = self->super.mesher;
   return mesher->HasSolid();
 }
-
-/* [TODO:DaveP] I don't think we need this
-//------------------------
-// MeshingTetGenSetOption
-//------------------------
-bool
-MeshingTetGenSetOption(cvMeshObject* mesher, std::string& name, std::vector<double>& values)
-{
-  std::cout << "[MeshingTetGenSetOption]  ========= name '" << name << "' ==============" << std::endl;
-  if (name == std::string(TetGenOption::SphereRefinement))  {
-      std::cout << "[MeshingTetGenSetOption]  @@@@@@ not option @@@@@@ " << name << std::endl;
-      double edgeSize = values[0];
-      double radius = values[1];
-      double center[3] = { values[2], values[3], values[4] };
-      if (mesher->SetSphereRefinement(edgeSize, radius, center) != SV_OK) {
-          return false;
-      }
-
-  } else { 
-      std::cout << "[MeshingTetGenSetOption]  ###### option ###### " << name << std::endl;
-      if (mesher->SetMeshOptions(const_cast<char*>(name.c_str()), values.size(), values.data()) == SV_ERROR) {
-          return false; 
-      }
-  }
-  if (mesher->SetMeshOptions(const_cast<char*>(name.c_str()), values.size(), values.data()) == SV_ERROR) {
-    return false; 
-  }
-
- return true;
-}
-*/
 
 //--------------------------
 // MeshingTetGenCheckOption

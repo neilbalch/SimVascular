@@ -1393,6 +1393,9 @@ PyMesherCtorMapType PyMesherCtorMap = {
 #include "MeshingTetGen_PyClass.cxx"
 #include "MeshingMeshSim_PyClass.cxx"
 
+// Include the definition for the meshing.TetGenRadiusBased class. 
+#include "MeshingTetGenRadiusBased_PyClass.cxx"
+
 //----------------------
 // PyMesherCreateObject 
 //----------------------
