@@ -35,6 +35,9 @@
 
 #include "sv4gui_ModelUtils.h"
 
+//extern PyTypeObject PyTetGenRadiusMeshingType;
+//extern PyMeshingTetGenRadiusMeshingClass;
+
  //void (*CreateOptionsFromList)(cvMeshObject*, std::vector<std::string>&, std::map<std::string,int>&, PyObject**);
 
 //----------------------
@@ -156,6 +159,50 @@ MeshingTetGen_create_options(PyObject* self, PyObject* args, PyObject* kwargs )
 // MeshingTetGen_set_options
 //---------------------------
 //
+PyDoc_STRVAR(MeshingTetGen_enable_radius_based_meshing_doc,
+  "enable_radius_based_meshing(options)  \n\ 
+  \n\
+  Enable TetGen radius-based mesh generation. \n\
+  \n\
+  Args:                                    \n\
+    options (meshing.TetGenRadiusMeshing): A TetGenRadiusMeshing object containing option values. \n\
+");
+
+static PyObject *
+MeshingTetGen_enable_radius_based_meshing(PyMeshingTetGenClass* self, PyObject* args, PyObject* kwargs)
+{
+  std::cout << "[MeshingTetGen_enable_radius_based_meshing] " << std::endl;
+  std::cout << "[MeshingTetGen_enable_radius_based_meshing] ========== MeshingTetGen_enable_radius_based_meshing =========" << std::endl;
+  auto api = SvPyUtilApiFunction("O!", PyRunTimeErr, __func__);
+  static char *keywords[] = {"radius_meshing_options", NULL};
+  PyObject* radiusMeshingArg;
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &PyTetGenRadiusMeshingType, &radiusMeshingArg)) {
+    return api.argsError();
+  }
+
+  // Check that the correct data has been defined for the radius meshing options.
+  auto radiusMeshingOptions = (PyMeshingTetGenRadiusMeshingClass*)radiusMeshingArg;
+  if (radiusMeshingOptions->centerlines == nullptr) {
+      api.error("The radius_meshing_options does not contain centerlines data.");
+      return nullptr;
+  }
+
+  if (radiusMeshingOptions->centerlineDistanceData == nullptr) {
+      api.error("The radius_meshing_options does not contain centerline distance data.");
+      return nullptr;
+  }
+
+
+  auto mesher = self->super.mesher;
+
+  Py_RETURN_NONE;
+}
+
+//---------------------------
+// MeshingTetGen_set_options
+//---------------------------
+//
 PyDoc_STRVAR(MeshingTetGen_set_options_doc,
   "set_options(options)  \n\ 
   \n\
@@ -262,6 +309,7 @@ PyDoc_STRVAR(PyMeshingTetGenClass_doc, "TetGen mesh generator class methods.");
 //
 static PyMethodDef PyMeshingTetGenMethods[] = {
   {"create_options", (PyCFunction)MeshingTetGen_create_options, METH_VARARGS|METH_KEYWORDS, MeshingTetGen_create_options_doc},
+  {"enable_radius_based_meshing", (PyCFunction)MeshingTetGen_enable_radius_based_meshing, METH_VARARGS|METH_KEYWORDS, MeshingTetGen_enable_radius_based_meshing_doc},
   {"set_options", (PyCFunction)MeshingTetGen_set_options, METH_VARARGS, MeshingTetGen_set_options_doc},
   {NULL, NULL}
 };

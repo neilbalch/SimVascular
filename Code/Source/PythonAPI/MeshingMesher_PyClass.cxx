@@ -1389,12 +1389,12 @@ PyMesherCtorMapType PyMesherCtorMap = {
   //{cvMeshObject::KernelType::KERNEL_TETGEN, []()->PyObject* {return PyObject_CallObject((PyObject*)&PyMeshingTetGenClassType, NULL);}},
 };
 
+// Include the definition for the meshing.TetGenRadiusMeshing class. 
+#include "MeshingTetGenRadiusMeshing_PyClass.cxx"
+
 // Include derived mesh generator classes.
 #include "MeshingTetGen_PyClass.cxx"
 #include "MeshingMeshSim_PyClass.cxx"
-
-// Include the definition for the meshing.TetGenRadiusBased class. 
-#include "MeshingTetGenRadiusBased_PyClass.cxx"
 
 //----------------------
 // PyMesherCreateObject 

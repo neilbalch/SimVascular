@@ -30,13 +30,14 @@
  */
 
 // Define the Python 'meshing.TetGenRadiusBased' class that encapsulates the parameters
-// used for generating a mesh using TetGen. Options are stored as Python class attributes 
-// and are set directly in the object created from that class.
+// used for radius-based mesh generation using TetGen. 
 //
-//     radiusBased = sv.meshing.TetGenRadiusBased()
+//     radiusMeshing = sv.meshing.TetGenRadiusMeshing()
 //
-#ifndef PYAPI_MESHING_TETGEN_RADIUS_BASED_H
-#define PYAPI_MESHING_TETGEN_RADIUS_BASED_H 
+#ifndef PYAPI_MESHING_TETGEN_RADIUS_MESHING_H
+#define PYAPI_MESHING_TETGEN_RADIUS_MESHING_H 
+
+#include "sv4gui_ModelUtils.h"
 
 #include <regex>
 #include <string>
@@ -44,11 +45,11 @@
 #include <vtkXMLPolyDataReader.h>
 #include "vtkXMLPolyDataWriter.h"
 
-PyObject * CreateTetGenRadiusBasedType(PyObject* args, PyObject* kwargs);
+extern PyTypeObject PyMeshingTetGenClassType; 
 
-//---------------------------------
-// PyMeshingTetGenRadiusBasedClass 
-//---------------------------------
+//-----------------------------------
+// PyMeshingTetGenRadiusMeshingClass 
+//-----------------------------------
 // Define the MeshingOptionsClass. 
 //
 typedef struct {
@@ -57,7 +58,7 @@ typedef struct {
   cvTetGenMeshObject* mesher;
   vtkPolyData* centerlines;
   vtkPolyData* centerlineDistanceData;
-} PyMeshingTetGenRadiusBasedClass;
+} PyMeshingTetGenRadiusMeshingClass;
 
 //////////////////////////////////////////////////////
 //          U t i l i t y  F u n c t i o n s        //
@@ -67,13 +68,13 @@ typedef struct {
 //          C l a s s    M e t h o d s                //
 ////////////////////////////////////////////////////////
 //
-// Methods for the TetGenRadiusBased class.
+// Methods for the TetGenRadiusMeshing class.
 
-//-----------------------------------------
-// PyTetGenRadiusBased_compute_centerlines
-//-----------------------------------------
+//-------------------------------------------
+// PyTetGenRadiusMeshing_compute_centerlines
+//-------------------------------------------
 //
-PyDoc_STRVAR(PyTetGenRadiusBased_compute_centerlines_doc,
+PyDoc_STRVAR(PyTetGenRadiusMeshing_compute_centerlines_doc,
   "compute_centerlines() \n\ 
   \n\
   Compute the centerlines used in radius-based meshing. \n\
@@ -81,9 +82,9 @@ PyDoc_STRVAR(PyTetGenRadiusBased_compute_centerlines_doc,
 ");
 
 static PyObject *
-PyTetGenRadiusBased_compute_centerlines(PyMeshingTetGenRadiusBasedClass* self, PyObject* args, PyObject* kwargs)
+PyTetGenRadiusMeshing_compute_centerlines(PyMeshingTetGenRadiusMeshingClass* self, PyObject* args, PyObject* kwargs)
 {
-  std::cout << "========== PyTetGenRadiusBased_compute_centerlines ==========" << std::endl;
+  std::cout << "========== PyTetGenRadiusMeshing_compute_centerlines ==========" << std::endl;
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__); 
 
   auto mesher = self->mesher;
@@ -106,7 +107,8 @@ PyTetGenRadiusBased_compute_centerlines(PyMeshingTetGenRadiusBasedClass* self, P
       api.error("Unable to compute compute the distance to centerlines.");
       return nullptr;
   } 
-  mesher->SetVtkPolyDataObject(distance);
+
+  //mesher->SetVtkPolyDataObject(distance);
   std::cout << "[compute_centerlines] Done. " << std::endl;
 
   self->centerlines = centerlines;
@@ -115,23 +117,26 @@ PyTetGenRadiusBased_compute_centerlines(PyMeshingTetGenRadiusBasedClass* self, P
   Py_RETURN_NONE; 
 }
 
-//-------------------------------------------
-// PyTetGenRadiusBased_compute_size_function
-//-------------------------------------------
+//---------------------------------------------
+// PyTetGenRadiusMeshing_compute_size_function
+//---------------------------------------------
 //
-PyDoc_STRVAR(PyTetGenRadiusBased_compute_size_function_doc,
+// [TODO:DaveP] I don't think this functionality should be here.
+//
+/*
+PyDoc_STRVAR(PyTetGenRadiusMeshing_compute_size_function_doc,
   "compute_size_function(edge_size)  \n\ 
   \n\
   Compute the size function used to set anisotropic edge sizes. \n\
   \n\
   Args:  \n\
-    edge_size (double): The edge size used to create anisotropic edge sizes from centerline radii.  \n\
+    edge_size (double): The edge size used to multiply values will be normalized by the smallest value and then multiplied by the global max edge size given. The edge size used to create anisotropic edge sizes from centerline radii.  \n\
 ");
 
 static PyObject *
-PyTetGenRadiusBased_compute_size_function(PyMeshingTetGenRadiusBasedClass* self, PyObject* args, PyObject* kwargs)
+PyTetGenRadiusMeshing_compute_size_function(PyMeshingTetGenRadiusMeshingClass* self, PyObject* args, PyObject* kwargs)
 {
-  std::cout << "========== PyTetGenRadiusBased_compute_size_function_doc ==========" << std::endl;
+  std::cout << "========== PyTetGenRadiusMeshing_compute_size_function_doc ==========" << std::endl;
   auto api = SvPyUtilApiFunction("d", PyRunTimeErr, __func__); 
   static char *keywords[] = {"edge_size", NULL};
   double edgeSize;
@@ -145,19 +150,28 @@ PyTetGenRadiusBased_compute_size_function(PyMeshingTetGenRadiusBasedClass* self,
       return nullptr;
   }
 
-  auto mesher = self->mesher;
+  if (edgeSize <= 0.0) {
+      api.error("The edge_size parameter must be >= 0.0.");
+      return nullptr;
+  }
+  self->edge_size = edgeSize; 
 
   // Compute the size function data array used for the radius-based meshing.
+  auto mesher = self->mesher;
   char* sizeFunctionName = "DistanceToCenterlines";
   if (mesher->SetSizeFunctionBasedMesh(edgeSize, sizeFunctionName) != SV_OK) {
       api.error("Unable to compute compute the distance to centerlines size function.");
       return nullptr;
   }
 
+  // The SetSizeFunctionBasedMesh() enables size function meshing.
+  // Disable it here so this can be controled from the Python API.
+  mesher->DisableSizeFunctionBasedMesh();
   Py_RETURN_NONE; 
 }
+*/
 
-PyDoc_STRVAR(PyTetGenRadiusBased_load_centerlines_doc,
+PyDoc_STRVAR(PyTetGenRadiusMeshing_load_centerlines_doc,
   "load_centerlines(file_name)  \n\ 
   \n\
   Load the centerlines used in radius-based meshing from a file. \n\
@@ -167,9 +181,9 @@ PyDoc_STRVAR(PyTetGenRadiusBased_load_centerlines_doc,
 ");
 
 static PyObject *
-PyTetGenRadiusBased_load_centerlines(PyMeshingTetGenRadiusBasedClass* self, PyObject* args, PyObject* kwargs)
+PyTetGenRadiusMeshing_load_centerlines(PyMeshingTetGenRadiusMeshingClass* self, PyObject* args, PyObject* kwargs)
 { 
-  std::cout << "========== PyTetGenRadiusBased_load_centerlines ==========" << std::endl;
+  std::cout << "========== PyTetGenRadiusMeshing_load_centerlines ==========" << std::endl;
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   static char *keywords[] = {"file_name", NULL};
   char* fileName;
@@ -178,6 +192,7 @@ PyTetGenRadiusBased_load_centerlines(PyMeshingTetGenRadiusBasedClass* self, PyOb
     return api.argsError();
   }
 
+  std::cout << "[PyTetGenRadiusMeshing_load_centerlines] fileName: " << fileName << std::endl;
   auto mesher = self->mesher;
   auto solid = mesher->GetSolid();
   if (solid == nullptr) {
@@ -190,29 +205,37 @@ PyTetGenRadiusBased_load_centerlines(PyMeshingTetGenRadiusBasedClass* self, PyOb
       vtkSmartPointer<vtkXMLPolyDataReader> reader = vtkSmartPointer<vtkXMLPolyDataReader>::New();
       reader->SetFileName(fileName);
       reader->Update();
-      self->centerlines = reader->GetOutput();
+      auto polyData = reader->GetOutput();
+      self->centerlines = vtkPolyData::New();
+      self->centerlines->DeepCopy(polyData);
   } catch (...) {
-      api.error("Unable to read the file named '" + std::string(fileName) + "'.");
+      api.error("Unable to read centerlines from the file named '" + std::string(fileName) + "'.");
+      return nullptr;
+  }
+
+  if (self->centerlines == nullptr) { 
+      api.error("Unable to read centerlines from the file named '" + std::string(fileName) + "'.");
       return nullptr;
   }
   std::cout << "[load_centerlines] Number of centerline points: " << self->centerlines->GetNumberOfPoints() << std::endl;
 
+  // Compute the distance from surface nodes to the centerline.
   auto distance = sv4guiModelUtils::CalculateDistanceToCenterlines(self->centerlines, solid->GetVtkPolyData());
   if (distance == nullptr) {
       api.error("Unable to compute compute the distance to centerlines.");
       return nullptr;
   } 
-  mesher->SetVtkPolyDataObject(distance);
+  // mesher->SetVtkPolyDataObject(distance);
   self->centerlineDistanceData = distance;
 
   Py_RETURN_NONE;
 }
 
-//-------------------------------------
-// PyTetGenRadiusBased_set_centerlines
-//-------------------------------------
+//---------------------------------------
+// PyTetGenRadiusMeshing_set_centerlines
+//---------------------------------------
 //
-PyDoc_STRVAR(PyTetGenRadiusBased_set_centerlines_doc,
+PyDoc_STRVAR(PyTetGenRadiusMeshing_set_centerlines_doc,
   "set_centerlines(centerlines)  \n\ 
   \n\
   Set the centerlines used in radius-based meshing from a file or a vtkPolyData object. \n\
@@ -222,9 +245,9 @@ PyDoc_STRVAR(PyTetGenRadiusBased_set_centerlines_doc,
 ");
 
 static PyObject *
-PyTetGenRadiusBased_set_centerlines(PyMeshingTetGenRadiusBasedClass* self, PyObject* args, PyObject* kwargs)
+PyTetGenRadiusMeshing_set_centerlines(PyMeshingTetGenRadiusMeshingClass* self, PyObject* args, PyObject* kwargs)
 {
-  std::cout << "========== PyTetGenRadiusBased_set_centerlines ==========" << std::endl;
+  std::cout << "========== PyTetGenRadiusMeshing_set_centerlines ==========" << std::endl;
   auto api = SvPyUtilApiFunction("O", PyRunTimeErr, __func__); 
   static char *keywords[] = {"centerlines", NULL};
   PyObject* centerlinesArg;
@@ -238,11 +261,11 @@ PyTetGenRadiusBased_set_centerlines(PyMeshingTetGenRadiusBasedClass* self, PyObj
   Py_RETURN_NONE; 
 }
 
-//---------------------------------------
-// PyTetGenRadiusBased_write_centerlines
-//---------------------------------------
+//-----------------------------------------
+// PyTetGenRadiusMeshing_write_centerlines
+//-----------------------------------------
 //
-PyDoc_STRVAR(PyTetGenRadiusBased_write_centerlines_doc,
+PyDoc_STRVAR(PyTetGenRadiusMeshing_write_centerlines_doc,
   "write_centerlines(file_name)  \n\ 
   \n\
   Write the centerlines computed for radius-based meshing to a file. \n\
@@ -252,7 +275,7 @@ PyDoc_STRVAR(PyTetGenRadiusBased_write_centerlines_doc,
 ");
 
 static PyObject *
-PyTetGenRadiusBased_write_centerlines(PyMeshingTetGenRadiusBasedClass* self, PyObject* args, PyObject* kwargs)
+PyTetGenRadiusMeshing_write_centerlines(PyMeshingTetGenRadiusMeshingClass* self, PyObject* args, PyObject* kwargs)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   static char *keywords[] = {"file_name", NULL};
@@ -284,16 +307,16 @@ PyTetGenRadiusBased_write_centerlines(PyMeshingTetGenRadiusBasedClass* self, PyO
   Py_RETURN_NONE;
 }
 
-//----------------------------
-// PyTetGenRadiusBasedMethods 
-//----------------------------
+//------------------------------
+// PyTetGenRadiusMeshingMethods 
+//------------------------------
 //
-static PyMethodDef PyTetGenRadiusBasedMethods[] = {
-  {"compute_centerlines", (PyCFunction)PyTetGenRadiusBased_compute_centerlines, METH_NOARGS, PyTetGenRadiusBased_compute_centerlines_doc},
-  {"compute_size_function", (PyCFunction)PyTetGenRadiusBased_compute_size_function, METH_VARARGS|METH_KEYWORDS, PyTetGenRadiusBased_compute_size_function_doc},
-  {"load_centerlines", (PyCFunction)PyTetGenRadiusBased_load_centerlines, METH_VARARGS|METH_KEYWORDS, PyTetGenRadiusBased_load_centerlines_doc},
-  {"set_centerlines", (PyCFunction)PyTetGenRadiusBased_set_centerlines, METH_VARARGS|METH_KEYWORDS, PyTetGenRadiusBased_set_centerlines_doc},
-  {"write_centerlines", (PyCFunction)PyTetGenRadiusBased_write_centerlines, METH_VARARGS|METH_KEYWORDS, PyTetGenRadiusBased_write_centerlines_doc},
+static PyMethodDef PyTetGenRadiusMeshingMethods[] = {
+  {"compute_centerlines", (PyCFunction)PyTetGenRadiusMeshing_compute_centerlines, METH_NOARGS, PyTetGenRadiusMeshing_compute_centerlines_doc},
+  // {"compute_size_function", (PyCFunction)PyTetGenRadiusMeshing_compute_size_function, METH_VARARGS|METH_KEYWORDS, PyTetGenRadiusMeshing_compute_size_function_doc},
+  {"load_centerlines", (PyCFunction)PyTetGenRadiusMeshing_load_centerlines, METH_VARARGS|METH_KEYWORDS, PyTetGenRadiusMeshing_load_centerlines_doc},
+  {"set_centerlines", (PyCFunction)PyTetGenRadiusMeshing_set_centerlines, METH_VARARGS|METH_KEYWORDS, PyTetGenRadiusMeshing_set_centerlines_doc},
+  {"write_centerlines", (PyCFunction)PyTetGenRadiusMeshing_write_centerlines, METH_VARARGS|METH_KEYWORDS, PyTetGenRadiusMeshing_write_centerlines_doc},
   {NULL, NULL}
 };
 
@@ -301,11 +324,11 @@ static PyMethodDef PyTetGenRadiusBasedMethods[] = {
 //          C l a s s    M e m b e r s                //
 ////////////////////////////////////////////////////////
 //
-// Define the PyMeshingTetGenRadiusBasedClass attribute names.
+// Define the PyMeshingTetGenRadiusMeshingClass attribute names.
 //
 // The attributes can be set/get directly in from the MeshingOptions object.
 //
-static PyMemberDef PyTetGenRadiusBasedMembers[] = {
+static PyMemberDef PyTetGenRadiusMeshingMembers[] = {
     {NULL}  
 };
 
@@ -315,50 +338,42 @@ static PyMemberDef PyTetGenRadiusBasedMembers[] = {
 //
 // Define setters/getters for certain options.
 
-//------------------------------
-// PyTetGenRadiusBased_get_add_hole 
-//------------------------------
+//-------------------------------------
+// PyTetGenRadiusMeshing_get_edge_size 
+//-------------------------------------
 //
+PyDoc_STRVAR(PyTetGenRadiusMeshing_edge_size_doc,
+" The edge size scale (float). The edge size is used to determine the mesh size factor for model surface nodes using the distance to \n\
+  centerline values. The mesh size factor is calculated for each node ID using (edge size) * (distance to centerline value) / (min value) \n\
+  where min is the minumum distance to centerline value. \n\ 
+");
+
 static PyObject*
-PyTetGenRadiusBased_get_add_hole(PyMeshingTetGenRadiusBasedClass* self, void* closure)
+PyTetGenRadiusMeshing_get_edge_size(PyMeshingTetGenRadiusMeshingClass* self, void* closure)
 {
   //return self->add_hole;
 }
 
 static int 
-PyTetGenRadiusBased_set_add_hole(PyMeshingTetGenRadiusBasedClass* self, PyObject* value, void* closure)
+PyTetGenRadiusMeshing_set_edge_size(PyMeshingTetGenRadiusMeshingClass* self, PyObject* value, void* closure)
 {
-  if (!PyList_Check(value)) {
-      PyErr_SetString(PyExc_ValueError, "The add_hole parameter must be a list of three floats.");
-      return -1;
-  }
-
-  int num = PyList_Size(value);
-  if (num != 3) {
-      PyErr_SetString(PyExc_ValueError, "The add_hole parameter must be a list of three floats.");
-      return -1;
-  }
-
-  std::vector<double> values;
-  for (int i = 0; i < num; i++) {
-      auto item = PyList_GetItem(value, i);
-      auto value = PyFloat_AsDouble(item);
-      values.push_back(value);
-  }
-
+  auto edge_size = PyFloat_AsDouble(value);
   if (PyErr_Occurred()) {
+      PyErr_SetString(PyExc_ValueError, "The edge_size parameter must be a float.");
       return -1;
   }
 
-  //self->add_hole = Py_BuildValue("[d,d,d]", values[0], values[1], values[2]);
+  self->edge_size = edge_size; 
   return 0;
 }
 
-//----------------------------
-// PyTetGenRadiusBasedGetSets
-//----------------------------
+//------------------------------
+// PyTetGenRadiusMeshingGetSets
+//------------------------------
 //
-PyGetSetDef PyTetGenRadiusBasedGetSets[] = {
+PyGetSetDef PyTetGenRadiusMeshingGetSets[] = {
+  { "edge_size", (getter)PyTetGenRadiusMeshing_get_edge_size, (setter)PyTetGenRadiusMeshing_set_edge_size, 
+        NULL,  PyTetGenRadiusMeshing_edge_size_doc},
     {NULL}
 };
 
@@ -366,24 +381,24 @@ PyGetSetDef PyTetGenRadiusBasedGetSets[] = {
 //          C l a s s    D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
 
-static char* MESHING_TETGEN_RADIUS_BASED_CLASS = "TetGenRadiusBased";
-static char* MESHING_TETGEN_RADIUS_BASED_MODULE_CLASS = "meshing.TetGenRadiusBased";
+static char* MESHING_TETGEN_RADIUS_MESHING_CLASS = "TetGenRadiusMeshing";
+static char* MESHING_TETGEN_RADIUS_MESHING_MODULE_CLASS = "meshing.TetGenRadiusMeshing";
 
-PyDoc_STRVAR(TetGenRadiusBasedClass_doc, "TetGen meshing options class functions");
+PyDoc_STRVAR(TetGenRadiusMeshingClass_doc, "TetGen meshing options class functions");
 
 //-------------------------
-// PyTetGenRadiusBasedType 
+// PyTetGenRadiusMeshingType 
 //-------------------------
-// Define the Python type object that implements the meshing.TetGenRadiusBased class. 
+// Define the Python type object that implements the meshing.TetGenRadiusMeshing class. 
 //
-static PyTypeObject PyTetGenRadiusBasedType = {
+PyTypeObject PyTetGenRadiusMeshingType = {
   PyVarObject_HEAD_INIT(NULL, 0)
-  .tp_name = MESHING_TETGEN_RADIUS_BASED_MODULE_CLASS,
-  .tp_basicsize = sizeof(PyMeshingTetGenRadiusBasedClass)
+  .tp_name = MESHING_TETGEN_RADIUS_MESHING_MODULE_CLASS,
+  .tp_basicsize = sizeof(PyMeshingTetGenRadiusMeshingClass)
 };
 
 //--------------------------
-// PyTetGenRadiusBased_init
+// PyTetGenRadiusMeshing_init
 //--------------------------
 // This is the __init__() method for the meshing.MeshingOptions class. 
 //
@@ -392,9 +407,9 @@ static PyTypeObject PyTetGenRadiusBasedType = {
 // Arguments:
 //
 static int 
-PyTetGenRadiusBasedInit(PyMeshingTetGenRadiusBasedClass* self, PyObject* args, PyObject* kwargs)
+PyTetGenRadiusMeshingInit(PyMeshingTetGenRadiusMeshingClass* self, PyObject* args, PyObject* kwargs)
 {
-  std::cout << "[PyTetGenRadiusBasedInit] Initialize a RadiusBased object." << std::endl;
+  std::cout << "[PyTetGenRadiusMeshingInit] Initialize a RadiusMeshing object." << std::endl;
   auto api = SvPyUtilApiFunction("O!", PyRunTimeErr, __func__);
   static char *keywords[] = { "mesher", NULL};
   PyObject* mesherArg = NULL;
@@ -405,95 +420,71 @@ PyTetGenRadiusBasedInit(PyMeshingTetGenRadiusBasedClass* self, PyObject* args, P
   }
 
   self->mesher = dynamic_cast<cvTetGenMeshObject*>(((PyMeshingMesherClass*)mesherArg)->mesher);
-  std::cout << "[PyTetGenRadiusBasedInit] Mesher: " << self->mesher << std::endl;
+  std::cout << "[PyTetGenRadiusMeshingInit] Mesher: " << self->mesher << std::endl;
   self->centerlines = nullptr;
   self->centerlineDistanceData = nullptr;
-  std::cout << "[PyTetGenRadiusBasedInit] Done. " << std::endl;
+  std::cout << "[PyTetGenRadiusMeshingInit] Done. " << std::endl;
   return 0;
 }
 
 //------------------------
-// PyTetGenRadiusBasedNew 
+// PyTetGenRadiusMeshingNew 
 //------------------------
 // Object creation function, equivalent to the Python __new__() method. 
 // The generic handler creates a new instance using the tp_alloc field.
 //
 static PyObject *
-PyTetGenRadiusBasedNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
+PyTetGenRadiusMeshingNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
-  std::cout << "[PyTetGenRadiusBasedNew] PyTetGenRadiusBasedNew " << std::endl;
-  auto self = (PyMeshingTetGenRadiusBasedClass*)type->tp_alloc(type, 0);
+  std::cout << "[PyTetGenRadiusMeshingNew] PyTetGenRadiusMeshingNew " << std::endl;
+  auto self = (PyMeshingTetGenRadiusMeshingClass*)type->tp_alloc(type, 0);
   if (self == NULL) {
-      std::cout << "[PyTetGenRadiusBasedNew] ERROR: Can't allocate type." << std::endl;
+      std::cout << "[PyTetGenRadiusMeshingNew] ERROR: Can't allocate type." << std::endl;
       return nullptr; 
   }
   return (PyObject *) self;
 }
 
 //----------------------------
-// PyTetGenRadiusBasedDealloc 
+// PyTetGenRadiusMeshingDealloc 
 //----------------------------
 //
 static void
-PyTetGenRadiusBasedDealloc(PyMeshingTetGenRadiusBasedClass* self)
+PyTetGenRadiusMeshingDealloc(PyMeshingTetGenRadiusMeshingClass* self)
 {
-  std::cout << "[PyTetGenRadiusBasedDealloc] Free PyTetGenRadiusBased" << std::endl;
+  std::cout << "[PyTetGenRadiusMeshingDealloc] Free PyTetGenRadiusMeshing" << std::endl;
   Py_TYPE(self)->tp_free(self);
 }
 
-//--------------------------------
-// SetTetGenRadiusBasedTypeFields 
-//--------------------------------
+//----------------------------------
+// SetTetGenRadiusMeshingTypeFields 
+//----------------------------------
 // Set the Python type object fields that stores loft option data. 
 //
 static void
-SetTetGenRadiusBasedTypeFields(PyTypeObject& radiusBased)
+SetTetGenRadiusMeshingTypeFields(PyTypeObject& radiusMeshing)
  {
-  radiusBased.tp_doc = TetGenRadiusBasedClass_doc; 
-  radiusBased.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
-  radiusBased.tp_dict = PyDict_New();
-  radiusBased.tp_new = PyTetGenRadiusBasedNew;
-  radiusBased.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
-  radiusBased.tp_init = (initproc)PyTetGenRadiusBasedInit;
-  radiusBased.tp_dealloc = (destructor)PyTetGenRadiusBasedDealloc;
-  radiusBased.tp_methods = PyTetGenRadiusBasedMethods;
-  radiusBased.tp_members = PyTetGenRadiusBasedMembers;
-  radiusBased.tp_getset = PyTetGenRadiusBasedGetSets;
+  radiusMeshing.tp_doc = TetGenRadiusMeshingClass_doc; 
+  radiusMeshing.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
+  radiusMeshing.tp_dict = PyDict_New();
+  radiusMeshing.tp_new = PyTetGenRadiusMeshingNew;
+  radiusMeshing.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
+  radiusMeshing.tp_init = (initproc)PyTetGenRadiusMeshingInit;
+  radiusMeshing.tp_dealloc = (destructor)PyTetGenRadiusMeshingDealloc;
+  radiusMeshing.tp_methods = PyTetGenRadiusMeshingMethods;
+  radiusMeshing.tp_members = PyTetGenRadiusMeshingMembers;
+  radiusMeshing.tp_getset = PyTetGenRadiusMeshingGetSets;
 };
 
-//------------------------
-// SetMeshingOptionsTypes
-//------------------------
-// Set the  loft optinnames in the MeshingOptionsType dictionary.
-//
-// These are for read only attibutes.
-//
-static void
-SetTetGenRadiusBasedClassTypes(PyTypeObject& meshingOptsType)
-{
-/*
-  std::cout << "=============== SetMeshingOptionsClassTypes ==========" << std::endl;
-
-  //PyDict_SetItemString(meshingOptsType.tp_dict, "num_pts", PyLong_AsLong(10));
-
-  PyObject *o = PyLong_FromLong(1);
-  PyDict_SetItemString(meshingOptsType.tp_dict, "num_pts", o);
-
-  //PyDict_SetItem(meshingOptsType.tp_dict, "num_pts", o);
-
-  std::cout << "[SetMeshingOptionsClassTypes] Done! " << std::endl;
-*/
- 
-};
-
-//-----------------------------
-// CreateTetGenRadiusBasedType
-//-----------------------------
+//-------------------------------
+// CreateTetGenRadiusMeshingType
+//-------------------------------
+// Create a RadiusMeshind Python object.
 //
 PyObject *
-CreateTetGenRadiusBasedType(PyObject* args, PyObject* kwargs)
+CreateTetGenRadiusMeshingType(PyObject* args, PyObject* kwargs)
 {
-  return PyObject_Call((PyObject*)&PyTetGenRadiusBasedType, args, kwargs);
+  return PyObject_Call((PyObject*)&PyTetGenRadiusMeshingType, args, kwargs);
 }
 
 #endif
