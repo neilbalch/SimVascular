@@ -65,18 +65,7 @@ typedef struct {
 namespace MeshingParameters {
 
   // Parameter names.
-  std::string SphereRefinement("sphereRefinement");
   std::string AllowMultipleRegions("AllowMultipleRegions");
-
-  // SphereRefinement parameter names. 
-  //
-  std::string SphereRefinement_Type = "dictionary ";
-  std::string SphereRefinement_Format = "{ 'edge_size':float, 'radius':float,  'center':[float, float, float] }";
-  std::string SphereRefinement_Desc = SphereRefinement_Type + SphereRefinement_Format;
-  // Use char* for these because they are used in the Python C API functions.
-  char* SphereRefinement_EdgeSizeParam = "edge_size";
-  char* SphereRefinement_RadiusParam = "radius";
-  char* SphereRefinement_CenterParam = "center";
 
 };
 
@@ -96,120 +85,6 @@ CheckMesherLoadUpdate(cvMeshObject* mesher, std::string& msg)
           msg = "No mesh has been generated.";
           return false;
       }
-  }
-
-  return true;
-}
-
-//-----------------------------
-// CreateSphereRefinementValue
-//-----------------------------
-//
-PyObject *
-CreateSphereRefinementValue(SvPyUtilApiFunction& api, double edgeSize, double radius, double center[3])
-{
-  static std::string errorMsg = "The sphere_refinement parameter must be a " + MeshingParameters::SphereRefinement_Desc; 
-  if (edgeSize <= 0) {
-      api.error("The '" + std::string(MeshingParameters::SphereRefinement_EdgeSizeParam) + "' must be > 0.");
-      return nullptr;
-  }
-
-  if (radius <= 0) {
-      api.error("The '" + std::string(MeshingParameters::SphereRefinement_RadiusParam) + "' must be > 0.");
-      return nullptr;
-  }
-
-  // Create a local edge size dict. 
-  auto value = Py_BuildValue("{s:d, s:d, s:[d,d,d]}", MeshingParameters::SphereRefinement_EdgeSizeParam, edgeSize, 
-      MeshingParameters::SphereRefinement_RadiusParam, radius, MeshingParameters::SphereRefinement_CenterParam, center[0], center[1], center[2]);
-  Py_INCREF(value);
-  return value;
-}
-
-//---------------------------
-// GetSphereRefinementValues
-//---------------------------
-// Get the values for the SphereRefinement parameter. 
-//
-// The Python object should be a dict with the format
-//
-//    { 'edge_size':double, 'radius':double,  'center':[double, double, double] } 
-//
-bool
-GetSphereRefinementValues(SvPyUtilApiFunction& api, PyObject* obj, double& edgeSize, double& radius, std::vector<double>& center) 
-{
-  static std::string errorMsg = "The sphere_refinement parameter must be a " + MeshingParameters ::SphereRefinement_Desc; 
-
-  // Get the edge size parameter value.
-  //
-  // Check the SphereRefinement_SizeParam key.
-  PyObject* sizeItem = PyDict_GetItemString(obj, MeshingParameters::SphereRefinement_EdgeSizeParam);
-  if (sizeItem == nullptr) {
-      api.error(errorMsg);
-      return false;
-  }
-
-  edgeSize = PyFloat_AsDouble(sizeItem);
-  if (PyErr_Occurred()) {
-      std::string msg = "Edge size must be a float. ";
-      api.error(msg+errorMsg);
-      return false;
-  }
-  if (edgeSize <= 0) {
-      api.error("The edge size parameter must be > 0.");
-      return false;
-  }
-
-  // Get the radius parameter value.
-  //
-  // Check the SphereRefinement_RadiusParam key.
-  PyObject* radiusItem = PyDict_GetItemString(obj, MeshingParameters::SphereRefinement_RadiusParam);
-  if (radiusItem == nullptr) {
-      api.error(errorMsg);
-      return false;
-  }
-  
-  radius = PyFloat_AsDouble(radiusItem);
-  if (PyErr_Occurred()) {
-      std::string msg = "Radius must be a float. ";
-      api.error(msg+errorMsg);
-      return false;
-  }
-  if (radius <= 0) {
-      api.error("The radius parameter must be > 0.");
-      return false;
-  }   
-
-  // Get the center parameter value.
-  //
-  // Check the SphereRefinement_CenterParam key.
-  PyObject* centerItem = PyDict_GetItemString(obj, MeshingParameters::SphereRefinement_CenterParam);
-  if (centerItem == nullptr) {
-      api.error(errorMsg);
-      return false;
-  }
-
-  if (!PyList_Check(centerItem)) {
-      PyErr_SetString(PyExc_ValueError, errorMsg.c_str());
-      api.error("The center parameter must be a list of three floats.");
-      return false;
-  }
-
-  center.clear();
-  auto num = PyList_Size(centerItem);
-  if (num != 3) { 
-      api.error("The center parameter must be a list of three floats.");
-      return false;
-  }
-
-  for (int i = 0; i < num; i++) {
-      auto item = PyList_GetItem(centerItem, i);
-      auto coord = PyFloat_AsDouble(item);
-      if (PyErr_Occurred()) {
-          api.error("The center parameter must be a list of three floats.");
-          return false;
-      }
-      center.push_back(coord);
   }
 
   return true;
@@ -280,60 +155,6 @@ Mesher_compute_model_boundary_faces(PyMeshingMesherClass* self, PyObject* args, 
   }
 
   return SV_PYTHON_OK;
-}
-
-
-//---------------------------------------
-// Mesher_create_sphere_refinement_value 
-//---------------------------------------
-//
-PyDoc_STRVAR(Mesher_create_sphere_refinement_value_doc,
-  "create_sphere_refinement_value(edge_size, radius, center)  \n\ 
-  \n\
-  Create a sphere refinement value. \n\
-  \n\
-  Args:  \n\
-    edge_size (float): The edge size.  \n\
-    radius: (float): The sphere radius.  \n\
-    center: (list[float,float,float]): The sphere center.  \n\
-");
-
-static PyObject *
-Mesher_create_sphere_refinement_value(PyMeshingMesherClass* self, PyObject* args, PyObject* kwargs)
-{
-  auto api = SvPyUtilApiFunction("ddO", PyRunTimeErr, __func__);
-  static char *keywords[] = { MeshingParameters::SphereRefinement_EdgeSizeParam, MeshingParameters::SphereRefinement_RadiusParam, 
-           MeshingParameters::SphereRefinement_CenterParam, NULL }; 
-  double edgeSize = 0.0;
-  double radius = 0.0;
-  PyObject* centerArg;
-
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &edgeSize, &radius, &centerArg)) {
-      return api.argsError();
-  }
-
-  // Get center.
-  auto num = PyList_Size(centerArg);
-  if (num != 3) {
-      api.error("The '" + std::string(MeshingParameters::SphereRefinement_CenterParam) + "' must be a list of three floats.");
-      return nullptr;
-  }
-  double center[3];
-  for (int i = 0; i < num; i++) {
-      auto item = PyList_GetItem(centerArg, i);
-      auto coord = PyFloat_AsDouble(item);
-      if (PyErr_Occurred()) {
-          api.error("The '" + std::string(MeshingParameters::SphereRefinement_CenterParam) + "' must be a list of three floats.");
-          return nullptr;
-      }
-      center[i] = coord;
-  }
-
-  auto value = CreateSphereRefinementValue(api, edgeSize, radius, center);
-  if (value == nullptr) { 
-      return nullptr;
-  }
-  return value; 
 }
 
 //----------------------
@@ -785,59 +606,6 @@ Mesher_set_walls(PyMeshingMesherClass* self, PyObject* args, PyObject* kwargs)
   Py_RETURN_NONE; 
 }
 
-//------------------------------
-// Mesher_set_sphere_refinement
-//------------------------------
-//
-PyDoc_STRVAR(Mesher_set_sphere_refinement_doc,
-" Mesher_set_sphere_refinement(refinement_values) \n\ 
-  \n\
-  Set the parameter values for meshing using sphere refinement. \n\
-  \n\
-  Args: \n\
-");
-
-static PyObject *
-Mesher_set_sphere_refinement(PyMeshingMesherClass* self, PyObject* args, PyObject* kwargs)
-{
-  auto api = SvPyUtilApiFunction("O!", PyRunTimeErr, __func__);
-  static char *keywords[] = {"refinement_values", NULL};
-  PyObject* valuesList;
-
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &PyList_Type, &valuesList)) {
-    return api.argsError();
-  }
-
-  int numValues = PyList_Size(valuesList);
-  if (numValues == 0) { 
-      api.error("The refinement values list argument is empty.");
-      return nullptr;
-  }
-
-  // Set the refinement values from the list.
-  auto mesher = self->mesher;
-  for (int i = 0; i < numValues; i++) {
-      auto item = PyList_GetItem(valuesList, i);
-      double edgeSize;
-      double radius;
-      std::vector<double> vcenter;
-      if (!GetSphereRefinementValues(api, item, edgeSize, radius, vcenter)) {
-          return nullptr;
-      }
-     
-      double center[3] = { vcenter[0], vcenter[1], vcenter[2] };
-      if (mesher->SetSphereRefinement(edgeSize, radius, center) != SV_OK) {
-          std::string msg = " edgeSize=" + std::to_string(edgeSize);
-          msg += " radius=" + std::to_string(radius);
-          msg += " center=[" + std::to_string(center[0]) + "," + std::to_string(center[1]) + "," + std::to_string(center[2]) + "]";
-          api.error("ERROR setting sphere refinement for values: " + msg);
-          return nullptr;
-      }
-  }
-
-  Py_RETURN_NONE; 
-}
-
 //-------------------
 // Mesher_write_mesh
 //-------------------
@@ -1122,59 +890,6 @@ Mesher_new_mesh( PyMeshingMesherClass* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
-
-//----------------------------
-// Mesher_set_sphere_refinement
-//----------------------------
-//
-PyDoc_STRVAR(Mesher_set_sphere_refinement_doc,
-" set_sphere_refinement(name)  \n\ 
-  \n\
-  ??? Add the unstructured grid mesh to the repository. \n\
-  \n\
-  Args:                                    \n\
-    name (str): Name in the repository to store the unstructured grid. \n\
-");
-
-static PyObject * 
-Mesher_set_sphere_refinement(PyMeshingMesherClass* self, PyObject* args)
-{
-  auto api = SvPyUtilApiFunction("ddO", PyRunTimeErr, __func__); 
-  double size;
-  PyObject* centerArg;
-  double radius;
-
-  if (!PyArg_ParseTuple(args, api.format, &size, &radius, &centerArg)) {
-    return api.argsError();
-  }
-
-  auto meshObject = CheckMesher(api, self);
-  if (meshObject == nullptr) {
-      return nullptr;
-  }
-
-  std::string emsg;
-  if (!svPyUtilCheckPointData(centerArg, emsg)) {
-      api.error("The sphere center argument " + emsg);
-      return nullptr;
-  }
-
-  double center[3];
-  for (int i = 0; i < 3; i++) {
-      center[i] = PyFloat_AsDouble(PyList_GetItem(centerArg,i));
-  }
-
-  if (meshObject->SetSphereRefinement(size, radius, center) == SV_ERROR )   {
-      std::string centerStr = "  center=(" + std::to_string(center[0]) + ", " + std::to_string(center[1]) + ", " + 
-        std::to_string(center[2]) + ")"; 
-      api.error("Error setting sphere refinement: radius=" + std::to_string(radius) + 
-        "  size= " + std::to_string(size)+ centerStr + ".");
-      return nullptr;
-  }
-
-  return SV_PYTHON_OK;
-}
-
 // -------------------------------
 // cvMesher_SetSizeFunctionBasedMesherMtd
 // -------------------------------
@@ -1306,8 +1021,6 @@ static PyMethodDef PyMeshingMesherMethods[] = {
 
   { "compute_model_boundary_faces", (PyCFunction)Mesher_compute_model_boundary_faces, METH_VARARGS|METH_KEYWORDS, Mesher_compute_model_boundary_faces_doc},
 
-  { "create_sphere_refinement_value", (PyCFunction)Mesher_create_sphere_refinement_value, METH_VARARGS|METH_KEYWORDS, Mesher_create_sphere_refinement_value_doc},
-
   { "generate_mesh", (PyCFunction)Mesher_generate_mesh, METH_VARARGS|METH_KEYWORDS, Mesher_generate_mesh_doc},
 
   { "get_face_polydata", (PyCFunction)Mesher_get_face_polydata, METH_VARARGS|METH_KEYWORDS, Mesher_get_face_polydata_doc },
@@ -1330,8 +1043,6 @@ static PyMethodDef PyMeshingMesherMethods[] = {
 
   { "set_solid_modeler_kernel", (PyCFunction)Mesher_set_solid_modeler_kernel, METH_VARARGS, Mesher_set_solid_modeler_kernel_doc},
 
-  { "set_sphere_refinement", (PyCFunction)Mesher_set_sphere_refinement, METH_VARARGS|METH_KEYWORDS, Mesher_set_sphere_refinement_doc},
-
   { "set_walls", (PyCFunction)Mesher_set_walls, METH_VARARGS|METH_KEYWORDS, Mesher_set_walls_doc },
 
   { "write_mesh", (PyCFunction)Mesher_write_mesh, METH_VARARGS|METH_KEYWORDS, Mesher_write_mesh_doc },
@@ -1345,8 +1056,6 @@ static PyMethodDef PyMeshingMesherMethods[] = {
   { "set_cylinder_refinement", (PyCFunction)Mesher_set_cylinder_refinement, METH_VARARGS, Mesher_set_cylinder_refinement_doc },
 
   { "set_size_function_based_mesh", (PyCFunction)Mesher_set_size_function_based_mesh, METH_VARARGS, Mesher_set_size_function_based_mesh_doc },
-
-  { "set_sphere_refinement", (PyCFunction)Mesher_set_sphere_refinement, METH_VARARGS, Mesher_set_sphere_refinement_doc },
 
   { "set_vtk_polydata", (PyCFunction)Mesher_set_vtk_polydata, METH_VARARGS, Mesher_set_vtk_polydata_doc },
 
@@ -1388,9 +1097,6 @@ using PyMesherCtorMapType = std::map<cvMeshObject::KernelType, std::function<PyO
 PyMesherCtorMapType PyMesherCtorMap = {
   //{cvMeshObject::KernelType::KERNEL_TETGEN, []()->PyObject* {return PyObject_CallObject((PyObject*)&PyMeshingTetGenClassType, NULL);}},
 };
-
-// Include the definition for the meshing.TetGenRadiusMeshing class. 
-#include "MeshingTetGenRadiusMeshing_PyClass.cxx"
 
 // Include derived mesh generator classes.
 #include "MeshingTetGen_PyClass.cxx"

@@ -305,6 +305,39 @@ cvTetGenMeshObject::~cvTetGenMeshObject()
     regionsizelist_->Delete();
 }
 
+//-----------------------------
+// EnableSizeFunctionBasedMesh
+//-----------------------------
+// Enable meshing based on a size function.
+//
+// This is only called by the Python API.
+//
+void cvTetGenMeshObject::EnableSizeFunctionBasedMesh()
+{
+  meshoptions_.functionbasedmeshing = 1;
+}
+
+//------------------------------
+// DisableSizeFunctionBasedMesh  
+//------------------------------
+// Disable meshing based on a size function.
+//
+// This is only called by the Python API.
+//
+void cvTetGenMeshObject::DisableSizeFunctionBasedMesh()
+{
+  meshoptions_.functionbasedmeshing = 0;
+}
+
+//--------------------------------
+// SizeFunctionBasedMeshIsEnabled
+//--------------------------------
+//
+bool cvTetGenMeshObject::SizeFunctionBasedMeshIsEnabled()
+{
+  return (meshoptions_.functionbasedmeshing == 1);
+}
+
 int cvTetGenMeshObject::SetMeshFileName( const char* meshFileName )
 {
   if (meshFileName != NULL)

@@ -147,6 +147,10 @@ class SV_EXPORT_TETGEN_MESH cvTetGenMeshObject : public cvMeshObject {
 
   void SetAllowMultipleRegions(bool value);
 
+  void EnableSizeFunctionBasedMesh();
+  void DisableSizeFunctionBasedMesh();
+  bool SizeFunctionBasedMeshIsEnabled();
+
   //Meshing operation and post-meshing cleanup/stats functions
   int GenerateMesh();
   int WriteMesh(char *filename, int smsver);

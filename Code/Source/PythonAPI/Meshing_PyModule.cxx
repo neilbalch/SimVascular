@@ -276,7 +276,7 @@ static struct PyModuleDef PyMeshingModule = {
 PyMODINIT_FUNC 
 PyInit_PyMeshing()
 {
-  //std::cout << "[PyInit_PyMeshing] ========== load meshing module ==========" << std::endl;
+  std::cout << "[PyInit_PyMeshing] ========== load meshing module ==========" << std::endl;
 
   //--------------------------------
   // Initialize Meshing Class Types 
@@ -315,13 +315,6 @@ PyInit_PyMeshing()
   if (PyType_Ready(&PyMeshingTetGenClassType) < 0) {
       std::cout << "Error creating Meshing TetGen type" << std::endl;
       return nullptr;
-  }
-
-  // Initialize the TetGenRadiusMeshing class type.
-  SetTetGenRadiusMeshingTypeFields(PyTetGenRadiusMeshingType);
-  if (PyType_Ready(&PyTetGenRadiusMeshingType) < 0) {
-    fprintf(stdout,"Error in PyTetGenClassType\n");
-    return SV_PYTHON_ERROR;
   }
 
   // Initialize the MeshSim mesh generator class type.
@@ -418,10 +411,6 @@ PyInit_PyMeshing()
   // Add the 'meshing.TetGen' class.
   Py_INCREF(&PyMeshingTetGenClassType);
   PyModule_AddObject(module, MESHING_TETGEN_CLASS, (PyObject*)&PyMeshingTetGenClassType);
-
-  // Add the 'meshing.TetGenRadiusMeshing' class.
-  Py_INCREF(&PyTetGenRadiusMeshingType);
-  PyModule_AddObject(module, MESHING_TETGEN_RADIUS_MESHING_CLASS, (PyObject*)&PyTetGenRadiusMeshingType);
 
   // Add the 'meshing.MeshSim' class.
   Py_INCREF(&PyMeshingMeshSimClassType);
