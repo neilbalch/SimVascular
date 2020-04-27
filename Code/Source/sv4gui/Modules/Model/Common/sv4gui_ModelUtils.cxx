@@ -965,21 +965,20 @@ bool sv4guiModelUtils::DeleteRegions(vtkSmartPointer<vtkPolyData> inpd, std::vec
     return true;
 }
 
-vtkPolyData* sv4guiModelUtils::CreateCenterlines(sv4guiModelElement* modelElement,
-                                             vtkIdList *sourceCapIds)
+vtkPolyData* sv4guiModelUtils::CreateCenterlines(sv4guiModelElement* modelElement, vtkIdList *sourceCapIds)
 {
-    std::cout << "======================= sv4guiModelUtils::CreateCenterline ======================" << std::endl;
+    std::cout << "======================= sv4guiModelUtils::CreateCenterline(modelElement, sourceCapIds)  ======================" << std::endl;
   
-    if(modelElement==NULL || modelElement->GetWholeVtkPolyData()==NULL)
+    if(modelElement==NULL || modelElement->GetWholeVtkPolyData()==NULL) {
         return NULL;
+    }
 
     vtkSmartPointer<vtkPolyData> inpd=vtkSmartPointer<vtkPolyData>::New();
     vtkSmartPointer<vtkPolyData> fullpd=vtkSmartPointer<vtkPolyData>::New();
     inpd->DeepCopy(modelElement->GetWholeVtkPolyData());
     fullpd->DeepCopy(modelElement->GetWholeVtkPolyData());
 
-    if(!DeleteRegions(inpd,modelElement->GetCapFaceIDs()))
-    {
+    if(!DeleteRegions(inpd,modelElement->GetCapFaceIDs())) {
         return NULL;
     }
 
@@ -999,6 +998,7 @@ vtkPolyData* sv4guiModelUtils::CreateCenterlines(sv4guiModelElement* modelElemen
         delete capped;
       return NULL;
     }
+
     if (numCapCenterIds < 2)
     {
       delete cleaned;
@@ -1026,8 +1026,7 @@ vtkPolyData* sv4guiModelUtils::CreateCenterlines(sv4guiModelElement* modelElemen
     }
     else
     {
-      vtkSmartPointer<vtkCellLocator> locator =
-        vtkSmartPointer<vtkCellLocator>::New();
+      vtkSmartPointer<vtkCellLocator> locator = vtkSmartPointer<vtkCellLocator>::New();
       locator->SetDataSet(fullpd);
       locator->BuildLocator();
 
@@ -1039,8 +1038,7 @@ vtkPolyData* sv4guiModelUtils::CreateCenterlines(sv4guiModelElement* modelElemen
       vtkSmartPointer<vtkGenericCell> genericCell =
         vtkSmartPointer<vtkGenericCell>::New();
 
-      for (int i=0; i<numCapCenterIds; i++)
-      {
+      for (int i=0; i<numCapCenterIds; i++) {
         int ptId = capCenterIds[i];
         capped->GetVtkPolyData()->GetPoint(ptId, capPt);
 
@@ -1059,8 +1057,7 @@ vtkPolyData* sv4guiModelUtils::CreateCenterlines(sv4guiModelElement* modelElemen
     delete [] capCenterIds;
 
 
-    vtkPolyData* centerlines=CreateCenterlines(capped->GetVtkPolyData(),
-                                               sourcePtIds, targetPtIds);
+    vtkPolyData* centerlines=CreateCenterlines(capped->GetVtkPolyData(), sourcePtIds, targetPtIds);
     delete capped;
 
     return centerlines;
@@ -1068,7 +1065,11 @@ vtkPolyData* sv4guiModelUtils::CreateCenterlines(sv4guiModelElement* modelElemen
 
 vtkPolyData* sv4guiModelUtils::CreateCenterlines(vtkPolyData* inpd)
 {
-    std::cout << "======================= sv4guiModelUtils::CreateCenterline ======================" << std::endl;
+    std::cout << "======================= sv4guiModelUtils::CreateCenterline(inpd)  ======================" << std::endl;
+    std::cout << "[sv4guiModelUtils::CreateCenterline(inpd)] inpd:" << std::endl;
+    std::cout << "[sv4guiModelUtils::CreateCenterline(inpd)]   Num points: " << inpd->GetNumberOfPoints() << std::endl;
+    std::cout << "[sv4guiModelUtils::CreateCenterline(inpd)]   Num cells: " << inpd->GetNumberOfCells() << std::endl;
+
   // If given just a polydata, assume it is a wall, cap and get source and
   // target points and then send to centerline extraction
 
@@ -1083,6 +1084,7 @@ vtkPolyData* sv4guiModelUtils::CreateCenterlines(vtkPolyData* inpd)
 
   if ( sys_geom_cap(cleaned, &capped, &numCapCenterIds, &capCenterIds, 1 ) != SV_OK)
   {
+    std::cout << "[sv4guiModelUtils::CreateCenterline(inpd)] Failed  sys_geom_cap " << std::endl;
     delete cleaned;
     if (capped != NULL)
       delete capped;
@@ -1090,6 +1092,7 @@ vtkPolyData* sv4guiModelUtils::CreateCenterlines(vtkPolyData* inpd)
   }
   if (numCapCenterIds < 2)
   {
+    std::cout << "[sv4guiModelUtils::CreateCenterline(inpd)] Failed  numCapCenterIds < 2 " << std::endl;
     delete cleaned;
     if (capped != NULL)
       delete capped;
@@ -1179,14 +1182,15 @@ vtkPolyData* sv4guiModelUtils::MergeCenterlines(vtkPolyData* centerlinesPD)
 
 vtkPolyData* sv4guiModelUtils::CalculateDistanceToCenterlines(vtkPolyData* centerlines, vtkPolyData* original)
 {
-    if(centerlines==NULL || original==NULL)
+    if (centerlines==NULL || original==NULL) {
         return NULL;
+    }
 
     cvPolyData *src=new cvPolyData(original);
     cvPolyData *lines=new cvPolyData(centerlines);
     cvPolyData *distance = NULL;
-    if ( sys_geom_distancetocenterlines(src, lines, &distance) != SV_OK )
-    {
+
+    if ( sys_geom_distancetocenterlines(src, lines, &distance) != SV_OK ) {
         return NULL;
     }
 

@@ -895,22 +895,31 @@ sv4guiModelElement* sv4guiModelElementPolyData::CreateModelElementByBlend(std::v
 
 bool sv4guiModelElementPolyData::ReadFile(std::string filePath)
 {
-    std::cout << "################### sv4guiModelElementPolyData::ReadFile #######################" << std::endl;
+    std::cout << std::endl;
+    std::cout << "=================== sv4guiModelElementPolyData::ReadFile =======================" << std::endl;
     std::cout << "[sv4guiModelElementPolyData::ReadFile] filePath: " << filePath << std::endl;
 
     vtkSmartPointer<vtkPolyData> pd=vtkSmartPointer<vtkPolyData>::New();
     if(PlyDtaUtils_ReadNative(const_cast<char*>(filePath.c_str()), pd) != SV_OK)
         return false;
 
+    std::cout << "[sv4guiModelElementPolyData::ReadFile] Polydata " << std::endl;
+    std::cout << "[sv4guiModelElementPolyData::ReadFile]   Num points: " << pd->GetNumberOfPoints() << std::endl;
+    std::cout << "[sv4guiModelElementPolyData::ReadFile]   Num cells: " << pd->GetNumberOfCells() << std::endl;
+
     vtkSmartPointer<vtkCleanPolyData> cleaner =vtkSmartPointer<vtkCleanPolyData>::New();
     cleaner->SetInputData(pd);
     cleaner->Update();
 
+    std::cout << "[sv4guiModelElementPolyData::ReadFile] Clean polydata " << std::endl;
     vtkSmartPointer<vtkPolyData> cleanpd=cleaner->GetOutput();
     cleanpd->BuildLinks();
+    std::cout << "[sv4guiModelElementPolyData::ReadFile]   Num points: " << cleanpd->GetNumberOfPoints() << std::endl;
+    std::cout << "[sv4guiModelElementPolyData::ReadFile]   Num cells: " << cleanpd->GetNumberOfCells() << std::endl;
 
     std::cout << "[sv4guiModelElementPolyData::ReadFile] Set m_WholeVtkPolyData " << std::endl;
     m_WholeVtkPolyData=cleanpd;
+
 
     return true;
 }

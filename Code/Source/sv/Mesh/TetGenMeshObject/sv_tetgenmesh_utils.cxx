@@ -1125,6 +1125,10 @@ int TGenUtils_SetSizeFunctionArray(vtkPolyData *polydatasolid,
     std::string sizingFunctionArrayName,double size,char *functionname,
     int secondarray)
 {
+  cout << std::endl;
+  cout << "------------------- TGenUtils_SetSizeFunctionArray ------------------" << std::endl;
+  cout << "[TGenUtils_SetSizeFunctionArray] secondarray: " << secondarray << std::endl;
+
   int numPts,numCells;
   double dist;
   double value;
@@ -1140,6 +1144,10 @@ int TGenUtils_SetSizeFunctionArray(vtkPolyData *polydatasolid,
   //Set sizing function params
   numPts = polydatasolid->GetNumberOfPoints();
   numCells = polydatasolid->GetNumberOfCells();
+
+  cout << "[TGenUtils_SetSizeFunctionArray] numPts: " << numPts << std::endl;
+  cout << "[TGenUtils_SetSizeFunctionArray] numCells: " << numCells << std::endl;
+
   if (secondarray)
   {
     if (VtkUtils_PDCheckArrayName(polydatasolid,0,sizingFunctionArrayName) != SV_OK)
@@ -1149,9 +1157,11 @@ int TGenUtils_SetSizeFunctionArray(vtkPolyData *polydatasolid,
       return SV_ERROR;
     }
     meshSizeArray = vtkDoubleArray::SafeDownCast(polydatasolid->GetPointData()->GetArray(sizingFunctionArrayName.c_str()));
+    cout << "[TGenUtils_SetSizeFunctionArray] Get existing array " << std::endl;
   }
   else
   {
+    cout << "[TGenUtils_SetSizeFunctionArray] Create new array " << std::endl;
     meshSizeArray->SetNumberOfComponents(1);
     meshSizeArray->Allocate(numPts,1000);
     meshSizeArray->SetNumberOfTuples(numPts);
@@ -1200,10 +1210,12 @@ int TGenUtils_SetSizeFunctionArray(vtkPolyData *polydatasolid,
       size = min;
     }
 
+    cout << "[TGenUtils_SetSizeFunctionArray] Set values: " << std::endl;
     for (pointId = 0;pointId<numPts;pointId++)
     {
       value = arrayonmesh->GetValue(pointId);
       factor = value/min;
+      //cout << "[TGenUtils_SetSizeFunctionArray]   Point ID: " << pointId << "  value: " << value << std::endl;
   //    fprintf(stderr,"Value is : %.4f\n",factor);
       //compute distance
       //set value to reduced size
@@ -1605,44 +1617,46 @@ int TGenUtils_CheckSurfaceMesh(vtkPolyData *pd, int meshInfo[3])
 
 int TGenUtils_SetLocalMeshSize(vtkPolyData *pd,int regionId,double size)
 {
+  std::cout << std::endl;
+  std::cout << "============================= TGenUtils_SetLocalMeshSize =====================" << std::endl;
   vtkIdType pointId, cellId;
   vtkIdType npts, *pts;
-  vtkSmartPointer<vtkIntArray> regionarray =
-    vtkSmartPointer<vtkIntArray>::New();
-  vtkSmartPointer<vtkDoubleArray> meshSizeArray =
-    vtkSmartPointer<vtkDoubleArray>::New();
+  auto  regionarray = vtkSmartPointer<vtkIntArray>::New();
+  auto meshSizeArray = vtkSmartPointer<vtkDoubleArray>::New();
 
   int numPts = pd->GetNumberOfPoints();
   int numCells = pd->GetNumberOfCells();
   regionarray = vtkIntArray::SafeDownCast(pd->GetCellData()->GetArray("ModelFaceID"));
-  if (VtkUtils_PDCheckArrayName(pd,0,"MeshSizingFunction") != SV_OK)
-  {
+
+  if (VtkUtils_PDCheckArrayName(pd,0,"MeshSizingFunction") != SV_OK) {
+    std::cout << "[TGenUtils_SetLocalMeshSize] Create sizing function." << std::endl;
     meshSizeArray->SetNumberOfComponents(1);
     meshSizeArray->Allocate(numPts,1000);
     meshSizeArray->SetNumberOfTuples(numPts);
     meshSizeArray->SetName("MeshSizingFunction");
-    for (pointId = 0;pointId<numPts;pointId++)
-    {
+    for (pointId = 0;pointId<numPts;pointId++) {
       meshSizeArray->SetValue(pointId,0.0);
     }
-  }
-  else
-  {
+  } else {
     meshSizeArray = vtkDoubleArray::SafeDownCast(pd->GetPointData()->GetArray("MeshSizingFunction"));
   }
+
   pd->BuildLinks();
-  for (cellId = 0;cellId<numCells;cellId++)
-  {
-    if (regionarray->GetValue(cellId) == regionId)
-    {
+  int numSet = 0;
+  std::cout << "[TGenUtils_SetLocalMeshSize] numCells: " << numCells << std::endl;
+  std::cout << "[TGenUtils_SetLocalMeshSize] regionId: " << regionId << std::endl;
+
+  for (cellId = 0; cellId < numCells; cellId++) {
+    if (regionarray->GetValue(cellId) == regionId) {
+      numSet += 1;
       pd->GetCellPoints(cellId,npts,pts);
-      for (int j=0;j<npts;j++)
-      {
+      for (int j=0;j<npts;j++) {
 	meshSizeArray->SetValue(pts[j],size);
       }
     }
   }
 
+  std::cout << "[TGenUtils_SetLocalMeshSize] Num set cells: " << numSet << std::endl;
   pd->GetPointData()->RemoveArray("MeshSizingFunction");
   meshSizeArray->SetName("MeshSizingFunction");
   pd->GetPointData()->AddArray(meshSizeArray);

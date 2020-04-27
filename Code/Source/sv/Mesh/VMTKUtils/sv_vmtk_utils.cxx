@@ -334,6 +334,8 @@ int sys_geom_grouppolydata( cvPolyData *polydata,cvPolyData *lines,
 int sys_geom_distancetocenterlines( cvPolyData *polydata,cvPolyData *lines,
 		cvPolyData **distance)
 {
+  std::cout << "======================= sys_geom_distancetocenterlines ======================" << std::endl;
+
   vtkPolyData *geom = polydata->GetVtkPolyData();
   vtkPolyData *centerlines = lines->GetVtkPolyData();
   cvPolyData *result = NULL;

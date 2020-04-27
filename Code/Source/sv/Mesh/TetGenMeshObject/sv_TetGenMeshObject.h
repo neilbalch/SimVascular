@@ -147,6 +147,10 @@ class SV_EXPORT_TETGEN_MESH cvTetGenMeshObject : public cvMeshObject {
 
   void SetAllowMultipleRegions(bool value);
 
+  // Add these methods to generate mesh sizing arrays separate
+  // from option processing.
+  int GenerateLocalSizeSizingArray(int faceID, double edgeSize);
+
   void EnableSizeFunctionBasedMesh();
   void DisableSizeFunctionBasedMesh();
   bool SizeFunctionBasedMeshIsEnabled();

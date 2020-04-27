@@ -808,7 +808,11 @@ int cvTetGenMeshObject::GetNodeCoords(int node)
  * @note uses the PolyDataUtils to read the solid: see cv_polydatasolid_utils
  */
 
-int cvTetGenMeshObject::LoadModel(char *filename) {
+int cvTetGenMeshObject::LoadModel(char *filename) 
+{
+  std::cout << "########################################################################" << std::endl;
+  std::cout << "############## cvTetGenMeshObject::LoadModel(fileName) #################" << std::endl;
+  std::cout << "########################################################################" << std::endl;
 
   if (filename == NULL) {
     return SV_ERROR;
@@ -834,12 +838,19 @@ int cvTetGenMeshObject::LoadModel(char *filename) {
     return SV_ERROR;
   }
 
+  std::cout << "[cvTetGenMeshObject::LoadModel] Num points: " << polydatasolid_->GetNumberOfPoints() << std::endl;
+  std::cout << "[cvTetGenMeshObject::LoadModel] Num cells: " << polydatasolid_->GetNumberOfCells() << std::endl;
+
   originalpolydata_->DeepCopy(polydatasolid_);
   return SV_OK;
 
 }
 
-int cvTetGenMeshObject::LoadModel(vtkPolyData *pd) {
+int cvTetGenMeshObject::LoadModel(vtkPolyData *pd) 
+{
+  std::cout << "##################################################################" << std::endl;
+  std::cout << "############## cvTetGenMeshObject::LoadModel(pd) #################" << std::endl;
+  std::cout << "##################################################################" << std::endl;
 
   if (pd == NULL) {
     return SV_ERROR;
@@ -865,6 +876,10 @@ int cvTetGenMeshObject::LoadModel(vtkPolyData *pd) {
 
   polydatasolid_ = vtkPolyData::New();
   polydatasolid_->DeepCopy(pd);
+
+  std::cout << "[cvTetGenMeshObject::LoadModel(pd)] pd: " << std::endl;
+  std::cout << "[cvTetGenMeshObject::LoadModel(pd)]   Num points: " << pd->GetNumberOfPoints() << std::endl;
+  std::cout << "[cvTetGenMeshObject::LoadModel(pd)]   Num cells: " << pd->GetNumberOfCells() << std::endl;
 
   return SV_OK;
 
@@ -946,7 +961,11 @@ int cvTetGenMeshObject::LoadMesh(char *filename,char *surfilename)
  * exists, it is deleted so that a new one can be made.
  */
 
-int cvTetGenMeshObject::NewMesh() {
+int cvTetGenMeshObject::NewMesh() 
+{
+  std::cout << "############################################################" << std::endl;
+  std::cout << "############## cvTetGenMeshObject::NewMesh #################" << std::endl;
+  std::cout << "############################################################" << std::endl;
 
   // cant overwrite mesh
   if (inmesh_ != NULL) {
@@ -993,11 +1012,19 @@ int cvTetGenMeshObject::NewMesh() {
     markerListName = "ModelFaceID";
   }
 
-  vtkSmartPointer<vtkCleanPolyData> cleaner =
-   vtkSmartPointer<vtkCleanPolyData>::New();
+  std::cout << "[cvTetGenMeshObject::NewMesh] polydatasolid_: " << std::endl;
+  std::cout << "[cvTetGenMeshObject::NewMesh]   Num points: " << polydatasolid_->GetNumberOfPoints() << std::endl;
+  std::cout << "[cvTetGenMeshObject::NewMesh]   Num cells: " << polydatasolid_->GetNumberOfCells() << std::endl;
+
+  auto cleaner = vtkSmartPointer<vtkCleanPolyData>::New();
   cleaner->SetInputData(polydatasolid_);
   cleaner->Update();
   polydatasolid_->DeepCopy(cleaner->GetOutput());
+
+  std::cout << "[cvTetGenMeshObject::NewMesh] cleaned polydatasolid_: " << std::endl;
+  std::cout << "[cvTetGenMeshObject::NewMesh]   Num points: " << polydatasolid_->GetNumberOfPoints() << std::endl;
+  std::cout << "[cvTetGenMeshObject::NewMesh]   Num cells: " << polydatasolid_->GetNumberOfCells() << std::endl;
+
   fprintf(stderr,"Converting to TetGen...\n");
   //Convert the polydata to tetgen for meshing with given option
   if (TGenUtils_ConvertSurfaceToTetGen(inmesh_,polydatasolid_) != SV_OK)
@@ -1053,6 +1080,23 @@ int cvTetGenMeshObject::NewMesh() {
   return SV_OK;
 }
 
+//------------------------------
+// GenerateLocalSizeSizingArray
+//------------------------------
+//
+int 
+cvTetGenMeshObject::GenerateLocalSizeSizingArray(int faceID, double edgeSize)
+{
+  meshoptions_.functionbasedmeshing = 1;
+
+  if (TGenUtils_SetLocalMeshSize(polydatasolid_, faceID, edgeSize) != SV_OK) {
+      return SV_ERROR;
+  }    
+  meshoptions_.secondarrayfunction = 1;
+
+  return SV_OK;
+}
+
 // --------------------
 //  SetMeshOptions
 // --------------------
@@ -1068,6 +1112,10 @@ int cvTetGenMeshObject::NewMesh() {
 
 int cvTetGenMeshObject::SetMeshOptions(char *flags,int numValues,double *values) 
 {
+  std::cout << std::endl;
+  std::cout << "========== cvTetGenMeshObject::SetMeshOptions ==========" << std::endl;
+  std::cout << "[cvTetGenMeshObject::SetMeshOptions] flag: " << flags << std::endl;
+
   if(!strncmp(flags,"GlobalEdgeSize",14)) {            //Global edge size
      if (numValues < 1)
        return SV_ERROR;
@@ -1087,6 +1135,8 @@ int cvTetGenMeshObject::SetMeshOptions(char *flags,int numValues,double *values)
       return SV_ERROR;
     }
 
+    std::cout << "[cvTetGenMeshObject::SetMeshOptions] values[0]: " << values[0] << std::endl;
+    std::cout << "[cvTetGenMeshObject::SetMeshOptions] values[1]: " << values[1] << std::endl;
     meshoptions_.functionbasedmeshing = 1;
     //Create a new mesh sizing function and call TGenUtils to compute function.
     //Store in the member data vtkDouble Array meshsizingfunction
@@ -1244,74 +1294,94 @@ int cvTetGenMeshObject::SetBoundaryLayer(int type, int id, int side,
   return SV_OK;
 }
 
-// --------------------
-//  SetWalls
-// --------------------
-/**
- * @brief Function to set the walls of the mesh with an integer array
- * @param numWalls number of walls being set with value
- * @param walls, integer list for ModelFaceIds in the wall.
- * @return SV_OK if surface exists and array is set correctly
- */
+//----------
+// SetWalls  
+//----------
+// Add a 'WallID' vtk cell data array to polydatasolid_.
+//
+// 'WallID' is set to 1 for each cell that is part of a wall, 0 otherwise. 
+//
+// Note: If meshoptions_.usemmg = 0 then all cells that are not part of  
+// a wall are removed from polydatasolid_.
+//
+// Arguments:
+//   numWalls: The number of walls being set with value.
+//   walls: The list of face IDs that are walls.
+//
 int cvTetGenMeshObject::SetWalls(int numWalls, int *walls)
 {
-  int max=0;
+  std::cout << "#############################################################" << std::endl;
+  std::cout << "############## cvTetGenMeshObject::SetWalls #################" << std::endl;
+  std::cout << "#############################################################" << std::endl;
+  std::cout << "[cvTetGenMeshObject::SetWalls] meshoptions_.usemmg: " << meshoptions_.usemmg << std::endl;
+
+  int max = 0;
   double range[2];
   vtkIntArray *wallArray = vtkIntArray::New();
   meshoptions_.meshwallfirst = 1;
 
-  if (VtkUtils_PDCheckArrayName(polydatasolid_,1,"ModelFaceID") != SV_OK)
-  {
+  if (VtkUtils_PDCheckArrayName(polydatasolid_, 1, "ModelFaceID") != SV_OK) {
     fprintf(stderr,"ModelFaceID array not on object, so cannot set walls\n");
     return SV_ERROR;
   }
-  vtkIntArray *modelIds;
-  modelIds = vtkIntArray::SafeDownCast(
-      polydatasolid_->GetCellData()->GetArray("ModelFaceID"));
+
+  auto modelIds = vtkIntArray::SafeDownCast(polydatasolid_->GetCellData()->GetArray("ModelFaceID"));
   modelIds->GetRange(range);
   max = range[1];
 
   int *isWall = new int[max];
-  for (int i=0; i < max; i++)
-    isWall[i] = 0;
-  for (int i=0; i < numWalls; i++)
-  {
-    int wallid = *(walls+i);
-    isWall[wallid-1] = 1;
+  for (int i = 0; i < max; i++) {
+      isWall[i] = 0;
+  }
+
+  for (int i = 0; i < numWalls; i++) {
+      int wallid = walls[i];
+      isWall[wallid-1] = 1;
   }
 
   int numCells = polydatasolid_->GetNumberOfCells();
-  for (vtkIdType cellId = 0; cellId < numCells ; cellId++)
-  {
+  std::cout << "[cvTetGenMeshObject::SetWalls] numCells: " << numCells << std::endl;
+
+  for (vtkIdType cellId = 0; cellId < numCells ; cellId++) {
     int value = modelIds->GetValue(cellId);
-    if (isWall[value - 1] == 1)
+    if (isWall[value - 1] == 1) {
       wallArray->InsertValue(cellId,1);
-    else
+    } else {
       wallArray->InsertValue(cellId,0);
+    }
   }
 
   wallArray->SetName("WallID");
   polydatasolid_->GetCellData()->AddArray(wallArray);
   wallArray->Delete();
 
+  // Remove all cells that are not part of a wall. 
+  //
 #ifdef SV_USE_MMG
-  if (meshoptions_.usemmg == 0)
-  {
+  if (meshoptions_.usemmg == 0) {
 #endif
-    vtkSmartPointer<vtkThreshold> thresholder =
-      vtkSmartPointer<vtkThreshold>::New();
+    auto thresholder = vtkSmartPointer<vtkThreshold>::New();
     thresholder->SetInputData(polydatasolid_);
      //Set Input Array to 0 port,0 connection,1 for Cell Data, and WallID is the type name
-    thresholder->SetInputArrayToProcess(0,0,0,1,"WallID");
+    thresholder->SetInputArrayToProcess(0, 0, 0, 1, "WallID");
     thresholder->ThresholdBetween(1,1);
     thresholder->Update();
 
-    vtkSmartPointer<vtkDataSetSurfaceFilter> surfacer =
-      vtkSmartPointer<vtkDataSetSurfaceFilter>::New();
+    auto surfacer = vtkSmartPointer<vtkDataSetSurfaceFilter>::New();
     surfacer->SetInputData(thresholder->GetOutput());
     surfacer->Update();
 
     polydatasolid_->DeepCopy(surfacer->GetOutput());
+    std::cout << "[cvTetGenMeshObject::SetWalls] threshold polydatasolid_: " << std::endl;
+    std::cout << "[cvTetGenMeshObject::SetWalls]   numCells: " << polydatasolid_->GetNumberOfCells() << std::endl;
+
+    /*
+    auto writer  = vtkSmartPointer<vtkXMLPolyDataWriter>::New();
+    writer->SetFileName("/Users/parkerda/polydata.vtp");
+    writer->SetInputData(polydatasolid_);
+    writer->Write();
+    */
+
 #ifdef SV_USE_MMG
   }
 #endif
@@ -1418,8 +1488,11 @@ int cvTetGenMeshObject::SetSphereRefinement(double size, double radius,
  */
 int cvTetGenMeshObject::SetSizeFunctionBasedMesh(double size,char *sizefunctionname)
 {
+  cout << std::endl;
+  cout << "=================== cvTetGenMeshObject::SetSizeFunctionBasedMesh ==================" << std::endl;
+  cout << "[cvTetGenMeshObject::SetSizeFunctionBasedMesh] Size: " << size << std::endl;
+  cout << "[cvTetGenMeshObject::SetSizeFunctionBasedMesh] Size funnction name: " << sizefunctionname << std::endl;
 
-  fprintf(stderr,"Setting size based function: size=%g  function name=%s \n", size, sizefunctionname);
   //Set meshoptions_ parameters based on input.
   int i;
   meshoptions_.functionbasedmeshing = 1;
@@ -1445,7 +1518,15 @@ int cvTetGenMeshObject::SetSizeFunctionBasedMesh(double size,char *sizefunctionn
  * It they have, the corresponding tetgenbehavior object values are set.
  */
 
-int cvTetGenMeshObject::GenerateMesh() {
+int cvTetGenMeshObject::GenerateMesh() 
+{
+
+  std::cout << "###############################################################################" << std::endl;
+  std::cout << "############## cvTetGenMeshObject::GenerateMesh ###############################" << std::endl;
+  std::cout << "###############################################################################" << std::endl;
+  std::cout << "[cvTetGenMeshObject::GenerateMesh] polydatasolid_: " << std::endl;
+  std::cout << "[cvTetGenMeshObject::GenerateMesh]   Num points: " << polydatasolid_->GetNumberOfPoints() << std::endl;
+  std::cout << "[cvTetGenMeshObject::GenerateMesh]   Num cells: " << polydatasolid_->GetNumberOfCells() << std::endl;
 
   if (surfacemesh_ != NULL) {
     surfacemesh_->Delete();
@@ -2096,9 +2177,15 @@ int cvTetGenMeshObject::GenerateBoundaryLayerMesh()
  */
 int cvTetGenMeshObject::GenerateAndMeshCaps()
 {
+  std::cout << "########################################################################" << std::endl;
+  std::cout << "############## cvTetGenMeshObject::GenerateAndMeshCaps #################" << std::endl;
+  std::cout << "########################################################################" << std::endl;
+  std::cout << "[cvTetGenMeshObject::GenerateAndMeshCaps] polydatasolid_: " << std::endl;
+  std::cout << "[cvTetGenMeshObject::GenerateAndMeshCaps]   Num points: " << polydatasolid_->GetNumberOfPoints() << std::endl;
+  std::cout << "[cvTetGenMeshObject::GenerateAndMeshCaps]   Num cells: " << polydatasolid_->GetNumberOfCells() << std::endl;
+
 #ifdef SV_USE_VMTK
-  vtkSmartPointer<vtkIdList> excluded =
-    vtkSmartPointer<vtkIdList>::New();
+  auto excluded = vtkSmartPointer<vtkIdList>::New();
   int marker;
   int meshcapsonly = 1;
   int preserveedges = 0;
@@ -2108,67 +2195,53 @@ int cvTetGenMeshObject::GenerateAndMeshCaps()
   int useSizeFunction = 0;
   int trianglesplitfactor;
   double collapseanglethreshold;
-  vtkSmartPointer<vtkDoubleArray> meshsizingfunction =
-    vtkSmartPointer<vtkDoubleArray>::New();
+  auto meshsizingfunction = vtkSmartPointer<vtkDoubleArray>::New();
   std::string markerListName = "ModelFaceID";
-  if (meshoptions_.meshwallfirst)
-  {
+
+  if (meshoptions_.meshwallfirst) {
     collapseanglethreshold = 0.2;
     trianglesplitfactor = 5.0;
-  }
-  else
-  {
+  } else {
     collapseanglethreshold = NULL;
     trianglesplitfactor = NULL;
   }
-  if (meshoptions_.functionbasedmeshing || meshoptions_.refinement)
-  {
+
+  if (meshoptions_.functionbasedmeshing || meshoptions_.refinement) {
     useSizeFunction = 1;
-    if (VtkUtils_PDCheckArrayName(polydatasolid_,0,"MeshSizingFunction") != SV_OK)
-    {
+    if (VtkUtils_PDCheckArrayName(polydatasolid_,0,"MeshSizingFunction") != SV_OK) {
       fprintf(stderr,"Array name 'MeshSizingFunctionID' does not exist. \
 	              Something may have gone wrong when setting up BL");
       return SV_ERROR;
     }
     fprintf(stderr,"Getting sizing function caps\n");
-    meshsizingfunction = vtkDoubleArray::SafeDownCast(polydatasolid_->\
-	  GetPointData()->GetScalars("MeshSizingFunction"));
+    meshsizingfunction = vtkDoubleArray::SafeDownCast(polydatasolid_->GetPointData()->GetScalars("MeshSizingFunction"));
     fprintf(stderr,"Got function caps\n");
   }
 
   vtkDataArray *currentMarkers = polydatasolid_->GetCellData()->GetArray(markerListName.c_str());
-  if (currentMarkers == NULL)
-  {
+  if (currentMarkers == NULL) {
     excluded->SetNumberOfIds(1);
     excluded->InsertId(0,1);
     cellOffset = 1;
-  }
-  else
-  {
+  } else {
     cellOffset = -1;
-    for (int i=0; i<polydatasolid_->GetNumberOfCells(); i++)
-    {
+    for (int i=0; i<polydatasolid_->GetNumberOfCells(); i++) {
       marker = currentMarkers->GetTuple1(i);
       excluded->InsertUniqueId(marker);
-      if (marker > cellOffset)
-      {
+      if (marker > cellOffset) {
         cellOffset = marker;
       }
     }
   }
 
   //We cap the inner surface of the boundary layer mesh
-  if (VMTKUtils_Capper(polydatasolid_,captype,trioutput,cellOffset,
-	markerListName) != SV_OK)
-  {
+  if (VMTKUtils_Capper(polydatasolid_,captype,trioutput,cellOffset, markerListName) != SV_OK) {
     fprintf(stderr,"Problem with capping\n");
     return SV_ERROR;
   }
 
   //Set caps equal to caps on original
-  if (TGenUtils_ResetOriginalRegions(polydatasolid_, originalpolydata_,
-        markerListName, excluded) != SV_OK)
-  {
+  if (TGenUtils_ResetOriginalRegions(polydatasolid_, originalpolydata_, markerListName, excluded) != SV_OK) {
     fprintf(stderr,"Problem with name resetting on cap remeshing\n");
     return SV_ERROR;
   }
@@ -2178,8 +2251,7 @@ int cvTetGenMeshObject::GenerateAndMeshCaps()
   if (VMTKUtils_SurfaceRemeshing(polydatasolid_,
 	meshoptions_.maxedgesize,meshcapsonly,preserveedges,
 	trianglesplitfactor,collapseanglethreshold,excluded,
-	markerListName,useSizeFunction,meshsizingfunction) != SV_OK)
-  {
+	markerListName,useSizeFunction,meshsizingfunction) != SV_OK) {
     fprintf(stderr,"Problem with cap remeshing\n");
     return SV_ERROR;
   }
@@ -2204,6 +2276,9 @@ int cvTetGenMeshObject::GenerateAndMeshCaps()
     }
   }
   polydatasolid_->GetCellData()->AddArray(wallIds);
+  std::cout << "[cvTetGenMeshObject::GenerateAndMeshCaps] *polydatasolid_: " << std::endl;
+  std::cout << "[cvTetGenMeshObject::GenerateAndMeshCaps]   Num points: " << polydatasolid_->GetNumberOfPoints() << std::endl;
+  std::cout << "[cvTetGenMeshObject::GenerateAndMeshCaps]   Num cells: " << polydatasolid_->GetNumberOfCells() << std::endl;
 
   return SV_OK;
 }
@@ -2216,6 +2291,10 @@ int cvTetGenMeshObject::GenerateAndMeshCaps()
  */
 int cvTetGenMeshObject::GenerateMeshSizingFunction()
 {
+  std::cout << "###############################################################################" << std::endl;
+  std::cout << "############## cvTetGenMeshObject::GenerateMeshSizingFunction #################" << std::endl;
+  std::cout << "###############################################################################" << std::endl;
+
 #ifdef SV_USE_VMTK
   vtkSmartPointer<vtkCleanPolyData> cleaner =
     vtkSmartPointer<vtkCleanPolyData>::New();
@@ -2239,6 +2318,10 @@ int cvTetGenMeshObject::GenerateMeshSizingFunction()
   cleaner->Update();
 
   polydatasolid_->DeepCopy(cleaner->GetOutput());
+  std::cout << "[cvTetGenMeshObject::GenerateMeshSizingFunction] Clean polydatasolid_ " << std::endl;
+  std::cout << "[cvTetGenMeshObject::GenerateMeshSizingFunction]   Num points: " << polydatasolid_->GetNumberOfPoints() << std::endl;
+  std::cout << "[cvTetGenMeshObject::GenerateMeshSizingFunction]   Num cells: " << polydatasolid_->GetNumberOfCells() << std::endl;
+
 #else
   fprintf(stderr,"Cannot apply mesh sizing function without using VMTK\n");
   return SV_ERROR;

@@ -71,6 +71,10 @@ void sv4guiMeshTetGen::InitNewMesher()
 
 bool sv4guiMeshTetGen::SetModelElement(sv4guiModelElement* modelElement)
 {
+    std::cout << "################################################" << std::endl;
+    std::cout << "########## sv4guiMeshTetGen::SetModelElement ###" << std::endl;
+    std::cout << "################################################" << std::endl;
+
     if(!sv4guiMesh::SetModelElement(modelElement))
         return false;
 
@@ -86,6 +90,11 @@ bool sv4guiMeshTetGen::SetModelElement(sv4guiModelElement* modelElement)
 
     m_cvTetGenMesh->SetSolidModelKernel(kernel);
 
+    auto polydata = modelElement->GetWholeVtkPolyData();
+    std::cout << "[sv4guiMeshTetGen::SetModelElement] polydata: " << std::endl;
+    std::cout << "[sv4guiMeshTetGen::SetModelElement]   Num points: " << polydata->GetNumberOfPoints() << std::endl;
+    std::cout << "[sv4guiMeshTetGen::SetModelElement]   Num cells: " << polydata->GetNumberOfCells() << std::endl;
+
     vtkSmartPointer<vtkCleanPolyData> cleaner = vtkSmartPointer<vtkCleanPolyData>::New();
     cleaner->SetInputData(modelElement->GetWholeVtkPolyData());
     cleaner->Update();
@@ -93,6 +102,9 @@ bool sv4guiMeshTetGen::SetModelElement(sv4guiModelElement* modelElement)
     vtkSmartPointer<vtkPolyData> vtkpd=vtkSmartPointer<vtkPolyData>::New();
     vtkpd->DeepCopy(cleaner->GetOutput());
     vtkpd->BuildLinks();
+    std::cout << "[sv4guiMeshTetGen::SetModelElement] vtkpd: " << std::endl;
+    std::cout << "[sv4guiMeshTetGen::SetModelElement]   Num points: " << vtkpd->GetNumberOfPoints() << std::endl;
+    std::cout << "[sv4guiMeshTetGen::SetModelElement]   Num cells: " << vtkpd->GetNumberOfCells() << std::endl;
 
     if(m_cvTetGenMesh->LoadModel(vtkpd)!=SV_OK)
         return false;
@@ -124,8 +136,16 @@ bool sv4guiMeshTetGen::SetModelElement(sv4guiModelElement* modelElement)
 
 bool sv4guiMeshTetGen::Execute(std::string flag, double values[20], std::string strValues[5], bool option, std::string& msg)
 {
+    std::cout << std::endl;
     std::cout << "========== sv4guiMeshTetGen::Execute =========" << std::endl;
     std::cout << "[sv4guiMeshTetGen::Execute] flag: " << flag << std::endl;
+    auto solid = m_cvTetGenMesh->GetSolid();
+    if (solid != nullptr) {
+        auto pd = solid->GetVtkPolyData();
+        std::cout << "[sv4guiMeshTetGen::Execute] pd: " << std::endl;
+        std::cout << "[sv4guiMeshTetGen::Execute]   Num points: " << pd->GetNumberOfPoints() << std::endl;
+        std::cout << "[sv4guiMeshTetGen::Execute]   Num cells: " << pd->GetNumberOfCells() << std::endl;
+    }
 
     if(m_cvTetGenMesh==NULL)
     {
@@ -165,17 +185,17 @@ bool sv4guiMeshTetGen::Execute(std::string flag, double values[20], std::string 
             return false;
         }
     }
-    else if(flag=="setWalls")
-    {
-        if(m_ModelElement==NULL)
-        {
-            msg="Model not assigned to the mesher";
+
+    else if (flag=="setWalls") {
+
+        if (m_ModelElement == NULL) {
+            msg = "Model not assigned to the mesher";
             return false;
         }
 
-        std::vector<int> wallFaceIDs=m_ModelElement->GetWallFaceIDs();
-        if(m_cvTetGenMesh->SetWalls(wallFaceIDs.size(),&wallFaceIDs[0])!=SV_OK)
-        {
+        std::vector<int> wallFaceIDs = m_ModelElement->GetWallFaceIDs();
+
+        if (m_cvTetGenMesh->SetWalls(wallFaceIDs.size(), &wallFaceIDs[0]) != SV_OK) {
             msg="Failed ot set walls";
             return false;
         }
@@ -184,12 +204,10 @@ bool sv4guiMeshTetGen::Execute(std::string flag, double values[20], std::string 
     else if(flag=="useCenterlineRadius")
     {
         cvPolyData* solid=m_cvTetGenMesh->GetSolid();
-        if(solid==NULL)
-        {
+        if(solid==NULL) {
             msg="No mesher model";
             return false;
         }
-        std::cout << ">>>>>>>>>>>>>> useCenterlineRadius <<<<<<<<<<<<<<<<<" << std::endl;
 
         vtkPolyData* centerlines=sv4guiModelUtils::CreateCenterlines(solid->GetVtkPolyData());
         vtkPolyData* distance=sv4guiModelUtils::CalculateDistanceToCenterlines(centerlines, solid->GetVtkPolyData());
@@ -276,6 +294,16 @@ bool sv4guiMeshTetGen::Execute(std::string flag, double values[20], std::string 
         msg="Unknown command";
         return false;
     }
+
+/*
+    auto psolid = m_cvTetGenMesh->GetSolid();
+    if (psolid != nullptr) {
+        auto pd = psolid->GetVtkPolyData();
+        std::cout << "[sv4guiMeshTetGen::Execute] *pd: " << std::endl;
+        std::cout << "[sv4guiMeshTetGen::Execute]   Num points: " << pd->GetNumberOfPoints() << std::endl;
+        std::cout << "[sv4guiMeshTetGen::Execute]   Num cells: " << pd->GetNumberOfCells() << std::endl;
+    }
+*/
 
     msg="Command executed";
     return true;

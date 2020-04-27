@@ -64,11 +64,18 @@ MeshingGroupRead(char* fileName)
   bool readSurfaceMesh = false; 
   bool readVolumeMesh = false;
 
+  // Read in the .msh file.
   try {
       group = sv4guiMitkMeshIO::ReadFromFile(std::string(fileName), readSurfaceMesh, readVolumeMesh);
   } catch (...) {
       api.error("Error reading the mesh group file '" + std::string(fileName) + "'.");
       std::cout << "[MeshingGroupRead] ERROR: can't read fileName: " << fileName << std::endl;
+      return nullptr;
+  }
+
+  // A nonexistent file does not throw an exception so need to also check here.
+  if (group == nullptr) {
+      api.error("Error reading the mesh group file '" + std::string(fileName) + "'.");
       return nullptr;
   }
 

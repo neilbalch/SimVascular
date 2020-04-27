@@ -44,7 +44,7 @@ extern void MeshingMesherSetParameter(cvMeshObject* mesher, std::string& name, s
 // PyMeshingMesherClass
 //----------------------
 //
-// Dara Members:
+// Data Members:
 //
 //   CreateOptionsFromList: A pointer to the function that extracts option and parameter
 //       values from strings read from an SV Meshes .msh file.
@@ -56,22 +56,15 @@ typedef struct {
   cvMeshObject::KernelType mesherKernel;
   cvMeshObject* mesher;
   void (*CreateOptionsFromList)(cvMeshObject*, std::vector<std::string>&, std::map<std::string,int>&, PyObject**);
+  // [TODO:DaveP] I'm not sure if you can have std:vector in the struct.
+  std::vector<int> wallFaceIDs;
 } PyMeshingMesherClass;
-
-// Define the names associated with meshing parameters.
-//
-// These parameters are defined for all mesher classes (e.g. TetGen, MeshSim, etc.).
-//
-namespace MeshingParameters {
-
-  // Parameter names.
-  std::string AllowMultipleRegions("AllowMultipleRegions");
-
-};
 
 //////////////////////////////////////////////////////
 //          U t i l i t y  F u n c t i o n s        //
 //////////////////////////////////////////////////////
+
+namespace MeshingMesher {
 
 //-----------------------
 // CheckMesherLoadUpdate
@@ -89,6 +82,8 @@ CheckMesherLoadUpdate(cvMeshObject* mesher, std::string& msg)
 
   return true;
 }
+
+}; // namespace MeshingMesher
 
 /////////////////////////////////////////////////////////////////
 //              C l a s s   F u n c t i o n s                  //
@@ -198,6 +193,7 @@ PyDoc_STRVAR(Mesher_get_face_polydata_doc,
 static PyObject * 
 Mesher_get_face_polydata(PyMeshingMesherClass* self, PyObject* args, PyObject* kwargs)
 {
+  using namespace MeshingMesher;
   auto api = SvPyUtilApiFunction("i", PyRunTimeErr, __func__); 
   static char *keywords[] = {"face_id", NULL};
   int faceID;
@@ -240,6 +236,7 @@ PyDoc_STRVAR(Mesher_get_mesh_doc,
 static PyObject * 
 Mesher_get_mesh(PyMeshingMesherClass* self, PyObject* args)
 {
+  using namespace MeshingMesher;
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__); 
 
   std::string emsg;
@@ -296,6 +293,7 @@ PyDoc_STRVAR(Mesher_get_model_polydata_doc,
 static PyObject * 
 Mesher_get_model_polydata(PyMeshingMesherClass* self, PyObject* args)
 {
+  using namespace MeshingMesher;
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__); 
 
   std::string emsg;
@@ -400,6 +398,7 @@ PyDoc_STRVAR(Mesher_get_surface_doc,
 static PyObject * 
 Mesher_get_surface(PyMeshingMesherClass* self, PyObject* args)
 {
+  using namespace MeshingMesher;
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__); 
 
   std::string emsg;
@@ -585,7 +584,7 @@ Mesher_set_walls(PyMeshingMesherClass* self, PyObject* args, PyObject* kwargs)
       return nullptr;
   }
 
-  // Get face IDs. 
+  // Set the face IDs. 
   //
   std::vector<int> faceIDs;
   for (int i = 0; i < numIDs; i++) {
@@ -594,14 +593,8 @@ Mesher_set_walls(PyMeshingMesherClass* self, PyObject* args, PyObject* kwargs)
           api.error("The 'face_ids' argument is not a list of integers.");
           return nullptr;
       }
-      faceIDs.push_back(PyLong_AsLong(item));
+      self->wallFaceIDs.push_back(PyLong_AsLong(item));
   } 
-
-  auto mesher = self->mesher;
-  if (mesher->SetWalls(numIDs, faceIDs.data()) == SV_ERROR) {
-      api.error("Error setting walls.");
-      return nullptr;
-  }
 
   Py_RETURN_NONE; 
 }
@@ -622,6 +615,7 @@ PyDoc_STRVAR(Mesher_write_mesh_doc,
 static PyObject * 
 Mesher_write_mesh(PyMeshingMesherClass* self, PyObject* args, PyObject* kwargs)
 {
+  using namespace MeshingMesher;
   std::cout << "[Mesher_write_mesh] ========== Mesher_write_mesh ==========" << std::endl;
   auto api = SvPyUtilApiFunction("s|i", PyRunTimeErr, __func__); 
   static char *keywords[] = {"file_name", NULL};
