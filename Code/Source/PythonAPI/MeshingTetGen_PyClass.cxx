@@ -112,8 +112,8 @@ InitMeshSizingArrays(SvPyUtilApiFunction& api, cvMeshObject* mesher, PyObject* o
 void
 GenerateLocalSizeArray(SvPyUtilApiFunction& api, cvTetGenMeshObject* mesher, PyObject* options)
 {
-  std::cout << "[GenerateLocalSizeArray] " << std::endl;
-  std::cout << "[GenerateLocalSizeArray] ========== GenerateLocalSizeArray =========" << std::endl;
+  //std::cout << "[GenerateLocalSizeArray] " << std::endl;
+  //std::cout << "[GenerateLocalSizeArray] ========== GenerateLocalSizeArray =========" << std::endl;
   auto optionName = TetGenOption::LocalEdgeSize;
 
   auto listObj = PyObject_GetAttrString(options, optionName);
@@ -129,13 +129,13 @@ GenerateLocalSizeArray(SvPyUtilApiFunction& api, cvTetGenMeshObject* mesher, PyO
 
   // Add local edge size values to the mesh size array.
   auto num = PyList_Size(listObj);
-  std::cout << "[GenerateLocalSizeArray] List size: " << num << std::endl;
+  //std::cout << "[GenerateLocalSizeArray] List size: " << num << std::endl;
   for (int i = 0; i < num; i++) {
       auto item = PyList_GetItem(listObj, i);
       int faceID;
       double edgeSize;
       GetLocalEdgeSizeValues(item, faceID, edgeSize);
-      std::cout << "[GenerateLocalSizeArray] Face ID: " << faceID << "  edgeSize: " << edgeSize << std::endl;
+      //std::cout << "[GenerateLocalSizeArray] Face ID: " << faceID << "  edgeSize: " << edgeSize << std::endl;
       if (mesher->GenerateLocalSizeSizingArray(faceID, edgeSize) != SV_OK) {
           std::cout << "[GenerateLocalSizeArray] ERROR generating local edge size array." << std::endl;
       }
@@ -149,20 +149,9 @@ GenerateLocalSizeArray(SvPyUtilApiFunction& api, cvTetGenMeshObject* mesher, PyO
 void
 GenerateRadiusMeshingArray(SvPyUtilApiFunction& api, cvTetGenMeshObject* mesher, PyObject* options)
 {
-  std::cout << "[GenerateRadiusMeshingArray] " << std::endl;
-  std::cout << "[GenerateRadiusMeshingArray] ========== GenerateRadiusMeshingArray =========" << std::endl;
-
-  // Get the radius meshing option values.
-  double scale; 
-  vtkPolyData* centerlines;
-  GetRadiusMeshingValues(options, &scale, &centerlines);
-  std::cout << "[GenerateRadiusMeshingArray] Scale: " << scale << std::endl;
-  if (centerlines == nullptr) {
-      std::cout << "[GenerateRadiusMeshingArray] No centerlines " << std::endl;
-      return;
-  } else {
-      std::cout << "[GenerateRadiusMeshingArray] Have centerlines " << std::endl;
-  }
+  using namespace TetGenOption;
+  //std::cout << "[GenerateRadiusMeshingArray] " << std::endl;
+  //std::cout << "[GenerateRadiusMeshingArray] ========== GenerateRadiusMeshingArray =========" << std::endl;
 
   // Calculate the distance to centerlines.
   auto solid = mesher->GetSolid();
@@ -171,13 +160,45 @@ GenerateRadiusMeshingArray(SvPyUtilApiFunction& api, cvTetGenMeshObject* mesher,
       return;
   }
 
+  // Get the radius meshing option values.
+  double scale; 
+  vtkPolyData* centerlines;
+  GetRadiusMeshingValues(options, &scale, &centerlines);
+  //std::cout << "[GenerateRadiusMeshingArray] Scale: " << scale << std::endl;
+  if (centerlines == nullptr) {
+      if (RadiusMeshingComputeCenterlinesIsOn(options)) {
+          //std::cout << "[GenerateRadiusMeshingArray] Compute centerlines ... " << std::endl;
+          centerlines = sv4guiModelUtils::CreateCenterlines(solid->GetVtkPolyData());
+          //std::cout << "[GenerateRadiusMeshingArray] Centerlines: " << centerlines << std::endl;
+          if (centerlines == nullptr) { 
+              std::cout << "[GenerateRadiusMeshingArray] ERROR computing centerlines " << std::endl;
+              return;
+          }
+          RadiusMeshingSetCenterlines(options, centerlines);
+      } else {
+          //std::cout << "[GenerateRadiusMeshingArray] No centerlines " << std::endl;
+          return;
+      }
+  } else {
+      //std::cout << "[GenerateRadiusMeshingArray] Have centerlines " << std::endl;
+  }
+
+  //std::cout << "[GenerateRadiusMeshingArray] Centerlines: " << std::endl;
+  //std::cout << "[GenerateRadiusMeshingArray]   Num points: " << centerlines->GetNumberOfPoints() << std::endl;
+
+  //std::cout << "[GenerateRadiusMeshingArray] Compute distance. " << std::endl;
   auto distance = sv4guiModelUtils::CalculateDistanceToCenterlines(centerlines, solid->GetVtkPolyData());
   if (distance == nullptr) {
+      std::cout << "[GenerateRadiusMeshingArray] ERROR computing distance " << std::endl;
       api.error("Unable to compute the distance to centerlines.");
       return;
   }
-  std::cout << "[GenerateRadiusMeshingArray] Distance computed " << std::endl;
+  double range[2];
+  auto distArray = vtkDoubleArray::SafeDownCast(distance->GetPointData()->GetScalars("DistanceToCenterlines"));
+  distArray->GetRange(range);
+  //std::cout << "[GenerateRadiusMeshingArray] distance min: : " << range[0] << "  max: " << range[1] << std::endl;
 
+  //std::cout << "[GenerateRadiusMeshingArray] Set size function." << std::endl;
   mesher->SetVtkPolyDataObject(distance);
 
   char* sizeFunctionName = "DistanceToCenterlines";
@@ -191,8 +212,8 @@ GenerateRadiusMeshingArray(SvPyUtilApiFunction& api, cvTetGenMeshObject* mesher,
 void
 GenerateSphereRefinementArray(SvPyUtilApiFunction& api, cvTetGenMeshObject* mesher, PyObject* options)
 {
-  std::cout << "[GenerateSphereRefinementArray] " << std::endl;
-  std::cout << "[GenerateSphereRefinementArray] ========== GenerateSphereRefinementArray =========" << std::endl;
+  //std::cout << "[GenerateSphereRefinementArray] " << std::endl;
+  //std::cout << "[GenerateSphereRefinementArray] ========== GenerateSphereRefinementArray =========" << std::endl;
 
   auto optionName = TetGenOption::SphereRefinement;
   auto listObj = PyObject_GetAttrString(options, optionName);
@@ -208,15 +229,15 @@ GenerateSphereRefinementArray(SvPyUtilApiFunction& api, cvTetGenMeshObject* mesh
 
   // Add sphere refinement values to the mesh size array.
   auto num = PyList_Size(listObj);
-  std::cout << "[GenerateSphereRefinementArray] List size: " << num << std::endl;
+  //std::cout << "[GenerateSphereRefinementArray] List size: " << num << std::endl;
   for (int i = 0; i < num; i++) {
       auto item = PyList_GetItem(listObj, i);
       double edgeSize;
       double radius;
       std::vector<double> center;
       GetSphereRefinementValues(item, edgeSize, radius, center);
-      std::cout << "[GenerateSphereRefinementArray] Edge size: " << edgeSize << std::endl;
-      std::cout << "[GenerateSphereRefinementArray] Radius: " << radius  << std::endl;
+      //std::cout << "[GenerateSphereRefinementArray] Edge size: " << edgeSize << std::endl;
+      //std::cout << "[GenerateSphereRefinementArray] Radius: " << radius  << std::endl;
 
       if (mesher->SetSphereRefinement(edgeSize, radius, center.data()) != SV_OK) {
           std::cout << "[GenerateSphereRefinementArray] ERROR generating sphere refinement array." << std::endl;
@@ -242,23 +263,23 @@ bool
 GenerateMeshSizingArrays(SvPyUtilApiFunction& api, cvTetGenMeshObject* mesher, PyObject* options)
 {
   using namespace TetGenOption;
-  std::cout << "[GenerateMeshSizingArrays] " << std::endl;
-  std::cout << "[GenerateMeshSizingArrays] ========== GenerateMeshSizingArrays =========" << std::endl;
+  //std::cout << "[GenerateMeshSizingArrays] " << std::endl;
+  //std::cout << "[GenerateMeshSizingArrays] ========== GenerateMeshSizingArrays =========" << std::endl;
 
   InitMeshSizingArrays(api, mesher, options);
 
   if (RadiusMeshingIsOn(options)) {
-      std::cout << "[MeshingTetGenGenerateMeshSizingArrays] Radius meshing is on" << std::endl;
+      //std::cout << "[MeshingTetGenGenerateMeshSizingArrays] Radius meshing is on" << std::endl;
       GenerateRadiusMeshingArray(api, mesher, options);
   }
 
   if (LocalEdgeSizeIsOn(options)) {
-      std::cout << "[MeshingTetGenGenerateMeshSizingArrays] Local edge size is on" << std::endl;
+      //std::cout << "[MeshingTetGenGenerateMeshSizingArrays] Local edge size is on" << std::endl;
       GenerateLocalSizeArray(api, mesher, options);
   }
 
   if (SphereRefinementIsOn(options)) {
-      std::cout << "[MeshingTetGenGenerateMeshSizingArrays] Sphere refinement is on" << std::endl;
+      //std::cout << "[MeshingTetGenGenerateMeshSizingArrays] Sphere refinement is on" << std::endl;
       GenerateSphereRefinementArray(api, mesher, options);
   }
 
@@ -273,8 +294,8 @@ GenerateMeshSizingArrays(SvPyUtilApiFunction& api, cvTetGenMeshObject* mesher, P
 bool 
 SetOptions(SvPyUtilApiFunction& api, cvMeshObject* mesher, PyObject* options)
 {
-  std::cout << "[SetOptions] " << std::endl;
-  std::cout << "[SetOptions] ========== SetOptions =========" << std::endl;
+  //std::cout << "[SetOptions] " << std::endl;
+  //std::cout << "[SetOptions] ========== SetOptions =========" << std::endl;
   //auto options = (PyMeshingTetGenOptionsClass*)optionsObj;
 
   // Set options that are not a list.
@@ -292,11 +313,11 @@ SetOptions(SvPyUtilApiFunction& api, cvMeshObject* mesher, PyObject* options)
           continue;
       }
 
-      std::cout << "[SetOptions] name: " << svName << "  num values: " << numValues << "  values: ";
-      for (auto const val : values) {
-          std::cout << val << " "; 
-      }
-      std::cout << std::endl; 
+      //std::cout << "[SetOptions] name: " << svName << "  num values: " << numValues << "  values: ";
+      //for (auto const val : values) {
+          //std::cout << val << " "; 
+      //}
+      //std::cout << std::endl; 
  
       if (mesher->SetMeshOptions(svName, values.size(), values.data()) == SV_ERROR) {
         api.error("Error setting TetGen meshing '" + std::string(pyName) + "' option.");
@@ -314,16 +335,16 @@ SetOptions(SvPyUtilApiFunction& api, cvMeshObject* mesher, PyObject* options)
       auto svName = entry.second;
       auto valuesList = PyTetGenOptionsGetListValues(options, pyName);
       int numListValues = valuesList.size();
-      std::cout << "[SetOptions] List name: " << svName << "  num values: " << numListValues << std::endl;
+      //std::cout << "[SetOptions] List name: " << svName << "  num values: " << numListValues << std::endl;
       if (numListValues == 0) { 
           continue;
       }
       for (auto& values : valuesList) { 
-          std::cout << "[SetOptions] name: " << svName << "  num values: " << values.size() << "  values: ";
-          for (auto const val : values) {
-              std::cout << val << " "; 
-          }
-          std::cout << std::endl; 
+          //std::cout << "[SetOptions] name: " << svName << "  num values: " << values.size() << "  values: ";
+          //for (auto const val : values) {
+              //std::cout << val << " "; 
+          //}
+          //std::cout << std::endl; 
           if (mesher->SetMeshOptions(svName, values.size(), values.data()) == SV_ERROR) {
             api.error("Error setting TetGen meshing '" + std::string(pyName) + "' option.");
             return false;
@@ -367,8 +388,8 @@ static PyObject *
 MesherTetGen_generate_mesh(PyMeshingMesherClass* self, PyObject* args, PyObject* kwargs)
 {
   using namespace MeshingTetGen;
-  std::cout << std::endl;
-  std::cout << "==================== MesherTetGen_generate_mesh ====================" << std::endl;
+  //std::cout << std::endl;
+  //std::cout << "==================== MesherTetGen_generate_mesh ====================" << std::endl;
 
   auto api = SvPyUtilApiFunction("O!", PyRunTimeErr, __func__);
   static char *keywords[] = {"options", NULL};

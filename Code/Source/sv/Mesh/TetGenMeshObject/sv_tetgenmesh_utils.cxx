@@ -323,8 +323,8 @@ int TGenUtils_ConvertVolumeToTetGen(vtkUnstructuredGrid *mesh,vtkPolyData *surfa
   boundaryScalars = vtkIntArray::SafeDownCast(surfaceMesh->GetCellData()->GetArray("ModelFaceID"));
   errorMetricArray = vtkDoubleArray::SafeDownCast(mesh->GetPointData()->GetArray("errormetric"));
 
-  cout<<"Num Cells "<<numTets<<endl;
-  cout<<"Num Points "<<numPoints<<endl;
+  //cout<<"Num Cells "<<numTets<<endl;
+  //cout<<"Num Points "<<numPoints<<endl;
   inmesh->firstnumber = 0;
   inmesh->numberofcorners = 4;
   inmesh->numberoftetrahedra = numTets;
@@ -1125,9 +1125,9 @@ int TGenUtils_SetSizeFunctionArray(vtkPolyData *polydatasolid,
     std::string sizingFunctionArrayName,double size,char *functionname,
     int secondarray)
 {
-  cout << std::endl;
-  cout << "------------------- TGenUtils_SetSizeFunctionArray ------------------" << std::endl;
-  cout << "[TGenUtils_SetSizeFunctionArray] secondarray: " << secondarray << std::endl;
+  //cout << std::endl;
+  //cout << "------------------- TGenUtils_SetSizeFunctionArray ------------------" << std::endl;
+  //cout << "[TGenUtils_SetSizeFunctionArray] secondarray: " << secondarray << std::endl;
 
   int numPts,numCells;
   double dist;
@@ -1145,8 +1145,8 @@ int TGenUtils_SetSizeFunctionArray(vtkPolyData *polydatasolid,
   numPts = polydatasolid->GetNumberOfPoints();
   numCells = polydatasolid->GetNumberOfCells();
 
-  cout << "[TGenUtils_SetSizeFunctionArray] numPts: " << numPts << std::endl;
-  cout << "[TGenUtils_SetSizeFunctionArray] numCells: " << numCells << std::endl;
+  //cout << "[TGenUtils_SetSizeFunctionArray] numPts: " << numPts << std::endl;
+  //cout << "[TGenUtils_SetSizeFunctionArray] numCells: " << numCells << std::endl;
 
   if (secondarray)
   {
@@ -1157,11 +1157,11 @@ int TGenUtils_SetSizeFunctionArray(vtkPolyData *polydatasolid,
       return SV_ERROR;
     }
     meshSizeArray = vtkDoubleArray::SafeDownCast(polydatasolid->GetPointData()->GetArray(sizingFunctionArrayName.c_str()));
-    cout << "[TGenUtils_SetSizeFunctionArray] Get existing array " << std::endl;
+    //cout << "[TGenUtils_SetSizeFunctionArray] Get existing array " << std::endl;
   }
   else
   {
-    cout << "[TGenUtils_SetSizeFunctionArray] Create new array " << std::endl;
+    //cout << "[TGenUtils_SetSizeFunctionArray] Create new array " << std::endl;
     meshSizeArray->SetNumberOfComponents(1);
     meshSizeArray->Allocate(numPts,1000);
     meshSizeArray->SetNumberOfTuples(numPts);
@@ -1198,19 +1198,21 @@ int TGenUtils_SetSizeFunctionArray(vtkPolyData *polydatasolid,
     }
     std::cout << std::endl;
     */
+
+    // [TODO:DaveP] Need to throw an exception here.
     if (min <= 0)
     {
-      fprintf(stderr,"Min is Zero or negative. This will not work!!!\n",min);
+      //fprintf(stderr,"Min is Zero or negative. This will not work!!!\n",min);
       return SV_ERROR;
     }
     if (min < size)
     {
-      std::cout<<"Given mesh size is smaller than minimum radius!!"<<endl;
-      std::cout<<"Setting new mesh size to minimum radius :)"<<endl;
+      //std::cout<<"Given mesh size is smaller than minimum radius!!"<<endl;
+      //std::cout<<"Setting new mesh size to minimum radius :)"<<endl;
       size = min;
     }
 
-    cout << "[TGenUtils_SetSizeFunctionArray] Set values: " << std::endl;
+    //cout << "[TGenUtils_SetSizeFunctionArray] Set values: " << std::endl;
     for (pointId = 0;pointId<numPts;pointId++)
     {
       value = arrayonmesh->GetValue(pointId);
@@ -1231,7 +1233,7 @@ int TGenUtils_SetSizeFunctionArray(vtkPolyData *polydatasolid,
   polydatasolid->GetPointData()->SetActiveScalars(sizingFunctionArrayName.c_str());
 
 
-  fprintf(stderr,"Sizing function set\n");
+  // fprintf(stderr,"Sizing function set\n");
   return SV_OK;
 }
 
@@ -1617,8 +1619,8 @@ int TGenUtils_CheckSurfaceMesh(vtkPolyData *pd, int meshInfo[3])
 
 int TGenUtils_SetLocalMeshSize(vtkPolyData *pd,int regionId,double size)
 {
-  std::cout << std::endl;
-  std::cout << "============================= TGenUtils_SetLocalMeshSize =====================" << std::endl;
+  //std::cout << std::endl;
+  //std::cout << "============================= TGenUtils_SetLocalMeshSize =====================" << std::endl;
   vtkIdType pointId, cellId;
   vtkIdType npts, *pts;
   auto  regionarray = vtkSmartPointer<vtkIntArray>::New();
@@ -1629,7 +1631,7 @@ int TGenUtils_SetLocalMeshSize(vtkPolyData *pd,int regionId,double size)
   regionarray = vtkIntArray::SafeDownCast(pd->GetCellData()->GetArray("ModelFaceID"));
 
   if (VtkUtils_PDCheckArrayName(pd,0,"MeshSizingFunction") != SV_OK) {
-    std::cout << "[TGenUtils_SetLocalMeshSize] Create sizing function." << std::endl;
+    //std::cout << "[TGenUtils_SetLocalMeshSize] Create sizing function." << std::endl;
     meshSizeArray->SetNumberOfComponents(1);
     meshSizeArray->Allocate(numPts,1000);
     meshSizeArray->SetNumberOfTuples(numPts);
@@ -1643,8 +1645,8 @@ int TGenUtils_SetLocalMeshSize(vtkPolyData *pd,int regionId,double size)
 
   pd->BuildLinks();
   int numSet = 0;
-  std::cout << "[TGenUtils_SetLocalMeshSize] numCells: " << numCells << std::endl;
-  std::cout << "[TGenUtils_SetLocalMeshSize] regionId: " << regionId << std::endl;
+  //std::cout << "[TGenUtils_SetLocalMeshSize] numCells: " << numCells << std::endl;
+  //std::cout << "[TGenUtils_SetLocalMeshSize] regionId: " << regionId << std::endl;
 
   for (cellId = 0; cellId < numCells; cellId++) {
     if (regionarray->GetValue(cellId) == regionId) {
@@ -1656,7 +1658,7 @@ int TGenUtils_SetLocalMeshSize(vtkPolyData *pd,int regionId,double size)
     }
   }
 
-  std::cout << "[TGenUtils_SetLocalMeshSize] Num set cells: " << numSet << std::endl;
+  //std::cout << "[TGenUtils_SetLocalMeshSize] Num set cells: " << numSet << std::endl;
   pd->GetPointData()->RemoveArray("MeshSizingFunction");
   meshSizeArray->SetName("MeshSizingFunction");
   pd->GetPointData()->AddArray(meshSizeArray);

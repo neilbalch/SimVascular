@@ -967,7 +967,9 @@ bool sv4guiModelUtils::DeleteRegions(vtkSmartPointer<vtkPolyData> inpd, std::vec
 
 vtkPolyData* sv4guiModelUtils::CreateCenterlines(sv4guiModelElement* modelElement, vtkIdList *sourceCapIds)
 {
+#ifdef debug_sv4guiModelUtils
     std::cout << "======================= sv4guiModelUtils::CreateCenterline(modelElement, sourceCapIds)  ======================" << std::endl;
+#endif
   
     if(modelElement==NULL || modelElement->GetWholeVtkPolyData()==NULL) {
         return NULL;
@@ -1065,10 +1067,12 @@ vtkPolyData* sv4guiModelUtils::CreateCenterlines(sv4guiModelElement* modelElemen
 
 vtkPolyData* sv4guiModelUtils::CreateCenterlines(vtkPolyData* inpd)
 {
+#ifdef debug_sv4guiModelUtils
     std::cout << "======================= sv4guiModelUtils::CreateCenterline(inpd)  ======================" << std::endl;
     std::cout << "[sv4guiModelUtils::CreateCenterline(inpd)] inpd:" << std::endl;
     std::cout << "[sv4guiModelUtils::CreateCenterline(inpd)]   Num points: " << inpd->GetNumberOfPoints() << std::endl;
     std::cout << "[sv4guiModelUtils::CreateCenterline(inpd)]   Num cells: " << inpd->GetNumberOfCells() << std::endl;
+#endif
 
   // If given just a polydata, assume it is a wall, cap and get source and
   // target points and then send to centerline extraction
@@ -1084,7 +1088,6 @@ vtkPolyData* sv4guiModelUtils::CreateCenterlines(vtkPolyData* inpd)
 
   if ( sys_geom_cap(cleaned, &capped, &numCapCenterIds, &capCenterIds, 1 ) != SV_OK)
   {
-    std::cout << "[sv4guiModelUtils::CreateCenterline(inpd)] Failed  sys_geom_cap " << std::endl;
     delete cleaned;
     if (capped != NULL)
       delete capped;
@@ -1092,7 +1095,6 @@ vtkPolyData* sv4guiModelUtils::CreateCenterlines(vtkPolyData* inpd)
   }
   if (numCapCenterIds < 2)
   {
-    std::cout << "[sv4guiModelUtils::CreateCenterline(inpd)] Failed  numCapCenterIds < 2 " << std::endl;
     delete cleaned;
     if (capped != NULL)
       delete capped;
@@ -1109,11 +1111,7 @@ vtkPolyData* sv4guiModelUtils::CreateCenterlines(vtkPolyData* inpd)
   delete [] capCenterIds;
   // capped and got ids
 
-  std::cout << "######### sourcePtIds: " << sourcePtIds->GetId(0) << std::endl;
-  std::cout << "######### targetPtIds: " << targetPtIds->GetId(0) << std::endl;
-
   return CreateCenterlines(capped->GetVtkPolyData(), sourcePtIds, targetPtIds);
-
 }
 
 
