@@ -123,6 +123,14 @@ namespace SvDataManagerNodes {
   static char* Path = "sv4guiPathFolder";
   static char* Project = "sv4guiProjectFolder";
   static char* Segmentation = "sv4guiSegmentationFolder";
+
+  std::map<std::string, char*> PluginTypeMap = {
+      { "Image", Image },
+      { "Mesh", Mesh },
+      { "Model", Model },
+      { "Path", Path },
+      { "Segmentation", Segmentation } 
+  };
 };
 
 namespace SvDataManagerErrorMsg {
@@ -1018,6 +1026,102 @@ Dmg_add_contour(PyObject* self, PyObject* args, PyObject* kwargs)
 // Dmg_add_model 
 //---------------
 //
+PyDoc_STRVAR(Dmg_add_geometry_doc,
+  "Dmg_add_geometry(name, model) \n\ 
+   \n\
+   Add a model to SV Models data node. \n\
+   \n\
+   Args:                                    \n\
+     name (str): The name of the model data node. \n\
+     model (ModelGroup object): The model object to create the model node from. \n\
+   \n\
+");
+
+static PyObject * 
+Dmg_add_geometry(PyObject* self, PyObject* args, PyObject* kwargs)
+{
+  using namespace SvDataManagerNodes;
+  std::cout << "========= Dmg_add_geometry ==========" << std::endl;
+  auto api = SvPyUtilApiFunction("sOss", PyRunTimeErr, __func__);
+  static char *keywords[] = {"name", "geometry", "plugin_type", "node_name", NULL};
+  char* geomName = NULL;
+  PyObject* geomArg;
+  char* pluginType = NULL;
+  char* nodeName = NULL;
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &geomName, &geomArg, &pluginType, &nodeName)) {
+      return api.argsError();
+  }
+
+  if (!PyVTKObject_Check(geomArg)) {
+      PyErr_SetString(PyExc_ValueError, "The 'geometry' argument is not a vtkPolyData object.");
+      return nullptr;
+  }
+
+  auto polydata = (vtkPolyData*)vtkPythonUtil::GetPointerFromObject(geomArg, "vtkPolyData");
+  if (polydata == nullptr) {
+      PyErr_SetString(PyExc_ValueError, "The 'geometry' argument is not a vtkPolyData object.");
+      return nullptr;
+  }
+  std::cout << "[Dmg_add_geometry] Geometry: " << std::endl;
+  std::cout << "[Dmg_add_geometry]   Num points: " << polydata->GetNumberOfPoints() << std::endl;
+  std::cout << "[Dmg_add_geometry]   Num cells: " << polydata->GetNumberOfCells() << std::endl;
+
+  if (PluginTypeMap.count(std::string(pluginType)) == 0) {
+      PyErr_SetString(PyExc_ValueError, "The 'plugin_type' argument is not a valid type. Valid types: Image, Path, Mesh, Model or Segmentation.");
+      return nullptr;
+  }
+  auto pluginName = PluginTypeMap[std::string(pluginType)];
+
+  // Get the Data Storage node.
+  auto dataStorage = GetDataStorage(api);
+  if (dataStorage.IsNull()) {
+      api.error(SvDataManagerErrorMsg::DataStorage); 
+      return nullptr;
+  }
+
+  // Get project folder.
+  auto projFolderNode = GetProjectNode(api, dataStorage);
+  if (projFolderNode.IsNull()) {
+      api.error(SvDataManagerErrorMsg::ProjectFolder); 
+      return nullptr;
+  }
+
+  // Get the SV Data Manager Path data node.
+  auto folderNode = GetToolNode(dataStorage, projFolderNode, pluginName);
+  if (folderNode.IsNull()) {
+      api.error("No plugin type '" + std::string(pluginType) + "'.");
+      return nullptr;
+  }
+  mitk::DataNode::Pointer pathNode = dataStorage->GetNamedDerivedNode(nodeName, folderNode);
+
+  if (pathNode.IsNull()) {
+      api.error("No node named '" + std::string(nodeName) + "'.");
+      return nullptr;
+  }
+
+  mitk::Surface::Pointer surface;
+  mitk::DataNode::Pointer geomNode = dataStorage->GetNamedDerivedNode(geomName, pathNode);
+
+  if (geomNode.IsNull()) {
+      surface = mitk::Surface::New();
+      geomNode = mitk::DataNode::New();
+      geomNode->SetData(surface);
+      geomNode->SetName(geomName);
+      AddDataNode(dataStorage, pathNode, geomNode);
+  } else {
+      surface = dynamic_cast<mitk::Surface*>(geomNode->GetData());
+  }
+  surface->SetVtkPolyData(polydata, 0);
+  surface->Update();
+
+  return SV_PYTHON_OK;
+}
+
+//---------------
+// Dmg_add_model 
+//---------------
+//
 PyDoc_STRVAR(Dmg_add_model_doc,
   "add_model(name, model) \n\ 
    \n\
@@ -1219,6 +1323,8 @@ PyDoc_STRVAR(DmgModule_doc, "dmg module functions");
 PyMethodDef PyDmgMethods[] =
 {
     {"add_contour", (PyCFunction)Dmg_add_contour, METH_VARARGS|METH_KEYWORDS, Dmg_add_contour_doc},
+
+    {"add_geometry", (PyCFunction)Dmg_add_geometry, METH_VARARGS|METH_KEYWORDS, Dmg_add_geometry_doc},
 
     {"add_mesh", (PyCFunction)Dmg_add_mesh, METH_VARARGS|METH_KEYWORDS, Dmg_add_mesh_doc},
 
