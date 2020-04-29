@@ -124,13 +124,16 @@ namespace SvDataManagerNodes {
   static char* Project = "sv4guiProjectFolder";
   static char* Segmentation = "sv4guiSegmentationFolder";
 
-  std::map<std::string, char*> PluginTypeMap = {
+  // Map between plugin names used by the API and SV internal folder names.
+  std::map<std::string, char*> pluginNameMap = {
       { "Image", Image },
       { "Mesh", Mesh },
       { "Model", Model },
       { "Path", Path },
       { "Segmentation", Segmentation } 
   };
+
+  std::string ValidPluginNames = "Valid names: Image, Mesh, Model, Path, or Segmentation.";
 };
 
 namespace SvDataManagerErrorMsg {
@@ -485,30 +488,6 @@ GetDataNode(mitk::DataStorage::Pointer& dataStorage, mitk::DataNode::Pointer& pr
   return dataNode;
 }
 
-//---------------------
-// GetRepositoryObject
-//---------------------
-// Get an object from the repository with a given name and type.
-//
-cvRepositoryData *
-GetRepositoryObject(SvPyUtilApiFunction& api, char* name, RepositoryDataT objType, const std::string& desc)
-{
-  auto obj = gRepository->GetObject(name);
-
-  if (obj == NULL) {
-      api.error("The " + desc + " named '"+std::string(name)+"' is not in the repository.");
-      return nullptr;
-  }
-
-  if (obj->GetType() != objType) {
-      auto stype = RepositoryDataT_EnumToStr(objType);
-      api.error("The repository object named '"+std::string(name)+"' is not of type '" + stype + "'.");
-      return nullptr;
-  }
-
-  return obj;
-}
-
 //////////////////////////////////////////////////////
 //          M o d u l e  F u n c t i o n s          //
 //////////////////////////////////////////////////////
@@ -522,12 +501,12 @@ GetRepositoryObject(SvPyUtilApiFunction& api, char* name, RepositoryDataT objTyp
 PyDoc_STRVAR(Dmg_add_mesh_doc,
   "add_mesh(name, mesh, model)  \n\ 
    \n\
-   Add a mesh to the SV Meshes data node. \n\
+   Add a mesh to the SV Data Manager Meshes node. \n\
    \n\
    Args:                                    \n\
      name (str): The name of the mesh data node. \n\
-     mesh (vtkUnstructuredGrid object): The path object to create the path node from. \n\
-     model (str): The name of the model associater with the mesh. \n\
+     mesh (vtkUnstructuredGrid object): The vtkUnstructuredGrid object.\n\
+     model (str): The name of the SV Data Manager Models node associated with the mesh. \n\
    \n\
 ");
 
@@ -593,10 +572,12 @@ Dmg_add_mesh(PyObject* self, PyObject* args, PyObject* kwargs)
 PyDoc_STRVAR(Dmg_get_model_doc,
   "get_model(name) \n\ 
    \n\
-   ??? Set the computational kernel used to segment image data.       \n\
+   Get a model from the SV Data Manager Models node. \n\
    \n\
    Args: \n\
-     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+     name (str): The model node name. \n\
+   \n\
+   Returns an sv.solid.Group object.  \n\
 ");
 
 static PyObject * 
@@ -640,19 +621,21 @@ Dmg_get_model(PyObject* self, PyObject* args)
 // Dmg_get_mesh 
 //--------------
 //
+// [TODO:DaveP] Should this return a sv.meshing.Group? 
+//
 PyDoc_STRVAR(Dmg_get_mesh_doc,
   "get_mesh(name) \n\ 
    \n\
-   Get a mesh from the SV Data Manager. \n\
+   Get a mesh from the SV Data Manager Meshes node. \n\
    \n\
    Args: \n\
-     name (str): Then name of the mesh data node. \n\
+     name (str): The mesh node name. \n\
    \n\
-   Returns a Mesh object.  \n\
+   Returns a vtkUnstructuredGrid object.  \n\
 ");
 
 static PyObject * 
-Dmg_get_mesh( PyObject* self, PyObject* args)
+Dmg_get_mesh(PyObject* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char* meshName;
@@ -704,15 +687,17 @@ Dmg_get_mesh( PyObject* self, PyObject* args)
 // Dmg_get_path
 //--------------
 //
+// [TODO:DaveP] Should this return a sv.path.Group? 
+//
 PyDoc_STRVAR(Dmg_get_path_doc,
   "get_path(name) \n\ 
    \n\
-   Get a path from the SV Data Manager. \n\
+   Get a path from the SV Data Manager Paths node. \n\
    \n\
    Args: \n\
      name (str): Then name of the path data node. \n\
    \n\
-   Returns a Path object.  \n\
+   Returns an sv.path.Path object.  \n\
 ");
 
 static PyObject * 
@@ -771,11 +756,11 @@ Dmg_get_path(PyObject* self, PyObject* args)
 PyDoc_STRVAR(Dmg_add_path_doc,
   "add_path(name, path)  \n\ 
    \n\
-   Add a path to the SV Paths data node. \n\
+   Add a path to the SV Data Manager Paths node. \n\
    \n\
    Args:                                    \n\
      name (str): The name of the path data node. \n\
-     path (Path object): The path object to create the path node from. \n\
+     path (sv.path.Path object): The path object to create the path node from. \n\
    \n\
 ");
 
@@ -831,115 +816,6 @@ Dmg_add_path(PyObject* self, PyObject* args, PyObject* kwargs)
     return SV_PYTHON_OK;
 }
 
-//------------------
-// Dmg_open_project
-//------------------
-//
-static PyObject *
-Dmg_open_project(PyObject* self, PyObject* args)
-{
-/* [TODO:DaveP] This does not work. 
-    auto pmsg = "[Dmg_open_project] ";
-    std::cout << pmsg << "========== Dmg_open_project ==========" << std::endl;
-    auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
-    char* projectPathArg = NULL;
-
-    if (!PyArg_ParseTuple(args, api.format, &projectPathArg)) {
-        return api.argsError();
-    }
-
-    try {
-        mitk::IDataStorageReference::Pointer dsRef;
-        {
-            std::cout << pmsg << "here: 1" << std::endl;
-            ctkPluginContext* context = sv4guiApplicationPluginActivator::getContext();
-            //ctkPluginContext* context = sv4guiPythonDataNodesPluginActivator::GetContext();
-            if (context == nullptr) {
-                std::cout << pmsg << "context is null" << std::endl;
-                return nullptr;
-            } 
-
-            mitk::IDataStorageService* dss = 0;
-            ctkServiceReference dsServiceRef = context->getServiceReference<mitk::IDataStorageService>();
-            if (dsServiceRef) {
-                dss = context->getService<mitk::IDataStorageService>(dsServiceRef);
-            }
-
-            if (!dss) {
-                QString msg = "IDataStorageService service not available. Unable to save sv projects.";
-                //MITK_WARN << msg.toStdString();
-                //QMessageBox::warning(QApplication::activeWindow(), "Unable to save sv projects", msg);
-                return nullptr;
-            }
-
-            // Get the active data storage (or the default one, if none is active)
-            std::cout << pmsg << "here: 2" << std::endl;
-            dsRef = dss->GetDataStorage();
-            context->ungetService(dsServiceRef);
-        }
-
-        mitk::DataStorage::Pointer dataStorage = dsRef->GetDataStorage();
-        berry::IPreferencesService* prefService = berry::Platform::GetPreferencesService();
-        berry::IPreferences::Pointer prefs;
-
-        if (prefService) {
-           prefs = prefService->GetSystemPreferences()->Node("/General");
-        } else {
-           prefs = berry::IPreferences::Pointer(0);
-        }
-
-        QString lastSVProjPath = "";
-        if (prefs.IsNotNull()) {
-           lastSVProjPath = prefs->Get("LastSVProjPath", prefs->Get("LastSVProjCreatParentPath", ""));
-        }
-
-        if (lastSVProjPath == "") {
-           lastSVProjPath = QDir::homePath();
-        }
-
-        QString projPath = "/home/davep/Simvascular/DemoProject";
-
-        /*
-        QString projPath = QFileDialog::getExistingDirectory(NULL, tr("Choose Project"),
-                                                        lastSVProjPath);
-        if (projPath.trimmed().isEmpty()) return;
-        */
-
-/*
-        lastSVProjPath = projPath.trimmed();
-        QDir dir(lastSVProjPath);
-
-        if (dir.exists(".svproj")) {
-            QString projName = dir.dirName();
-            dir.cdUp();
-            QString projParentDir = dir.absolutePath();
-            //mitk::ProgressBar::GetInstance()->AddStepsToDo(2);
-            //mitk::StatusBar::GetInstance()->DisplayText("Opening SV project...");
-            //QApplication::setOverrideCursor( QCursor(Qt::WaitCursor) );
-
-            sv4guiProjectManager::AddProject(dataStorage, projName,projParentDir,false);
-
-            //mitk::ProgressBar::GetInstance()->Progress(2);
-            //mitk::StatusBar::GetInstance()->DisplayText("SV project loaded.");
-            //QApplication::restoreOverrideCursor();
-
-            if (prefs.IsNotNull()) {
-                prefs->Put("LastSVProjPath", lastSVProjPath);
-                prefs->Flush();
-            }
-        } else {
-            //QMessageBox::warning(NULL,"Invalid Project","No project config file found!");
-        }
-
-    } catch (std::exception& e) {
-        auto msg = "Exception caught during opening SV projects: " + std::string(e.what());
-        api.error(msg);
-        return nullptr;
-    }
-*/
-
-}
-
 //-----------------
 // Dmg_add_contour
 //-----------------
@@ -947,12 +823,12 @@ Dmg_open_project(PyObject* self, PyObject* args)
 PyDoc_STRVAR(Dmg_add_contour_doc,
   "add_contour(name, path, contours) \n\ 
    \n\
-   Add a contour to SV Segmentations data node. \n\
+   Add a list of contours to SV Data Manager Segmentations node. \n\
    \n\
-   Args:                                    \n\
+   Args: \n\
      name (str): The name of the segmentations data node to add. \n\
      path (str): The name of the path data node used by the segmentation. \n\
-     contours (list[Contour object]): The list of contour objects defined for the segmentations. \n\
+     contours (list[sv.contour.Contour object]): The list of contour objects defined for a vessel segmentation.\n\
    \n\
 ");
 
@@ -1022,18 +898,22 @@ Dmg_add_contour(PyObject* self, PyObject* args, PyObject* kwargs)
   return SV_PYTHON_OK;
 }
 
-//---------------
-// Dmg_add_model 
-//---------------
+//------------------
+// Dmg_add_geometry 
+//------------------
 //
 PyDoc_STRVAR(Dmg_add_geometry_doc,
-  "Dmg_add_geometry(name, model) \n\ 
+  "add_geometry(name, geometry, plugin, node) \n\ 
    \n\
-   Add a model to SV Models data node. \n\
+   Add a vtkPolyData object to the SV Data Manager. \n\
+   \n\
+   The geometry is added to the SV Data Manger under the given plugin and node, and is displayed in the SV graphics window.\n\
    \n\
    Args:                                    \n\
-     name (str): The name of the model data node. \n\
-     model (ModelGroup object): The model object to create the model node from. \n\
+     name (str): The name of the data node. \n\
+     geometry (vtkPolyData object): The vtkPolyData to add to the SV Data Manager. \n\
+     plugin (str): The name of the plugin the data node resides under. Valid names: Image, Mesh, Model, Path, or Segmentation. \n\
+     node (str): The date node name to add the geomerty. \n\
    \n\
 ");
 
@@ -1041,37 +921,35 @@ static PyObject *
 Dmg_add_geometry(PyObject* self, PyObject* args, PyObject* kwargs)
 {
   using namespace SvDataManagerNodes;
-  std::cout << "========= Dmg_add_geometry ==========" << std::endl;
   auto api = SvPyUtilApiFunction("sOss", PyRunTimeErr, __func__);
-  static char *keywords[] = {"name", "geometry", "plugin_type", "node_name", NULL};
+  static char *keywords[] = {"name", "geometry", "plugin", "node", NULL};
   char* geomName = NULL;
-  PyObject* geomArg;
-  char* pluginType = NULL;
+  PyObject* geomObj;
+  char* pluginName = NULL;
   char* nodeName = NULL;
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &geomName, &geomArg, &pluginType, &nodeName)) {
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &geomName, &geomObj, &pluginName, &nodeName)) {
       return api.argsError();
   }
 
-  if (!PyVTKObject_Check(geomArg)) {
+  if (!PyVTKObject_Check(geomObj)) {
       PyErr_SetString(PyExc_ValueError, "The 'geometry' argument is not a vtkPolyData object.");
       return nullptr;
   }
 
-  auto polydata = (vtkPolyData*)vtkPythonUtil::GetPointerFromObject(geomArg, "vtkPolyData");
+  // Get the vtk polydata from the Python object.
+  auto polydata = (vtkPolyData*)vtkPythonUtil::GetPointerFromObject(geomObj, "vtkPolyData");
   if (polydata == nullptr) {
       PyErr_SetString(PyExc_ValueError, "The 'geometry' argument is not a vtkPolyData object.");
       return nullptr;
   }
-  std::cout << "[Dmg_add_geometry] Geometry: " << std::endl;
-  std::cout << "[Dmg_add_geometry]   Num points: " << polydata->GetNumberOfPoints() << std::endl;
-  std::cout << "[Dmg_add_geometry]   Num cells: " << polydata->GetNumberOfCells() << std::endl;
 
-  if (PluginTypeMap.count(std::string(pluginType)) == 0) {
-      PyErr_SetString(PyExc_ValueError, "The 'plugin_type' argument is not a valid type. Valid types: Image, Path, Mesh, Model or Segmentation.");
+  if (pluginNameMap.count(std::string(pluginName)) == 0) {
+      auto msg = "The 'plugin' argument '" + std::string(pluginName) + "' is not a valid plugin name. " + ValidPluginNames;
+      PyErr_SetString(PyExc_ValueError, msg.c_str());
       return nullptr;
   }
-  auto pluginName = PluginTypeMap[std::string(pluginType)];
+  auto svPluginName = pluginNameMap[std::string(pluginName)];
 
   // Get the Data Storage node.
   auto dataStorage = GetDataStorage(api);
@@ -1088,9 +966,9 @@ Dmg_add_geometry(PyObject* self, PyObject* args, PyObject* kwargs)
   }
 
   // Get the SV Data Manager Path data node.
-  auto folderNode = GetToolNode(dataStorage, projFolderNode, pluginName);
+  auto folderNode = GetToolNode(dataStorage, projFolderNode, svPluginName);
   if (folderNode.IsNull()) {
-      api.error("No plugin type '" + std::string(pluginType) + "'.");
+      api.error("No plugin nammed '" + std::string(pluginName) + "'.");
       return nullptr;
   }
   mitk::DataNode::Pointer pathNode = dataStorage->GetNamedDerivedNode(nodeName, folderNode);
@@ -1114,6 +992,7 @@ Dmg_add_geometry(PyObject* self, PyObject* args, PyObject* kwargs)
   }
   surface->SetVtkPolyData(polydata, 0);
   surface->Update();
+  mitk::RenderingManager::GetInstance()->RequestUpdateAll();
 
   return SV_PYTHON_OK;
 }
@@ -1125,11 +1004,11 @@ Dmg_add_geometry(PyObject* self, PyObject* args, PyObject* kwargs)
 PyDoc_STRVAR(Dmg_add_model_doc,
   "add_model(name, model) \n\ 
    \n\
-   Add a model to SV Models data node. \n\
+   Add a model to the SV Data Manager Models node. \n\
    \n\
    Args:                                    \n\
-     name (str): The name of the model data node. \n\
-     model (ModelGroup object): The model object to create the model node from. \n\
+     name (str): The name for the model data node. \n\
+     model (sv.solid.Group object): The model group object from which to create the model node.\n\
    \n\
 ");
 
@@ -1201,13 +1080,17 @@ Dmg_add_model(PyObject* self, PyObject* args, PyObject* kwargs)
 // Dmg_get_contour
 //-----------------
 //
+// [TODO:DaveP] Should we rename 'contour' to 'segmentation' ? 
+//
 PyDoc_STRVAR(Dmg_get_contour_doc,
   "get_contour(kernel)                                    \n\ 
    \n\
-   ??? Set the computational kernel used to segment image data.       \n\
+   Get a segmentation from the SV Data Manager Segmentations node.       \n\
    \n\
    Args:                                                          \n\
-     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+     name (str): The segmentation node name. \n\
+   \n\
+   Returns an sv.contour.Group object. \n\
 ");
 
 static PyObject * 
@@ -1340,9 +1223,6 @@ PyMethodDef PyDmgMethods[] =
 
     {"get_path", Dmg_get_path, METH_VARARGS, Dmg_get_path_doc},
 
-    // [TODO:DaveP] This does not work.
-    // {"open_project", Dmg_open_project, METH_VARARGS, NULL},
-
     // [TODO:DaveP] not sure to expose this or not, a bit dangerous. 
     // {"remove_data_node", Dmg_remove_data_node, METH_VARARGS, Dmg_remove_data_node_doc},
 
@@ -1371,7 +1251,7 @@ static PyModuleDef_Base m_base = PyModuleDef_HEAD_INIT;
 // Define the module definition struct which holds all information 
 // needed to create a module object. 
 
-static struct PyModuleDef pyDmgmodule = {
+static struct PyModuleDef PyDmgModule = {
    m_base,
    DMG_MODULE, 
    DmgModule_doc, 
@@ -1387,7 +1267,7 @@ PyMODINIT_FUNC
 PyInit_PyDmg(void)
 {
   // Create the dmg module.
-  auto module = PyModule_Create(&pyDmgmodule);
+  auto module = PyModule_Create(&PyDmgModule);
   if (module == NULL) {
     fprintf(stdout, "Error initializing the dmg module.\n");
     return SV_PYTHON_ERROR;
