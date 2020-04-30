@@ -66,9 +66,7 @@
 #include <iostream>
 #ifdef SV_USE_PYTHON
 #include "Python.h"
-#include "sv_mesh_init_py.h"
 #endif
-
 
 cvTetGenAdapt::cvTetGenAdapt()
   : cvAdaptObject(KERNEL_TETGEN)

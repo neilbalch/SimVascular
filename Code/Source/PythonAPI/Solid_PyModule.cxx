@@ -77,8 +77,6 @@
 #include "PyVTKClass.h"
 #endif
 
-#include "sv_occt_init_py.h"
-
 // Include solid Kernel class that defines a map between 
 // solid model kernel name and enum type.
 //

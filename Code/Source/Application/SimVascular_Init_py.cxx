@@ -68,23 +68,12 @@
   #include "Vmtk_PyModule.h"
 #endif
 
-#ifdef SV_USE_OpenCASCADE
-  #include "sv_occt_init_py.h"
-#endif
-
 #ifdef SV_USE_TETGEN
-  //#include "sv_mesh_init_py.h"
-  //#include "sv_tetgen_mesh_init_py.h"
   #include "Meshing_PyModule.h"
 #endif
 
 #ifdef SV_USE_MMG
-  #include "sv_mesh_init_py.h"
   #include "MeshUtils_PyModule.h"
-#endif
-
-#ifdef SV_USE_ITK
-  #include "sv3_ITKLset_init_py.h"
 #endif
 
 #ifdef SV_USE_TETGEN_ADAPTOR

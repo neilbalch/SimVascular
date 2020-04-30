@@ -41,7 +41,6 @@
 #include "SimVascular_python.h"
 #include "sv_MeshSystem.h"
 #include "sv_MeshObject.h"
-#include "sv_mesh_init_py.h"
 #include "vtkPythonUtil.h"
 #include "sv_PyUtils.h"
 #include "Meshing_PyModule.h"

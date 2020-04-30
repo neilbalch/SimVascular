@@ -270,7 +270,7 @@ static struct PyModuleDef PyContourModule = {
 //
 PyMODINIT_FUNC PyInit_PyContour()
 {
-  //std::cout << "========== load contour module ==========" << std::endl;
+  std::cout << "========== load contour module ==========" << std::endl;
 
   // Initialize the Contour class type.
   SetContourTypeFields(PyContourClassType);

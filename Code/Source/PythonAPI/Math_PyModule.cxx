@@ -53,8 +53,6 @@
 #include "sv_Math.h"
 #include "sv_PyUtils.h"
 
-#include "sv_math_init_py.h"
-
 // The following is needed for Windows
 #ifdef GetObject
 #undef GetObject

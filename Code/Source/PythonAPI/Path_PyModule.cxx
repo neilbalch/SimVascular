@@ -46,7 +46,6 @@
 
 #include "sv3_PathElement.h"
 #include "Path_PyModule.h"
-#include "PathCalcMethod_PyClass.h"
 #include "sv_PyUtils.h"
 
 #include <stdio.h>
@@ -68,6 +67,7 @@
 static PyObject* PyRunTimeErr;
 
 // Include the definitions for the Path and PathGroups classes.
+#include "PathCalcMethod_PyClass.cxx"
 #include "Path_PyClass.cxx"
 #include "PathGroup_PyClass.cxx"
 
