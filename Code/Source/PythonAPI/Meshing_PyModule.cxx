@@ -44,7 +44,7 @@
 #include "vtkPythonUtil.h"
 #include "sv_PyUtils.h"
 #include "Meshing_PyModule.h"
-#include "Solid_PyModule.h"
+#include "Modeling_PyModule.h"
 #include "sv_TetGenMeshObject.h"
 #include "sv_TetGenMeshSystem.h"
 

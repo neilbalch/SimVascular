@@ -38,7 +38,7 @@
 #include <assert.h>
 #ifdef SV_USE_PYTHON
   #include "Python.h"
-  #include "Solid_PyModule.h"
+  #include "Modeling_PyModule.h"
 #endif
 
 // Globals:

@@ -40,7 +40,7 @@
 // Define the PolyDataSolid class (type).
 //
 typedef struct {
-  PySolidModelClass super;
+  PyModelingModelClass super;
 } PyPolyDataSolid;
 
 cvPolyDataSolid* pyCreatePolyDataSolid()
@@ -53,55 +53,20 @@ cvPolyDataSolid* pyCreatePolyDataSolid()
 //////////////////////////////////////////////////////
 // PolyDataSolid class methods. 
 
-//-------------------------
-// PolyDataSolid_available
-//-------------------------
-//
-static PyObject * 
-PolyDataSolid_available(PyObject* self, PyObject* args )
-{
-  return Py_BuildValue("s","PolyData Solid Module Available");
-}
-
-//--------------------------
-// PolyDataSolid_registrars
-//--------------------------
-//
-static PyObject * 
-PolyDataSolid_registrars(PyObject* self, PyObject* args )
-{
-  char result[2048];
-  int k=0;
-  PyObject *pyPtr=PyList_New(6);
-  PyObject* pyGlobal = PySys_GetObject("solidModelRegistrar");
-  pycvFactoryRegistrar* tmp = (pycvFactoryRegistrar *) pyGlobal;
-  cvFactoryRegistrar* pySolidModelRegistrar =tmp->registrar;
-
-  sprintf(result, "Solid model registrar ptr -> %p\n", pySolidModelRegistrar);
-  fprintf(stdout,result);
-  PyList_SetItem(pyPtr,0,PyBytes_FromFormat(result));
-
-  for (int i = 0; i < 5; i++) {
-      sprintf( result,"GetFactoryMethodPtr(%i) = %p\n",
-      i, (pySolidModelRegistrar->GetFactoryMethodPtr(i)));
-      fprintf(stdout,result);
-      PyList_SetItem(pyPtr,i+1,PyBytes_FromFormat(result));
-  }
-  return pyPtr;
-}
-
 ////////////////////////////////////////////////////////
 //          C l a s s    D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
 
-static char* SOLID_POLYDATA_CLASS = "PolyData";
-static char* SOLID_POLYDATA_MODULE_CLASS = "solid.PolyData";
+static char* MODELING_POLYDATA_CLASS = "PolyData";
+static char* MODELING_POLYDATA_MODULE_CLASS = "modeling.PolyData";
 
 PyDoc_STRVAR(PyPolyDataSolidClass_doc, "polydata solid model functions");
 
+//------------------------
+// PyPolyDataSolidMethods
+//------------------------
+//
 PyMethodDef PyPolyDataSolidMethods[] = {
-  {"available", PolyDataSolid_available,METH_NOARGS,NULL},
-  {"registrars", PolyDataSolid_registrars,METH_NOARGS,NULL},
   {NULL, NULL}
 };
 
@@ -161,7 +126,7 @@ PyTypeObject PyPolyDataSolidClassType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   // Dotted name that includes both the module name and 
   // the name of the type within the module.
-  .tp_name = SOLID_POLYDATA_MODULE_CLASS,
+  .tp_name = MODELING_POLYDATA_MODULE_CLASS,
   .tp_basicsize = sizeof(PyPolyDataSolid)
 };
 
@@ -185,7 +150,7 @@ SetPolyDataSolidTypeFields(PyTypeObject& solidType)
   //.tp_new = PyType_GenericNew,
 
   // Subclass to PyPolyDataSolid.
-  solidType.tp_base = &PySolidModelClassType;
+  solidType.tp_base = &PyModelingModelClassType;
 
   solidType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
   solidType.tp_init = (initproc)PyPolyDataSolidInit;

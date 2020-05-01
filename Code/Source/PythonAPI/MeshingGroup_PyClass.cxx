@@ -42,7 +42,7 @@
 //static PyObject * CreatePyMeshingGroup(sv4guiMesh::Pointer meshingGroup);
 
 extern PyObject* PyTetGenOptionsCreateFromList(std::vector<std::string>& optionList);
-extern  sv4guiModel::Pointer SolidGroup_read(char* fileName);
+extern  sv4guiModel::Pointer ModelingGroup_read(char* fileName);
 
 //////////////////////////////////////////////////////
 //          U t i l i t y  F u n c t i o n s        //
@@ -115,7 +115,7 @@ MeshingGroupSetModel(SvPyUtilApiFunction& api, cvMeshObject* mesher, sv4guiMitkM
   //std::cout << "[MeshingGroupSetModel] fileName: " << fileName << std::endl;
 
   // Read the model .mdl file.
-  sv4guiModel::Pointer solidGroupPtr = SolidGroup_read(const_cast<char*>(fileName.c_str()));
+  sv4guiModel::Pointer solidGroupPtr = ModelingGroup_read(const_cast<char*>(fileName.c_str()));
   if (solidGroupPtr == nullptr) {
       api.error("Unable to read the model file '" + fileName + "' used by the mesher.");
       return false;
@@ -133,7 +133,7 @@ MeshingGroupSetModel(SvPyUtilApiFunction& api, cvMeshObject* mesher, sv4guiMitkM
   // Set the mesher solid modeling kernel. 
   auto solidType = solidGroup->GetType();
   std::transform(solidType.begin(), solidType.end(), solidType.begin(), ::toupper);
-  auto solidKernel = SolidKernel_NameToEnum(solidType);
+  auto solidKernel = ModelingKernelNameToEnum(solidType);
   //std::cout << "[MeshingGroupSetModel] Solid type: " << solidType << std::endl;
   mesher->SetSolidModelKernel(solidKernel);
 

@@ -29,15 +29,10 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// The functions defined here implement the SV Python API 'solid' Module. 
+// The functions defined here implement the SV Python API modeling module. 
 //
-// The module name is 'solid'. 
-//
-// A Python exception sv.solid.SolidModelError is defined for this module. 
-// The exception can be used in a Python 'try' statement with an 'except' clause 
-// like this
-//
-//    except sv.solid.SolidModelError: 
+// A Python exception sv.modeling.ModelingError is defined for this module. 
+// The exception can be used in a Python 'try' statement with an 'except' clause.
 //
 #include "SimVascular.h"
 #include "SimVascular_python.h"
@@ -48,7 +43,7 @@
 #include <string.h>
 
 #include "sv_Repository.h"
-#include "Solid_PyModule.h"
+#include "Modeling_PyModule.h"
 #include "sv_SolidModel.h"
 #include "sv_arg.h"
 #include "sv_misc_utils.h"
@@ -80,7 +75,7 @@
 // Include solid Kernel class that defines a map between 
 // solid model kernel name and enum type.
 //
-#include "SolidKernel_PyClass.cxx"
+#include "ModelingKernel_PyClass.cxx"
 
 //---------------------
 // CvSolidModelCtorMap
@@ -90,8 +85,8 @@
 // An entry for SM_KT_PARASOLID is added later in PyAPI_InitParasolid() 
 // if the Parasolid interface is defined (by loading the Parasolid plugin).
 //
-using SolidCtorMapType = std::map<SolidModel_KernelT, std::function<cvSolidModel*()>>;
-SolidCtorMapType CvSolidModelCtorMap = {
+using ModelingCtorMapType = std::map<SolidModel_KernelT, std::function<cvSolidModel*()>>;
+ModelingCtorMapType CvSolidModelCtorMap = {
     {SolidModel_KernelT::SM_KT_OCCT, []() -> cvSolidModel* { return new cvOCCTSolidModel(); } },
     {SolidModel_KernelT::SM_KT_POLYDATA, []() -> cvSolidModel* { return new cvPolyDataSolid(); } },
 };
@@ -99,8 +94,8 @@ SolidCtorMapType CvSolidModelCtorMap = {
 // Exception type used by PyErr_SetString() to set the for the error indicator.
 static PyObject * PyRunTimeErr;
 
-static PyObject * CreatePySolidModelObject(SolidModel_KernelT kernel);
-static PyObject * CreatePySolidModelObject(cvSolidModel* solidModel);
+static PyObject * CreatePyModelingModelObject(SolidModel_KernelT kernel);
+static PyObject * CreatePyModelingModelObject(cvSolidModel* solidModel);
 
 //////////////////////////////////////////////////////
 //          U t i l i t y  F u n c t i o n s        //
@@ -130,11 +125,11 @@ CreateCvSolidModel(SolidModel_KernelT kernel)
 //          M o d u l e   M e t h o d s               //
 ////////////////////////////////////////////////////////
 //
-//------------------------------
-// PySolidModule_modeler_exists
-//------------------------------
+//---------------------------------
+// PyModelingModule_modeler_exists
+//---------------------------------
 //
-PyDoc_STRVAR(PySolidModule_modeler_exists_doc,
+PyDoc_STRVAR(PyModelingModule_modeler_exists_doc,
   "modeler_exists(kernel)  \n\ 
    \n\
    Check if the modeler for the given kernel exists. \n\
@@ -144,7 +139,7 @@ PyDoc_STRVAR(PySolidModule_modeler_exists_doc,
 ");
 
 static PyObject *
-PySolidModule_modeler_exists(PyTypeObject *type, PyObject *args, PyObject *kwds)
+PyModelingModule_modeler_exists(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, "Modeler");
   char* kernelName = nullptr;
@@ -182,9 +177,9 @@ PySolidModule_modeler_exists(PyTypeObject *type, PyObject *args, PyObject *kwds)
 //----------------
 // Methods for the 'solid' module.
 //
-static PyMethodDef PySolidModuleMethods[] = {
+static PyMethodDef PyModelingModuleMethods[] = {
 
-  { "modeler_exists", (PyCFunction)PySolidModule_modeler_exists, METH_VARARGS | METH_KEYWORDS, PySolidModule_modeler_exists_doc},
+  { "modeler_exists", (PyCFunction)PyModelingModule_modeler_exists, METH_VARARGS | METH_KEYWORDS, PyModelingModule_modeler_exists_doc},
 
   {NULL, NULL}
 };
@@ -195,79 +190,79 @@ static PyMethodDef PySolidModuleMethods[] = {
 // Define the initialization function called by the Python interpreter 
 // when the module is loaded.
 
-static char* SOLID_MODULE = "solid";
-static char* SOLID_MODULE_EXCEPTION = "solid.SolidModelError";
-static char* SOLID_MODULE_EXCEPTION_OBJECT = "SolidModelError";
+static char* MODELING_MODULE = "modeling";
+static char* MODELING_MODULE_EXCEPTION = "modeling.ModelingError";
+static char* MODELING_MODULE_EXCEPTION_OBJECT = "ModelingError";
 
-PyDoc_STRVAR(Solid_module_doc, "solid module functions");
+PyDoc_STRVAR(Solid_module_doc, "Modeling module functions");
 
 // Include derived solid classes.
-#include "SolidModel_PyClass.cxx"
-#include "SolidOpenCascade_PyClass.cxx"
-#include "SolidParasolid_PyClass.cxx"
-#include "SolidPolyData_PyClass.cxx"
-#include "SolidModeler_PyClass.cxx"
+#include "ModelingModel_PyClass.cxx"
+#include "ModelingOpenCascade_PyClass.cxx"
+#include "ModelingParasolid_PyClass.cxx"
+#include "ModelingPolyData_PyClass.cxx"
+#include "ModelingModeler_PyClass.cxx"
 
 // Include solid.Group definition.
-#include "SolidGroup_PyClass.cxx"
+#include "ModelingGroup_PyClass.cxx"
 
 //---------------------
 // PySolidModelCtorMap
 //---------------------
-// Define an object factory for creating Python SolidModel derived objects.
+// Define an object factory for creating Python ModelingModel derived objects.
 //
-// An entry for SM_KT_PARASOLID is added later in PyAPI_InitParasolid() 
+// An entry for SM_KT_PARAMODELING is added later in PyAPI_InitParasolid() 
 // if the Parasolid interface is defined (by loading the Parasolid plugin).
 //
-using PySolidModelCtorMapType = std::map<SolidModel_KernelT, std::function<PyObject*()>>;
-PySolidModelCtorMapType PySolidModelCtorMap = {
+using PyModelingModelCtorMapType = std::map<SolidModel_KernelT, std::function<PyObject*()>>;
+PyModelingModelCtorMapType PyModelingModelCtorMap = {
   {SolidModel_KernelT::SM_KT_OCCT, []()->PyObject* {return PyObject_CallObject((PyObject*)&PyOcctSolidClassType, NULL);}},
   {SolidModel_KernelT::SM_KT_PARASOLID, []()->PyObject* {return PyObject_CallObject((PyObject*)&PyParasolidSolidClassType, NULL);}},
   {SolidModel_KernelT::SM_KT_POLYDATA, []()->PyObject* {return PyObject_CallObject((PyObject*)&PyPolyDataSolidClassType, NULL);}},
 };
 
 //--------------------
-// CreatePySolidModel
+// CreatePyModelingModel
 //--------------------
-// Create a Python SolidModel object for the given kernel.
+// Create a Python ModelingModel object for the given kernel.
 //
 static PyObject *
-CreatePySolidModelObject(SolidModel_KernelT kernel)
+CreatePyModelingModelObject(SolidModel_KernelT kernel)
 {
-  //std::cout << "[CreatePySolidModelObject] ========== CreatePySolidModelObject ==========" << std::endl;
+  //std::cout << "[CreatePyModelingModelObject] ========== CreatePyModelingModelObject ==========" << std::endl;
   auto cvSolidModel = CreateCvSolidModel(kernel);
   if (cvSolidModel == nullptr) { 
       return nullptr;
   }
 
-  return CreatePySolidModelObject(cvSolidModel);
+  return CreatePyModelingModelObject(cvSolidModel);
 }
 
 //--------------------------
-// CreatePySolidModelObject 
+// CreatePyModelingModelObject 
 //--------------------------
-// Create a Python SolidModel object for the given cvSolidModel object.
+// Create a Python ModelingModel object for the given cvSolidModel object.
 //
 static PyObject *
-CreatePySolidModelObject(cvSolidModel* solidModel)
+CreatePyModelingModelObject(cvSolidModel* solidModel)
 {
-  //std::cout << "[CreatePySolidModelObject] ========== CreatePySolidModelObject ==========" << std::endl;
-  //std::cout << "[CreatePySolidModelObject] Copy from given cvSolidModel object" << std::endl;
-  PyObject* pySolidModelObj;
+  //std::cout << "[CreatePyModelingModelObject] ========== CreatePyModelingModelObject ==========" << std::endl;
+  //std::cout << "[CreatePyModelingModelObject] Copy from given cvSolidModel object" << std::endl;
+  PyObject* pyModelingModelObj;
   auto kernel = solidModel->GetKernelT();
 
   try {
-      pySolidModelObj = PySolidModelCtorMap[kernel]();
+      pyModelingModelObj = PyModelingModelCtorMap[kernel]();
   } catch (const std::bad_function_call& except) {
-      std::cout << "[CreatePySolidModelObject] ERROR: Creating pySolidModelObj " << std::endl;
+      std::cout << "[CreatePyModelingModelObject] ERROR: Creating pyModelingModelObj " << std::endl;
       return nullptr;
   }
 
   // Set the solidModel object.
-  auto pySolidModel = (PySolidModelClass*)pySolidModelObj;
-  pySolidModel->solidModel = solidModel->Copy();
-  pySolidModel->kernel = kernel;
-  return pySolidModelObj;
+  auto pyModelingModel = (PyModelingModelClass*)pyModelingModelObj;
+  pyModelingModel->solidModel = solidModel->Copy();
+  pyModelingModel->kernel = kernel;
+  return pyModelingModelObj;
 }
 
 //---------------------------------------------------------------------------
@@ -286,44 +281,44 @@ static PyModuleDef_Base m_base = PyModuleDef_HEAD_INIT;
 // Define the module definition struct which holds all information 
 // needed to create a module object. 
 
-static struct PyModuleDef PySolidModule = {
+static struct PyModuleDef PyModelingModule = {
    m_base,
-   SOLID_MODULE, 
+   MODELING_MODULE, 
    Solid_module_doc, 
    perInterpreterStateSize, 
-   PySolidModuleMethods
+   PyModelingModuleMethods
 };
 
-//-----------------
-// PyInit_pySolid  
-//-----------------
+//-------------------
+// PyInit_PyModeling
+//-------------------
 // The initialization function called by the Python interpreter 
-// when the 'solid' module is loaded.
+// when the 'modeling' module is loaded.
 //
 PyMODINIT_FUNC
-PyInit_PySolid(void)
+PyInit_PyModeling(void)
 {
-  //std::cout << "[PyInit_PySolid] ========== load solid module ==========" << std::endl;
+  //std::cout << "[PyInit_PySolid] ========== load modeling module ==========" << std::endl;
 
-  // Initialize the SolidModeler class type.
-  //std::cout << "[PyInit_PySolid] Initialize the SolidModeler class type. " << std::endl;
-  SetSolidModelerTypeFields(PySolidModelerClassType);
-  if (PyType_Ready(&PySolidModelerClassType) < 0) {
-    fprintf(stdout,"Error in PySolidModelerType");
+  // Initialize the ModelingModeler class type.
+  //std::cout << "[PyInit_PySolid] Initialize the ModelingModeler class type. " << std::endl;
+  SetModelingModelerTypeFields(PyModelingModelerClassType);
+  if (PyType_Ready(&PyModelingModelerClassType) < 0) {
+    fprintf(stdout,"Error in PyModelingModelerType");
     return SV_PYTHON_ERROR;
   }
 
-  // Initialize the SolidModel class type.
-  //std::cout << "[PyInit_PySolid] Initialize the SolidModel class type. " << std::endl;
-  SetSolidModelTypeFields(PySolidModelClassType);
-  if (PyType_Ready(&PySolidModelClassType) < 0) {
-    fprintf(stdout,"Error in PySolidModelType");
+  // Initialize the ModelingModel class type.
+  //std::cout << "[PyInit_PySolid] Initialize the ModelingModel class type. " << std::endl;
+  SetModelingModelTypeFields(PyModelingModelClassType);
+  if (PyType_Ready(&PyModelingModelClassType) < 0) {
+    fprintf(stdout,"Error in PyModelingModelType");
     return SV_PYTHON_ERROR;
   }
 
   // Initialize the group class type.
-  SetSolidGroupTypeFields(PySolidGroupClassType);
-  if (PyType_Ready(&PySolidGroupClassType) < 0) {
+  SetModelingGroupTypeFields(PyModelingGroupClassType);
+  if (PyType_Ready(&PyModelingGroupClassType) < 0) {
       std::cout << "Error creating SolidGroup type" << std::endl;
       return nullptr;
   }
@@ -356,60 +351,60 @@ PyInit_PySolid(void)
   }
 
   // Initialize the solid modeling kernel class type.
-  SetSolidKernelTypeFields(PySolidKernelClassType);
-  if (PyType_Ready(&PySolidKernelClassType) < 0) {
+  SetModelingKernelTypeFields(PyModelingKernelClassType);
+  if (PyType_Ready(&PyModelingKernelClassType) < 0) {
       std::cout << "Error creating SolidKernel type" << std::endl;
       return nullptr;
   }
 
   // Create the 'solid' module. 
   //std::cout << "[PyInit_PySolid] Create the 'solid' module. " << std::endl;
-  auto module = PyModule_Create(&PySolidModule);
+  auto module = PyModule_Create(&PyModelingModule);
   if (module == NULL) {
     fprintf(stdout,"Error in initializing pySolid");
     return SV_PYTHON_ERROR;
   }
 
-  // Add solid.SolidModelError exception.
-  PyRunTimeErr = PyErr_NewException(SOLID_MODULE_EXCEPTION, NULL, NULL);
-  PyModule_AddObject(module, SOLID_MODULE_EXCEPTION_OBJECT, PyRunTimeErr);
+  // Add solid.ModelingModelError exception.
+  PyRunTimeErr = PyErr_NewException(MODELING_MODULE_EXCEPTION, NULL, NULL);
+  PyModule_AddObject(module, MODELING_MODULE_EXCEPTION_OBJECT, PyRunTimeErr);
 
-  // Add the 'SolidModeler' class.
-  //std::cout << "[PyInit_PySolid] Add the SolidModeler class type. " << std::endl;
-  Py_INCREF(&PySolidModelerClassType);
-  PyModule_AddObject(module, SOLID_MODELER_CLASS, (PyObject *)&PySolidModelerClassType);
+  // Add the 'ModelingModeler' class.
+  //std::cout << "[PyInit_PySolid] Add the ModelingModeler class type. " << std::endl;
+  Py_INCREF(&PyModelingModelerClassType);
+  PyModule_AddObject(module, MODELING_MODELER_CLASS, (PyObject *)&PyModelingModelerClassType);
 
-  // Add the 'SolidModel' class.
-  //std::cout << "[PyInit_PySolid] Add the SolidModel class type. " << std::endl;
-  Py_INCREF(&PySolidModelClassType);
-  PyModule_AddObject(module, SOLID_MODEL_CLASS, (PyObject *)&PySolidModelClassType);
+  // Add the 'ModelingModel' class.
+  //std::cout << "[PyInit_PySolid] Add the ModelingModel class type. " << std::endl;
+  Py_INCREF(&PyModelingModelClassType);
+  PyModule_AddObject(module, MODELING_MODEL_CLASS, (PyObject *)&PyModelingModelClassType);
 
   // Add the 'SolidGroup' class.
   //std::cout << "[PyInit_PySolid] Add the SolidGroup class type. " << std::endl;
-  Py_INCREF(&PySolidGroupClassType);
-  PyModule_AddObject(module, SOLID_GROUP_CLASS, (PyObject *)&PySolidGroupClassType);
+  Py_INCREF(&PyModelingGroupClassType);
+  PyModule_AddObject(module, MODELING_GROUP_CLASS, (PyObject *)&PyModelingGroupClassType);
 
   // Add the 'OpenCascade' class.
   //std::cout << "[PyInit_PySolid] Add the OpenCascade class type. " << std::endl;
   Py_INCREF(&PyOcctSolidClassType);
-  PyModule_AddObject(module, SOLID_OCCT_CLASS, (PyObject *)&PyOcctSolidClassType);
+  PyModule_AddObject(module, MODELING_OCCT_CLASS, (PyObject *)&PyOcctSolidClassType);
 
   // Add the 'Parasolid' class.
   //std::cout << "[PyInit_PySolid] Add the ParasolidSolid class type. " << std::endl;
   Py_INCREF(&PyParasolidSolidClassType);
-  PyModule_AddObject(module, SOLID_PARASOLID_CLASS, (PyObject *)&PyParasolidSolidClassType);
+  PyModule_AddObject(module, MODELING_PARAMODELING_CLASS, (PyObject *)&PyParasolidSolidClassType);
 
   // Add the 'PolyData' class.
   //std::cout << "[PyInit_PySolid] Add the PolyDataSolid class type. " << std::endl;
   Py_INCREF(&PyPolyDataSolidClassType);
-  PyModule_AddObject(module, SOLID_POLYDATA_CLASS, (PyObject *)&PyPolyDataSolidClassType);
+  PyModule_AddObject(module, MODELING_POLYDATA_CLASS, (PyObject *)&PyPolyDataSolidClassType);
 
   // Add the 'Kernel' class.
-  Py_INCREF(&PySolidKernelClassType);
-  PyModule_AddObject(module, SOLID_KERNEL_CLASS, (PyObject*)&PySolidKernelClassType);
+  Py_INCREF(&PyModelingKernelClassType);
+  PyModule_AddObject(module, MODELING_KERNEL_CLASS, (PyObject*)&PyModelingKernelClassType);
 
   // Set the kernel names in the SolidKernelType dictionary.
-  SetSolidKernelClassTypes(PySolidKernelClassType);
+  SetModelingKernelClassTypes(PyModelingKernelClassType);
 
   // Initialize Open Cascade.
   InitOcct();

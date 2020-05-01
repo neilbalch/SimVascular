@@ -31,20 +31,20 @@
 
 // The functions defined here implement the SV Python API Open Cascade solid class. 
 //
-// The class name is 'solid.OpenCascade'.
+// The class name is 'modeling.OpenCascade'.
 
 #include <XCAFApp_Application.hxx>
 #include <XCAFDoc_DocumentTool.hxx>
 #include "Standard_Version.hxx"
 #include "sv4gui_RegisterOCCTFunction.h"
 
-//-----------------
+//-------------
 // PyOcctSolid 
-//-----------------
+//-------------
 // Define the OcctSolid class (type).
 //
 typedef struct {
-  PySolidModelClass super;
+  PyModelingModelClass super;
 } PyOcctSolid;
 
 cvOCCTSolidModel * pyCreateOcctSolid()
@@ -57,55 +57,16 @@ cvOCCTSolidModel * pyCreateOcctSolid()
 //////////////////////////////////////////////////////
 // OcctSolid class methods. 
 
-//-------------------------
-// OcctSolid_available
-//-------------------------
-//
-static PyObject * 
-OcctSolid_available(PyObject* self, PyObject* args )
-{
-  return Py_BuildValue("s","Occt Solid Module Available");
-}
-
-//--------------------------
-// OcctSolid_registrars
-//--------------------------
-//
-static PyObject * 
-OcctSolid_registrars(PyObject* self, PyObject* args )
-{
-  char result[2048];
-  int k=0;
-  PyObject *pyPtr=PyList_New(6);
-  PyObject* pyGlobal = PySys_GetObject("solidModelRegistrar");
-  pycvFactoryRegistrar* tmp = (pycvFactoryRegistrar *) pyGlobal;
-  cvFactoryRegistrar* pySolidModelRegistrar =tmp->registrar;
-
-  sprintf(result, "Solid model registrar ptr -> %p\n", pySolidModelRegistrar);
-  fprintf(stdout,result);
-  PyList_SetItem(pyPtr,0,PyBytes_FromFormat(result));
-
-  for (int i = 0; i < 5; i++) {
-      sprintf( result,"GetFactoryMethodPtr(%i) = %p\n",
-      i, (pySolidModelRegistrar->GetFactoryMethodPtr(i)));
-      fprintf(stdout,result);
-      PyList_SetItem(pyPtr,i+1,PyBytes_FromFormat(result));
-  }
-  return pyPtr;
-}
-
 ////////////////////////////////////////////////////////
 //          C l a s s    D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
 
-static char* SOLID_OCCT_CLASS = "OpenCascade";
-static char* SOLID_OCCT_MODULE_CLASS = "solid.OpenCascade";
+static char* MODELING_OCCT_CLASS = "OpenCascade";
+static char* MODELING_OCCT_MODULE_CLASS = "modeling.OpenCascade";
 
 PyDoc_STRVAR(PyOcctSolidClass_doc, "Open Cascade solid modeling methods.");
 
 PyMethodDef PyOcctSolidMethods[] = {
-  {"available", OcctSolid_available,METH_NOARGS,NULL},
-  {"registrars", OcctSolid_registrars,METH_NOARGS,NULL},
   {NULL, NULL}
 };
 
@@ -165,7 +126,7 @@ PyTypeObject PyOcctSolidClassType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   // Dotted name that includes both the module name and 
   // the name of the type within the module.
-  .tp_name = SOLID_OCCT_MODULE_CLASS,
+  .tp_name = MODELING_OCCT_MODULE_CLASS,
   .tp_basicsize = sizeof(PyOcctSolid)
 };
 
@@ -189,7 +150,7 @@ SetOcctSolidTypeFields(PyTypeObject& solidType)
   //.tp_new = PyType_GenericNew,
 
   // Subclass to PyOcctSolid.
-  solidType.tp_base = &PySolidModelClassType;
+  solidType.tp_base = &PyModelingModelClassType;
 
   solidType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
   solidType.tp_init = (initproc)PyOcctSolidInit;

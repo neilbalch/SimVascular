@@ -29,11 +29,11 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// Define the Python 'solid.Modeler' class. This class defines modeling operations 
-// that create new Python 'solid.Model' objects. 
+// Define the Python 'modeling.Modeler' class. This class defines modeling operations 
+// that create new Python 'modeling.Model' objects. 
 //
-#ifndef PYAPI_SOLID_MODELER_H
-#define PYAPI_SOLID_MODELER_H
+#ifndef PYAPI_MODELING_MODELER_H
+#define PYAPI_MODELING_MODELER_H
 
 #include <iostream>
 #include <map>
@@ -42,9 +42,9 @@
 #include <structmember.h>
 
 //---------------------
-// PySolidModelerClass 
+// PyModelingModelerClass 
 //---------------------
-// Define the SolidModelerClass.
+// Define the ModelingModelerClass.
 //
 // This is the data stored in a Python solid.Modeler object.
 //
@@ -52,24 +52,24 @@ typedef struct {
   PyObject_HEAD
   int id;
   SolidModel_KernelT kernel;
-} PySolidModelerClass;
+} PyModelingModelerClass;
 
 //////////////////////////////////////////////////////
 //          U t i l i t y   F u n c t i o n s       //
 //////////////////////////////////////////////////////
 
 //---------------------------
-// SolidModelerUtil_GetModel 
+// ModelingModelerUtil_GetModel 
 //---------------------------
 //
 static cvSolidModel *
-SolidModelerUtil_GetModelFromPyObj(PyObject* obj)
+ModelingModelerUtil_GetModelFromPyObj(PyObject* obj)
 {
   // Check that the Python object is an SV Python Model object.
-  if (!PyObject_TypeCheck(obj, &PySolidModelClassType)) {
+  if (!PyObject_TypeCheck(obj, &PyModelingModelClassType)) {
       return nullptr;
   }
-  return ((PySolidModelClass*)obj)->solidModel;
+  return ((PyModelingModelClass*)obj)->solidModel;
 }
 
 ////////////////////////////////////////////////////////
@@ -79,11 +79,11 @@ SolidModelerUtil_GetModelFromPyObj(PyObject* obj)
 // Python 'Modeler' class methods. 
 //
 
-//--------------------
-// SolidModeler_box3d 
-//--------------------
+//-----------------------
+// ModelingModeler_box3d 
+//-----------------------
 //
-PyDoc_STRVAR(SolidModeler_box_doc,
+PyDoc_STRVAR(ModelingModeler_box_doc,
   "box(kernel)  \n\ 
    \n\
    ??? Set the computational kernel used to segment image data.       \n\
@@ -93,10 +93,10 @@ PyDoc_STRVAR(SolidModeler_box_doc,
 ");
 
 static PyObject * 
-SolidModeler_box(PySolidModelClass* self, PyObject* args, PyObject* kwargs)
+ModelingModeler_box(PyModelingModelClass* self, PyObject* args, PyObject* kwargs)
 {
-  std::cout << "[SolidModeler_box] ========== SolidModeler_box ==========" << std::endl;
-  std::cout << "[SolidModel_box] Kernel: " << self->kernel << std::endl;
+  std::cout << "[ModelingModeler_box] ========== ModelingModeler_box ==========" << std::endl;
+  std::cout << "[ModelingModel_box] Kernel: " << self->kernel << std::endl;
   auto api = SvPyUtilApiFunction("O|ddd", PyRunTimeErr, __func__);
   static char *keywords[] = {"center", "width", "height", "length", NULL};
   double width = 1.0;
@@ -120,7 +120,7 @@ SolidModeler_box(PySolidModelClass* self, PyObject* args, PyObject* kwargs)
   for (int i = 0; i < PyList_Size(centerArg); i++) {
     center[i] = PyFloat_AsDouble(PyList_GetItem(centerArg,i));
   }
-  std::cout << "[SolidModel_box] Center: " << center[0] << "  " << center[1] << "  " << center[2] << std::endl;
+  std::cout << "[ModelingModel_box] Center: " << center[0] << "  " << center[1] << "  " << center[2] << std::endl;
 
   if (width <= 0.0) { 
       api.error("The box width argument is <= 0.0.");
@@ -137,13 +137,13 @@ SolidModeler_box(PySolidModelClass* self, PyObject* args, PyObject* kwargs)
       return nullptr;
   }
 
-  std::cout << "[SolidModel_box] Width: " << width << std::endl;
-  std::cout << "[SolidModel_box] Height: " << height << std::endl;
-  std::cout << "[SolidModel_box] Length: " << length << std::endl;
+  std::cout << "[ModelingModel_box] Width: " << width << std::endl;
+  std::cout << "[ModelingModel_box] Height: " << height << std::endl;
+  std::cout << "[ModelingModel_box] Length: " << length << std::endl;
 
   // Create the new solid object.
-  auto pySolidModelObj = CreatePySolidModelObject(self->kernel);
-  auto model = ((PySolidModelClass*)pySolidModelObj)->solidModel; 
+  auto pyModelingModelObj = CreatePyModelingModelObject(self->kernel);
+  auto model = ((PyModelingModelClass*)pyModelingModelObj)->solidModel; 
   if (model == NULL) {
       api.error("Error creating a 3D box solid model.");
       return nullptr;
@@ -153,20 +153,20 @@ SolidModeler_box(PySolidModelClass* self, PyObject* args, PyObject* kwargs)
   //
   double dims[3] = {width, height, length};
   if (model->MakeBox3d(dims, center) != SV_OK) {
-      Py_DECREF(pySolidModelObj);
+      Py_DECREF(pyModelingModelObj);
       delete model;
       api.error("Error creating a 3D box solid model.");
       return nullptr;
   }
 
-  return pySolidModelObj;
+  return pyModelingModelObj;
 }
 
-//---------------------
-// SolidModeler_circle 
-//---------------------
+//------------------------
+// ModelingModeler_circle 
+//------------------------
 //
-PyDoc_STRVAR(SolidModeler_circle_doc,
+PyDoc_STRVAR(ModelingModeler_circle_doc,
   "circle(kernel)  \n\ 
    \n\
    ??? Set the computational kernel used to segment image data.       \n\
@@ -176,7 +176,7 @@ PyDoc_STRVAR(SolidModeler_circle_doc,
 ");
 
 static PyObject * 
-SolidModeler_circle(PySolidModelerClass* self, PyObject* args, PyObject* kwargs)
+ModelingModeler_circle(PyModelingModelerClass* self, PyObject* args, PyObject* kwargs)
 {
   auto api = SvPyUtilApiFunction("sddd", PyRunTimeErr, __func__);
   static char *keywords[] = {"radius", "x", "y", NULL};
@@ -193,8 +193,8 @@ SolidModeler_circle(PySolidModelerClass* self, PyObject* args, PyObject* kwargs)
   }
 
   // Create the new solid object.
-  auto pySolidModelObj = CreatePySolidModelObject(self->kernel);
-  auto model = ((PySolidModelClass*)pySolidModelObj)->solidModel; 
+  auto pyModelingModelObj = CreatePyModelingModelObject(self->kernel);
+  auto model = ((PyModelingModelClass*)pyModelingModelObj)->solidModel; 
   if (model == NULL) {
       api.error("Error creating a 3D box solid model.");
       return nullptr;
@@ -206,14 +206,14 @@ SolidModeler_circle(PySolidModelerClass* self, PyObject* args, PyObject* kwargs)
       return nullptr;
   }
 
-  return pySolidModelObj;
+  return pyModelingModelObj;
 }
 
-//-----------------------
-// SolidModeler_cylinder 
-//-----------------------
+//--------------------------
+// ModelingModeler_cylinder 
+//--------------------------
 //
-PyDoc_STRVAR(SolidModeler_cylinder_doc,
+PyDoc_STRVAR(ModelingModeler_cylinder_doc,
   "cylinder(kernel)  \n\ 
    \n\
    ??? Set the computational kernel used to segment image data.       \n\
@@ -223,10 +223,10 @@ PyDoc_STRVAR(SolidModeler_cylinder_doc,
 ");
 
 static PyObject * 
-SolidModeler_cylinder(PySolidModelerClass* self, PyObject* args, PyObject* kwargs)
+ModelingModeler_cylinder(PyModelingModelerClass* self, PyObject* args, PyObject* kwargs)
 {
-  std::cout << "[SolidModeler_cylinder] ========== SolidModeler_cylinder ==========" << std::endl;
-  std::cout << "[SolidModel_cylinder] Kernel: " << self->kernel << std::endl;
+  std::cout << "[ModelingModeler_cylinder] ========== ModelingModeler_cylinder ==========" << std::endl;
+  std::cout << "[ModelingModel_cylinder] Kernel: " << self->kernel << std::endl;
   auto api = SvPyUtilApiFunction("ddOO", PyRunTimeErr, __func__);
   static char *keywords[] = {"radius", "length", "center", "axis", NULL};
   double radius;
@@ -271,34 +271,34 @@ SolidModeler_cylinder(PySolidModelerClass* self, PyObject* args, PyObject* kwarg
   }
 
   // Create the new solid.
-  auto pySolidModelObj = CreatePySolidModelObject(self->kernel);
-  if (pySolidModelObj == nullptr) { 
+  auto pyModelingModelObj = CreatePyModelingModelObject(self->kernel);
+  if (pyModelingModelObj == nullptr) { 
       api.error("Error creating a Python solid model object.");
       return nullptr;
   } 
-  auto model = ((PySolidModelClass*)pySolidModelObj)->solidModel; 
+  auto model = ((PyModelingModelClass*)pyModelingModelObj)->solidModel; 
   if (model == NULL) {
       api.error("Error creating a cylinder solid model.");
       return nullptr;
   }
 
-  std::cout << "[SolidModel_cylinder] Create cylinder ... " << std::endl;
+  std::cout << "[ModelingModel_cylinder] Create cylinder ... " << std::endl;
   if (model->MakeCylinder(radius, length, center, axis) != SV_OK) {
-      Py_DECREF(pySolidModelObj);
+      Py_DECREF(pyModelingModelObj);
       delete model;
       api.error("Error creating a cylinder solid model.");
       return nullptr;
   }
 
-  return pySolidModelObj;
+  return pyModelingModelObj;
 }
 
-//------------------------
-// SolidModeler_ellipsoid 
-//------------------------
-// [TODO:DaveP] The cvSolidModel MakeEllipsoid method is not implemented.
+//---------------------------
+// ModelingModeler_ellipsoid 
+//---------------------------
+// [TODO:DaveP] The cvModelingModel MakeEllipsoid method is not implemented.
 //
-PyDoc_STRVAR(SolidModeler_ellipsoid_doc,
+PyDoc_STRVAR(ModelingModeler_ellipsoid_doc,
   "ellipsoid()  \n\ 
    \n\
    ??? Set the computational kernel used to segment image data.       \n\
@@ -308,7 +308,7 @@ PyDoc_STRVAR(SolidModeler_ellipsoid_doc,
 ");
 
 static PyObject * 
-SolidModeler_ellipsoid(PySolidModelerClass* self, PyObject* args, PyObject* kwargs)
+ModelingModeler_ellipsoid(PyModelingModelerClass* self, PyObject* args, PyObject* kwargs)
 {
   auto api = SvPyUtilApiFunction("OO", PyRunTimeErr, __func__);
   static char *keywords[] = {"center", "radii", NULL};
@@ -339,32 +339,32 @@ SolidModeler_ellipsoid(PySolidModelerClass* self, PyObject* args, PyObject* kwar
   }
 
   // Create the new solid.
-  auto pySolidModelObj = CreatePySolidModelObject(self->kernel);
-  if (pySolidModelObj == nullptr) {
+  auto pyModelingModelObj = CreatePyModelingModelObject(self->kernel);
+  if (pyModelingModelObj == nullptr) {
       api.error("Error creating a Python solid model object.");
       return nullptr;
   }
-  auto model = ((PySolidModelClass*)pySolidModelObj)->solidModel;
+  auto model = ((PyModelingModelClass*)pyModelingModelObj)->solidModel;
   if (model == NULL) {
       api.error("Error creating a solid model object.");
       return nullptr;
   }
 
-  std::cout << "[SolidModeler_ellipsoid] Create ellipsoid ... " << std::endl;
+  std::cout << "[ModelingModeler_ellipsoid] Create ellipsoid ... " << std::endl;
   if (model->MakeEllipsoid(r, center) != SV_OK) {
       delete model;
       api.error("Error creating an ellipsoid solid model.");
       return nullptr;
   }
 
-  return pySolidModelObj;
+  return pyModelingModelObj;
 }
 
-//------------------------
-// SolidModeler_intersect 
-//------------------------
+//---------------------------
+// ModelingModeler_intersect 
+//---------------------------
 //
-PyDoc_STRVAR(SolidModeler_intersect_doc,
+PyDoc_STRVAR(ModelingModeler_intersect_doc,
   "intersect(kernel)  \n\ 
    \n\
    ??? Set the computational kernel used to segment image data.       \n\
@@ -374,7 +374,7 @@ PyDoc_STRVAR(SolidModeler_intersect_doc,
 ");
 
 static PyObject * 
-SolidModeler_intersect(PySolidModelerClass* self, PyObject* args, PyObject* kwargs)
+ModelingModeler_intersect(PyModelingModelerClass* self, PyObject* args, PyObject* kwargs)
 {
   auto api = SvPyUtilApiFunction("OO|s", PyRunTimeErr, __func__);
   static char *keywords[] = {"model1", "model2", "simplification", NULL};
@@ -393,26 +393,26 @@ SolidModeler_intersect(PySolidModelerClass* self, PyObject* args, PyObject* kwar
   }
 
   // Check that the model1 argument is a SV Python Model object.
-  auto model1 = SolidModelerUtil_GetModelFromPyObj(model1Arg);
+  auto model1 = ModelingModelerUtil_GetModelFromPyObj(model1Arg);
   if (model1 == nullptr) {
       api.error("The first model argument is not a Model object.");
       return nullptr;
   }
 
   // Check that the model2 argument is a SV Python Model object.
-  auto model2 = SolidModelerUtil_GetModelFromPyObj(model2Arg);
+  auto model2 = ModelingModelerUtil_GetModelFromPyObj(model2Arg);
   if (model2 == nullptr) {
       api.error("The second model argument is not a Model object.");
       return nullptr;
   }
 
   // Create the new solid.
-  auto pySolidModelObj = CreatePySolidModelObject(self->kernel);
-  if (pySolidModelObj == nullptr) {
+  auto pyModelingModelObj = CreatePyModelingModelObject(self->kernel);
+  if (pyModelingModelObj == nullptr) {
       api.error("Error creating a Python solid model object.");
       return nullptr;
   }
-  auto model = ((PySolidModelClass*)pySolidModelObj)->solidModel;
+  auto model = ((PyModelingModelClass*)pyModelingModelObj)->solidModel;
   if (model == NULL) {
       api.error("Error creating a solid model.");
       return nullptr;
@@ -424,15 +424,14 @@ SolidModeler_intersect(PySolidModelerClass* self, PyObject* args, PyObject* kwar
       return nullptr;
   }
 
-  return pySolidModelObj;
+  return pyModelingModelObj;
 }
 
-
-//-------------------
-// SolidModeler_read 
-//-------------------
+//----------------------
+// ModelingModeler_read 
+//----------------------
 //
-PyDoc_STRVAR(SolidModeler_read_doc,
+PyDoc_STRVAR(ModelingModeler_read_doc,
   "read(file_name)  \n\ 
    \n\
    ??? Set the computational kernel used to segment image data.       \n\
@@ -442,25 +441,25 @@ PyDoc_STRVAR(SolidModeler_read_doc,
 ");
 
 static PyObject *
-SolidModeler_read(PySolidModelerClass* self, PyObject* args, PyObject* kwargs)
+ModelingModeler_read(PyModelingModelerClass* self, PyObject* args, PyObject* kwargs)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   static char *keywords[] = {"file_name", NULL};
   char *fileName;
-  std::cout << "[SolidModeler_box] ========== SolidModeler_read ==========" << std::endl;
-  std::cout << "[SolidModel_box] Kernel: " << self->kernel << std::endl;
+  std::cout << "[ModelingModeler_box] ========== ModelingModeler_read ==========" << std::endl;
+  std::cout << "[ModelingModel_box] Kernel: " << self->kernel << std::endl;
 
   if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &fileName)) { 
       return api.argsError();
   }
 
   // Create the new solid.
-  auto pySolidModelObj = CreatePySolidModelObject(self->kernel);
-  if (pySolidModelObj == nullptr) {
+  auto pyModelingModelObj = CreatePyModelingModelObject(self->kernel);
+  if (pyModelingModelObj == nullptr) {
       api.error("Error creating a Python solid model object.");
       return nullptr;
   }
-  auto model = ((PySolidModelClass*)pySolidModelObj)->solidModel;
+  auto model = ((PyModelingModelClass*)pyModelingModelObj)->solidModel;
   if (model == NULL) {
       api.error("Error creating a solid model.");
       return nullptr;
@@ -472,14 +471,14 @@ SolidModeler_read(PySolidModelerClass* self, PyObject* args, PyObject* kwargs)
       return nullptr;
   }
 
-  return pySolidModelObj;
+  return pyModelingModelObj;
 }
 
-//---------------------
-// SolidModeler_sphere 
-//---------------------
+//------------------------
+// ModelingModeler_sphere 
+//------------------------
 //
-PyDoc_STRVAR(SolidModeler_sphere_doc,
+PyDoc_STRVAR(ModelingModeler_sphere_doc,
   "sphere(kernel)  \n\ 
    \n\
    ??? Set the computational kernel used to segment image data.       \n\
@@ -489,7 +488,7 @@ PyDoc_STRVAR(SolidModeler_sphere_doc,
 ");
 
 static PyObject * 
-SolidModeler_sphere(PySolidModelerClass* self, PyObject* args, PyObject* kwargs)
+ModelingModeler_sphere(PyModelingModelerClass* self, PyObject* args, PyObject* kwargs)
 {
   auto api = SvPyUtilApiFunction("dO", PyRunTimeErr, __func__);
   static char *keywords[] = {"radius", "center", NULL};
@@ -517,12 +516,12 @@ SolidModeler_sphere(PySolidModelerClass* self, PyObject* args, PyObject* kwargs)
   }
 
   // Create the new solid.
-  auto pySolidModelObj = CreatePySolidModelObject(self->kernel);
-  if (pySolidModelObj == nullptr) { 
+  auto pyModelingModelObj = CreatePyModelingModelObject(self->kernel);
+  if (pyModelingModelObj == nullptr) { 
       api.error("Error creating a Python solid model object.");
       return nullptr;
   } 
-  auto model = ((PySolidModelClass*)pySolidModelObj)->solidModel; 
+  auto model = ((PyModelingModelClass*)pyModelingModelObj)->solidModel; 
   if (model == NULL) {
       api.error("Error creating a cylinder solid model.");
       return nullptr;
@@ -534,14 +533,14 @@ SolidModeler_sphere(PySolidModelerClass* self, PyObject* args, PyObject* kwargs)
       return nullptr;
   }
 
-  return pySolidModelObj;
+  return pyModelingModelObj;
 }
 
-//-----------------------
-// SolidModeler_subtract 
-//-----------------------
+//--------------------------
+// ModelingModeler_subtract 
+//--------------------------
 //
-PyDoc_STRVAR(SolidModeler_subtract_doc,
+PyDoc_STRVAR(ModelingModeler_subtract_doc,
   "subtract(kernel)  \n\ 
    \n\
    ??? Set the computational kernel used to segment image data.       \n\
@@ -551,7 +550,7 @@ PyDoc_STRVAR(SolidModeler_subtract_doc,
 ");
 
 static PyObject * 
-SolidModeler_subtract(PySolidModelerClass* self, PyObject* args, PyObject* kwargs)
+ModelingModeler_subtract(PyModelingModelerClass* self, PyObject* args, PyObject* kwargs)
 {
   auto api = SvPyUtilApiFunction("OO|s", PyRunTimeErr, __func__);
   static char *keywords[] = {"main", "subtract", "simplification", NULL};
@@ -570,26 +569,26 @@ SolidModeler_subtract(PySolidModelerClass* self, PyObject* args, PyObject* kwarg
   }
 
   // Check that the mainModel argument is a SV Python Model object.
-  auto mainModel = SolidModelerUtil_GetModelFromPyObj(mainModelArg);
+  auto mainModel = ModelingModelerUtil_GetModelFromPyObj(mainModelArg);
   if (mainModel == nullptr) { 
       api.error("The main model argument is not a Model object.");
       return nullptr;
   }
 
   // Check that the subtractModel argument is a SV Python Model object.
-  auto subtractModel = SolidModelerUtil_GetModelFromPyObj(subtractModelArg);
+  auto subtractModel = ModelingModelerUtil_GetModelFromPyObj(subtractModelArg);
   if (subtractModel == nullptr) { 
       api.error("The subtract model argument is not a Model object.");
       return nullptr;
   }
 
   // Create the new solid.
-  auto pySolidModelObj = CreatePySolidModelObject(self->kernel);
-  if (pySolidModelObj == nullptr) {
+  auto pyModelingModelObj = CreatePyModelingModelObject(self->kernel);
+  if (pyModelingModelObj == nullptr) {
       api.error("Error creating a Python solid model object.");
       return nullptr;
   }
-  auto model = ((PySolidModelClass*)pySolidModelObj)->solidModel;
+  auto model = ((PyModelingModelClass*)pyModelingModelObj)->solidModel;
   if (model == NULL) {
       api.error("Error creating a solid model.");
       return nullptr;
@@ -601,14 +600,14 @@ SolidModeler_subtract(PySolidModelerClass* self, PyObject* args, PyObject* kwarg
       return nullptr;
   }
 
-  return pySolidModelObj;
+  return pyModelingModelObj;
 }
 
-//--------------------
-// SolidModeler_union 
-//--------------------
+//-----------------------
+// ModelingModeler_union 
+//-----------------------
 //
-PyDoc_STRVAR(SolidModeler_union_doc,
+PyDoc_STRVAR(ModelingModeler_union_doc,
   "union(kernel)  \n\ 
    \n\
    ??? Set the computational kernel used to segment image data.       \n\
@@ -618,7 +617,7 @@ PyDoc_STRVAR(SolidModeler_union_doc,
 ");
 
 static PyObject * 
-SolidModeler_union(PySolidModelerClass* self, PyObject* args, PyObject* kwargs)
+ModelingModeler_union(PyModelingModelerClass* self, PyObject* args, PyObject* kwargs)
 {
   auto api = SvPyUtilApiFunction("OO|s", PyRunTimeErr, __func__);
   static char *keywords[] = {"model1", "model2", "simplification", NULL};
@@ -637,26 +636,26 @@ SolidModeler_union(PySolidModelerClass* self, PyObject* args, PyObject* kwargs)
   }
 
   // Check that the model1 argument is a SV Python Model object.
-  auto model1 = SolidModelerUtil_GetModelFromPyObj(model1Arg);
+  auto model1 = ModelingModelerUtil_GetModelFromPyObj(model1Arg);
   if (model1 == nullptr) { 
       api.error("The first model argument is not a Model object.");
       return nullptr;
   }
 
   // Check that the model2 argument is a SV Python Model object.
-  auto model2 = SolidModelerUtil_GetModelFromPyObj(model2Arg);
+  auto model2 = ModelingModelerUtil_GetModelFromPyObj(model2Arg);
   if (model2 == nullptr) { 
       api.error("The second model argument is not a Model object.");
       return nullptr;
   }
 
   // Create the new solid.
-  auto pySolidModelObj = CreatePySolidModelObject(self->kernel);
-  if (pySolidModelObj == nullptr) { 
+  auto pyModelingModelObj = CreatePyModelingModelObject(self->kernel);
+  if (pyModelingModelObj == nullptr) { 
       api.error("Error creating a Python solid model object.");
       return nullptr;
   } 
-  auto model = ((PySolidModelClass*)pySolidModelObj)->solidModel; 
+  auto model = ((PyModelingModelClass*)pyModelingModelObj)->solidModel; 
   if (model == NULL) {
       api.error("Error creating a solid model.");
       return nullptr;
@@ -668,67 +667,67 @@ SolidModeler_union(PySolidModelerClass* self, PyObject* args, PyObject* kwargs)
       return nullptr;
   }
 
-  return pySolidModelObj;
+  return pyModelingModelObj;
 }
 
 ////////////////////////////////////////////////////////
 //          C l a s s    D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
 
-static char* SOLID_MODELER_CLASS = "Modeler";
-static char* SOLID_MODELER_MODULE_CLASS = "solid.Modeler";
+static char* MODELING_MODELER_CLASS = "Modeler";
+static char* MODELING_MODELER_MODULE_CLASS = "modeling.Modeler";
 // The name of the Modeler class veriable that contains all of the kernel types.
-static char* SOLID_MODELER_CLASS_VARIBLE_NAMES = "names";
+static char* MODELING_MODELER_CLASS_VARIBLE_NAMES = "names";
 
-PyDoc_STRVAR(SolidModelerClass_doc, "solid modeling kernel class functions");
+PyDoc_STRVAR(ModelingModelerClass_doc, "Modeling modeler class functions");
 
 //---------------------
-// SolidModelerMethods
+// ModelingModelerMethods
 //---------------------
 //
-static PyMethodDef PySolidModelerClassMethods[] = {
+static PyMethodDef PyModelingModelerClassMethods[] = {
 
-  { "box", (PyCFunction)SolidModeler_box, METH_VARARGS | METH_KEYWORDS, SolidModeler_box_doc },
+  { "box", (PyCFunction)ModelingModeler_box, METH_VARARGS | METH_KEYWORDS, ModelingModeler_box_doc },
 
-  // [TODO:DaveP] The cvSolidModel MakeCircle method is not implemented.
-  //{ "circle", (PyCFunction)SolidModeler_circle, METH_VARARGS, SolidModeler_circle_doc },
+  // [TODO:DaveP] The cvModelingModel MakeCircle method is not implemented.
+  //{ "circle", (PyCFunction)ModelingModeler_circle, METH_VARARGS, ModelingModeler_circle_doc },
 
-  { "cylinder", (PyCFunction)SolidModeler_cylinder, METH_VARARGS | METH_KEYWORDS, SolidModeler_cylinder_doc },
+  { "cylinder", (PyCFunction)ModelingModeler_cylinder, METH_VARARGS | METH_KEYWORDS, ModelingModeler_cylinder_doc },
 
-  { "intersect", (PyCFunction)SolidModeler_intersect, METH_VARARGS | METH_KEYWORDS, SolidModeler_intersect_doc },
+  { "intersect", (PyCFunction)ModelingModeler_intersect, METH_VARARGS | METH_KEYWORDS, ModelingModeler_intersect_doc },
 
-  // [TODO:DaveP] The cvSolidModel MakeEllipsoid method is not implemented.
-  //{ "ellipsoid", (PyCFunction)SolidModeler_ellipsoid, METH_VARARGS | METH_KEYWORDS, SolidModeler_ellipsoid_doc},
+  // [TODO:DaveP] The cvModelingModel MakeEllipsoid method is not implemented.
+  //{ "ellipsoid", (PyCFunction)ModelingModeler_ellipsoid, METH_VARARGS | METH_KEYWORDS, ModelingModeler_ellipsoid_doc},
 
-  { "read", (PyCFunction)SolidModeler_read, METH_VARARGS|METH_KEYWORDS, SolidModeler_read_doc },
+  { "read", (PyCFunction)ModelingModeler_read, METH_VARARGS|METH_KEYWORDS, ModelingModeler_read_doc },
 
-  { "sphere", (PyCFunction)SolidModeler_sphere, METH_VARARGS | METH_KEYWORDS, SolidModeler_sphere_doc },
+  { "sphere", (PyCFunction)ModelingModeler_sphere, METH_VARARGS | METH_KEYWORDS, ModelingModeler_sphere_doc },
 
-  { "subtract", (PyCFunction)SolidModeler_subtract, METH_VARARGS | METH_KEYWORDS, SolidModeler_subtract_doc },
+  { "subtract", (PyCFunction)ModelingModeler_subtract, METH_VARARGS | METH_KEYWORDS, ModelingModeler_subtract_doc },
 
-  { "union", (PyCFunction)SolidModeler_union, METH_VARARGS | METH_KEYWORDS, SolidModeler_union_doc},
+  { "union", (PyCFunction)ModelingModeler_union, METH_VARARGS | METH_KEYWORDS, ModelingModeler_union_doc},
 
   {NULL, NULL}
 };
 
-//--------------------
-// PySolidModelerInit 
-//--------------------
+//-----------------------
+// PyModelingModelerInit 
+//-----------------------
 // This is the __init__() method for the solid.Modeler class. 
 //
 // This function is used to initialize an object after it is created.
 //
 static int
-PySolidModelerInit(PySolidModelerClass* self, PyObject* args, PyObject *kwds)
+PyModelingModelerInit(PyModelingModelerClass* self, PyObject* args, PyObject *kwds)
 {
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, "SolidModeler");
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, "ModelingModeler");
   static int numObjs = 1;
-  std::cout << "[PySolidModelerInit] New PySolidModeler object: " << numObjs << std::endl;
+  std::cout << "[PyModelingModelerInit] New PyModelingModeler object: " << numObjs << std::endl;
   char* kernelName = nullptr;
   if (!PyArg_ParseTuple(args, "s", &kernelName)) {
       return -1;
   }
-  std::cout << "[PySolidModelerInit] Kernel name: " << kernelName << std::endl;
+  std::cout << "[PyModelingModelerInit] Kernel name: " << kernelName << std::endl;
   auto kernel = kernelNameEnumMap.at(std::string(kernelName));
 
   self->id = numObjs;
@@ -737,32 +736,32 @@ PySolidModelerInit(PySolidModelerClass* self, PyObject* args, PyObject *kwds)
   return 0;
 }
 
-//-------------------------
-// PySolidModelerClassType 
-//-------------------------
+//----------------------------
+// PyModelingModelerClassType 
+//----------------------------
 // Define the Python type object that stores contour.kernel types. 
 //
-static PyTypeObject PySolidModelerClassType = {
+static PyTypeObject PyModelingModelerClassType = {
   PyVarObject_HEAD_INIT(NULL, 0)
-  .tp_name = SOLID_MODELER_MODULE_CLASS,
-  .tp_basicsize = sizeof(PySolidModelerClass)
+  .tp_name = MODELING_MODELER_MODULE_CLASS,
+  .tp_basicsize = sizeof(PyModelingModelerClass)
 };
 
-//-------------------
-// PySolidModelerNew 
-//-------------------
+//----------------------
+// PyModelingModelerNew 
+//----------------------
 //
 static PyObject *
-PySolidModelerNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
+PyModelingModelerNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
-  std::cout << "[PySolidModelerNew] New SolidModeler" << std::endl;
+  std::cout << "[PyModelingModelerNew] New ModelingModeler" << std::endl;
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, "Modeler");
   char* kernelName = nullptr; 
   if (!PyArg_ParseTuple(args, api.format, &kernelName)) {
       return api.argsError();
   }
 
-  std::cout << "[PySolidModelerNew] Kernel: " << kernelName << std::endl;
+  std::cout << "[PyModelingModelerNew] Kernel: " << kernelName << std::endl;
   SolidModel_KernelT kernel;
 
   try {
@@ -781,7 +780,7 @@ PySolidModelerNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
       return nullptr;
   }
 
-  auto self = (PySolidModelerClass*)type->tp_alloc(type, 0);
+  auto self = (PyModelingModelerClass*)type->tp_alloc(type, 0);
   if (self != NULL) {
       //self->id = 1;
   }
@@ -789,48 +788,48 @@ PySolidModelerNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
   return (PyObject *) self;
 }
 
-//-----------------------
-// PySolidModelerDealloc 
-//-----------------------
+//--------------------------
+// PyModelingModelerDealloc 
+//--------------------------
 //
 static void
-PySolidModelerDealloc(PySolidModelerClass* self)
+PyModelingModelerDealloc(PyModelingModelerClass* self)
 {
-  std::cout << "[PySolidModelerDealloc] Free PySolidModeler: " << self->id << std::endl;
+  std::cout << "[PyModelingModelerDealloc] Free PyModelingModeler: " << self->id << std::endl;
   //delete self->solidModel;
   Py_TYPE(self)->tp_free(self);
 }
 
-//-------------------------
-// SetSolidModelerTypeFields 
-//-------------------------
-// Set the Python type object fields that stores SolidModeler data. 
+//------------------------------
+// SetModelingModelerTypeFields 
+//------------------------------
+// Set the Python type object fields that stores ModelingModeler data. 
 //
 // Need to set the fields here because g++ does not suppor non-trivial 
 // designated initializers. 
 //
 static void
-SetSolidModelerTypeFields(PyTypeObject& solidModelType)
+SetModelingModelerTypeFields(PyTypeObject& solidModelType)
 {
   // Doc string for this type.
-  solidModelType.tp_doc = SolidModelerClass_doc; 
+  solidModelType.tp_doc = ModelingModelerClass_doc; 
   // Object creation function, equivalent to the Python __new__() method. 
   // The generic handler creates a new instance using the tp_alloc field.
-  solidModelType.tp_new = PySolidModelerNew;
+  solidModelType.tp_new = PyModelingModelerNew;
   //solidModelType.tp_new = PyType_GenericNew,
   solidModelType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
-  solidModelType.tp_init = (initproc)PySolidModelerInit;
-  solidModelType.tp_dealloc = (destructor)PySolidModelerDealloc;
-  solidModelType.tp_methods = PySolidModelerClassMethods;
+  solidModelType.tp_init = (initproc)PyModelingModelerInit;
+  solidModelType.tp_dealloc = (destructor)PyModelingModelerDealloc;
+  solidModelType.tp_methods = PyModelingModelerClassMethods;
 };
 
-//----------------------
-// CreateSolidModelerType 
-//----------------------
-static PySolidModelerClass * 
-CreateSolidModelerType()
+//---------------------------
+// CreateModelingModelerType 
+//---------------------------
+static PyModelingModelerClass * 
+CreateModelingModelerType()
 {
-  return PyObject_New(PySolidModelerClass, &PySolidModelerClassType);
+  return PyObject_New(PyModelingModelerClass, &PyModelingModelerClassType);
 }
 
 #endif

@@ -51,7 +51,7 @@
 #include "Segmentation_PyModule.h"
 #include "Meshing_PyModule.h"
 #include "Path_PyModule.h"
-#include "Solid_PyModule.h"
+#include "Modeling_PyModule.h"
 
 //#include "sv_Repository.h"
 #include "sv_PolyData.h"
@@ -613,8 +613,8 @@ Dmg_get_model(PyObject* self, PyObject* args)
   // Get the model group.
   auto model = dynamic_cast<sv4guiModel*>(modelNode->GetData());
 
-  // Create a PySolidGroup object.
-  return CreatePySolidGroup(model);
+  // Create a PyModelingGroup object.
+  return CreatePyModelingGroup(model);
 }
 
 //--------------
@@ -1023,7 +1023,7 @@ Dmg_add_model(PyObject* self, PyObject* args, PyObject* kwargs)
   char* modelName = NULL;
   PyObject* modelArg;
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &modelName, &PySolidGroupClassType, &modelArg)) {
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &modelName, &PyModelingGroupClassType, &modelArg)) {
       return api.argsError();
   }
 
@@ -1031,7 +1031,7 @@ Dmg_add_model(PyObject* self, PyObject* args, PyObject* kwargs)
   //
   // [TODO:DaveP] How to add group? What to do with other modelers?
   // 
-  auto pyModel = (PySolidGroup*)modelArg;
+  auto pyModel = (PyModelingGroup*)modelArg;
   auto solidGroup = pyModel->solidGroup;
   auto solidModelElement = solidGroup->GetModelElement(0);
   auto polydata = solidModelElement->GetWholeVtkPolyData();

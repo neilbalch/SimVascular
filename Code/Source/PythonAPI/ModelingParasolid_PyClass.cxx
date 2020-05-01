@@ -31,7 +31,7 @@
 
 // The functions defined here implement the SV Python API Parasolid solid class. 
 //
-// The class name is 'solid.Parasolid'.
+// The class name is 'modeling.Parasolid'.
 
 //------------------
 // PyParasolidSolid 
@@ -39,7 +39,7 @@
 // Define the ParasolidSolid class (type).
 //
 typedef struct {
-  PySolidModelClass super;
+  PyModelingModelClass super;
 } PyParasolidSolid;
 
 CreateSolidModelObjectFunction PyCreateParasolidSolidObject = nullptr;
@@ -63,7 +63,7 @@ PyDoc_STRVAR(ParasolidSolid_write_doc,
 ");
 
 static PyObject *
-ParasolidSolid_write(PySolidModelClass* self, PyObject* args, PyObject* kwargs)
+ParasolidSolid_write(PyModelingModelClass* self, PyObject* args, PyObject* kwargs)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   static char *keywords[] = {"file_name", "format", "version", NULL};
@@ -104,8 +104,8 @@ ParasolidSolid_write(PySolidModelClass* self, PyObject* args, PyObject* kwargs)
 //          C l a s s    D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
 
-static char* SOLID_PARASOLID_CLASS = "Parasolid";
-static char* SOLID_PARASOLID_MODULE_CLASS = "solid.Parasolid";
+static char* MODELING_PARAMODELING_CLASS = "Parasolid";
+static char* MODELING_PARAMODELING_MODULE_CLASS = "modeling.Parasolid";
 
 PyDoc_STRVAR(PyParasolidSolidClass_doc, "Parasolid solid modeling methods.");
 
@@ -127,7 +127,7 @@ PyParasolidSolidInit(PyParasolidSolid* self, PyObject* args, PyObject *kwds)
 { 
   static int numObjs = 1;
   std::cout << "[PyParasolidSolidInit] New ParasolidSolid object: " << numObjs << std::endl;
-  //self->super.solidModel = new cvPARASOLIDSolidModel();
+  //self->super.solidModel = new cvPARAMODELINGSolidModel();
   numObjs += 1;
   return 0;
 }
@@ -175,7 +175,7 @@ PyTypeObject PyParasolidSolidClassType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   // Dotted name that includes both the module name and 
   // the name of the type within the module.
-  .tp_name = SOLID_PARASOLID_MODULE_CLASS,
+  .tp_name = MODELING_PARAMODELING_MODULE_CLASS,
   .tp_basicsize = sizeof(PyParasolidSolid)
 };
 
@@ -199,7 +199,7 @@ SetParasolidSolidTypeFields(PyTypeObject& solidType)
   //.tp_new = PyType_GenericNew,
 
   // Subclass to PyParasolidSolid.
-  solidType.tp_base = &PySolidModelClassType;
+  solidType.tp_base = &PyModelingModelClassType;
 
   solidType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
   solidType.tp_init = (initproc)PyParasolidSolidInit;

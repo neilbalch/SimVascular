@@ -541,7 +541,7 @@ Mesher_set_solid_modeler_kernel(PyMeshingMesherClass* self, PyObject* args)
 
   // Check for a valid kernel name.
   //
-  SolidModel_KernelT kernel = SolidKernel_NameToEnum(std::string(kernelName));
+  SolidModel_KernelT kernel = ModelingKernelNameToEnum(std::string(kernelName));
 
   if (kernel == SM_KT_INVALID) {
       auto msg = "Unknown kernel name '" + std::string(kernelName) + "'." +

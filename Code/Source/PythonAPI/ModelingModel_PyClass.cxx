@@ -29,22 +29,23 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// Define the Python 'solid.Model' class used to for solid modeling. 
+// Define the Python 'modeling.Model' class used to for solid modeling. 
 //
-// The 'solid.Model' class provides methods that operate directly on the solid model, 
-// for example, getting vtk polydata representing the model surface.
+// The 'modeling.Model' class provides methods that operate directly on 
+// the solid model, for example, getting vtk polydata representing the 
+// model surface.
 //
-//-------------------
-// PySolidModelClass 
-//-------------------
-// The Python solid.Model class internal data.
+//----------------------
+// PyModelingModelClass 
+//----------------------
+// The Python modeling.Model class internal data.
 //
 typedef struct {
   PyObject_HEAD
   int id;
   SolidModel_KernelT kernel;
   cvSolidModel* solidModel;
-} PySolidModelClass;
+} PyModelingModelClass;
 
 //////////////////////////////////////////////////////
 //          U t i l i t y   F u n c t i o n s       //
@@ -55,7 +56,7 @@ typedef struct {
 //-------------------------
 // Check for a valid model simplification name. 
 //
-// Returns the equivalent SolidModel_SimplifyT type 
+// Returns the equivalent ModelingModel_SimplifyT type 
 // or SM_Simplify_Invalid if the name is not valid. 
 //
 static SolidModel_SimplifyT
@@ -80,12 +81,12 @@ CheckSimplificationName(SvPyUtilApiFunction& api, char* name)
 // Python API functions for the Python solid.Model class. 
 
 //---------------------
-// SolidModel_apply4x4 
+// ModelingModel_apply4x4 
 //---------------------
 //
 // [TODO:DaveP] The Apply4x4() method is not implemented.
 //
-PyDoc_STRVAR(SolidModel_apply4x4_doc,
+PyDoc_STRVAR(ModelingModel_apply4x4_doc,
 " apply4x4(matrix)  \n\ 
   \n\
   Apply a 4x4 transformation matrix to the solid model. \n\
@@ -95,7 +96,7 @@ PyDoc_STRVAR(SolidModel_apply4x4_doc,
 ");
 
 static PyObject *  
-SolidModel_apply4x4(PySolidModelClass *self ,PyObject* args)
+ModelingModel_apply4x4(PyModelingModelClass *self ,PyObject* args)
 {
   auto api = SvPyUtilApiFunction("O", PyRunTimeErr, __func__);
   PyObject* matrixArg;
@@ -120,7 +121,7 @@ SolidModel_apply4x4(PySolidModelClass *self ,PyObject* args)
       }
       for (int j = 0; j < PyList_Size(rowList); j++) {
           matrix[i][j] = PyFloat_AsDouble(PyList_GetItem(rowList,j));
-          std::cout << "[SolidModel.apply4x4] matrix[i][j] " << matrix[i][j] << std::endl; 
+          std::cout << "[ModelingModel.apply4x4] matrix[i][j] " << matrix[i][j] << std::endl; 
       }
   }
 
@@ -134,7 +135,7 @@ SolidModel_apply4x4(PySolidModelClass *self ,PyObject* args)
   return SV_PYTHON_OK;
 }
 
-PyDoc_STRVAR(SolidModel_calculate_boundary_faces_doc,
+PyDoc_STRVAR(ModelingModel_calculate_boundary_faces_doc,
 "calculate_boundary_faces(angle)  \n\ 
   \n\
   ??? Add the unstructured grid mesh to the repository. \n\
@@ -144,7 +145,7 @@ PyDoc_STRVAR(SolidModel_calculate_boundary_faces_doc,
 ");
 
 static PyObject *
-SolidModel_calculate_boundary_faces(PySolidModelClass* self, PyObject* args)
+ModelingModel_calculate_boundary_faces(PyModelingModelClass* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("d", PyRunTimeErr, __func__);
   double angle = 0.0;
@@ -169,12 +170,12 @@ SolidModel_calculate_boundary_faces(PySolidModelClass* self, PyObject* args)
 }
 
 //------------------
-// SolidModel_check 
+// ModelingModel_check 
 //------------------
 //
-// [TODO:DaveP] The cvSolidModel method is not implemented.
+// [TODO:DaveP] The cvModelingModel method is not implemented.
 //
-PyDoc_STRVAR(SolidModel_check_doc,
+PyDoc_STRVAR(ModelingModel_check_doc,
 " check()  \n\ 
   \n\
   ??? Add the unstructured grid mesh to the repository. \n\
@@ -182,7 +183,7 @@ PyDoc_STRVAR(SolidModel_check_doc,
 ");
 
 static PyObject *
-SolidModel_check(PySolidModelClass *self ,PyObject* args)
+ModelingModel_check(PyModelingModelClass *self ,PyObject* args)
 {
   auto model = self->solidModel;
   int nerr;
@@ -190,11 +191,11 @@ SolidModel_check(PySolidModelClass *self ,PyObject* args)
   return Py_BuildValue("i",nerr);
 }
 
-//-------------------
-// Solid_ClassifyPtMtd
-//-------------------
+//------------------------------
+// ModelingModel_classify_point 
+//------------------------------
 //
-PyDoc_STRVAR(SolidModel_classify_point_doc,
+PyDoc_STRVAR(ModelingModel_classify_point_doc,
 " classify_point(name)  \n\ 
   \n\
   ??? Add the unstructured grid mesh to the repository. \n\
@@ -204,7 +205,7 @@ PyDoc_STRVAR(SolidModel_classify_point_doc,
 ");
 
 static PyObject *  
-SolidModel_classify_point(PySolidModelClass* self ,PyObject* args)
+ModelingModel_classify_point(PyModelingModelClass* self ,PyObject* args)
 {
   auto api = SvPyUtilApiFunction("dd|di", PyRunTimeErr, __func__);
   double x, y;
@@ -245,12 +246,12 @@ SolidModel_classify_point(PySolidModelClass* self ,PyObject* args)
 }
 
 //-------------------------
-// SolidModel_delete_faces 
+// ModelingModel_delete_faces 
 //-------------------------
 //
 // [TODO:DaveP] This function does not work. 
 //
-PyDoc_STRVAR(SolidModel_delete_faces_doc,
+PyDoc_STRVAR(ModelingModel_delete_faces_doc,
 " delete_faces(name)  \n\ 
   \n\
   ??? Add the unstructured grid mesh to the repository. \n\
@@ -260,7 +261,7 @@ PyDoc_STRVAR(SolidModel_delete_faces_doc,
 ");
 
 static PyObject * 
-SolidModel_delete_faces(PySolidModelClass* self, PyObject* args)
+ModelingModel_delete_faces(PyModelingModelClass* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("O", PyRunTimeErr, __func__);
   PyObject* faceListArg;
@@ -311,10 +312,10 @@ SolidModel_delete_faces(PySolidModelClass* self, PyObject* args)
 }
 
 //--------------------------
-// SolidModel_find_centroid
+// ModelingModel_find_centroid
 //--------------------------
 //
-PyDoc_STRVAR(SolidModel_find_centroid_doc,
+PyDoc_STRVAR(ModelingModel_find_centroid_doc,
 " find_centroid()  \n\
   \n\
   ??? Add the unstructured grid mesh to the repository. \n\
@@ -322,7 +323,7 @@ PyDoc_STRVAR(SolidModel_find_centroid_doc,
 ");
 
 static PyObject *  
-SolidModel_find_centroid(PySolidModelClass* self, PyObject* args)
+ModelingModel_find_centroid(PyModelingModelClass* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
   auto model = self->solidModel;
@@ -354,10 +355,10 @@ SolidModel_find_centroid(PySolidModelClass* self, PyObject* args)
 }
 
 //-------------------------
-// SolidModel_get_face_ids 
+// ModelingModel_get_face_ids 
 //-------------------------
 //
-PyDoc_STRVAR(SolidModel_get_face_ids_doc,
+PyDoc_STRVAR(ModelingModel_get_face_ids_doc,
 " get_face_ids_doc()  \n\ 
   \n\
   ??? Add the unstructured grid mesh to the repository. \n\
@@ -365,7 +366,7 @@ PyDoc_STRVAR(SolidModel_get_face_ids_doc,
 ");
 
 static PyObject * 
-SolidModel_get_face_ids(PySolidModelClass* self, PyObject* args)
+ModelingModel_get_face_ids(PyModelingModelClass* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
 
@@ -395,11 +396,11 @@ SolidModel_get_face_ids(PySolidModelClass* self, PyObject* args)
 }
 
 //----------------------------
-// SolidModel_get_face_normal 
+// ModelingModel_get_face_normal 
 //----------------------------
-//[TODO:DaveP] The C++ cvSolidModel GetFaceNormal() method is not implemented.
+//[TODO:DaveP] The C++ cvModelingModel GetFaceNormal() method is not implemented.
 //
-PyDoc_STRVAR(SolidModel_get_face_normal_doc,
+PyDoc_STRVAR(ModelingModel_get_face_normal_doc,
 " get_face_normal(face_id, u, v)  \n\ 
   \n\
   ??? Add the unstructured grid mesh to the repository. \n\
@@ -409,7 +410,7 @@ PyDoc_STRVAR(SolidModel_get_face_normal_doc,
 ");
 
 static PyObject *
-SolidModel_get_face_normal(PySolidModelClass* self, PyObject* args, PyObject* kwargs)
+ModelingModel_get_face_normal(PyModelingModelClass* self, PyObject* args, PyObject* kwargs)
 {
   auto api = SvPyUtilApiFunction("idd", PyRunTimeErr, __func__);
   static char *keywords[] = {"face_id", "u", "v", NULL};
@@ -432,10 +433,10 @@ SolidModel_get_face_normal(PySolidModelClass* self, PyObject* args, PyObject* kw
 }
 
 //------------------------------
-// SolidModel_get_face_polydata
+// ModelingModel_get_face_polydata
 //------------------------------
 //
-PyDoc_STRVAR(SolidModel_get_face_polydata_doc,
+PyDoc_STRVAR(ModelingModel_get_face_polydata_doc,
 " get_face_polydata(name)  \n\ 
   \n\
   ??? Add the unstructured grid mesh to the repository. \n\
@@ -445,7 +446,7 @@ PyDoc_STRVAR(SolidModel_get_face_polydata_doc,
 ");
 
 static PyObject * 
-SolidModel_get_face_polydata(PySolidModelClass* self, PyObject* args, PyObject* kwargs)
+ModelingModel_get_face_polydata(PyModelingModelClass* self, PyObject* args, PyObject* kwargs)
 {
   auto api = SvPyUtilApiFunction("i|d", PyRunTimeErr, __func__);
   static char *keywords[] = {"face_id", "max_dist", NULL};
@@ -508,10 +509,10 @@ SolidModel_get_face_polydata(PySolidModelClass* self, PyObject* args, PyObject* 
 }
 
 //-------------------------
-// SolidModel_get_polydata
+// ModelingModel_get_polydata
 //-------------------------
 //
-PyDoc_STRVAR(SolidModel_get_polydata_doc,
+PyDoc_STRVAR(ModelingModel_get_polydata_doc,
 " get_polydata(name)  \n\ 
   \n\
   ??? Add the unstructured grid mesh to the repository. \n\
@@ -521,10 +522,10 @@ PyDoc_STRVAR(SolidModel_get_polydata_doc,
 ");
 
 static PyObject *  
-SolidModel_get_polydata(PySolidModelClass *self, PyObject* args)
+ModelingModel_get_polydata(PyModelingModelClass *self, PyObject* args)
 {
   std::cout << " " << std::endl;
-  std::cout << " ========== SolidModel_get_polydata ==========" << std::endl;
+  std::cout << " ========== ModelingModel_get_polydata ==========" << std::endl;
   auto api = SvPyUtilApiFunction("|d", PyRunTimeErr, __func__);
   double max_dist = -1.0;
 
@@ -553,10 +554,10 @@ SolidModel_get_polydata(PySolidModelClass *self, PyObject* args)
 }
 
 //------------------
-// SolidModel_write
+// ModelingModel_write
 //------------------
 //
-PyDoc_STRVAR(SolidModel_write_doc,
+PyDoc_STRVAR(ModelingModel_write_doc,
 " write(file_name)  \n\ 
   \n\
   Write the solid model to a file in its native format. \n\
@@ -566,7 +567,7 @@ PyDoc_STRVAR(SolidModel_write_doc,
 ");
 
 static PyObject * 
-SolidModel_write(PySolidModelClass* self, PyObject* args, PyObject* kwargs)
+ModelingModel_write(PyModelingModelClass* self, PyObject* args, PyObject* kwargs)
 {
   auto api = SvPyUtilApiFunction("ss|i", PyRunTimeErr, __func__);
   static char *keywords[] = {"file_name", "format", "version", NULL};
@@ -578,21 +579,21 @@ SolidModel_write(PySolidModelClass* self, PyObject* args, PyObject* kwargs)
       return api.argsError();
   }
   auto model = self->solidModel;
-  std::cout << "[SolidModel_write] " << std::endl;
-  std::cout << "[SolidModel_write] kernel: " << self->kernel << std::endl;
+  std::cout << "[ModelingModel_write] " << std::endl;
+  std::cout << "[ModelingModel_write] kernel: " << self->kernel << std::endl;
 
   // Add format as file extension. 
   //
   std::string fullFileName = std::string(fileName);
   auto extension = fullFileName.substr(fullFileName.find_last_of(".") + 1);
   if (extension != fullFileName) {
-      std::cout << "[SolidModel_write] extension: " << extension << std::endl;
+      std::cout << "[ModelingModel_write] extension: " << extension << std::endl;
       api.error("The file name argument has a file extension '" + extension + "'.");
       return nullptr;
   }
   fullFileName += "." + std::string(fileFormat);
   std::vector<char> cstr(fullFileName.c_str(), fullFileName.c_str() + fullFileName.size() + 1);
-  std::cout << "[SolidModel_write] fullFileName: " << fullFileName << std::endl;
+  std::cout << "[ModelingModel_write] fullFileName: " << fullFileName << std::endl;
 
   if (model->WriteNative(fileVersion, cstr.data()) != SV_OK) {
       api.error("Error writing the solid model to the file '" + std::string(fileName) + 
@@ -607,71 +608,71 @@ SolidModel_write(PySolidModelClass* self, PyObject* args, PyObject* kwargs)
 //           C l a s s    D e f i n i t i o n         //
 ////////////////////////////////////////////////////////
 
-static char* SOLID_MODEL_CLASS = "Model";
+static char* MODELING_MODEL_CLASS = "Model";
 
 // Dotted name that includes both the module name and 
 // the name of the type within the module.
-static char* SOLID_MODEL_MODULE_CLASS = "solid.Model";
+static char* MODELING_MODEL_MODULE_CLASS = "modeling.Model";
 
-PyDoc_STRVAR(SolidModelClass_doc, "solid model class methods.");
+PyDoc_STRVAR(ModelingModelClass_doc, "modeling model class methods.");
 
 //--------------------------
-// PySolidModelClassMethods
+// PyModelingModelClassMethods
 //--------------------------
-// Define method names for SolidModel class 
+// Define method names for ModelingModel class 
 //
-static PyMethodDef PySolidModelClassMethods[] = {
+static PyMethodDef PyModelingModelClassMethods[] = {
 
-  // [TODO:DaveP] The cvSolidModel Apply4x4() method is not implemented.
-  // { "apply4x4", (PyCFunction)SolidModel_apply4x4, METH_VARARGS, SolidModel_apply4x4_doc },
+  // [TODO:DaveP] The cvModelingModel Apply4x4() method is not implemented.
+  // { "apply4x4", (PyCFunction)ModelingModel_apply4x4, METH_VARARGS, ModelingModel_apply4x4_doc },
 
-  { "calculate_boundary_faces", (PyCFunction)SolidModel_calculate_boundary_faces, METH_VARARGS, SolidModel_calculate_boundary_faces_doc},
+  { "calculate_boundary_faces", (PyCFunction)ModelingModel_calculate_boundary_faces, METH_VARARGS, ModelingModel_calculate_boundary_faces_doc},
 
-  { "delete_faces", (PyCFunction)SolidModel_delete_faces, METH_VARARGS, SolidModel_delete_faces_doc },
+  { "delete_faces", (PyCFunction)ModelingModel_delete_faces, METH_VARARGS, ModelingModel_delete_faces_doc },
 
-  // [TODO:DaveP] The cvSolidModel method is not implemented.
-  //{ "check", (PyCFunction)SolidModel_check, METH_VARARGS, SolidModel_check_doc },
+  // [TODO:DaveP] The cvModelingModel method is not implemented.
+  //{ "check", (PyCFunction)ModelingModel_check, METH_VARARGS, ModelingModel_check_doc },
 
-  //  [TODO:DaveP] The C++ cvSolidModel ClassifyPt() method is not implemented.
-  //{ "classify_point", (PyCFunction)SolidModel_classify_point, METH_VARARGS,   SolidModel_classify_point_doc },
+  //  [TODO:DaveP] The C++ cvModelingModel ClassifyPt() method is not implemented.
+  //{ "classify_point", (PyCFunction)ModelingModel_classify_point, METH_VARARGS,   ModelingModel_classify_point_doc },
 
-  // [TODO:DaveP] The cvSolidModel method is not implemented.
-  //{ "find_centroid", (PyCFunction)SolidModel_find_centroid, METH_VARARGS, SolidModel_find_centroid_doc },
+  // [TODO:DaveP] The cvModelingModel method is not implemented.
+  //{ "find_centroid", (PyCFunction)ModelingModel_find_centroid, METH_VARARGS, ModelingModel_find_centroid_doc },
 
-  { "get_face_ids", (PyCFunction)SolidModel_get_face_ids, METH_NOARGS, SolidModel_get_face_ids_doc },
+  { "get_face_ids", (PyCFunction)ModelingModel_get_face_ids, METH_NOARGS, ModelingModel_get_face_ids_doc },
 
-  //[TODO:DaveP] The C++ cvSolidModel GetFaceNormal() method is not implemented.
-  //{ "get_face_normal", (PyCFunction)SolidModel_get_face_normal, METH_VARARGS | METH_KEYWORDS, SolidModel_get_face_normal_doc },
+  //[TODO:DaveP] The C++ cvModelingModel GetFaceNormal() method is not implemented.
+  //{ "get_face_normal", (PyCFunction)ModelingModel_get_face_normal, METH_VARARGS | METH_KEYWORDS, ModelingModel_get_face_normal_doc },
 
-  { "get_face_polydata", (PyCFunction)SolidModel_get_face_polydata, METH_VARARGS|METH_KEYWORDS, SolidModel_get_face_polydata_doc},
+  { "get_face_polydata", (PyCFunction)ModelingModel_get_face_polydata, METH_VARARGS|METH_KEYWORDS, ModelingModel_get_face_polydata_doc},
 
-  { "get_polydata", (PyCFunction)SolidModel_get_polydata, METH_VARARGS, SolidModel_get_polydata_doc },
+  { "get_polydata", (PyCFunction)ModelingModel_get_polydata, METH_VARARGS, ModelingModel_get_polydata_doc },
 
-  { "write", (PyCFunction)SolidModel_write, METH_VARARGS|METH_KEYWORDS, SolidModel_write_doc },
+  { "write", (PyCFunction)ModelingModel_write, METH_VARARGS|METH_KEYWORDS, ModelingModel_write_doc },
 
   {NULL,NULL}
 
 };
 
 //------------------
-// PySolidModelInit 
+// PyModelingModelInit 
 //------------------
-// This is the __init__() method for the SolidModel class. 
+// This is the __init__() method for the ModelingModel class. 
 //
 // This function is used to initialize an object after it is created.
 //
 static int
-PySolidModelInit(PySolidModelClass* self, PyObject* args, PyObject *kwds)
+PyModelingModelInit(PyModelingModelClass* self, PyObject* args, PyObject *kwds)
 {
-  std::cout << "[PySolidModelInit] ========== PySolidModelInit ========== " << std::endl;
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, "SolidModel");
+  std::cout << "[PyModelingModelInit] ========== PyModelingModelInit ========== " << std::endl;
+  auto api = SvPyUtilApiFunction("", PyRunTimeErr, "ModelingModel");
   static int numObjs = 1;
-  std::cout << "[PySolidModelInit] New PySolidModel object: " << numObjs << std::endl;
+  std::cout << "[PyModelingModelInit] New PyModelingModel object: " << numObjs << std::endl;
   char* kernelName = nullptr; 
   if (!PyArg_ParseTuple(args, "s", &kernelName)) {
       return -1;
   }
-  std::cout << "[PySolidModelInit] Kernel name: " << kernelName << std::endl;
+  std::cout << "[PyModelingModelInit] Kernel name: " << kernelName << std::endl;
   auto kernel = kernelNameEnumMap.at(std::string(kernelName));
   cvSolidModel* solidModel;
 
@@ -690,28 +691,28 @@ PySolidModelInit(PySolidModelClass* self, PyObject* args, PyObject *kwds)
 }
 
 //-----------------------
-// PySolidModelClassType 
+// PyModelingModelClassType 
 //-----------------------
-// This is the definition of the SolidModel class.
+// This is the definition of the ModelingModel class.
 //
 // The type object stores a large number of values, mostly C function pointers, 
 // each of which implements a small part of the type’s functionality.
 //
-static PyTypeObject PySolidModelClassType = {
+static PyTypeObject PyModelingModelClassType = {
   PyVarObject_HEAD_INIT(NULL, 0)
-  .tp_name = SOLID_MODEL_MODULE_CLASS, 
-  .tp_basicsize = sizeof(PySolidModelClass) 
+  .tp_name = MODELING_MODEL_MODULE_CLASS, 
+  .tp_basicsize = sizeof(PyModelingModelClass) 
 };
 
 //-----------------
-// PySolidModelNew 
+// PyModelingModelNew 
 //-----------------
 //
 static PyObject *
-PySolidModelNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
+PyModelingModelNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
-  std::cout << "[PySolidModelNew] New SolidModel" << std::endl;
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, "SolidModel");
+  std::cout << "[PyModelingModelNew] New ModelingModel" << std::endl;
+  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, "ModelingModel");
   char* kernelName = nullptr; 
   if (!PyArg_ParseTuple(args, api.format, &kernelName)) {
       return api.argsError();
@@ -728,7 +729,7 @@ PySolidModelNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
       return nullptr;
   }
 
-  auto self = (PySolidModelClass*)type->tp_alloc(type, 0);
+  auto self = (PyModelingModelClass*)type->tp_alloc(type, 0);
   if (self != NULL) {
       //self->id = 1;
   }
@@ -737,46 +738,46 @@ PySolidModelNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 }
 
 //---------------------
-// PySolidModelDealloc 
+// PyModelingModelDealloc 
 //---------------------
 //
 static void
-PySolidModelDealloc(PySolidModelClass* self)
+PyModelingModelDealloc(PyModelingModelClass* self)
 {
-  std::cout << "[PySolidModelDealloc] Free PySolidModel: " << self->id << std::endl;
+  std::cout << "[PyModelingModelDealloc] Free PyModelingModel: " << self->id << std::endl;
   //delete self->solidModel;
   Py_TYPE(self)->tp_free(self);
 }
 
-//-------------------------
-// SetSolidModelTypeFields 
-//-------------------------
-// Set the Python type object fields that stores SolidModel data. 
+//----------------------------
+// SetModelingModelTypeFields 
+//----------------------------
+// Set the Python type object fields that stores ModelingModel data. 
 //
 // Need to set the fields here because g++ does not suppor non-trivial 
 // designated initializers. 
 //
 static void
-SetSolidModelTypeFields(PyTypeObject& solidModelType)
+SetModelingModelTypeFields(PyTypeObject& solidModelType)
 {
   // Doc string for this type.
-  solidModelType.tp_doc = SolidModelClass_doc; 
+  solidModelType.tp_doc = ModelingModelClass_doc; 
   // Object creation function, equivalent to the Python __new__() method. 
   // The generic handler creates a new instance using the tp_alloc field.
-  solidModelType.tp_new = PySolidModelNew;
+  solidModelType.tp_new = PyModelingModelNew;
   //solidModelType.tp_new = PyType_GenericNew,
   solidModelType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
-  solidModelType.tp_init = (initproc)PySolidModelInit;
-  solidModelType.tp_dealloc = (destructor)PySolidModelDealloc;
-  solidModelType.tp_methods = PySolidModelClassMethods;
+  solidModelType.tp_init = (initproc)PyModelingModelInit;
+  solidModelType.tp_dealloc = (destructor)PyModelingModelDealloc;
+  solidModelType.tp_methods = PyModelingModelClassMethods;
 };
 
-//----------------------
-// CreateSolidModelType 
-//----------------------
-static PySolidModelClass * 
-CreateSolidModelType()
+//-------------------------
+// CreateModelingModelType 
+//-------------------------
+static PyModelingModelClass * 
+CreateModelingModelType()
 {
-  return PyObject_New(PySolidModelClass, &PySolidModelClassType);
+  return PyObject_New(PyModelingModelClass, &PyModelingModelClassType);
 }
 

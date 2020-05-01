@@ -29,10 +29,10 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// Define the Python 'solid.Kernel' class that encapsulates solid modeling kernel types. 
+// Define the Python 'modeling.Kernel' class that encapsulates solid modeling kernel types. 
 //
-#ifndef PYAPI_SOLID_KERNEL_H
-#define PYAPI_SOLID_KERNEL_H
+#ifndef PYAPI_MODELING_KERNEL_H
+#define PYAPI_MODELING_KERNEL_H
 
 #include <iostream>
 #include <map>
@@ -56,22 +56,27 @@ static std::map<std::string,SolidModel_KernelT> kernelNameEnumMap =
 // The list of valid kernel names, used in error messages.
 static std::string kernelValidNames = "DISCRETE, MESHSIMSOLID, OPENCASCADE, PARASOLID, or POLYDATA"; 
 
-//---------------------
-// SolidKernelObject
-//---------------------
-// Define the SolidKernelObject class (type).
+//----------------------
+// ModelingKernelObject
+//----------------------
+// Define the ModelingKernelObject class (type).
 //
 typedef struct {
 PyObject_HEAD
-} SolidKernelObject;
+} ModelingKernelObject;
 
-//----------------------
-// SolidKernel_get_name
-//----------------------
-// Get the name equivalent to the enum.
+
+//////////////////////////////////////////////////////
+//          U t i l i t y  F u n c t i o n s        //
+//////////////////////////////////////////////////////
+
+//-----------------------
+// ModelingKernelGetName 
+//-----------------------
+// Get the string equivalent to the enum.
 //
 std::string 
-SolidKernel_get_name(SolidModel_KernelT kernelType)
+ModelingKernelEnumToName(SolidModel_KernelT kernelType)
 {
   for (auto const& entry : kernelNameEnumMap) {
       if (kernelType == entry.second) { 
@@ -81,13 +86,13 @@ SolidKernel_get_name(SolidModel_KernelT kernelType)
   return "";
 }
 
-//------------------------
-// SolidKernel_NameToEnum
-//------------------------
+//--------------------------
+// ModelingKernelNameToEnum 
+//--------------------------
 // Get the enum for the given name. 
 //
 SolidModel_KernelT 
-SolidKernel_NameToEnum(std::string name)
+ModelingKernelNameToEnum(std::string name)
 {
   for (auto const& entry : kernelNameEnumMap) {
       if (name == entry.first) {
@@ -103,8 +108,16 @@ SolidKernel_NameToEnum(std::string name)
 //
 // Python 'Kernel' class methods. 
 
+PyDoc_STRVAR(ModelingKernel_get_names_doc,
+  "get_names()  \n\ 
+   \n\
+   Get the modeling kernel names. \n\
+   \n\
+   Returns (list[str]) - The list of modeling kernel names.\n\
+");
+
 static PyObject *
-SolidKernel_get_names()
+ModelingKernel_get_names()
 {
   PyObject* nameList = PyList_New(kernelNameEnumMap.size());
   int n = 0;
@@ -116,12 +129,12 @@ SolidKernel_get_names()
   return nameList; 
 }
 
-//----------------------
-// SolidKernelMethods
-//----------------------
+//-----------------------
+// ModelingKernelMethods
+//-----------------------
 //
-static PyMethodDef SolidKernelMethods[] = {
-  { "get_names", (PyCFunction)SolidKernel_get_names, METH_NOARGS, NULL},
+static PyMethodDef ModelingKernelMethods[] = {
+  { "get_names", (PyCFunction)ModelingKernel_get_names, METH_NOARGS, ModelingKernel_get_names_doc},
   {NULL, NULL}
 };
 
@@ -129,55 +142,55 @@ static PyMethodDef SolidKernelMethods[] = {
 //          C l a s s    D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
 
-static char* SOLID_KERNEL_CLASS = "Kernel";
-static char* SOLID_KERNEL_MODULE_CLASS = "solid.Kernel";
+static char* MODELING_KERNEL_CLASS = "Kernel";
+static char* MODELING_KERNEL_MODULE_CLASS = "modeling.Kernel";
 // The name of the Kernel class veriable that contains all of the kernel types.
-static char* SOLID_KERNEL_CLASS_VARIBLE_NAMES = "names";
+static char* MODELING_KERNEL_CLASS_VARIBLE_NAMES = "names";
 
-PyDoc_STRVAR(SolidKernelClass_doc, "solid modeling kernel class functions");
+PyDoc_STRVAR(ModelingKernelClass_doc, "modeling kernel class functions");
 
 //------------------------------------
 // Define the SolidType type object
 //------------------------------------
 // Define the Python type object that stores contour.kernel types. 
 //
-static PyTypeObject PySolidKernelClassType = {
+static PyTypeObject PyModelingKernelClassType = {
   PyVarObject_HEAD_INIT(NULL, 0)
-  .tp_name = SOLID_KERNEL_MODULE_CLASS,
-  .tp_basicsize = sizeof(SolidKernelObject)
+  .tp_name = MODELING_KERNEL_MODULE_CLASS,
+  .tp_basicsize = sizeof(ModelingKernelObject)
 };
 
 //----------------------------
-// SetSolidKernelClassTypeFields
+// SetModelingKernelClassTypeFields
 //----------------------------
 // Set the Python type object fields that stores Kernel data. 
 //
 static void
-SetSolidKernelTypeFields(PyTypeObject& contourType)
+SetModelingKernelTypeFields(PyTypeObject& contourType)
  {
-  contourType.tp_doc = SolidKernelClass_doc; 
+  contourType.tp_doc = ModelingKernelClass_doc; 
   contourType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
-  contourType.tp_methods = SolidKernelMethods;
+  contourType.tp_methods = ModelingKernelMethods;
   contourType.tp_dict = PyDict_New();
 };
 
-//-----------------------
-// SetSolidKernelTypes
-//-----------------------
-// Set the kernel names in the SolidKernelType dictionary.
+//------------------------
+// SetModelingKernelTypes
+//------------------------
+// Set the kernel names in the ModelingKernelType dictionary.
 //
-// The names in the SolidKernelType dictionary are 
+// The names in the ModelingKernelType dictionary are 
 // referenced as a string class variable for the Python 
 // Kernel class.
 //
 static void
-SetSolidKernelClassTypes(PyTypeObject& solidType)
+SetModelingKernelClassTypes(PyTypeObject& solidType)
 {
-  // Add kernel types to SolidKernelType dictionary.
+  // Add kernel types to ModelingKernelType dictionary.
   for (auto const& entry : kernelNameEnumMap) {
       auto name = entry.first.c_str();
       if (PyDict_SetItemString(solidType.tp_dict, name, PyUnicode_FromString(name))) {
-          std::cout << "Error initializing Python API solid kernel types." << std::endl;
+          std::cout << "Error initializing Python API modeling kernel types." << std::endl;
           return;
       }
   }
@@ -192,8 +205,8 @@ SetSolidKernelClassTypes(PyTypeObject& solidType)
       n += 1;
   }
 
-  if (PyDict_SetItemString(solidType.tp_dict, SOLID_KERNEL_CLASS_VARIBLE_NAMES, nameList)) {
-      std::cout << "Error initializing Python API solid kernel types." << std::endl;
+  if (PyDict_SetItemString(solidType.tp_dict, MODELING_KERNEL_CLASS_VARIBLE_NAMES, nameList)) {
+      std::cout << "Error initializing Python API modeling kernel types." << std::endl;
       return;
   }
 

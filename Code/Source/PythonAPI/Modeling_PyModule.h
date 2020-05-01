@@ -29,8 +29,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef SOLID_PY_MODULE_H
-#define SOLID_PY_MODULE_H
+#ifndef MODELING_PY_MODULE_H
+#define MODELING_PY_MODULE_H
 
 #include "SimVascular.h"
 #include "sv4gui_Model.h"
@@ -45,43 +45,27 @@
 
 //extern "C" SV_EXPORT_SOLID int Solid_PyInit();
 
-extern PyTypeObject PySolidGroupClassType;
+extern PyTypeObject PyModelingGroupClassType;
 
 typedef cvSolidModel * (*CreateSolidModelObjectFunction)();
 
 extern "C" SV_EXPORT_SOLID void PyAPI_InitParasolid(CreateSolidModelObjectFunction createObject);
 
-//extern "C" SV_EXPORT_SOLID SolidModel_KernelT SolidKernel_NameToEnum(std::string& name);
+SolidModel_KernelT ModelingKernelNameToEnum(std::string name);
 
-SolidModel_KernelT SolidKernel_NameToEnum(std::string name);
+PyObject * CreatePyModelingGroup(sv4guiModel::Pointer solidGroup);
 
-PyObject * CreatePySolidGroup(sv4guiModel::Pointer solidGroup);
-
-//--------------
-// PySolidGroup
-//--------------
+//-----------------
+// PyModelingGroup
+//-----------------
 //
-typedef struct PySolidGroup
+typedef struct PyModelingGroup
 {
   PyObject_HEAD
   sv4guiModel::Pointer solidGroupPointer;
   sv4guiModel* solidGroup;
   int id;
-} PySolidGroup;
-
-
-//--------------
-// PySolidModel
-//--------------
-//
-/*
-extern "C" SV_EXPORT_SOLID typedef struct {
-  PyObject_HEAD
-  int id;
-  SolidModel_KernelT kernel;
-  cvSolidModel* solidModel;
-} PySolidModel;
-*/
+} PyModelingGroup;
 
 extern "C" SV_EXPORT_SOLID typedef struct
 {
@@ -93,7 +77,7 @@ extern "C" SV_EXPORT_SOLID typedef struct
 PyMODINIT_FUNC  initpySolid();
 #endif
 #if PYTHON_MAJOR_VERSION == 3
-PyMODINIT_FUNC  PyInit_PySolid();
+PyMODINIT_FUNC  PyInit_PyModeling();
 #endif
 
-#endif // __CVSOLID_INIT_H
+#endif 
