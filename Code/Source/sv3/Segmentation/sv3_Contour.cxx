@@ -43,7 +43,7 @@
 #include "sv3_Contour.h"
 #include "sv3_SegmentationUtils.h"
 #ifdef SV_USE_PYTHON
-  #include "Contour_PyModule.h"
+  #include "Segmentation_PyModule.h"
 #endif
 #include <vtkPoints.h>
 #include <vtkCellArray.h>

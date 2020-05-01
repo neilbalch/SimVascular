@@ -42,7 +42,7 @@ include_directories(${PYTHON_INCLUDE_PATH} ${PYTHON_INCLUDE_DIR} ${PYTHON_INCLUD
 include_directories(${TCL_INCLUDE_PATH} ${TK_INCLUDE_PATH} ${TINYXML_INCLUDE_DIR})
 
 list (APPEND CXXSRCS 
-  Contour_PyModule.cxx
+  Segmentation_PyModule.cxx
   Geometry_PyModule.cxx
   Math_PyModule.cxx
   Meshing_PyModule.cxx

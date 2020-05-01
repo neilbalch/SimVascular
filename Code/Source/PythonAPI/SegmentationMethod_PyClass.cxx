@@ -29,7 +29,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// Define the Python 'contour.Kernel' class that encapsulates contour kernel types. 
+// Define the Python 'segmentation.Method' class that encapsulates segmentation method types. 
 //
 #ifndef SV3_CONTOUR_KERNEL_H
 #define SV3_CONTOUR_KERNEL_H
@@ -56,16 +56,16 @@ static std::map<std::string,cKernelType> kernelNameEnumMap =
 static std::string kernelValidNames = "CIRCLE, ELLIPSE, LEVEL_SET, POLYGON, SPLINE_POLYGON or THRESHOLD";
 
 //---------------------
-// ContourKernelObject
+// SegmentationMethodObject
 //---------------------
-// Define the ContourKernelObject class (type).
+// Define the SegmentationMethodObject class (type).
 //
 typedef struct {
 PyObject_HEAD
-} ContourKernelObject;
+} SegmentationMethodObject;
 
 std::string 
-ContourKernel_get_name(cKernelType contourType)
+SegmentationMethod_get_name(cKernelType contourType)
 {
   for (auto const& entry : kernelNameEnumMap) {
       if (contourType == entry.second) { 
@@ -79,10 +79,10 @@ ContourKernel_get_name(cKernelType contourType)
 //          C l a s s    M e t h o d s                //
 ////////////////////////////////////////////////////////
 //
-// Python 'Kernel' class methods. 
+// Python 'Methods' class methods. 
 
 static PyObject *
-ContourKernel_get_names()
+SegmentationMethod_get_names()
 {
   PyObject* nameList = PyList_New(kernelNameEnumMap.size());
   int n = 0;
@@ -94,12 +94,12 @@ ContourKernel_get_names()
   return nameList; 
 }
 
-//----------------------
-// ContourKernelMethods
-//----------------------
+//---------------------------
+// SegmentationMethodMethods
+//---------------------------
 //
-static PyMethodDef ContourKernelMethods[] = {
-  { "get_names", (PyCFunction)ContourKernel_get_names, METH_NOARGS, NULL},
+static PyMethodDef SegmentationMethodMethods[] = {
+  { "get_names", (PyCFunction)SegmentationMethod_get_names, METH_NOARGS, NULL},
   {NULL, NULL}
 };
 
@@ -107,58 +107,58 @@ static PyMethodDef ContourKernelMethods[] = {
 //          C l a s s    D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
 
-static char* CONTOUR_KERNEL_CLASS = "Kernel";
-static char* CONTOUR_KERNEL_MODULE_CLASS = "contour.Kernel";
+static char* SEGMENTATION_METHOD_CLASS = "Method";
+static char* SEGMENTATION_METHOD_MODULE_CLASS = "segmentation.Method";
 // The name of the Kernel class veriable that contains all of the kernel types.
-static char* CONTOUR_KERNEL_CLASS_VARIBLE_NAMES = "names";
+static char* SEGMENTATION_METHOD_CLASS_VARIBLE_NAMES = "names";
 
-PyDoc_STRVAR(ContourKernelClass_doc, "contour kernel class functions");
+PyDoc_STRVAR(SegmentationMethodClass_doc, "segmentation method class functions.");
 
-//------------------------------------
-// Define the ContourType type object
-//------------------------------------
-// Define the Python type object that stores contour.kernel types. 
+//-------------------------------
+// PySegmentationMethodClassType 
+//-------------------------------
+// Define the Python type object that stores segmentation.Method types. 
 //
-static PyTypeObject PyContourKernelClassType = {
+static PyTypeObject PySegmentationMethodClassType = {
   PyVarObject_HEAD_INIT(NULL, 0)
-  .tp_name = CONTOUR_KERNEL_MODULE_CLASS,
-  .tp_basicsize = sizeof(ContourKernelObject)
+  .tp_name = SEGMENTATION_METHOD_MODULE_CLASS,
+  .tp_basicsize = sizeof(SegmentationMethodObject)
 };
 
-//----------------------------
-// SetContourKernelClassTypeFields
-//----------------------------
+//--------------------------------------
+// SetSegmentationMethodClassTypeFields
+//--------------------------------------
 // Set the Python type object fields that stores Kernel data. 
 //
 static void
-SetContourKernelTypeFields(PyTypeObject& contourType)
+SetSegmentationMethodTypeFields(PyTypeObject& contourType)
  {
-  contourType.tp_doc = ContourKernelClass_doc; 
+  contourType.tp_doc = SegmentationMethodClass_doc; 
   contourType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
-  contourType.tp_methods = ContourKernelMethods;
+  contourType.tp_methods = SegmentationMethodMethods;
   contourType.tp_dict = PyDict_New();
 };
 
-//-----------------------
-// SetContourKernelTypes
-//-----------------------
-// Set the kernel names in the ContourKernelType dictionary.
+//----------------------------
+// SetSegmentationMethodTypes
+//----------------------------
+// Set the kernel names in the SegmentationMethodType dictionary.
 //
-// The names in the ContourKernelType dictionary are referenced as a string class variable 
+// The names in the SegmentationMethodType dictionary are referenced as a string class variable 
 // for the Python Kernel class referenced like.
 //
-//    sv.contour.Kernel.CIRCLE -> "CIRCLE"
+//    sv.segmentation.Method.CIRCLE -> "CIRCLE"
 //
 static void
-SetContourKernelClassTypes(PyTypeObject& contourType)
+SetSegmentationMethodClassTypes(PyTypeObject& contourType)
 {
-  //std::cout << "[SetContourKernelClassTypes] " << std::endl;
-  //std::cout << "[SetContourKernelClassTypes] =============== SetContourKernelClassTypes ==========" << std::endl;
+  //std::cout << "[SetSegmentationMethodClassTypes] " << std::endl;
+  //std::cout << "[SetSegmentationMethodClassTypes] =============== SetSegmentationMethodClassTypes ==========" << std::endl;
 
-  // Add kernel types to ContourKernelType dictionary.
+  // Add kernel types to SegmentationMethodType dictionary.
   for (auto const& entry : kernelNameEnumMap) {
       auto name = entry.first.c_str();
-      //std::cout << "[SetContourKernelClassTypes] name: " << name << std::endl;
+      //std::cout << "[SetSegmentationMethodClassTypes] name: " << name << std::endl;
       if (PyDict_SetItemString(contourType.tp_dict, name, PyUnicode_FromString(name))) {
           std::cout << "Error initializing Python API contour kernel types." << std::endl;
           return;
@@ -175,7 +175,7 @@ SetContourKernelClassTypes(PyTypeObject& contourType)
       n += 1;
   }
 
-  if (PyDict_SetItemString(contourType.tp_dict, CONTOUR_KERNEL_CLASS_VARIBLE_NAMES, nameList)) {
+  if (PyDict_SetItemString(contourType.tp_dict, SEGMENTATION_METHOD_CLASS_VARIBLE_NAMES, nameList)) {
       std::cout << "Error initializing Python API contour kernel types." << std::endl;
       return;
   }

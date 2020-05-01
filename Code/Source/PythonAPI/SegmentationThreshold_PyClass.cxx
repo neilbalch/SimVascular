@@ -29,15 +29,14 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// The functions defined here implement the SV Python API polygon countour module. 
-//
-// The module name is 'polygon_contour'. 
+// The functions defined here implement the SV Python API Threshold class. 
 //
 #include "SimVascular.h"
 #include "sv_misc_utils.h"
 #include "sv3_Contour.h"
-#include "Contour_PyModule.h"
-#include "sv3_PolygonContour.h"
+#include "Segmentation_PyModule.h"
+#include "sv3_ThresholdContour.h"
+//#include "sv_adapt_utils.h"
 #include "sv_arg.h"
 
 #include <stdio.h>
@@ -45,141 +44,140 @@
 #include "sv_Repository.h"
 #include "sv_arg.h"
 #include "sv_misc_utils.h"
+#include "sv2_globals.h"
 
 #include "Python.h"
-#include "sv2_globals.h"
 
 // The following is needed for Windows
 #ifdef GetObject
 #undef GetObject
 #endif
 
-//-----------------
-// PyPolygonContour
-//-----------------
-// Define the Polygon class (type).
+using sv3::thresholdContour;
+
+//-------------------------
+// PyThresholdSegmentation
+//-------------------------
+// Define the Threshold class (type).
 //
 typedef struct {
-  PyContour super;
-} PyPolygonContour;
+  PySegmentation super;
+} PyThresholdSegmentation;
 
+thresholdContour* CreateThresholdContour()
+{
+  return new thresholdContour();
+}
 
 //////////////////////////////////////////////////////
 //          C l a s s    M e t h o d s              //
 //////////////////////////////////////////////////////
-//
-// Python API functions. 
-
-//--------------------------
-// PolygonContour_available
-//--------------------------
-//
-static PyObject *
-PolygonContour_available(PyObject* self, PyObject* args)
-{
-  return Py_BuildValue("s","polygonContour Available");
-}
+// Python class methods. 
 
 ////////////////////////////////////////////////////////
 //          C l a s s    D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
 
-static char* CONTOUR_POLYGON_CLASS = "Polygon";
-static char* CONTOUR_POLYGON_MODULE_CLASS = "contour.Polygon";
+static char* SEGMENTATION_THRESHOLD_CLASS = "Threshold";
+static char* SEGMENTATION_THRESHOLD_MODULE_CLASS = "segmentation.Threshold";
 
-PyDoc_STRVAR(PyPolygonContourClass_doc, "polygon contour functions");
+PyDoc_STRVAR(PyThresholdSegmentationClass_doc, "circle Segmentation functions");
 
-PyMethodDef PyPolygonContourMethods[] = {
-  {"available", PolygonContour_available,METH_NOARGS,NULL},
+//--------------------------------
+// PyThresholdSegmentationMethods
+//--------------------------------
+//
+PyMethodDef PyThresholdSegmentationMethods[] = {
   {NULL, NULL}
 };
 
 
-//---------------------
-// PyPolygonContourInit 
-//---------------------
-// This is the __init__() method for the Contour class. 
+//-----------------------------
+// PyThresholdSegmentationInit 
+//-----------------------------
+// This is the __init__() method for the Segmentation class. 
 //
 // This function is used to initialize an object after it is created.
 //
 static int
-PyPolygonContourInit(PyPolygonContour* self, PyObject* args, PyObject *kwds)
+PyThresholdSegmentationInit(PyThresholdSegmentation* self, PyObject* args, PyObject *kwds)
 {
   static int numObjs = 1;
-  std::cout << "[PyPolygonContourInit] New Polygon Contour object: " << numObjs << std::endl;
+  std::cout << "[PyThresholdSegmentationInit] New Threshold Segmentation object: " << numObjs << std::endl;
   //self->super.count = numObjs;
-  //self->super.contour = new PolygonContour();
+  //self->super.contour = new ThresholdContour();
   self->super.contour = new sv3::circleContour();
   numObjs += 1;
   return 0;
 }
 
-//--------------------
-// PyPolygonContourNew 
-//--------------------
+//----------------------------
+// PyThresholdSegmentationNew 
+//----------------------------
 //
 static PyObject *
-PyPolygonContourNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
+PyThresholdSegmentationNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 { 
-  std::cout << "[PyPolygonContourNew] PyPolygonContourNew " << std::endl;
-  auto self = (PyPolygonContour*)type->tp_alloc(type, 0);
+  std::cout << "[PyThresholdSegmentationNew] PyThresholdSegmentationNew " << std::endl;
+  auto self = (PyThresholdSegmentation*)type->tp_alloc(type, 0);
   if (self != NULL) {
       //self->super.id = 2;
   }
   return (PyObject *) self;
 }
 
-//------------------------
-// PyPolygonContourDealloc 
-//------------------------
+//--------------------------------
+// PyThresholdSegmentationDealloc 
+//--------------------------------
 //
 static void
-PyPolygonContourDealloc(PyPolygonContour* self)
+PyThresholdSegmentationDealloc(PyThresholdSegmentation* self)
 { 
-  std::cout << "[PyPolygonContourDealloc] Free PyPolygonContour" << std::endl;
+  std::cout << "[PyThresholdSegmentationDealloc] Free PyThresholdSegmentation" << std::endl;
   delete self->super.contour;
   Py_TYPE(self)->tp_free(self);
 }
 
-//------------------------------------
-// Define the ContourType type object
-//------------------------------------
-// Define the Python type object that stores Contour data. 
+//----------------------------------
+// PyThresholdSegmentationClassType 
+//----------------------------------
+// Define the Python type object that stores Segmentation data. 
 //
 // Can't set all the fields here because g++ does not suppor non-trivial 
 // designated initializers. 
 //
-static PyTypeObject PyPolygonContourClassType = {
+static PyTypeObject PyThresholdSegmentationClassType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   // Dotted name that includes both the module name and 
   // the name of the type within the module.
-  .tp_name = CONTOUR_POLYGON_MODULE_CLASS, 
-  .tp_basicsize = sizeof(PyPolygonContour)
+  .tp_name = SEGMENTATION_THRESHOLD_MODULE_CLASS, 
+  .tp_basicsize = sizeof(PyThresholdSegmentation)
 };
 
-//----------------------------
-// SetPolygonContourTypeFields
-//----------------------------
-// Set the Python type object fields that stores Contour data. 
+//------------------------------------
+// SetThresholdSegmentationTypeFields 
+//------------------------------------
+// Set the Python type object fields that stores Segmentation data. 
 //
 // Need to set the fields here because g++ does not suppor non-trivial 
 // designated initializers. 
 //
 static void
-SetPolygonContourTypeFields(PyTypeObject& contourType)
+SetThresholdSegmentationTypeFields(PyTypeObject& contourType)
  {
   // Doc string for this type.
-  contourType.tp_doc = "Polygon Contour  objects";
+  contourType.tp_doc = "Threshold segmentation objects";
 
   // Object creation function, equivalent to the Python __new__() method. 
   // The generic handler creates a new instance using the tp_alloc field.
-  contourType.tp_new = PyPolygonContourNew;
+  contourType.tp_new = PyThresholdSegmentationNew;
   //.tp_new = PyType_GenericNew,
 
-  contourType.tp_base = &PyContourClassType;
+  contourType.tp_base = &PySegmentationClassType;
+
   contourType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
-  contourType.tp_init = (initproc)PyPolygonContourInit;
-  contourType.tp_dealloc = (destructor)PyPolygonContourDealloc;
-  contourType.tp_methods = PyPolygonContourMethods;
+  contourType.tp_init = (initproc)PyThresholdSegmentationInit;
+  contourType.tp_dealloc = (destructor)PyThresholdSegmentationDealloc;
+  contourType.tp_methods = PyThresholdSegmentationMethods;
 };
 

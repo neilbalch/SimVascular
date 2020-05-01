@@ -29,17 +29,15 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// The functions defined here implement the SV Python API circle contour class. 
+// The functions defined here implement the SV Python API circle segmentation class. 
 //
-// The class name is 'contour.Circle'.
+// The class name is 'segmentation.Circle'.
 //
 #include "SimVascular.h"
 #include "sv_misc_utils.h"
 #include "sv3_Contour.h"
-#include "Contour_PyModule.h"
+#include "Segmentation_PyModule.h"
 #include "sv3_CircleContour.h"
-//#include "sv3_CircleContour_init_py.h"
-//#include "sv_adapt_utils.h"
 #include "sv_arg.h"
 
 #include <stdio.h>
@@ -55,15 +53,15 @@
 #undef GetObject
 #endif
 
-//-----------------
-// PyCircleContour
-//-----------------
+//----------------------
+// PyCircleSegmentation 
+//----------------------
 // Define the Circle class (type).
 //
 typedef struct {
-  PyContour super;
+  PySegmentation super;
   double radius;
-} PyCircleContour;
+} PyCircleSegmentation;
 
 
 //////////////////////////////////////////////////////
@@ -72,19 +70,28 @@ typedef struct {
 //
 // Python API functions. 
 
-//--------------------------
-// CircleContour_set_radius 
-//--------------------------
+PyDoc_STRVAR(CircleSegmentation_set_radius_doc,
+  "set_radius(radius) \n\ 
+   \n\
+   Set the radius for a circle segmentation. \n\
+   \n\
+   Args: \n\
+     radius (float): The radius of the circle. \n\
+");
+
+//-------------------------------
+// CircleSegmentation_set_radius 
+//-------------------------------
 //
 static PyObject*
-CircleContour_set_radius(PyCircleContour* self, PyObject* args)
+CircleSegmentation_set_radius(PyCircleSegmentation* self, PyObject* args)
 {
   double radius = 0.0;
 
   if (!PyArg_ParseTuple(args, "d", &radius)) {
       return nullptr;
   }
-  auto pmsg = "[PyCircleContour::set_radius] ";
+  auto pmsg = "[PyCircleSegmentation::set_radius] ";
   std::cout << pmsg << "Set radius ..." << std::endl;
   std::cout << pmsg << "Radius: " << radius << std::endl;
   //auto contour = dynamic_cast<CircleContour*>(self->super.contour);
@@ -97,34 +104,34 @@ CircleContour_set_radius(PyCircleContour* self, PyObject* args)
 //          C l a s s    D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
 
-static char* CONTOUR_CIRCLE_CLASS = "Circle";
-static char* CONTOUR_CIRCLE_MODULE_CLASS = "contour.Circle";
+static char* SEGMENTATION_CIRCLE_CLASS = "Circle";
+static char* SEGMENTATION_CIRCLE_MODULE_CLASS = "segmentation.Circle";
 
-PyDoc_STRVAR(PyCircleContourClass_doc, "circle contour functions");
+PyDoc_STRVAR(PyCircleSegmentationClass_doc, "Circle segmentation methods.");
 
-//----------------------
-// CircleContourMethods
-//----------------------
+//-----------------------------
+// PyCircleSegmentationMethods 
+//-----------------------------
 //
-static PyMethodDef PyCircleContourMethods[] = {
+static PyMethodDef PyCircleSegmentationMethods[] = {
 
-  { "set_radius", (PyCFunction)CircleContour_set_radius, METH_VARARGS, NULL},
+  { "set_radius", (PyCFunction)CircleSegmentation_set_radius, METH_VARARGS, CircleSegmentation_set_radius_doc},
 
   {NULL, NULL}
 };
 
-//---------------------
-// PyCircleContourInit 
-//---------------------
-// This is the __init__() method for the Contour class. 
+//--------------------------
+// PyCircleSegmentationInit 
+//--------------------------
+// This is the __init__() method for the CircleSegmentation class. 
 //
 // This function is used to initialize an object after it is created.
 //
 static int
-PyCircleContourInit(PyCircleContour* self, PyObject* args, PyObject *kwds)
+PyCircleSegmentationInit(PyCircleSegmentation* self, PyObject* args, PyObject *kwds)
 {
   static int numObjs = 1;
-  std::cout << "[PyCircleContourInit] New Circle Contour object: " << numObjs << std::endl;
+  std::cout << "[PyCircleSegmentationInit] New Circle Segmentation object: " << numObjs << std::endl;
   //self->super.count = numObjs;
   //self->super.contour = new CircleContour();
   self->super.contour = new sv3::circleContour();
@@ -132,74 +139,74 @@ PyCircleContourInit(PyCircleContour* self, PyObject* args, PyObject *kwds)
   return 0;
 }
 
-//--------------------
-// PyCircleContourNew 
-//--------------------
+//-------------------------
+// PyCircleSegmentationNew 
+//-------------------------
 //
 static PyObject *
-PyCircleContourNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
+PyCircleSegmentationNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 { 
-  std::cout << "[PyCircleContourNew] PyCircleContourNew " << std::endl;
-  auto self = (PyCircleContour*)type->tp_alloc(type, 0);
+  std::cout << "[PyCircleSegmentationNew] PyCircleSegmentationNew " << std::endl;
+  auto self = (PyCircleSegmentation*)type->tp_alloc(type, 0);
   if (self != NULL) {
       //self->super.id = 2;
   }
   return (PyObject *) self;
 }
 
-//------------------------
-// PyCircleContourDealloc 
-//------------------------
+//-----------------------------
+// PyCircleSegmentationDealloc 
+//-----------------------------
 //
 static void
-PyCircleContourDealloc(PyCircleContour* self)
+PyCircleSegmentationDealloc(PyCircleSegmentation* self)
 { 
-  std::cout << "[PyCircleContourDealloc] Free PyCircleContour" << std::endl;
+  std::cout << "[PyCircleSegmentationDealloc] Free PyCircleSegmentation" << std::endl;
   delete self->super.contour;
   Py_TYPE(self)->tp_free(self);
 }
 
-//------------------------------------
-// Define the ContourType type object
-//------------------------------------
-// Define the Python type object that stores Contour data. 
+//------------------------------------------
+// Define the PyCircleSegmentationClassType 
+//------------------------------------------
+// Define the Python type object that stores Segmentation data. 
 //
 // Can't set all the fields here because g++ does not suppor non-trivial 
 // designated initializers. 
 //
-static PyTypeObject PyCircleContourClassType = {
+static PyTypeObject PyCircleSegmentationClassType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   // Dotted name that includes both the module name and 
   // the name of the type within the module.
-  .tp_name = CONTOUR_CIRCLE_MODULE_CLASS, 
-  .tp_basicsize = sizeof(PyCircleContour)
+  .tp_name = SEGMENTATION_CIRCLE_MODULE_CLASS, 
+  .tp_basicsize = sizeof(PyCircleSegmentation)
 };
 
-//----------------------------
-// SetCircleContourTypeFields
-//----------------------------
-// Set the Python type object fields that stores Contour data. 
+//---------------------------------
+// SetCircleSegmentationTypeFields 
+//---------------------------------
+// Set the Python type object fields that stores Segmentation data. 
 //
 // Need to set the fields here because g++ does not suppor non-trivial 
 // designated initializers. 
 //
 static void
-SetCircleContourTypeFields(PyTypeObject& contourType)
+SetCircleSegmentationTypeFields(PyTypeObject& segType)
  {
   // Doc string for this type.
-  contourType.tp_doc = "Circle Contour  objects";
+  segType.tp_doc = "Circle segmentation objects";
 
   // Object creation function, equivalent to the Python __new__() method. 
   // The generic handler creates a new instance using the tp_alloc field.
-  contourType.tp_new = PyCircleContourNew;
+  segType.tp_new = PyCircleSegmentationNew;
   //.tp_new = PyType_GenericNew,
 
-  contourType.tp_base = &PyContourClassType;
+  segType.tp_base = &PySegmentationClassType;
 
-  contourType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
-  contourType.tp_init = (initproc)PyCircleContourInit;
-  contourType.tp_dealloc = (destructor)PyCircleContourDealloc;
-  contourType.tp_methods = PyCircleContourMethods;
+  segType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
+  segType.tp_init = (initproc)PyCircleSegmentationInit;
+  segType.tp_dealloc = (destructor)PyCircleSegmentationDealloc;
+  segType.tp_methods = PyCircleSegmentationMethods;
 };
 
 

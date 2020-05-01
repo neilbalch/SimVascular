@@ -29,43 +29,42 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// The functions defined here implement the SV Python API contour module group class. 
-// It provides an interface to the SV contour group class.
+// The functions defined here implement the SV Python API segmentation module group class. 
+// It provides an interface to the SV segmentation group class.
 //
-// The class name is 'Group'. It is referenced from the contour module as 'contour.Group'.
+// The class name is 'Group'. It is referenced from the segmentation module as 'segmentation.Group'.
 //
-//     aorta_cont_group = contour.Group()
+//     aorta_group = segmentation.Group()
 //
 #include "sv4gui_ContourGroupIO.h"
 
 extern "C" SV_EXPORT_PYTHON_API typedef struct
 {
   PyObject_HEAD
-  // sv4guiContourGroup* contourGroup;
   sv4guiContourGroup::Pointer contourGroupPointer;
   sv4guiContourGroup* contourGroup;
   int id;
-} PyContourGroup;
+} PySegmentationGroup;
 
-static PyObject * CreatePyContourGroup(sv4guiContourGroup::Pointer contourGroup);
+static PyObject * CreatePySegmentationGroup(sv4guiContourGroup::Pointer contourGroup);
 
 //////////////////////////////////////////////////////
 //          U t i l i t y  F u n c t i o n s        //
 //////////////////////////////////////////////////////
 
 //-------------------
-// ContourGroup_read
+// SegmentationGroup_read
 //-------------------
 // Read in an SV .pth file and create a ContourGroup object
 // from its contents.
 //
 static sv4guiContourGroup::Pointer 
-ContourGroup_read(char* fileName)
+SegmentationGroup_read(char* fileName)
 {
 
-  //std::cout << "========== ContourGroup_read ==========" << std::endl;
+  //std::cout << "========== SegmentationGroup_read ==========" << std::endl;
   auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
-  //std::cout << "[ContourGroup_read] fileName: " << fileName << std::endl;
+  //std::cout << "[SegmentationGroup_read] fileName: " << fileName << std::endl;
   sv4guiContourGroup::Pointer group;
 
   try {
@@ -75,10 +74,10 @@ ContourGroup_read(char* fileName)
       return nullptr;
   }
 
-  //std::cout << "[ContourGroup_read] File read and group returned." << std::endl;
+  //std::cout << "[SegmentationGroup_read] File read and group returned." << std::endl;
   auto contourGroup = dynamic_cast<sv4guiContourGroup*>(group.GetPointer());
   int numContours = contourGroup->GetSize();
-  //std::cout << "[ContourGroup_read] Number of contours: " << numContours << std::endl;
+  //std::cout << "[SegmentationGroup_read] Number of contours: " << numContours << std::endl;
 
   return group;
 }
@@ -90,12 +89,12 @@ ContourGroup_read(char* fileName)
 // SV Python Contour Group methods. 
 
 //-------------------------
-// ContourGroup_get_time_size 
+// SegmentationGroup_get_time_size 
 //-------------------------
 //
 // [TODO:DaveP] bad method name: get_number_time_steps() ?
 //
-PyDoc_STRVAR(ContourGroup_get_time_size_doc,
+PyDoc_STRVAR(SegmentationGroup_get_time_size_doc,
   "set_contour(name) \n\ 
    \n\
    Store the polydata for the named contour into the repository. \n\
@@ -105,7 +104,7 @@ PyDoc_STRVAR(ContourGroup_get_time_size_doc,
 ");
 
 static PyObject * 
-ContourGroup_get_time_size(PyContourGroup* self, PyObject* args)
+SegmentationGroup_get_time_size(PySegmentationGroup* self, PyObject* args)
 {
 /*
   int timestepSize = self->contourGroup->GetTimeSize();
@@ -114,10 +113,10 @@ ContourGroup_get_time_size(PyContourGroup* self, PyObject* args)
 }
 
 //-----------------------
-// ContourGroup_get_size 
+// SegmentationGroup_get_size 
 //-----------------------
 //
-PyDoc_STRVAR(ContourGroup_number_of_contours_doc,
+PyDoc_STRVAR(SegmentationGroup_number_of_segmentations_doc,
   "get_size() \n\ 
    \n\
    Get the number of contours in the group. \n\
@@ -128,19 +127,19 @@ PyDoc_STRVAR(ContourGroup_number_of_contours_doc,
 ");
 
 static PyObject * 
-ContourGroup_number_of_contours(PyContourGroup* self, PyObject* args)
+SegmentationGroup_number_of_segmentations(PySegmentationGroup* self, PyObject* args)
 {
   auto contourGroup = self->contourGroup;
   int numContours = contourGroup->GetSize();
-  //std::cout << "[ContourGroup_number_of_contours] Number of contours: " << numContours << std::endl;
+  //std::cout << "[SegmentationGroup_number_of_segmentations] Number of contours: " << numContours << std::endl;
   return Py_BuildValue("i", numContours); 
 }
 
 //--------------------------
-// ContourGroup_get_contour 
+// SegmentationGroup_get_segmentation 
 //--------------------------
-PyDoc_STRVAR(ContourGroup_get_contour_doc,
-  "get_contour(name) \n\ 
+PyDoc_STRVAR(SegmentationGroup_get_segmentation_doc,
+  "get_segmentation(name) \n\ 
    \n\
    Store the polydata for the named contour into the repository. \n\
    \n\
@@ -149,7 +148,7 @@ PyDoc_STRVAR(ContourGroup_get_contour_doc,
 ");
 
 static PyObject * 
-ContourGroup_get_contour(PyContourGroup* self, PyObject* args)
+SegmentationGroup_get_segmentation(PySegmentationGroup* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("i", PyRunTimeErr, __func__);
   int index;
@@ -161,7 +160,7 @@ ContourGroup_get_contour(PyContourGroup* self, PyObject* args)
 
   auto contourGroup = self->contourGroup;
   int numContours = contourGroup->GetSize();
-  //std::cout << "[ContourGroup_get_contour] Number of contours: " << numContours << std::endl;
+  //std::cout << "[SegmentationGroup_get_segmentation] Number of contours: " << numContours << std::endl;
 
   // Check for valid index.
   if ((index < 0) || (index > numContours-1)) {
@@ -180,21 +179,21 @@ ContourGroup_get_contour(PyContourGroup* self, PyObject* args)
   }
   auto kernel = contour->GetKernel();
   auto ctype = contour->GetType();
-  auto contourType = ContourKernel_get_name(kernel);
-  //std::cout << "[ContourGroup_get_contour] ctype: " << ctype << std::endl;
-  //std::cout << "[ContourGroup_get_contour] kernel: " << kernel << std::endl;
-  //std::cout << "[ContourGroup_get_contour] Contour type: " << contourType << std::endl;
+  auto contourType = SegmentationMethod_get_name(kernel);
+  //std::cout << "[SegmentationGroup_get_segmentation] ctype: " << ctype << std::endl;
+  //std::cout << "[SegmentationGroup_get_segmentation] kernel: " << kernel << std::endl;
+  //std::cout << "[SegmentationGroup_get_segmentation] Contour type: " << contourType << std::endl;
 
   // Create a PyContour object from the SV Contour object 
   // and return it as a PyObject*.
-  return PyCreateContour(contour);
+  return PyCreateSegmentation(contour);
 }
 
 //-----------------
-// ContourGroup_write
+// SegmentationGroup_write
 //-----------------
 //
-PyDoc_STRVAR(ContourGroup_write_doc,
+PyDoc_STRVAR(SegmentationGroup_write_doc,
   "write(file_name) \n\ 
    \n\
    Write the contour group to an SV .pth file.\n\
@@ -204,7 +203,7 @@ PyDoc_STRVAR(ContourGroup_write_doc,
 ");
 
 static PyObject *
-ContourGroup_write(PyContourGroup* self, PyObject* args)
+SegmentationGroup_write(PySegmentationGroup* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char* fileName = NULL;
@@ -234,47 +233,47 @@ ContourGroup_write(PyContourGroup* self, PyObject* args)
 //          C l a s s    D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
 
-static char* CONTOUR_GROUP_CLASS = "Group";
+static char* SEGMENTATION_GROUP_CLASS = "Group";
 // Dotted name that includes both the module name and the name of the 
 // type within the module.
-static char* CONTOUR_GROUP_MODULE_CLASS = "contour.Group";
+static char* SEGMENTATION_GROUP_MODULE_CLASS = "segmentation.Group";
 
-PyDoc_STRVAR(contourgroup_doc, "contour.Group functions");
+PyDoc_STRVAR(contourgroup_doc, "segmentation.Group methods.");
 
-//--------------------
-// PyContourGroupMethods 
-//--------------------
-// Define the methods for the contour.Group class.
+//----------------------------
+// PySegmentationGroupMethods 
+//----------------------------
+// Define the methods for the segmentation.Group class.
 //
-static PyMethodDef PyContourGroupMethods[] = {
+static PyMethodDef PySegmentationGroupMethods[] = {
 
-  {"get_contour", (PyCFunction)ContourGroup_get_contour, METH_VARARGS, ContourGroup_get_contour_doc},
+  {"get_segmentation", (PyCFunction)SegmentationGroup_get_segmentation, METH_VARARGS, SegmentationGroup_get_segmentation_doc},
 
-  {"number_of_contours", (PyCFunction)ContourGroup_number_of_contours, METH_VARARGS, ContourGroup_number_of_contours_doc},
+  {"number_of_segmentations", (PyCFunction)SegmentationGroup_number_of_segmentations, METH_VARARGS, SegmentationGroup_number_of_segmentations_doc},
 
-  {"get_time_size", (PyCFunction)ContourGroup_get_time_size, METH_NOARGS, ContourGroup_get_time_size_doc},
+  {"get_time_size", (PyCFunction)SegmentationGroup_get_time_size, METH_NOARGS, SegmentationGroup_get_time_size_doc},
 
-  {"write", (PyCFunction)ContourGroup_write, METH_VARARGS, ContourGroup_write_doc},
+  {"write", (PyCFunction)SegmentationGroup_write, METH_VARARGS, SegmentationGroup_write_doc},
 
   {NULL, NULL}
 };
 
 //-------------------------
-// PyContourGroupClassType 
+// PySegmentationGroupClassType 
 //-------------------------
 // Define the Python type that stores ContourGroup data. 
 //
 // Can't set all the fields here because g++ does not suppor non-trivial 
 // designated initializers. 
 //
-static PyTypeObject PyContourGroupClassType = {
+static PyTypeObject PySegmentationGroupClassType = {
   PyVarObject_HEAD_INIT(NULL, 0)
-  CONTOUR_GROUP_MODULE_CLASS,     
-  sizeof(PyContourGroup)
+  SEGMENTATION_GROUP_MODULE_CLASS,     
+  sizeof(PySegmentationGroup)
 };
 
 //------------------
-// PyContourGroup_init
+// PySegmentationGroup_init
 //------------------
 // This is the __init__() method for the contour.Group class. 
 //
@@ -286,10 +285,10 @@ static PyTypeObject PyContourGroupClassType = {
 //     the contents of the file. (optional)
 //
 static int 
-PyContourGroupInit(PyContourGroup* self, PyObject* args)
+PySegmentationGroupInit(PySegmentationGroup* self, PyObject* args)
 {
   static int numObjs = 1;
-  //std::cout << "[PyContourGroupInit] New ContourGroup object: " << numObjs << std::endl;
+  //std::cout << "[PySegmentationGroupInit] New ContourGroup object: " << numObjs << std::endl;
   auto api = SvPyUtilApiFunction("|s", PyRunTimeErr, __func__);
   char* fileName = nullptr;
   if (!PyArg_ParseTuple(args, api.format, &fileName)) {
@@ -297,87 +296,87 @@ PyContourGroupInit(PyContourGroup* self, PyObject* args)
       return 1;
   }
   if (fileName != nullptr) {
-      //std::cout << "[PyContourGroupInit] File name: " << fileName << std::endl;
-      self->contourGroupPointer = ContourGroup_read(fileName);
+      //std::cout << "[PySegmentationGroupInit] File name: " << fileName << std::endl;
+      self->contourGroupPointer = SegmentationGroup_read(fileName);
       self->contourGroup = dynamic_cast<sv4guiContourGroup*>(self->contourGroupPointer.GetPointer());
   } else {
       self->contourGroup = sv4guiContourGroup::New();
   }
   if (self->contourGroup == nullptr) { 
-      std::cout << "[PyContourGroupInit] ERROR reading File name: " << fileName << std::endl;
+      std::cout << "[PySegmentationGroupInit] ERROR reading File name: " << fileName << std::endl;
       return -1;
   }
   numObjs += 1;
   return 0;
 }
 
-//-------------------
-// PyContourGroupNew 
-//-------------------
+//------------------------
+// PySegmentationGroupNew 
+//------------------------
 // Object creation function, equivalent to the Python __new__() method. 
 // The generic handler creates a new instance using the tp_alloc field.
 //
 static PyObject *
-PyContourGroupNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
+PySegmentationGroupNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
-  //std::cout << "[PyContourGroupNew] PyContourGroupNew " << std::endl;
-  auto self = (PyContour*)type->tp_alloc(type, 0);
+  //std::cout << "[PySegmentationGroupNew] PySegmentationGroupNew " << std::endl;
+  auto self = (PySegmentation*)type->tp_alloc(type, 0);
   if (self == NULL) {
-      std::cout << "[PyContourGroupNew] ERROR: Can't allocate type." << std::endl;
+      std::cout << "[PySegmentationGroupNew] ERROR: Can't allocate type." << std::endl;
       return nullptr; 
   }
   return (PyObject *) self;
 }
 
-//-----------------------
-// PyContourGroupDealloc 
-//-----------------------
+//----------------------------
+// PySegmentationGroupDealloc 
+//----------------------------
 //
 static void
-PyContourGroupDealloc(PyContourGroup* self)
+PySegmentationGroupDealloc(PySegmentationGroup* self)
 {
-  //std::cout << "[PyContourGroupDealloc] Free PyContourGroup" << std::endl;
+  //std::cout << "[PySegmentationGroupDealloc] Free PySegmentationGroup" << std::endl;
   // Can't delete contourGroup because it has a protected detructor.
   //delete self->contourGroup;
   Py_TYPE(self)->tp_free(self);
 }
 
-//---------------------------
-// SetContourGroupTypeFields 
-//---------------------------
+//--------------------------------
+// SetSegmentationGroupTypeFields 
+//--------------------------------
 // Set the Python type object fields that stores Contour data. 
 //
 // Need to set the fields here because g++ does not suppor non-trivial 
 // designated initializers. 
 //
 static void
-SetContourGroupTypeFields(PyTypeObject& contourType)
+SetSegmentationGroupTypeFields(PyTypeObject& contourType)
 {
   // Doc string for this type.
   contourType.tp_doc = "ContourGroup  objects";
   // Object creation function, equivalent to the Python __new__() method. 
   // The generic handler creates a new instance using the tp_alloc field.
-  contourType.tp_new = PyContourGroupNew;
+  contourType.tp_new = PySegmentationGroupNew;
   contourType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
-  contourType.tp_init = (initproc)PyContourGroupInit;
-  contourType.tp_dealloc = (destructor)PyContourGroupDealloc;
-  contourType.tp_methods = PyContourGroupMethods;
+  contourType.tp_init = (initproc)PySegmentationGroupInit;
+  contourType.tp_dealloc = (destructor)PySegmentationGroupDealloc;
+  contourType.tp_methods = PySegmentationGroupMethods;
 }
 
-//----------------------
-// CreatePyContourGroup
-//----------------------
-// Create a PyContourGroupType object.
+//---------------------------
+// CreatePySegmentationGroup
+//---------------------------
+// Create a PySegmentationGroupType object.
 //
 // If the 'contourGroup' argument is not null then use that 
-// for the PyContourGroupType.contourGroup data.
+// for the PySegmentationGroupType.contourGroup data.
 //
 PyObject *
-CreatePyContourGroup(sv4guiContourGroup* contourGroup)
+CreatePySegmentationGroup(sv4guiContourGroup* contourGroup)
 {
-  std::cout << "[CreatePyContourGroup] Create ContourGroup object ... " << std::endl;
-  auto contourGroupObj = PyObject_CallObject((PyObject*)&PyContourGroupClassType, NULL);
-  auto pyContourGroup = (PyContourGroup*)contourGroupObj;
+  std::cout << "[CreatePySegmentationGroup] Create ContourGroup object ... " << std::endl;
+  auto contourGroupObj = PyObject_CallObject((PyObject*)&PySegmentationGroupClassType, NULL);
+  auto pyContourGroup = (PySegmentationGroup*)contourGroupObj;
 
   if (contourGroup != nullptr) {
       //delete pyContourGroup->contourGroup;

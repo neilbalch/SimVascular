@@ -55,7 +55,7 @@
 #include "Solid_PyModule.h"
 #include "Path_PyModule.h"
 //#include "sv3_PathGroup_init_py.h"
-#include "Contour_PyModule.h"
+#include "Segmentation_PyModule.h"
 //#include "sv3_CircleContour_init_py.h"
 //#include "sv3_LevelSetContour_init_py.h"
 //#include "sv3_ThresholdContour_init_py.h"
@@ -104,7 +104,7 @@ void SimVascular_pyInit()
     //
     printf("Loading Python Modules ...\n");
     //PyImport_AppendInittab("circle_contour",PyInit_pyCircleContour);
-    PyImport_AppendInittab("contour", PyInit_PyContour);
+    PyImport_AppendInittab("segmentation", PyInit_PySegmentation);
     PyImport_AppendInittab("geometry", PyInit_PyGeometry);
     //PyImport_AppendInittab("image", PyInit_pyImage);
     //PyImport_AppendInittab("levelset_contour",PyInit_pylevelSetContour);

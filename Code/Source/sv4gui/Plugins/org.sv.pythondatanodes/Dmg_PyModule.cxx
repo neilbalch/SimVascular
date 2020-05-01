@@ -48,7 +48,7 @@
 #include "SimVascular_python.h"
 
 #include "Dmg_PyModule.h"
-#include "Contour_PyModule.h"
+#include "Segmentation_PyModule.h"
 #include "Meshing_PyModule.h"
 #include "Path_PyModule.h"
 #include "Solid_PyModule.h"
@@ -252,12 +252,12 @@ sv4guiPath::Pointer BuildPathNode(cvRepositoryData *obj, sv4guiPath::Pointer pat
 }
 
 //--------------------
-// CreateContourGroup
+// CreateSegmentationGroup
 //--------------------
 // Create a segmentation contour group from a list of contours. 
 //
 sv4guiContourGroup::Pointer 
-CreateContourGroup(std::vector<PyContour*> contours, sv4guiContourGroup::Pointer group, char* pathName)
+CreateSegmentationGroup(std::vector<PySegmentation*> contours, sv4guiContourGroup::Pointer group, char* pathName)
 {
   std::string str(pathName);
   group->SetPathName(str);
@@ -341,17 +341,17 @@ RemoveDataNode(mitk::DataStorage::Pointer dataStorage, mitk::DataNode::Pointer f
     return SV_OK;
 }
 
-//--------------------
-// AddContourDataNode
-//--------------------
+//-------------------------
+// AddSegmentationDataNode
+//-------------------------
 // Add a Segmentaion data node to the SV Data Manager.
 int 
-AddContourDataNode(mitk::DataStorage::Pointer dataStorage, std::vector<PyContour*> contours, mitk::DataNode::Pointer folderNode, 
-        char* childName, char* pathName, sv4guiPath::Pointer path)
+AddSegmentationDataNode(mitk::DataStorage::Pointer dataStorage, std::vector<PySegmentation*> segmentations, 
+        mitk::DataNode::Pointer folderNode, char* childName, char* pathName, sv4guiPath::Pointer path)
 {
   mitk::DataNode::Pointer node = mitk::DataNode::New();
   sv4guiContourGroup::Pointer contourGroup = sv4guiContourGroup::New();
-  contourGroup = CreateContourGroup(contours, contourGroup, pathName);
+  contourGroup = CreateSegmentationGroup(segmentations, contourGroup, pathName);
 
   if (!path.IsNull()) {
       contourGroup->SetPathID(path->GetPathID());
@@ -816,32 +816,32 @@ Dmg_add_path(PyObject* self, PyObject* args, PyObject* kwargs)
     return SV_PYTHON_OK;
 }
 
-//-----------------
-// Dmg_add_contour
-//-----------------
+//----------------------
+// Dmg_add_segmentation
+//----------------------
 //
-PyDoc_STRVAR(Dmg_add_contour_doc,
-  "add_contour(name, path, contours) \n\ 
+PyDoc_STRVAR(Dmg_add_segmentation_doc,
+  "add_segmentation(name, path, segmentations) \n\ 
    \n\
-   Add a list of contours to SV Data Manager Segmentations node. \n\
+   Add a segmentation to the SV Data Manager Segmentations node. \n\
    \n\
    Args: \n\
      name (str): The name of the segmentations data node to add. \n\
      path (str): The name of the path data node used by the segmentation. \n\
-     contours (list[sv.contour.Contour object]): The list of contour objects defined for a vessel segmentation.\n\
+     segmentations (list[sv.contour.Contour object]): The list of segmentation objects defined for a vessel segmentation.\n\
    \n\
 ");
 
 static PyObject * 
-Dmg_add_contour(PyObject* self, PyObject* args, PyObject* kwargs)
+Dmg_add_segmentation(PyObject* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = SvPyUtilApiFunction("sO!s", PyRunTimeErr, __func__);
-  static char *keywords[] = {"name", "path", "contours", NULL};
-  PyObject* contourList;
+  auto api = SvPyUtilApiFunction("ssO!", PyRunTimeErr, __func__);
+  static char *keywords[] = {"name", "path", "segmentations", NULL};
+  PyObject* segList;
   char* segName = NULL;
   char* pathName = NULL;
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &segName, &pathName, &PyList_Type, &contourList)) {
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &segName, &pathName, &PyList_Type, &segList)) {
       return api.argsError();
   }
 
@@ -878,18 +878,21 @@ Dmg_add_contour(PyObject* self, PyObject* args, PyObject* kwargs)
   }
 
   // Get the Segmentation node.
+  std::cout << "##### GetToolNode" << std::endl;
   auto segNode = GetToolNode(dataStorage, projFolderNode, SvDataManagerNodes::Segmentation);
 
-  // Get a list of contour objects.
-  int numContours = PyList_Size(contourList);
-  std::vector<PyContour*> contours;
-  for (int i = 0; i < numContours; i++) {
-      auto contour = (PyContour*)PyList_GetItem(contourList, i);
-      contours.push_back(contour);
+  // Get a list of segmentation objects.
+  std::cout << "##### Get a list of segmentation objects" << std::endl;
+  int numSegmentations = PyList_Size(segList);
+  std::vector<PySegmentation*> segmentations;
+  for (int i = 0; i < numSegmentations; i++) {
+      auto seg = (PySegmentation*)PyList_GetItem(segList, i);
+      segmentations.push_back(seg);
   }
 
   // Add the segmentation data node.
-  if (AddContourDataNode(dataStorage, contours, segNode, segName, pathName, path) == SV_ERROR) {
+  std::cout << "##### AddSegmentationDataNode " << std::endl;
+  if (AddSegmentationDataNode(dataStorage, segmentations, segNode, segName, pathName, path) == SV_ERROR) {
       api.error("Error adding the segmentation data node '" + std::string(segName) + "' to the parent node '" + 
             segNode->GetName() + "'.");
       return nullptr;
@@ -1076,25 +1079,23 @@ Dmg_add_model(PyObject* self, PyObject* args, PyObject* kwargs)
   return SV_PYTHON_OK;
 }
 
-//-----------------
-// Dmg_get_contour
-//-----------------
+//----------------------
+// Dmg_get_segmentation
+//----------------------
 //
-// [TODO:DaveP] Should we rename 'contour' to 'segmentation' ? 
-//
-PyDoc_STRVAR(Dmg_get_contour_doc,
-  "get_contour(kernel)                                    \n\ 
+PyDoc_STRVAR(Dmg_get_segmentation_doc,
+  "segmentation(name)                                    \n\ 
    \n\
    Get a segmentation from the SV Data Manager Segmentations node.       \n\
    \n\
    Args:                                                          \n\
      name (str): The segmentation node name. \n\
    \n\
-   Returns an sv.contour.Group object. \n\
+   Returns an sv.segmentation.Group object. \n\
 ");
 
 static PyObject * 
-Dmg_get_contour(PyObject* self, PyObject* args)
+Dmg_get_segmentation(PyObject* self, PyObject* args)
 {
   auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
   char* segName = NULL;
@@ -1135,7 +1136,7 @@ Dmg_get_contour(PyObject* self, PyObject* args)
   //
   //auto groupCopy = group->Clone();
   //return CreatePyContourGroup(groupCopy);
-  return CreatePyContourGroup(group);
+  return CreatePySegmentationGroup(group);
 }
 
 //----------------------
@@ -1205,7 +1206,7 @@ PyDoc_STRVAR(DmgModule_doc, "dmg module functions");
 //
 PyMethodDef PyDmgMethods[] =
 {
-    {"add_contour", (PyCFunction)Dmg_add_contour, METH_VARARGS|METH_KEYWORDS, Dmg_add_contour_doc},
+    {"add_segmentation", (PyCFunction)Dmg_add_segmentation, METH_VARARGS|METH_KEYWORDS, Dmg_add_segmentation_doc},
 
     {"add_geometry", (PyCFunction)Dmg_add_geometry, METH_VARARGS|METH_KEYWORDS, Dmg_add_geometry_doc},
 
@@ -1215,7 +1216,7 @@ PyMethodDef PyDmgMethods[] =
 
     {"add_path", (PyCFunction)Dmg_add_path, METH_VARARGS|METH_KEYWORDS, Dmg_add_path_doc},
 
-    {"get_contour", Dmg_get_contour, METH_VARARGS, Dmg_get_contour_doc},
+    {"get_segmentation", Dmg_get_segmentation, METH_VARARGS, Dmg_get_segmentation_doc},
 
     {"get_mesh", Dmg_get_mesh, METH_VARARGS , Dmg_get_mesh_doc},
 

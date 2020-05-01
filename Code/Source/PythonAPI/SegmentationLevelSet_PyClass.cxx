@@ -29,14 +29,15 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// The functions defined here implement the SV Python API Threshold class. 
+// The functions defined here implement the SV Python API level set segmentation class. 
+//
+// The class name is 'segmentation.LevelSet'.
 //
 #include "SimVascular.h"
 #include "sv_misc_utils.h"
 #include "sv3_Contour.h"
-#include "Contour_PyModule.h"
-#include "sv3_ThresholdContour.h"
-//#include "sv_adapt_utils.h"
+#include "Segmentation_PyModule.h"
+#include "sv3_LevelSetContour.h"
 #include "sv_arg.h"
 
 #include <stdio.h>
@@ -44,104 +45,88 @@
 #include "sv_Repository.h"
 #include "sv_arg.h"
 #include "sv_misc_utils.h"
-#include "sv2_globals.h"
 
 #include "Python.h"
+#include "sv2_globals.h"
 
 // The following is needed for Windows
 #ifdef GetObject
 #undef GetObject
 #endif
 
-using sv3::thresholdContour;
-
 //-----------------
-// PyThresholdContour
+// PyLevelSetSegmentation
 //-----------------
-// Define the Threshold class (type).
+// Define the LevelSet class (type).
 //
 typedef struct {
-  PyContour super;
-} PyThresholdContour;
-
-thresholdContour* CreateThresholdContour()
-{
-  return new thresholdContour();
-}
+  PySegmentation super;
+} PyLevelSetSegmentation;
 
 //////////////////////////////////////////////////////
 //          C l a s s    M e t h o d s              //
 //////////////////////////////////////////////////////
-// Python class methods. 
-
-//----------------------------
-// ThresholdContour_available
-//----------------------------
 //
-static PyObject *  
-ThresholdContour_available(PyObject* self, PyObject* args)
-{
-  return Py_BuildValue("s","thresholdContour Available");
-}
+// Python LevelSet class methods. 
 
 ////////////////////////////////////////////////////////
 //          C l a s s    D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
 
-static char* CONTOUR_THRESHOLD_CLASS = "Threshold";
-static char* CONTOUR_THRESHOLD_MODULE_CLASS = "contour.Threshold";
+static char* SEGMENTATION_LEVELSET_CLASS = "LevelSet";
+// Dotted name that includes both the module name and the name of the type within the module.
+static char* SEGMENTATION_LEVELSET_MODULE_CLASS = "segmentation.LevelSet";
 
-PyDoc_STRVAR(PyThresholdContourClass_doc, "circle contour functions");
+PyDoc_STRVAR(PyLevelSetSegmentationClass_doc, "level set segmentation functions");
 
-
-PyMethodDef PyThresholdContourMethods[] = {
-  {"available", ThresholdContour_available, METH_NOARGS, NULL },
+//--------------------------
+// PyLevelSetSegmentationMethods
+//--------------------------
+//  
+PyMethodDef PyLevelSetSegmentationMethods[] = {
   {NULL, NULL}
 };
 
-
-//---------------------
-// PyThresholdContourInit 
-//---------------------
-// This is the __init__() method for the Contour class. 
+//-----------------------
+// PyLevelSetSegmentationInit 
+//-----------------------
+// This is the __init__() method for the LevelSet class. 
 //
 // This function is used to initialize an object after it is created.
 //
 static int
-PyThresholdContourInit(PyThresholdContour* self, PyObject* args, PyObject *kwds)
+PyLevelSetSegmentationInit(PyLevelSetSegmentation* self, PyObject* args, PyObject *kwds)
 {
   static int numObjs = 1;
-  std::cout << "[PyThresholdContourInit] New Threshold Contour object: " << numObjs << std::endl;
-  //self->super.count = numObjs;
-  //self->super.contour = new ThresholdContour();
-  self->super.contour = new sv3::circleContour();
+  std::cout << "[PyLevelSetSegmentationInit] New LevelSet Segmentation object: " << numObjs << std::endl;
+  self->super.contour = new sv3::levelSetContour();
   numObjs += 1;
   return 0;
 }
 
-//--------------------
-// PyThresholdContourNew 
-//--------------------
+//----------------------
+// PyLevelSetSegmentationNew 
+//----------------------
 //
 static PyObject *
-PyThresholdContourNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
-{ 
-  std::cout << "[PyThresholdContourNew] PyThresholdContourNew " << std::endl;
-  auto self = (PyThresholdContour*)type->tp_alloc(type, 0);
+PyLevelSetSegmentationNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+  std::cout << "[PyLevelSetSegmentationNew] PyLevelSetSegmentationNew " << std::endl;
+  auto self = (PyLevelSetSegmentation*)type->tp_alloc(type, 0);
   if (self != NULL) {
       //self->super.id = 2;
   }
   return (PyObject *) self;
 }
 
-//------------------------
-// PyThresholdContourDealloc 
-//------------------------
+//--------------------------
+// PyLevelSetSegmentationDealloc 
+//--------------------------
 //
 static void
-PyThresholdContourDealloc(PyThresholdContour* self)
-{ 
-  std::cout << "[PyThresholdContourDealloc] Free PyThresholdContour" << std::endl;
+PyLevelSetSegmentationDealloc(PyLevelSetSegmentation* self)
+{
+  std::cout << "[PyLevelSetSegmentationDealloc] Free PyLevelSetSegmentation" << std::endl;
   delete self->super.contour;
   Py_TYPE(self)->tp_free(self);
 }
@@ -149,43 +134,42 @@ PyThresholdContourDealloc(PyThresholdContour* self)
 //------------------------------------
 // Define the ContourType type object
 //------------------------------------
-// Define the Python type object that stores Contour data. 
+// Define the Python type object that stores Segmentation data. 
 //
 // Can't set all the fields here because g++ does not suppor non-trivial 
 // designated initializers. 
 //
-static PyTypeObject PyThresholdContourClassType = {
+static PyTypeObject PyLevelSetSegmentationClassType = {
   PyVarObject_HEAD_INIT(NULL, 0)
-  // Dotted name that includes both the module name and 
-  // the name of the type within the module.
-  .tp_name = CONTOUR_THRESHOLD_MODULE_CLASS, 
-  .tp_basicsize = sizeof(PyThresholdContour)
+  .tp_name = SEGMENTATION_LEVELSET_MODULE_CLASS,
+  .tp_basicsize = sizeof(PyLevelSetSegmentation)
 };
 
-//----------------------------
-// SetThresholdContourTypeFields
-//----------------------------
-// Set the Python type object fields that stores Contour data. 
+//-----------------------------------
+// SetLevelSetSegmentationTypeFields 
+//-----------------------------------
+// Set the Python type object fields that stores LevelSet data. 
 //
 // Need to set the fields here because g++ does not suppor non-trivial 
 // designated initializers. 
 //
 static void
-SetThresholdContourTypeFields(PyTypeObject& contourType)
+SetLevelSetSegmentationTypeFields(PyTypeObject& contourType)
  {
   // Doc string for this type.
-  contourType.tp_doc = "Threshold Contour  objects";
+  contourType.tp_doc = "LevelSet Segmentation objects";
 
   // Object creation function, equivalent to the Python __new__() method. 
   // The generic handler creates a new instance using the tp_alloc field.
-  contourType.tp_new = PyThresholdContourNew;
+  contourType.tp_new = PyLevelSetSegmentationNew;
   //.tp_new = PyType_GenericNew,
 
-  contourType.tp_base = &PyContourClassType;
+  contourType.tp_base = &PySegmentationClassType;
 
   contourType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
-  contourType.tp_init = (initproc)PyThresholdContourInit;
-  contourType.tp_dealloc = (destructor)PyThresholdContourDealloc;
-  contourType.tp_methods = PyThresholdContourMethods;
+  contourType.tp_init = (initproc)PyLevelSetSegmentationInit;
+  contourType.tp_dealloc = (destructor)PyLevelSetSegmentationDealloc;
+  contourType.tp_methods = PyLevelSetSegmentationMethods;
 };
+
 

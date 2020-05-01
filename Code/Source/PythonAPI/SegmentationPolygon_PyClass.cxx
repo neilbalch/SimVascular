@@ -29,15 +29,15 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// The functions defined here implement the SV Python API level set contour class. 
+// The functions defined here implement the SV Python API polygon segmentation class. 
 //
-// The class name is 'contour.LevelSet'.
+// The class name is 'segmentation.Polygon'. 
 //
 #include "SimVascular.h"
 #include "sv_misc_utils.h"
 #include "sv3_Contour.h"
-#include "Contour_PyModule.h"
-#include "sv3_LevelSetContour.h"
+#include "Segmentation_PyModule.h"
+#include "sv3_PolygonContour.h"
 #include "sv_arg.h"
 
 #include <stdio.h>
@@ -54,133 +54,119 @@
 #undef GetObject
 #endif
 
-//-----------------
-// PyLevelSetContour
-//-----------------
-// Define the LevelSet class (type).
+//-----------------------
+// PyPolygonSegmentation
+//-----------------------
+// Define the Polygon class (type).
 //
 typedef struct {
-  PyContour super;
-} PyLevelSetContour;
+  PySegmentation super;
+} PyPolygonSegmentation;
 
 //////////////////////////////////////////////////////
 //          C l a s s    M e t h o d s              //
 //////////////////////////////////////////////////////
 //
-// Python LevelSet class methods. 
-
-//---------------------------
-// levelSetContour_available
-//---------------------------
-//
-static PyObject *  
-LevelSetContour_available(PyObject* self, PyObject* args)
-{
-  return Py_BuildValue("s","levelSetContour Available");
-}
+// Python API functions. 
 
 ////////////////////////////////////////////////////////
 //          C l a s s    D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
 
-static char* CONTOUR_LEVELSET_CLASS = "LevelSet";
-// Dotted name that includes both the module name and the name of the type within the module.
-static char* CONTOUR_LEVELSET_MODULE_CLASS = "contour.LevelSet";
+static char* SEGMENTATION_POLYGON_CLASS = "Polygon";
+static char* SEGMENTATION_POLYGON_MODULE_CLASS = "segmentation.Polygon";
 
-PyDoc_STRVAR(PyLevelSetContourClass_doc, "level set contour functions");
+PyDoc_STRVAR(PyPolygonSegmentationClass_doc, "polygon segmentation functions");
 
-//--------------------------
-// PyLevelSetContourMethods
-//--------------------------
-//  
-PyMethodDef PyLevelSetContourMethods[] = {
-  {"available", LevelSetContour_available, METH_NOARGS, NULL},
+PyMethodDef PyPolygonSegmentationMethods[] = {
   {NULL, NULL}
 };
 
-//-----------------------
-// PyLevelSetContourInit 
-//-----------------------
-// This is the __init__() method for the LevelSet class. 
+//---------------------------
+// PyPolygonSegmentationInit 
+//---------------------------
+// This is the __init__() method for the Segmentation class. 
 //
 // This function is used to initialize an object after it is created.
 //
 static int
-PyLevelSetContourInit(PyLevelSetContour* self, PyObject* args, PyObject *kwds)
+PyPolygonSegmentationInit(PyPolygonSegmentation* self, PyObject* args, PyObject *kwds)
 {
   static int numObjs = 1;
-  std::cout << "[PyLevelSetContourInit] New LevelSet Contour object: " << numObjs << std::endl;
-  self->super.contour = new sv3::levelSetContour();
+  std::cout << "[PyPolygonSegmentationInit] New Polygon Segmentation object: " << numObjs << std::endl;
+  //self->super.count = numObjs;
+  //self->super.contour = new PolygonContour();
+  self->super.contour = new sv3::circleContour();
   numObjs += 1;
   return 0;
 }
 
-//----------------------
-// PyLevelSetContourNew 
-//----------------------
+//--------------------------
+// PyPolygonSegmentationNew 
+//--------------------------
 //
 static PyObject *
-PyLevelSetContourNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
-{
-  std::cout << "[PyLevelSetContourNew] PyLevelSetContourNew " << std::endl;
-  auto self = (PyLevelSetContour*)type->tp_alloc(type, 0);
+PyPolygonSegmentationNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{ 
+  std::cout << "[PyPolygonSegmentationNew] PyPolygonSegmentationNew " << std::endl;
+  auto self = (PyPolygonSegmentation*)type->tp_alloc(type, 0);
   if (self != NULL) {
       //self->super.id = 2;
   }
   return (PyObject *) self;
 }
 
-//--------------------------
-// PyLevelSetContourDealloc 
-//--------------------------
+//------------------------------
+// PyPolygonSegmentationDealloc 
+//------------------------------
 //
 static void
-PyLevelSetContourDealloc(PyLevelSetContour* self)
-{
-  std::cout << "[PyLevelSetContourDealloc] Free PyLevelSetContour" << std::endl;
+PyPolygonSegmentationDealloc(PyPolygonSegmentation* self)
+{ 
+  std::cout << "[PyPolygonSegmentationDealloc] Free PyPolygonSegmentation" << std::endl;
   delete self->super.contour;
   Py_TYPE(self)->tp_free(self);
 }
 
-//------------------------------------
-// Define the ContourType type object
-//------------------------------------
-// Define the Python type object that stores Contour data. 
+//--------------------------------
+// PyPolygonSegmentationClassType 
+//--------------------------------
+// Define the Python type object that stores Segmentation data. 
 //
 // Can't set all the fields here because g++ does not suppor non-trivial 
 // designated initializers. 
 //
-static PyTypeObject PyLevelSetContourClassType = {
+static PyTypeObject PyPolygonSegmentationClassType = {
   PyVarObject_HEAD_INIT(NULL, 0)
-  .tp_name = CONTOUR_LEVELSET_MODULE_CLASS,
-  .tp_basicsize = sizeof(PyLevelSetContour)
+  // Dotted name that includes both the module name and 
+  // the name of the type within the module.
+  .tp_name = SEGMENTATION_POLYGON_MODULE_CLASS, 
+  .tp_basicsize = sizeof(PyPolygonSegmentation)
 };
 
-//----------------------------
-// SetCircleContourTypeFields
-//----------------------------
-// Set the Python type object fields that stores LevelSet data. 
+//----------------------------------
+// SetPolygonSegmentationTypeFields 
+//----------------------------------
+// Set the Python type object fields that stores Segmentation  data. 
 //
 // Need to set the fields here because g++ does not suppor non-trivial 
 // designated initializers. 
 //
 static void
-SetLevelSetContourTypeFields(PyTypeObject& contourType)
+SetPolygonSegmentationTypeFields(PyTypeObject& contourType)
  {
   // Doc string for this type.
-  contourType.tp_doc = "LevelSet Contour objects";
+  contourType.tp_doc = "Polygon segmentation objects";
 
   // Object creation function, equivalent to the Python __new__() method. 
   // The generic handler creates a new instance using the tp_alloc field.
-  contourType.tp_new = PyLevelSetContourNew;
+  contourType.tp_new = PyPolygonSegmentationNew;
   //.tp_new = PyType_GenericNew,
 
-  contourType.tp_base = &PyContourClassType;
-
+  contourType.tp_base = &PySegmentationClassType;
   contourType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
-  contourType.tp_init = (initproc)PyLevelSetContourInit;
-  contourType.tp_dealloc = (destructor)PyLevelSetContourDealloc;
-  contourType.tp_methods = PyLevelSetContourMethods;
+  contourType.tp_init = (initproc)PyPolygonSegmentationInit;
+  contourType.tp_dealloc = (destructor)PyPolygonSegmentationDealloc;
+  contourType.tp_methods = PyPolygonSegmentationMethods;
 };
-
 
