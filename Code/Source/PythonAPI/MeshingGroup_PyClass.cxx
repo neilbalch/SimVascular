@@ -58,7 +58,7 @@ static sv4guiMitkMesh::Pointer
 MeshingGroupRead(char* fileName)
 {
   //std::cout << "========== MeshingGroupRead ==========" << std::endl;
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
   //std::cout << "[MeshingGroupRead] fileName: " << fileName << std::endl;
   sv4guiMitkMesh::Pointer group;
   bool readSurfaceMesh = false; 
@@ -96,7 +96,7 @@ MeshingGroupRead(char* fileName)
 // the SV project's Models directory.
 //
 bool 
-MeshingGroupSetModel(SvPyUtilApiFunction& api, cvMeshObject* mesher, sv4guiMitkMesh* meshingGroup, 
+MeshingGroupSetModel(PyUtilApiFunction& api, cvMeshObject* mesher, sv4guiMitkMesh* meshingGroup, 
     int index, std::string fileName, std::map<std::string,int>& faceIDMap)
 {
   //std::cout << "[MeshingGroupSetModel] ========== MeshingGroupSetModel ========== " << std::endl;
@@ -244,7 +244,7 @@ static PyObject *
 MeshingGroup_get_mesh(PyMeshingGroup* self, PyObject* args)
 {
   //std::cout << "================ MeshingGroup_get_mesh ================" << std::endl;
-  auto api = SvPyUtilApiFunction("i", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("i", PyRunTimeErr, __func__);
   int index;
 
   if (!PyArg_ParseTuple(args, api.format, &index)) {
@@ -340,7 +340,7 @@ PyDoc_STRVAR(MeshingGroup_write_doc,
 static PyObject *
 MeshingGroup_write(PyMeshingGroup* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char* fileName = NULL;
 
   if (!PyArg_ParseTuple(args, api.format, &fileName)) {
@@ -424,7 +424,7 @@ PyMeshingGroupInit(PyMeshingGroup* self, PyObject* args)
 {
   static int numObjs = 1;
   std::cout << "[PyMeshingGroupInit] New MeshingGroup object: " << numObjs << std::endl;
-  auto api = SvPyUtilApiFunction("|s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("|s", PyRunTimeErr, __func__);
   char* fileName = nullptr;
   if (!PyArg_ParseTuple(args, api.format, &fileName)) {
       api.argsError();

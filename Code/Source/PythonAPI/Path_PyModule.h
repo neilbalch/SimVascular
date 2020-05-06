@@ -40,15 +40,14 @@
 //--------
 // PyPath
 //--------
+// Define the SV Python Path class.
 //
-// [TODO:DaveP] is extern needed?
-//
-extern "C" SV_EXPORT_PATH typedef struct
+typedef struct
 {
   PyObject_HEAD
   sv3::PathElement* path;
   int id;
-} PyPath;
+} PyPathClass;
 
 PyObject * CreatePyPath(sv3::PathElement* path = nullptr);
 extern PyTypeObject PyPathType;

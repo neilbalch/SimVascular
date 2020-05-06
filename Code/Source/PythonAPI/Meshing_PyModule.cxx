@@ -42,7 +42,7 @@
 #include "sv_MeshSystem.h"
 #include "sv_MeshObject.h"
 #include "vtkPythonUtil.h"
-#include "sv_PyUtils.h"
+#include "PyUtils.h"
 #include "Meshing_PyModule.h"
 #include "Modeling_PyModule.h"
 #include "sv_TetGenMeshObject.h"
@@ -128,7 +128,7 @@ PyDoc_STRVAR(PyMeshing_create_adaptive_mesher_doc,
 static PyObject*
 PyMeshing_create_adaptive_mesher(PyTypeObject *type, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char* kernelName = nullptr;
 
   if (!PyArg_ParseTuple(args, api.format, &kernelName)) {
@@ -174,7 +174,7 @@ PyDoc_STRVAR(PyMeshing_create_mesher_doc,
 static PyObject*
 PyMeshing_create_mesher(PyTypeObject *type, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char* kernelName = nullptr;
 
   if (!PyArg_ParseTuple(args, api.format, &kernelName)) {

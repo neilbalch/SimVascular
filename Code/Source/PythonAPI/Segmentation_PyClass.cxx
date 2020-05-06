@@ -103,7 +103,7 @@ PyDoc_STRVAR(Segmentation_get_center_doc,
 static PyObject * 
 Segmentation_get_center(PySegmentation* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
   auto contour = self->contour;
   auto center = contour->GetCenterPoint();
   return Py_BuildValue("[d,d,d]", center[0], center[1], center[2]);
@@ -127,7 +127,7 @@ PyDoc_STRVAR(Segmentation_get_points_doc,
 static PyObject *
 Segmentation_get_points(PySegmentation* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
   auto contour = self->contour;
   auto contour_points = contour->GetContourPoints();
   auto pointList = PyList_New(contour_points.size());
@@ -164,7 +164,7 @@ PyDoc_STRVAR(Segmentation_get_control_points_doc,
 static PyObject *
 Segmentation_get_control_points(PySegmentation* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
   auto contour = self->contour;
   auto control_points = contour->GetControlPoints();
   auto pointList = PyList_New(control_points.size());
@@ -201,7 +201,7 @@ PyDoc_STRVAR(Segmentation_get_id_doc,
 static PyObject *
 Segmentation_get_id(PySegmentation* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
   auto contour = self->contour;
   auto id = contour->GetContourID();
   std::cout << "######### Segmentation_get_id: id: " << id << std::endl;
@@ -226,7 +226,7 @@ PyDoc_STRVAR(Segmentation_get_path_point_doc,
 static PyObject * 
 Segmentation_get_path_point(PySegmentation* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
   auto contour = self->contour;
   auto pathPoint = contour->GetPathPoint();
   return Py_BuildValue("{s:[d,d,d], s:[d,d,d], s:[d,d,d]}",
@@ -252,7 +252,7 @@ PyDoc_STRVAR(Segmentation_get_type_doc,
 static PyObject * 
 Segmentation_get_type(PySegmentation* self, PyObject* args)
 {   
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
   auto contour = self->contour;
   auto contourType = contour->GetType();
   return Py_BuildValue("s", contourType.c_str());
@@ -275,7 +275,7 @@ PyDoc_STRVAR(Segmentation_get_polydata_doc,
 static PyObject *
 Segmentation_get_polydata(PySegmentation* self, PyObject* args)
 { 
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
   auto contour = self->contour;
   vtkSmartPointer<vtkPolyData> polydata = contour->CreateVtkPolyDataFromContour();
   return vtkPythonUtil::GetObjectFromPointer(polydata);
@@ -302,7 +302,7 @@ static PyObject*
 Segmentation_set_image(PySegmentation* self, PyObject* args)
 {
     PyObject *vtkName; 
-    auto api = SvPyUtilApiFunction("O", PyRunTimeErr, __func__);
+    auto api = PyUtilApiFunction("O", PyRunTimeErr, __func__);
 
     if (!PyArg_ParseTuple(args, api.format, &vtkName)) {
         return api.argsError();
@@ -354,7 +354,7 @@ static PyObject*
 Segmentation_set_control_points(PySegmentation* self, PyObject* args)
 {
     PyObject *controlPoints = nullptr;
-    auto api = SvPyUtilApiFunction("O", PyRunTimeErr, __func__);
+    auto api = PyUtilApiFunction("O", PyRunTimeErr, __func__);
 
     if (!PyArg_ParseTuple(args, api.format, &controlPoints)) {
         return api.argsError();
@@ -441,7 +441,7 @@ PyDoc_STRVAR(Segmentation_set_control_points_by_radius_doc,
 static PyObject* 
 Segmentation_set_control_points_by_radius(PySegmentation* self, PyObject* args)
 {
-    auto api = SvPyUtilApiFunction("Od", PyRunTimeErr, __func__);
+    auto api = PyUtilApiFunction("Od", PyRunTimeErr, __func__);
 
     if (Contour::gCurrentKernel != cKERNEL_CIRCLE) {
         api.error("Contour kernel is not set to 'Circle'");
@@ -502,7 +502,7 @@ PyDoc_STRVAR(Segmentation_get_area_doc,
 static PyObject* 
 Segmentation_get_area(PySegmentation* self, PyObject* args)
 {
-    auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+    auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
     auto contour = self->contour;
     if (contour == NULL) {
         api.error("No geometry has been created for the contour.");
@@ -530,7 +530,7 @@ PyDoc_STRVAR(Segmentation_get_perimeter_doc,
 
 PyObject* Segmentation_get_perimeter(PySegmentation* self, PyObject* args)
 {
-    auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+    auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
     auto contour = self->contour;
     if (contour == NULL) {
         api.error("No geometry has been created for the Contour.");
@@ -558,7 +558,7 @@ static PyObject *
 Segmentation_set_threshold_value(PySegmentation* self, PyObject* args)
 {
     double threshold = 0.0;
-    auto api = SvPyUtilApiFunction("d", PyRunTimeErr, __func__);
+    auto api = PyUtilApiFunction("d", PyRunTimeErr, __func__);
 
     if (!PyArg_ParseTuple(args, api.format, &threshold)) {
         return api.argsError();
@@ -596,7 +596,7 @@ PyDoc_STRVAR(Segmentation_create_smooth_contour_doc,
 static PySegmentation* 
 Segmentation_create_smooth_contour(PySegmentation* self, PyObject* args)
 {
-    auto api = SvPyUtilApiFunction("is", PyRunTimeErr, __func__);
+    auto api = PyUtilApiFunction("is", PyRunTimeErr, __func__);
     int fourierNumber = 0;
     char* contourName;
 
@@ -636,7 +636,7 @@ Segmentation_create_smooth_contour(PySegmentation* self, PyObject* args)
 static PyObject *
 Segmentation_create(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char* kernelName = nullptr;
 
   if (!PyArg_ParseTuple(args, api.format, &kernelName)) {

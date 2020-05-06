@@ -50,7 +50,7 @@
 #include "sv_vmtk_utils.h"
 #include "sv_SolidModel.h"
 #include "sv_vtk_utils.h"
-#include "sv_PyUtils.h"
+#include "PyUtils.h"
 #include "Python.h"
 #include "vtkSmartPointer.h"
 
@@ -74,7 +74,7 @@ static PyObject * PyRunTimeErr;
 // Get the vtkPolyData object from the Python vtkPolyData object.
 //
 static vtkPolyData *
-GetVtkPolyData(SvPyUtilApiFunction& api, PyObject* obj)
+GetVtkPolyData(PyUtilApiFunction& api, PyObject* obj)
 {
   vtkPolyData* polydata = nullptr;
 
@@ -97,7 +97,7 @@ GetVtkPolyData(SvPyUtilApiFunction& api, PyObject* obj)
 // The face ID is mapped to the node ID that is closest to the face center.
 //
 static std::vector<int> 
-ConvertFaceIdsToNodeIds(SvPyUtilApiFunction& api, vtkPolyData* polydata, std::vector<int>& faceIds)
+ConvertFaceIdsToNodeIds(PyUtilApiFunction& api, vtkPolyData* polydata, std::vector<int>& faceIds)
 {
   std::vector<int> nodeIds;
   int numCells = polydata->GetNumberOfCells();
@@ -191,7 +191,7 @@ PyDoc_STRVAR(Vmtk_cap_doc,
 static PyObject *
 Vmtk_cap(PyObject* self, PyObject* args,  PyObject* kwargs)
 {
-  auto api = SvPyUtilApiFunction("O|O!", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("O|O!", PyRunTimeErr, __func__);
   static char *keywords[] = {"surface", "use_center", NULL};
   PyObject* surfaceArg;
   PyObject* useCenterArg = nullptr;
@@ -266,7 +266,7 @@ static PyObject *
 Vmtk_cap_with_ids(PyObject* self, PyObject* args, PyObject* kwargs)
 {
   //std::cout << "========== Vmtk_cap_with_ids ==========" << std::endl;
-  auto api = SvPyUtilApiFunction("O|O!O!", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("O|O!O!", PyRunTimeErr, __func__);
   static char *keywords[] = {"surface", "fill_id", "increment_id", NULL};
   //static char *keywords[] = {"surface", "fill_id", "fill_type", NULL};
   PyObject* surfaceArg;
@@ -348,7 +348,7 @@ static PyObject *
 Vmtk_centerlines(PyObject* self, PyObject* args, PyObject* kwargs)
 {
   //std::cout << "========== Vmtk_centerlines ==========" << std::endl;
-  auto api = SvPyUtilApiFunction("OO!O!|O!", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("OO!O!|O!", PyRunTimeErr, __func__);
   static char *keywords[] = {"surface", "inlet_ids", "outlet_ids", "use_face_ids", NULL};
   PyObject* surfaceArg;
   PyObject* inletIdsArg;
@@ -467,7 +467,7 @@ PyDoc_STRVAR(Vmtk_distance_to_centerlines_doc,
 static PyObject *
 Vmtk_distance_to_centerlines(PyObject* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = SvPyUtilApiFunction("OO", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("OO", PyRunTimeErr, __func__);
   static char *keywords[] = {"surface", "line", NULL};
   PyObject* surfaceArg;
   PyObject* linesArg;
@@ -519,7 +519,7 @@ PyDoc_STRVAR(Geom_centerlines_doc,
 static PyObject * 
 Geom_centerlines(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sOOss", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sOOss", PyRunTimeErr, __func__);
   char *geomName;
   PyObject* sourceList;
   PyObject* targetList;
@@ -618,7 +618,7 @@ PyDoc_STRVAR(Geom_group_polydata_doc,
 static PyObject *
 Geom_group_polydata(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sss", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sss", PyRunTimeErr, __func__);
   char *geomName;
   char *linesName;
   char *groupedName;
@@ -673,7 +673,7 @@ PyDoc_STRVAR(Geom_separate_centerlines_doc,
 static PyObject *
 Geom_separate_centerlines(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *linesName;
   char *separateName;
 
@@ -719,7 +719,7 @@ PyDoc_STRVAR(Geom_merge_centerlines_doc,
 static PyObject *
 Geom_merge_centerlines(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("ssi", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("ssi", PyRunTimeErr, __func__);
   char *linesName;
   char *mergeName;
   int mergeblanked = 1;
@@ -767,7 +767,7 @@ PyDoc_STRVAR(Geom_cap_doc,
 static PyObject *
 Geom_cap(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("ssi", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("ssi", PyRunTimeErr, __func__);
   char *geomName;
   char *cappedName;
   int captype;
@@ -838,7 +838,7 @@ PyDoc_STRVAR(Geom_cap_with_ids_doc,
 static PyObject *
 Geom_cap_with_ids(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("ssii", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("ssii", PyRunTimeErr, __func__);
   char *geomName;
   char *cappedName;
   int fillId;
@@ -897,7 +897,7 @@ PyDoc_STRVAR(Geom_map_and_correct_ids_doc,
 static PyObject *
 Geom_map_and_correct_ids(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sssss", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sssss", PyRunTimeErr, __func__);
   char *originalName;
   char *newName;
   char *resultName;

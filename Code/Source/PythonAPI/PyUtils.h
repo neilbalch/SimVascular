@@ -29,8 +29,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __SV_PYUTILS_H__
-#define __SV_PYUTILS_H__
+#ifndef PY_UTILS_H__
+#define PY_UTILS_H__
 
 #include "SimVascular.h"
 #include "Python.h"
@@ -39,10 +39,10 @@
 #include "vtkSmartPointer.h"
 #include "vtkPolyData.h"
 
-class SvPyUtilApiFunction
+class PyUtilApiFunction
 {
   public:
-      SvPyUtilApiFunction(const std::string& format, PyObject* pyRunTimeErr, const char* funcName);
+      PyUtilApiFunction(const std::string& format, PyObject* pyRunTimeErr, const char* funcName);
       void error(std::string msg);
       PyObject * argsError();
       std::string formatString; 
@@ -51,27 +51,27 @@ class SvPyUtilApiFunction
       PyObject* pyError; 
 };
 
-std::string svPyUtilGetFunctionName(const char* functionName);
+std::string PyUtilGetFunctionName(const char* functionName);
 
-std::string svPyUtilGetMsgPrefix(const std::string& functionName);
+std::string PyUtilGetMsgPrefix(const std::string& functionName);
 
-PyObject * svPyUtilResetException(PyObject * PyRunTimeErr);
+PyObject * PyUtilResetException(PyObject * PyRunTimeErr);
 
-bool svPyUtilCheckPointData(PyObject* pointData, std::string& msg);
+bool PyUtilCheckPointData(PyObject* pointData, std::string& msg);
 
-bool svPyUtilCheckPointDataList(PyObject* pointData, std::string& msg);
+bool PyUtilCheckPointDataList(PyObject* pointData, std::string& msg);
 
-PyObject * svPyUtilGetVtkObject(SvPyUtilApiFunction& api, vtkSmartPointer<vtkPolyData> polydata);
+PyObject * PyUtilGetVtkObject(PyUtilApiFunction& api, vtkSmartPointer<vtkPolyData> polydata);
 
-void svPyUtilSetupApiFunction(const char* functionName, std::string& format, std::string& msg);
+void PyUtilSetupApiFunction(const char* functionName, std::string& format, std::string& msg);
 
-void svPyUtilSetErrorMsg(PyObject* pyRunTimeErr, std::string& msgp, std::string msg);
+void PyUtilSetErrorMsg(PyObject* pyRunTimeErr, std::string& msgp, std::string msg);
 
 template <typename T>
-bool svPyUtilGetPointData(PyObject* pyPoint, std::string& msg, T point[3]);
+bool PyUtilGetPointData(PyObject* pyPoint, std::string& msg, T point[3]);
 
-bool svPyUtilConvertPointData(PyObject* data, int index, std::string& msg, double point[3]);
-bool svPyUtilConvertPointData(PyObject* data, int index, std::string& msg, int point[3]);
+bool PyUtilConvertPointData(PyObject* data, int index, std::string& msg, double point[3]);
+bool PyUtilConvertPointData(PyObject* data, int index, std::string& msg, int point[3]);
 
 
 #endif 

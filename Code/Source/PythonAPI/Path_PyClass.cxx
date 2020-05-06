@@ -69,36 +69,38 @@ CreatePathCurve(PathElement* path)
 //
 // Python 'Path' class methods.
 
-//--------------------------
-//sv4Path_add_control_point 
-//--------------------------
+//------------------------
+// Path_add_control_point 
+//------------------------
 //
-PyDoc_STRVAR(sv4Path_add_control_point_doc,
-  "Path_add_control_point(point) \n\ 
+PyDoc_STRVAR(Path_add_control_point_doc,
+  "add_control_point(point, index=None) \n\ 
    \n\
    Add a control point to a path. \n\
    \n\
+   The point is inserted into the path's list of control points at the location to the control point it is closest to.  \n\
+   If the 'location' argument is given then the point is added at that location in the list. \n\
+   \n\
    Args: \n\
-     point (list[x,y,z]): A list of three floats represent the 3D coordinates of the control point. \n\
+     point (list[float,float,float]): The control point (x,y,z) coordinates. \n\
+     index (Optional[int]): The index into the current list of control points to add the control point. 0 <= index <= number of path control points - 1\n\
 ");
 
 static PyObject * 
-sv4Path_add_control_point(PyPath* self, PyObject* args)
+Path_add_control_point(PyPathClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("O|i", PyRunTimeErr, __func__);
-  // [TODO:DaveP] should be declared as 
-  //   const PyObject* pointArg;
+  auto api = PyUtilApiFunction("O!|i", PyRunTimeErr, __func__);
   PyObject* pointArg;
   int index = -2;
 
-  if (!PyArg_ParseTuple(args, api.format, &pointArg, &index)) {
+  if (!PyArg_ParseTuple(args, api.format, &PyList_Type, &pointArg, &index)) {
       return api.argsError();
   }
 
   // Check control point data.
   //
   std::string emsg;
-  if (!svPyUtilCheckPointData(pointArg, emsg)) {
+  if (!PyUtilCheckPointData(pointArg, emsg)) {
       api.error("Control point argument " + emsg);
       return nullptr;
   }
@@ -128,241 +130,180 @@ sv4Path_add_control_point(PyPath* self, PyObject* args)
 
   // Set the path control point by index or by point.
   //
+  int numPts = path->GetControlPoints().size();
   if (index != -2) { 
-      int numCpts = path->GetControlPoints().size();
-      if (index > numCpts) {
-          auto msg = "Index " + std::to_string(index) + " exceeds path length " + std::to_string(numCpts)+".";
+      if ((index >= numPts) || (index < 0)) {
+          auto msg = "The 'index' argument " + std::to_string(index) + " must be >= 0 and < the number of control points -1 (" + 
+                std::to_string(numPts-1 ) + ").";
           api.error(msg);
           return nullptr;
       }
   } else {
       index = path->GetInsertintIndexByDistance(point);
   }
-  path->InsertControlPoint(index,point);
 
-  // [TODO:DaveP] we don't need to increment non-Python objects.
-  Py_INCREF(path);
-  self->path = path;
-  Py_DECREF(path);
+  path->InsertControlPoint(index, point);
   return SV_PYTHON_OK; 
 }
 
-//------------------------------
-// sv4Path_remove_control_point
-//------------------------------
+//-------------------------
+// Path_get_control_points
+//-------------------------
 //
-PyDoc_STRVAR(sv4Path_remove_control_point_doc,
-  "Path_remove_control_point(index) \n\ 
+PyDoc_STRVAR(Path_get_control_points_doc,
+  "get_control_points() \n\ 
    \n\
-   Remove a control point from a path. \n\
+   Get the path's control points. \n\
    \n\
-   Args: \n\
-     index (int): Index into the list of control points. 0 <= index < number of control points. \n\
+   Returns (list(list[float,float,float])): The list of the path's control points. \n\
 ");
 
 static PyObject * 
-sv4Path_remove_control_point(PyPath* self, PyObject* args)
+Path_get_control_points(PyPathClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("i", PyRunTimeErr, __func__);
-  int index;
-
-  if (!PyArg_ParseTuple(args, api.format, &index)) {
-      return svPyUtilResetException(PyRunTimeErr);
-  }
-
-  auto path = self->path;
-  if (path == NULL) {
-      api.error("The path element data has not be created.");
-      return nullptr;
-  }
-
-  int numControlPoints = path->GetControlPoints().size();
-  if (index >= numControlPoints) {
-      api.error("The index argument " + std::to_string(index) + " must be < the number of control points ( "
-        + std::to_string(numControlPoints) + ").");
-      return nullptr;
-  }
-
-  path->RemoveControlPoint(index);
-    
-  Py_INCREF(path);
-  self->path = path;
-  Py_DECREF(path);
-  return SV_PYTHON_OK; 
-}
-
-//-------------------------------
-// sv4Path_replace_control_point
-//-------------------------------
-//
-PyDoc_STRVAR(sv4Path_replace_control_point_doc,
-  "sv4Path_replace_control_point(index, point) \n\ 
-   \n\
-   Replace a control point. \n\
-   \n\
-   Args: \n\
-     index (int): Index into the list of control points. 0 <= index < number of control points. \n\
-     point (list[x,y,z]): A list of three floats represent the coordinates of a 3D point. \n\
-");
-
-static PyObject * 
-sv4Path_replace_control_point(PyPath* self, PyObject* args)
-{
-  auto api = SvPyUtilApiFunction("iO", PyRunTimeErr, __func__);
-  PyObject* pointArg;
-  int index;
-
-  if (!PyArg_ParseTuple(args, api.format, &index, &pointArg)) {
-      return api.argsError();
-  }
-    
-  auto path = self->path;
-  if (path == NULL) {
-      api.error("The path element data has not be created.");
-      return nullptr;
-  }
-
-  std::string msg;
-  if (!svPyUtilCheckPointData(pointArg, msg)) {
-      api.error("Control point argument " + msg);
-      return nullptr;
-  }
-    
-  std::array<double,3> point;
-  point[0] = PyFloat_AsDouble(PyList_GetItem(pointArg,0));
-  point[1] = PyFloat_AsDouble(PyList_GetItem(pointArg,1));
-  point[2] = PyFloat_AsDouble(PyList_GetItem(pointArg,2));    
-    
-  int numControlPoints = path->GetControlPoints().size();
-  if (index >= numControlPoints) { 
-      auto msg = "The index argument " + std::to_string(index) + " must be < the number of control points ( " 
-        + std::to_string(numControlPoints) + ")."; 
-      api.error(msg);
-      return nullptr;
-  }
-
-  if (index < 0 ) { 
-      auto msg = "The index argument " + std::to_string(index) + " must be >= 0 and < the number of control points (" 
-        + std::to_string(numControlPoints) + ")."; 
-      api.error(msg);
-      return nullptr;
-  }
-
-  path->SetControlPoint(index, point);
-        
-  Py_INCREF(path);
-  self->path = path;
-  Py_DECREF(path);
-  return SV_PYTHON_OK; 
-}
-
-//-----------------
-// sv4Path_smooth 
-//-----------------
-//
-// [TODO:DaveP] this should return a new smoothed Path or should it
-// modify the path?
-//
-PyDoc_STRVAR(sv4Path_smooth_doc,
-  "sv4Path_smooth(index, point) \n\ 
-   \n\
-   Smooth a path. \n\
-   \n\
-   Args: \n\
-     sample_rate (int):  \n\
-     num_modes (int):  \n\
-     control_point_based (int):  \n\
-");
-
-static PyObject * 
-sv4Path_smooth(PyPath* self, PyObject* args)
-{
-  auto api = SvPyUtilApiFunction("iii", PyRunTimeErr, __func__);
-  int sampleRate, numModes, controlPointsBased;
-
-  if (!PyArg_ParseTuple(args, api.format, &sampleRate, &numModes, &controlPointsBased)) {
-      return api.argsError();
-  }
-    
-  auto path = self->path;
-  if (path == NULL) {
-      api.error("The path element data has not be created.");
-      return nullptr;
-    }  
-    
-  bool controlPointsBasedBool=controlPointsBased==1?true:false;
-    
-  path = path->CreateSmoothedPathElement(sampleRate, numModes, controlPointsBasedBool);
-        
-  Py_INCREF(path);
-  self->path=path;
-  Py_DECREF(path);
-  return SV_PYTHON_OK; 
-}
-
-//--------------------
-// sv4Path_PrintCtrlPointCmd
-//--------------------
-//
-static PyObject * 
-sv4Path_PrintCtrlPointCmd( PyPath* self, PyObject* args)
-{
-    PathElement* path = self->path;
-    std::vector<std::array<double,3> > pts = path->GetControlPoints();
-    for (int i=0;i<pts.size();i++)
-    {
-        std::array<double,3> pt = pts[i];
-        PySys_WriteStdout("Point %i, %f, %f, %f \n",i, pt[0],pt[1],pt[2]);
-    }
-    
-    return SV_PYTHON_OK; 
-}
-
-//------------------------------
-// sv4Path_get_num_curve_points
-//------------------------------
-//
-PyDoc_STRVAR(sv4Path_get_num_curve_points_doc,
-  "Path_get_num_curve_points() \n\ 
-   \n\
-   Get the number of points along the path interpolating curve. \n\
-   \n\
-   Args: \n\
-     None \n\
-");
-
-static PyObject * 
-sv4Path_get_num_curve_points(PyPath* self, PyObject* args)
-{
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
   PathElement* path = self->path;
 
   if (path == NULL) {
     api.error("The path element data has not be created.");
     return nullptr;
+  }
+
+  int num = path->GetControlPointNumber();
+  if (num == 0) {
+    api.error("The path does not have control points defined for it.");
+    return nullptr;
   }  
 
-  int num = path->GetPathPointNumber();
-  return Py_BuildValue("i",num);
+  // [TODO:DaveP] Do we need to Py_INCREF() here? 
+  //
+  PyObject* output = PyList_New(num);
+  for (int i = 0; i < num; i++) {
+      PyObject* coordList = PyList_New(3);
+      std::array<double,3> pos = path->GetControlPoint(i);
+      for (int j=0; j<3; j++) {
+          PyList_SetItem(coordList, j, PyFloat_FromDouble(pos[j]));
+      }
+      PyList_SetItem(output, i, coordList);
+    }
+
+  if (PyErr_Occurred() != NULL) {
+      api.error("Error generating path control points output.");
+      return nullptr;
+  }
+
+  return output;
 }
 
-//--------------------------
-// sv4Path_get_curve_points
-//--------------------------
-
-PyDoc_STRVAR(sv4Path_get_curve_points_doc,
-  "Path_get_curve_points() \n\ 
+//-----------------------
+// Path_get_curve_normal 
+//-----------------------
+//
+PyDoc_STRVAR(Path_get_curve_normal_doc,
+  "get_curve_normal(index) \n\ 
    \n\
-   Get the points along the path interpolating curve. \n\
+   Get the normal to the path's interpolating curve at a given location. \n\
    \n\
    Args: \n\
-     None \n\
+     index (int): The index into the path's curve normals. 0 <= index <= number of path curve points - 1. \n\
+   \n\
+   Returns (list([float,float,float])): The path's curve normal at the given location. \n\
 ");
 
 static PyObject * 
-sv4Path_get_curve_points(PyPath* self, PyObject* args)
+Path_get_curve_normal(PyPathClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("i", PyRunTimeErr, __func__);
+  int indexArg;
+
+  if (!PyArg_ParseTuple(args, api.format, &indexArg)) {
+      return api.argsError();
+  }
+
+  auto path = self->path;
+  if (path == NULL) {
+    api.error("The path element data has not be created.");
+    return nullptr;
+  }
+
+  int num = path->GetPathPointNumber();
+  if (num == 0) {
+    api.error("The path does not have points created for it.");
+    return nullptr;
+  }  
+
+  if ((indexArg < 0) || (indexArg >= num)) {
+    api.error("The 'index' argument must be between 0 and " + std::to_string(num-1) + ".");
+    return nullptr;
+  }  
+
+  auto pathPoint = path->GetPathPoint(indexArg);
+  return Py_BuildValue("[d, d, d]", pathPoint.rotation[0], pathPoint.rotation[1], pathPoint.rotation[2]);
+}
+
+//----------------------
+// Path_get_curve_point 
+//----------------------
+//
+PyDoc_STRVAR(Path_get_curve_point_doc,
+  "get_curve_point(index) \n\ 
+   \n\
+   Get the point on the path's interpolating curve at a given location. \n\
+   \n\
+   Args: \n\
+     index (int): The index into the path's curve points. 0 <= index <= number of path curve points - 1. \n\
+   \n\
+   Returns (list([float,float,float])): The path's curve point at the given location. \n\
+");
+
+static PyObject * 
+Path_get_curve_point(PyPathClass* self, PyObject* args)
+{
+  auto api = PyUtilApiFunction("i", PyRunTimeErr, __func__);
+  int index;
+
+  if (!PyArg_ParseTuple(args, api.format, &index)) {
+      return api.argsError();
+  }
+
+  auto path = self->path;
+  if (path == NULL) {
+    api.error("The path element data has not be created.");
+    return nullptr;
+  }
+
+  int num = path->GetPathPointNumber();
+  if (num == 0) {
+    api.error("The path does not have curve points created for it.");
+    return nullptr;
+  }  
+
+ if ((index >= num) || (index < 0)) {
+      auto msg = "The 'index' argument " + std::to_string(index) + " must be >= 0 and < the number of curve points (" + std::to_string(num) + ").";
+      api.error(msg);
+      return nullptr;
+  }
+
+  std::array<double,3> pos = path->GetPathPosPoint(index);
+  return Py_BuildValue("[d, d, d]", pos[0], pos[1], pos[2]);
+}
+
+//-----------------------
+// Path_get_curve_points
+//-----------------------
+//
+PyDoc_STRVAR(Path_get_curve_points_doc,
+  "get_curve_points() \n\ 
+   \n\
+   Get the points along the path's interpolating curve. \n\
+   \n\
+   Returns (list(list[float,float,float])): The list of the path's interpolating curve points. \n\
+");
+
+static PyObject * 
+Path_get_curve_points(PyPathClass* self, PyObject* args)
+{
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
   PathElement* path = self->path;
 
   if (path == NULL) {
@@ -394,193 +335,23 @@ sv4Path_get_curve_points(PyPath* self, PyObject* args)
   return output;
 } 
 
-//----------------------------
-// sv4Path_GetControlPts
-//----------------------------
-//
-PyDoc_STRVAR(sv4Path_get_control_points_doc,
-  "Path_get_control_points() \n\ 
-   \n\
-   Get the path control points. \n\
-   \n\
-   Args: \n\
-     None \n\
-");
-
-static PyObject * 
-sv4Path_get_control_points(PyPath* self, PyObject* args)
-{
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
-  PathElement* path = self->path;
-
-  if (path == NULL) {
-    api.error("The path element data has not be created.");
-    return nullptr;
-  }
-
-  int num = path->GetControlPointNumber();
-  if (num == 0) {
-    api.error("The path does not have control points defined for it.");
-    return nullptr;
-  }  
-
-  PyObject* output = PyList_New(num);
-  for (int i = 0; i < num; i++) {
-      PyObject* tmpList = PyList_New(3);
-      std::array<double,3> pos = path->GetControlPoint(i);
-      for (int j=0; j<3; j++) {
-          PyList_SetItem(tmpList,j,PyFloat_FromDouble(pos[j]));
-      }
-      PyList_SetItem(output,i,tmpList);
-    }
-
-  if (PyErr_Occurred() != NULL) {
-      api.error("Error generating path control points output.");
-      return nullptr;
-  }
-
-  return output;
-}
-
-//--------------------------
-// sv4Path_get_curve_normal  
+//-------------------------
+// Path_get_curve_polydata 
 //-------------------------
 //
-PyDoc_STRVAR(sv4Path_get_curve_normal_doc,
-  "get_curve_normal(index) \n\ 
+PyDoc_STRVAR(Path_get_curve_polydata_doc,
+  "get_curve_polydata() \n\ 
    \n\
-   Get the path curve normal at a given index. \n\
+   Get the vtkPolyData object representing the path's interpolating curve. \n\
    \n\
-   Args: \n\
-     index (int): The index into the path's curve normals. \n\
-");
-
-static PyObject * 
-sv4Path_get_curve_normal(PyPath* self, PyObject* args)
-{
-  auto api = SvPyUtilApiFunction("i", PyRunTimeErr, __func__);
-  int indexArg;
-
-  if (!PyArg_ParseTuple(args, api.format, &indexArg)) {
-      return api.argsError();
-  }
-
-  auto path = self->path;
-  if (path == NULL) {
-    api.error("The path element data has not be created.");
-    return nullptr;
-  }
-
-  int num = path->GetPathPointNumber();
-  if ((indexArg < 0) || (indexArg >= num)) {
-    api.error("The path index must be between 0 and " + std::to_string(num-1) + ".");
-    return nullptr;
-  }  
-
-  auto pathPoint = path->GetPathPoint(indexArg);
-  return Py_BuildValue("[d, d, d]", pathPoint.rotation[0], pathPoint.rotation[1], pathPoint.rotation[2]);
-}
-
-//-------------------------
-// sv4Path_get_curve_point 
-//-------------------------
-//
-PyDoc_STRVAR(sv4Path_get_curve_point_doc,
-  "get_curve_point(index) \n\ 
-   \n\
-   Get the path curve point at a given index. \n\
-   \n\
-   Args: \n\
-     index (int): The index into the path's curve points. \n\
-");
-
-static PyObject * 
-sv4Path_get_curve_point(PyPath* self, PyObject* args)
-{
-  auto api = SvPyUtilApiFunction("i", PyRunTimeErr, __func__);
-  int indexArg;
-
-  if (!PyArg_ParseTuple(args, api.format, &indexArg)) {
-      return api.argsError();
-  }
-
-  auto path = self->path;
-  if (path == NULL) {
-    api.error("The path element data has not be created.");
-    return nullptr;
-  }
-
-  int num = path->GetPathPointNumber();
-  if ((indexArg < 0) || (indexArg >= num)) {
-    api.error("The path index must be between 0 and " + std::to_string(num-1) + ".");
-    return nullptr;
-  }  
-
-  std::array<double,3> pos = path->GetPathPosPoint(indexArg);
-  return Py_BuildValue("[d, d, d]", pos[0], pos[1], pos[2]);
-}
-
-//---------------------------
-// sv4Path_get_curve_tangent 
-//--------------------------
-//
-PyDoc_STRVAR(sv4Path_get_curve_tangent_doc,
-  "get_curve_tangent(index) \n\ 
-   \n\
-   Get the path curve tangent at a given index. \n\
-   \n\
-   Args: \n\
-     index (int): The index into the path's curve tangents. \n\
-");
-
-static PyObject * 
-sv4Path_get_curve_tangent(PyPath* self, PyObject* args)
-{
-  auto api = SvPyUtilApiFunction("i", PyRunTimeErr, __func__);
-  int indexArg;
-
-  if (!PyArg_ParseTuple(args, api.format, &indexArg)) {
-      return api.argsError();
-  }
-
-  auto path = self->path;
-  if (path == NULL) {
-    api.error("The path element data has not be created.");
-    return nullptr;
-  }
-
-  int num = path->GetPathPointNumber();
-  if ((indexArg < 0) || (indexArg >= num)) {
-    api.error("The path index must be between 0 and " + std::to_string(num-1) + ".");
-    return nullptr;
-  }  
-
-  auto pathPoint = path->GetPathPoint(indexArg);
-  return Py_BuildValue("[d, d, d]", pathPoint.tangent[0], pathPoint.tangent[1], pathPoint.tangent[2]);
-}
-
-//----------------------
-// sv4Path_get_polydata
-//----------------------
-//
-PyDoc_STRVAR(sv4Path_get_polydata_doc,
-  "Path_get_polydata(name) \n\ 
-   \n\
-   Store the polydata for the named path into the repository. \n\
-   \n\
-   Args: \n\
-     name (str): \n\
+   Returns (vtkPolyData): The vtkPolyData object representing the path's interpolating curve.  \n\
 ");
 
 static PyObject*
-sv4Path_get_polydata(PyPath* self, PyObject* args)
+Path_get_curve_polydata(PyPathClass* self, PyObject* args)
 {
-    auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
-    char* dstName = NULL;
-
-    if (!PyArg_ParseTuple(args, api.format, &dstName)) {
-      return api.argsError();
-    }
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
+  char* dstName = NULL;
 
   auto path = self->path;
   if (path == NULL) {
@@ -588,28 +359,265 @@ sv4Path_get_polydata(PyPath* self, PyObject* args)
       return nullptr;
   }
 
-  // Check that the repository object does not already exist.
-  if (gRepository->Exists(dstName)) {
-    api.error("The repository object '" + std::string(dstName) + "' already exists.");
+  // Get the VTK polydata.
+  vtkSmartPointer<vtkPolyData> polydata = path->CreateVtkPolyDataFromPath(true);
+  if (polydata == NULL) {
+      api.error("Could not get polydata for the path's interpolating curve..");
+      return nullptr;
+  }
+   
+  return vtkPythonUtil::GetObjectFromPointer(polydata);
+}
+
+//------------------------
+// Path_get_curve_tangent 
+//------------------------
+//
+PyDoc_STRVAR(Path_get_curve_tangent_doc,
+  "get_curve_tangent(index) \n\ 
+   \n\
+   Get the tangent to the path's interpolating curve at a given location. \n\
+   \n\
+   Args: \n\
+     index (int): The index into the path's curve tangents. 0 <= index <= number of path curve tangents - 1. \n\
+   \n\
+   Returns (list([float,float,float])): The path's curve tangent at the given location. \n\
+");
+
+static PyObject * 
+Path_get_curve_tangent(PyPathClass* self, PyObject* args)
+{
+  auto api = PyUtilApiFunction("i", PyRunTimeErr, __func__);
+  int indexArg;
+
+  if (!PyArg_ParseTuple(args, api.format, &indexArg)) {
+      return api.argsError();
+  }
+
+  auto path = self->path;
+  if (path == NULL) {
+    api.error("The path element data has not be created.");
     return nullptr;
   }
 
-  // Get the VTK polydata.
-  vtkSmartPointer<vtkPolyData> vtkpd = path->CreateVtkPolyDataFromPath(true);
-  cvPolyData* pd = new cvPolyData(vtkpd);
+  int num = path->GetPathPointNumber();
+  if (num == 0) {
+    api.error("The path does not have points created for it.");
+    return nullptr;
+  }  
 
-  if (pd == NULL) {
-      api.error("Could not get polydata for the path.");
+  if ((indexArg < 0) || (indexArg >= num)) {
+    api.error("The path 'index' argument must be between 0 and " + std::to_string(num-1) + ".");
+    return nullptr;
+  }  
+
+  auto pathPoint = path->GetPathPoint(indexArg);
+  return Py_BuildValue("[d, d, d]", pathPoint.tangent[0], pathPoint.tangent[1], pathPoint.tangent[2]);
+}
+
+//---------------------------
+// Path_get_num_curve_points
+//---------------------------
+//
+PyDoc_STRVAR(Path_get_num_curve_points_doc,
+  "get_num_curve_points() \n\ 
+   \n\
+   Get the number of points along the path's interpolating curve. \n\
+   \n\
+   Returns (int): The number of points along the path's interpolating curve. \n\
+");
+
+static PyObject * 
+Path_get_num_curve_points(PyPathClass* self, PyObject* args)
+{
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
+  PathElement* path = self->path;
+
+  if (path == NULL) {
+    api.error("The path element data has not be created.");
+    return nullptr;
+  }  
+
+  int num = path->GetPathPointNumber();
+  return Py_BuildValue("i", num);
+}
+
+
+//---------------------------
+// Path_remove_control_point
+//---------------------------
+//
+PyDoc_STRVAR(Path_remove_control_point_doc,
+  "remove_control_point(index) \n\ 
+   \n\
+   Remove a control point from a path. \n\
+   \n\
+   Args: \n\
+     index (int): The index into the path's list of control points of the control point to remove. 0 <= index <= number of control points - 1. \n\
+");
+
+static PyObject * 
+Path_remove_control_point(PyPathClass* self, PyObject* args)
+{
+  auto api = PyUtilApiFunction("i", PyRunTimeErr, __func__);
+  int index;
+
+  if (!PyArg_ParseTuple(args, api.format, &index)) {
+      return PyUtilResetException(PyRunTimeErr);
+  }
+
+  auto path = self->path;
+  if (path == NULL) {
+      api.error("The path element data has not be created.");
       return nullptr;
   }
-   
-  if (!gRepository->Register(dstName, pd)) {
-      delete pd;
-      api.error("Could not add the polydata to the repository.");
+
+  int numPts = path->GetControlPoints().size();
+  if (numPts == 0) {
+    api.error("The path does not have control points defined for it.");
+    return nullptr;
+  }  
+
+  if ((index >= numPts) || (index < 0)) {
+      auto msg = "The 'index' argument " + std::to_string(index) + " must be >= 0 and < the number of control points (" + 
+            std::to_string(numPts-1) + ").";
+      api.error(msg);
       return nullptr;
-    }
-   
-  return Py_None;
+  }
+  path->RemoveControlPoint(index);
+
+  return SV_PYTHON_OK; 
+}
+
+//----------------------------
+// Path_replace_control_point
+//----------------------------
+//
+PyDoc_STRVAR(Path_replace_control_point_doc,
+  "replace_control_point(index, point) \n\ 
+   \n\
+   Replace a control point in a path. \n\
+   \n\
+   Args: \n\
+     index (int): The index into the path's list of control points of the control point to remove. 0 <= index <= number of control points - 1. \n\
+     point (list[float,float,float]): A list of three floats represent the coordinates of a 3D point. \n\
+");
+
+static PyObject * 
+Path_replace_control_point(PyPathClass* self, PyObject* args)
+{
+  auto api = PyUtilApiFunction("iO!", PyRunTimeErr, __func__);
+  PyObject* pointArg;
+  int index;
+
+  if (!PyArg_ParseTuple(args, api.format, &index, &PyList_Type, &pointArg)) {
+      return api.argsError();
+  }
+    
+  auto path = self->path;
+  if (path == NULL) {
+      api.error("The path element data has not be created.");
+      return nullptr;
+  }
+
+  int numPts = path->GetControlPoints().size();
+  if (numPts == 0) {
+    api.error("The path does not have control points defined for it.");
+    return nullptr;
+  }  
+
+  std::string msg;
+  if (!PyUtilCheckPointData(pointArg, msg)) {
+      api.error("The 'point' argument " + msg);
+      return nullptr;
+  }
+    
+  if ((index >= numPts) || (index < 0)) { 
+      auto msg = "The 'index' argument " + std::to_string(index) + " must be >= 0 and < the number of control points (" + 
+            std::to_string(numPts-1) + ")."; 
+      api.error(msg);
+      return nullptr;
+  }
+
+  std::array<double,3> point;
+  point[0] = PyFloat_AsDouble(PyList_GetItem(pointArg,0));
+  point[1] = PyFloat_AsDouble(PyList_GetItem(pointArg,1));
+  point[2] = PyFloat_AsDouble(PyList_GetItem(pointArg,2));    
+  path->SetControlPoint(index, point);
+        
+  return SV_PYTHON_OK; 
+}
+
+//-------------
+// Path_smooth 
+//-------------
+//
+// [TODO:DaveP] This does not constrain the path end points so
+// what use is it really?
+//
+PyDoc_STRVAR(Path_smooth_doc,
+  "smooth(sample_rate, num_modes, smooth_control_pts=False) \n\ 
+   \n\
+   Smooth a path's control points or curve points as a source. \n\
+   \n\
+   Args: \n\
+     sample_rate (int): The rate used to sample the source points for smoothing. \n\
+        A sample rate of 2 uses every other point for smoothing. \n\
+     num_modes (int): The number of Fourier modes used to reconstuct the source points. \n\
+        The lower the number of modes the more the source points are smoothed. \n\ 
+     control_point_based (Optional[bool]): If True then smooth control points; otherwise smooth curve points. \n\
+   \n\
+   Returns (sv.path.Path object): A new smoothed path. \n\
+");
+
+static PyObject * 
+Path_smooth(PyPathClass* self, PyObject* args, PyObject* kwargs)
+{
+  auto api = PyUtilApiFunction("ii|O!", PyRunTimeErr, __func__);
+  static char *keywords[] = {"sample_rate", "num_modes", "smooth_control_pts", NULL};
+  int sampleRate, numModes; 
+  PyObject *smoothControlPtsArg = nullptr;
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &sampleRate, &numModes, &PyBool_Type, &smoothControlPtsArg)) {
+      return api.argsError();
+  }
+
+  auto path = self->path;
+  if (path == NULL) {
+      api.error("The path element data has not be created.");
+      return nullptr;
+  }  
+
+  int numPts = path->GetControlPoints().size();
+  if (numPts == 0) {
+    api.error("The path does not have control points defined for it.");
+    return nullptr;
+  }
+
+  // Set controlPointsBased parameter.
+  bool controlPointsBased = false;
+  if ((smoothControlPtsArg != nullptr) && PyObject_IsTrue(smoothControlPtsArg)) {
+      controlPointsBased = true;
+  }
+
+  if (sampleRate < 1) {
+      api.error("The 'sample_rate' argument must be > 0.");
+      return nullptr;
+  }
+
+  if (numModes < 1) {
+      api.error("The 'num_modes' argument must be > 0.");
+      return nullptr;
+  }
+    
+  auto newPath = path->CreateSmoothedPathElement(sampleRate, numModes, controlPointsBased);
+
+  if (newPath == nullptr) { 
+      api.error("Unable to smooth the path.");
+      return nullptr;
+  }
+
+  return CreatePyPath(newPath);
 }
 
 ////////////////////////////////////////////////////////
@@ -621,7 +629,15 @@ static char* PATH_CLASS = "Path";
 // the name of the type within the module.
 static char* PATH_MODULE_CLASS = "path.Path";
 
-PyDoc_STRVAR(PathClass_doc, "Path class functions.");
+//---------------
+// PathClass_doc
+//---------------
+// Define the Path class documentation.
+//
+PyDoc_STRVAR(PathClass_doc,
+   "The Path class provides methods for querying, creating, and modifying SV path planning objects.\n\
+   \n\
+");
 
 //--------------------
 // PyPathClassMethods 
@@ -630,24 +646,22 @@ PyDoc_STRVAR(PathClass_doc, "Path class functions.");
 //
 static PyMethodDef PyPathClassMethods[] = {
 
-  {"add_control_point", (PyCFunction)sv4Path_add_control_point, METH_VARARGS, sv4Path_add_control_point_doc },
+  {"add_control_point", (PyCFunction)Path_add_control_point, METH_VARARGS, Path_add_control_point_doc },
+  {"get_control_points", (PyCFunction)Path_get_control_points, METH_NOARGS, Path_get_control_points_doc },
 
-  {"get_control_points", (PyCFunction)sv4Path_get_control_points, METH_NOARGS, sv4Path_get_control_points_doc },
+  {"get_curve_normal", (PyCFunction)Path_get_curve_normal, METH_VARARGS, Path_get_curve_normal_doc },
+  {"get_curve_point", (PyCFunction)Path_get_curve_point, METH_VARARGS, Path_get_curve_point_doc },
+  {"get_curve_points", (PyCFunction)Path_get_curve_points, METH_NOARGS, Path_get_curve_points_doc },
+  {"get_curve_polydata", (PyCFunction)Path_get_curve_polydata, METH_VARARGS, Path_get_curve_polydata_doc},
+  {"get_curve_tangent", (PyCFunction)Path_get_curve_tangent, METH_VARARGS, Path_get_curve_tangent_doc },
 
-  {"get_curve_normal", (PyCFunction)sv4Path_get_curve_normal, METH_VARARGS, sv4Path_get_curve_normal_doc },
-  {"get_curve_point", (PyCFunction)sv4Path_get_curve_point, METH_VARARGS, sv4Path_get_curve_point_doc },
-  {"get_curve_points", (PyCFunction)sv4Path_get_curve_points, METH_NOARGS, sv4Path_get_curve_points_doc },
-  {"get_curve_tangent", (PyCFunction)sv4Path_get_curve_tangent, METH_VARARGS, sv4Path_get_curve_tangent_doc },
+  {"get_num_curve_points", (PyCFunction)Path_get_num_curve_points, METH_NOARGS, Path_get_num_curve_points_doc },
 
-  {"get_num_curve_points", (PyCFunction)sv4Path_get_num_curve_points, METH_NOARGS, sv4Path_get_num_curve_points_doc },
+  {"remove_control_point", (PyCFunction)Path_remove_control_point, METH_VARARGS, Path_remove_control_point_doc },
 
-  {"get_polydata", (PyCFunction)sv4Path_get_polydata, METH_VARARGS, sv4Path_get_polydata_doc },
+  {"replace_control_point", (PyCFunction)Path_replace_control_point, METH_VARARGS, Path_replace_control_point_doc },
 
-  {"remove_control_point", (PyCFunction)sv4Path_remove_control_point, METH_VARARGS, sv4Path_remove_control_point_doc },
-
-  {"replace_control_point", (PyCFunction)sv4Path_replace_control_point, METH_VARARGS, sv4Path_replace_control_point_doc },
-
-  {"smooth", (PyCFunction)sv4Path_smooth, METH_VARARGS, sv4Path_smooth_doc },
+  {"smooth", (PyCFunction)Path_smooth, METH_VARARGS|METH_KEYWORDS, Path_smooth_doc },
 
   {NULL,NULL}
 };
@@ -665,7 +679,7 @@ PyTypeObject PyPathType = {
   // Dotted name that includes both the module name and 
   // the name of the type within the module.
   PATH_MODULE_CLASS, 
-  sizeof(PyPath)
+  sizeof(PyPathClass)
 };
 
 //------------
@@ -676,7 +690,7 @@ PyTypeObject PyPathType = {
 // This function is used to initialize an object after it is created.
 //
 static int
-PyPathInit(PyPath* self, PyObject* args, PyObject *kwds)
+PyPathInit(PyPathClass* self, PyObject* args, PyObject *kwds)
 {
   static int numObjs = 1;
   std::cout << "[PyPathInit] New Path object: " << numObjs << std::endl;
@@ -696,7 +710,7 @@ static PyObject *
 PyPathNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
   std::cout << "[PyPathNew] PyPathNew " << std::endl;
-  auto self = (PyPath*)type->tp_alloc(type, 0);
+  auto self = (PyPathClass*)type->tp_alloc(type, 0);
   if (self != NULL) {
       self->id = 1;
   }
@@ -709,7 +723,7 @@ PyPathNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 //---------------
 //
 static void
-PyPathDealloc(PyPath* self)
+PyPathDealloc(PyPathClass* self)
 {
   std::cout << "[PyPathDealloc] Free PyPath" << std::endl;
   delete self->path;
@@ -728,7 +742,7 @@ static void
 SetPyPathTypeFields(PyTypeObject& pathType)
 {
   // Doc string for this type.
-  pathType.tp_doc = "Path  objects";
+  pathType.tp_doc = PathClass_doc; 
   // Object creation function, equivalent to the Python __new__() method. 
   // The generic handler creates a new instance using the tp_alloc field.
   pathType.tp_new = PyPathNew;
@@ -751,7 +765,7 @@ CreatePyPath(PathElement* path)
 {
   std::cout << "[CreatePyPath] Create Path object ... " << std::endl;
   auto pathObj = PyObject_CallObject((PyObject*)&PyPathType, NULL);
-  auto pyPath = (PyPath*)pathObj;
+  auto pyPath = (PyPathClass*)pathObj;
 
   if (path != nullptr) {
       delete pyPath->path; 

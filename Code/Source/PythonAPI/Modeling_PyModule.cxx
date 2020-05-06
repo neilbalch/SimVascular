@@ -52,7 +52,7 @@
 #include "sv_OCCTSolidModel.h"
 #include "sv_PolyDataSolid.h"
 #include "sv_sys_geom.h"
-#include "sv_PyUtils.h"
+#include "PyUtils.h"
 
 #include "sv_FactoryRegistrar.h"
 
@@ -141,7 +141,7 @@ PyDoc_STRVAR(PyModelingModule_modeler_exists_doc,
 static PyObject *
 PyModelingModule_modeler_exists(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, "Modeler");
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, "Modeler");
   char* kernelName = nullptr;
   if (!PyArg_ParseTuple(args, api.format, &kernelName)) {
       return api.argsError();

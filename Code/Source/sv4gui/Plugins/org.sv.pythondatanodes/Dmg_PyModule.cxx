@@ -61,7 +61,7 @@
 #include "sv_VTK.h"
 #include "vtkTclUtil.h"
 #include "vtkPythonUtil.h"
-#include "sv_PyUtils.h"
+#include "PyUtils.h"
 #include "sv4gui_ContourGroupIO.h"
 #include "sv4gui_ModelIO.h"
 
@@ -414,7 +414,7 @@ GetToolNode(mitk::DataStorage::Pointer dataStorage, mitk::DataNode::Pointer proj
 // Get the SV Data Manger root project node 'sv4guiProjectFolder'.
 //
 mitk::DataNode::Pointer 
-GetProjectNode(SvPyUtilApiFunction& api, mitk::DataStorage::Pointer dataStorage)
+GetProjectNode(PyUtilApiFunction& api, mitk::DataStorage::Pointer dataStorage)
 {
   mitk::NodePredicateDataType::Pointer isProjFolder = mitk::NodePredicateDataType::New(SvDataManagerNodes::Project);
   mitk::DataStorage::SetOfObjects::ConstPointer rs = dataStorage->GetSubset(isProjFolder);
@@ -435,7 +435,7 @@ GetProjectNode(SvPyUtilApiFunction& api, mitk::DataStorage::Pointer dataStorage)
 // Get the data storage context from the plugin.
 //
 static mitk::DataStorage::Pointer 
-GetDataStorage(SvPyUtilApiFunction& api)
+GetDataStorage(PyUtilApiFunction& api)
 {
   mitk::DataStorage::Pointer dataStorage; 
   ctkServiceReference dsServiceRef;
@@ -513,7 +513,7 @@ PyDoc_STRVAR(Dmg_add_mesh_doc,
 static PyObject * 
 Dmg_add_mesh(PyObject* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = SvPyUtilApiFunction("sOs", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sOs", PyRunTimeErr, __func__);
   static char *keywords[] = {"name", "mesh", "model", NULL};
   char* meshName;
   PyObject* ugridArg;
@@ -583,7 +583,7 @@ PyDoc_STRVAR(Dmg_get_model_doc,
 static PyObject * 
 Dmg_get_model(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char* modelName;
   
   if (!PyArg_ParseTuple(args, api.format, &modelName)) {
@@ -637,7 +637,7 @@ PyDoc_STRVAR(Dmg_get_mesh_doc,
 static PyObject * 
 Dmg_get_mesh(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char* meshName;
   
   if (!PyArg_ParseTuple(args, api.format, &meshName)) {
@@ -703,7 +703,7 @@ PyDoc_STRVAR(Dmg_get_path_doc,
 static PyObject * 
 Dmg_get_path(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char* pathName = NULL;
   
   if (!PyArg_ParseTuple(args, api.format, &pathName)) {
@@ -767,7 +767,7 @@ PyDoc_STRVAR(Dmg_add_path_doc,
 static PyObject * 
 Dmg_add_path(PyObject* self, PyObject* args, PyObject* kwargs)
 {
-    auto api = SvPyUtilApiFunction("sO!", PyRunTimeErr, __func__);
+    auto api = PyUtilApiFunction("sO!", PyRunTimeErr, __func__);
     static char *keywords[] = {"name", "path", NULL};
     PyObject* pathArg;
     char* pathName = NULL;
@@ -776,7 +776,7 @@ Dmg_add_path(PyObject* self, PyObject* args, PyObject* kwargs)
         return api.argsError();
     }
 
-    auto pyPath = (PyPath*)pathArg;
+    auto pyPath = (PyPathClass*)pathArg;
     auto pathElem = pyPath->path; 
     if (pathElem == nullptr) {
         api.error("The path elem data is null.");
@@ -835,7 +835,7 @@ PyDoc_STRVAR(Dmg_add_segmentation_doc,
 static PyObject * 
 Dmg_add_segmentation(PyObject* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = SvPyUtilApiFunction("ssO!", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("ssO!", PyRunTimeErr, __func__);
   static char *keywords[] = {"name", "path", "segmentations", NULL};
   PyObject* segList;
   char* segName = NULL;
@@ -924,7 +924,7 @@ static PyObject *
 Dmg_add_geometry(PyObject* self, PyObject* args, PyObject* kwargs)
 {
   using namespace SvDataManagerNodes;
-  auto api = SvPyUtilApiFunction("sOss", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sOss", PyRunTimeErr, __func__);
   static char *keywords[] = {"name", "geometry", "plugin", "node", NULL};
   char* geomName = NULL;
   PyObject* geomObj;
@@ -1018,7 +1018,7 @@ PyDoc_STRVAR(Dmg_add_model_doc,
 static PyObject * 
 Dmg_add_model(PyObject* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = SvPyUtilApiFunction("sO!", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sO!", PyRunTimeErr, __func__);
   static char *keywords[] = {"name", "model", NULL};
   char* modelName = NULL;
   PyObject* modelArg;
@@ -1097,7 +1097,7 @@ PyDoc_STRVAR(Dmg_get_segmentation_doc,
 static PyObject * 
 Dmg_get_segmentation(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char* segName = NULL;
   
   if (!PyArg_ParseTuple(args, api.format, &segName)) {
@@ -1156,7 +1156,7 @@ PyDoc_STRVAR(Dmg_remove_data_node_doc,
 static PyObject * 
 Dmg_remove_data_node(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char* folderName = NULL;
   char* nodeName = NULL;
   

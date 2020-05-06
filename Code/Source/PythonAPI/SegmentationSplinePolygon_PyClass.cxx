@@ -47,7 +47,7 @@
 #include "sv_misc_utils.h"
 
 #include "Python.h"
-#include "sv_PyUtils.h"
+#include "PyUtils.h"
 #include "sv2_globals.h"
 
 // The following is needed for Windows

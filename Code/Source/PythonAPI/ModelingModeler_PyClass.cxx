@@ -97,7 +97,7 @@ ModelingModeler_box(PyModelingModelClass* self, PyObject* args, PyObject* kwargs
 {
   std::cout << "[ModelingModeler_box] ========== ModelingModeler_box ==========" << std::endl;
   std::cout << "[ModelingModel_box] Kernel: " << self->kernel << std::endl;
-  auto api = SvPyUtilApiFunction("O|ddd", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("O|ddd", PyRunTimeErr, __func__);
   static char *keywords[] = {"center", "width", "height", "length", NULL};
   double width = 1.0;
   double height = 1.0;
@@ -110,7 +110,7 @@ ModelingModeler_box(PyModelingModelClass* self, PyObject* args, PyObject* kwargs
 
   // Check that the center argument is valid.
   std::string emsg;
-  if (!svPyUtilCheckPointData(centerArg, emsg)) {
+  if (!PyUtilCheckPointData(centerArg, emsg)) {
       api.error("The box center argument " + emsg);
       return nullptr;
   }
@@ -178,7 +178,7 @@ PyDoc_STRVAR(ModelingModeler_circle_doc,
 static PyObject * 
 ModelingModeler_circle(PyModelingModelerClass* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = SvPyUtilApiFunction("sddd", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sddd", PyRunTimeErr, __func__);
   static char *keywords[] = {"radius", "x", "y", NULL};
   double radius;
   double center[2];
@@ -227,7 +227,7 @@ ModelingModeler_cylinder(PyModelingModelerClass* self, PyObject* args, PyObject*
 {
   std::cout << "[ModelingModeler_cylinder] ========== ModelingModeler_cylinder ==========" << std::endl;
   std::cout << "[ModelingModel_cylinder] Kernel: " << self->kernel << std::endl;
-  auto api = SvPyUtilApiFunction("ddOO", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("ddOO", PyRunTimeErr, __func__);
   static char *keywords[] = {"radius", "length", "center", "axis", NULL};
   double radius;
   double length;
@@ -241,12 +241,12 @@ ModelingModeler_cylinder(PyModelingModelerClass* self, PyObject* args, PyObject*
   // Check argument values.
   //
   std::string emsg;
-  if (!svPyUtilCheckPointData(centerArg, emsg)) {
+  if (!PyUtilCheckPointData(centerArg, emsg)) {
       api.error("The cylinder center argument " + emsg);
       return nullptr;
   }
 
-  if (!svPyUtilCheckPointData(axisArg, emsg)) {
+  if (!PyUtilCheckPointData(axisArg, emsg)) {
       api.error("The cylinder axis argument " + emsg);
       return nullptr;
   }
@@ -310,7 +310,7 @@ PyDoc_STRVAR(ModelingModeler_ellipsoid_doc,
 static PyObject * 
 ModelingModeler_ellipsoid(PyModelingModelerClass* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = SvPyUtilApiFunction("OO", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("OO", PyRunTimeErr, __func__);
   static char *keywords[] = {"center", "radii", NULL};
   PyObject* rList;
   PyObject* centerList;
@@ -320,12 +320,12 @@ ModelingModeler_ellipsoid(PyModelingModelerClass* self, PyObject* args, PyObject
   }
 
   std::string emsg;
-  if (!svPyUtilCheckPointData(centerList, emsg)) {
+  if (!PyUtilCheckPointData(centerList, emsg)) {
       api.error("The ellipsoid center argument " + emsg);
       return nullptr;
   }
 
-  if (!svPyUtilCheckPointData(rList, emsg)) {
+  if (!PyUtilCheckPointData(rList, emsg)) {
       api.error("The ellipsoid radius vector argument " + emsg);
       return nullptr;
   }
@@ -376,7 +376,7 @@ PyDoc_STRVAR(ModelingModeler_intersect_doc,
 static PyObject * 
 ModelingModeler_intersect(PyModelingModelerClass* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = SvPyUtilApiFunction("OO|s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("OO|s", PyRunTimeErr, __func__);
   static char *keywords[] = {"model1", "model2", "simplification", NULL};
   PyObject* model1Arg;
   PyObject* model2Arg;
@@ -443,7 +443,7 @@ PyDoc_STRVAR(ModelingModeler_read_doc,
 static PyObject *
 ModelingModeler_read(PyModelingModelerClass* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   static char *keywords[] = {"file_name", NULL};
   char *fileName;
   std::cout << "[ModelingModeler_box] ========== ModelingModeler_read ==========" << std::endl;
@@ -490,7 +490,7 @@ PyDoc_STRVAR(ModelingModeler_sphere_doc,
 static PyObject * 
 ModelingModeler_sphere(PyModelingModelerClass* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = SvPyUtilApiFunction("dO", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("dO", PyRunTimeErr, __func__);
   static char *keywords[] = {"radius", "center", NULL};
   PyObject* centerArg;
   double center[3];
@@ -501,7 +501,7 @@ ModelingModeler_sphere(PyModelingModelerClass* self, PyObject* args, PyObject* k
   }
 
   std::string emsg;
-  if (!svPyUtilCheckPointData(centerArg, emsg)) {
+  if (!PyUtilCheckPointData(centerArg, emsg)) {
       api.error("The sphere center argument " + emsg);
       return nullptr;
   }
@@ -552,7 +552,7 @@ PyDoc_STRVAR(ModelingModeler_subtract_doc,
 static PyObject * 
 ModelingModeler_subtract(PyModelingModelerClass* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = SvPyUtilApiFunction("OO|s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("OO|s", PyRunTimeErr, __func__);
   static char *keywords[] = {"main", "subtract", "simplification", NULL};
   PyObject* mainModelArg;
   PyObject* subtractModelArg;
@@ -619,7 +619,7 @@ PyDoc_STRVAR(ModelingModeler_union_doc,
 static PyObject * 
 ModelingModeler_union(PyModelingModelerClass* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = SvPyUtilApiFunction("OO|s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("OO|s", PyRunTimeErr, __func__);
   static char *keywords[] = {"model1", "model2", "simplification", NULL};
   PyObject* model1Arg;
   PyObject* model2Arg;
@@ -720,7 +720,7 @@ static PyMethodDef PyModelingModelerClassMethods[] = {
 static int
 PyModelingModelerInit(PyModelingModelerClass* self, PyObject* args, PyObject *kwds)
 {
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, "ModelingModeler");
+  auto api = PyUtilApiFunction("", PyRunTimeErr, "ModelingModeler");
   static int numObjs = 1;
   std::cout << "[PyModelingModelerInit] New PyModelingModeler object: " << numObjs << std::endl;
   char* kernelName = nullptr;
@@ -755,7 +755,7 @@ static PyObject *
 PyModelingModelerNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
   std::cout << "[PyModelingModelerNew] New ModelingModeler" << std::endl;
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, "Modeler");
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, "Modeler");
   char* kernelName = nullptr; 
   if (!PyArg_ParseTuple(args, api.format, &kernelName)) {
       return api.argsError();

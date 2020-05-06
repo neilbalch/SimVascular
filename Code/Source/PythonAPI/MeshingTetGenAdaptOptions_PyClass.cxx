@@ -424,7 +424,7 @@ PyTetGenAdaptOptInit(PyMeshingTetGenAdaptOptClass* self, PyObject* args, PyObjec
   static int numObjs = 1;
   //std::cout << "[PyTetGenAdaptOptInit] New MeshingOptions object: " << numObjs << std::endl;
 /*
-  auto api = SvPyUtilApiFunction("d|O!O!O!", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("d|O!O!O!", PyRunTimeErr, __func__);
   static char *keywords[] = { TetGenAdaptOption::GlobalEdgeSize, TetGenAdaptOption::SurfaceMeshFlag, TetGenAdaptOption::VolumeMeshFlag, 
                               TetGenAdaptOption::MeshWallFirst, NULL};
   double global_edge_size = 0.0;

@@ -105,7 +105,7 @@ PyDoc_STRVAR(Mesher_adapt_doc,
 static PyObject * 
 Mesher_adapt(PyMeshingMesherClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__); 
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__); 
   std::string emsg;
 
   auto mesher = self->mesher;
@@ -134,7 +134,7 @@ PyDoc_STRVAR(Mesher_compute_model_boundary_faces_doc,
 static PyObject * 
 Mesher_compute_model_boundary_faces(PyMeshingMesherClass* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = SvPyUtilApiFunction("d", PyRunTimeErr, __func__); 
+  auto api = PyUtilApiFunction("d", PyRunTimeErr, __func__); 
   static char *keywords[] = {"angle", NULL};
   double angle = 0.0;
 
@@ -166,7 +166,7 @@ PyDoc_STRVAR(Mesher_generate_mesh_doc,
 static PyObject * 
 Mesher_generate_mesh(PyMeshingMesherClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__); 
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__); 
   auto mesher = self->mesher;
 
   if (mesher->GenerateMesh() == SV_ERROR) {
@@ -194,7 +194,7 @@ static PyObject *
 Mesher_get_face_polydata(PyMeshingMesherClass* self, PyObject* args, PyObject* kwargs)
 {
   using namespace MeshingMesher;
-  auto api = SvPyUtilApiFunction("i", PyRunTimeErr, __func__); 
+  auto api = PyUtilApiFunction("i", PyRunTimeErr, __func__); 
   static char *keywords[] = {"face_id", NULL};
   int faceID;
 
@@ -218,7 +218,7 @@ Mesher_get_face_polydata(PyMeshingMesherClass* self, PyObject* args, PyObject* k
 
   vtkSmartPointer<vtkPolyData> polydata = vtkSmartPointer<vtkPolyData>::New();
   polydata = cvPolydata->GetVtkPolyData();
-  return svPyUtilGetVtkObject(api, polydata); 
+  return PyUtilGetVtkObject(api, polydata); 
 }
 
 //-----------------
@@ -237,7 +237,7 @@ static PyObject *
 Mesher_get_mesh(PyMeshingMesherClass* self, PyObject* args)
 {
   using namespace MeshingMesher;
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__); 
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__); 
 
   std::string emsg;
   auto mesher = self->mesher;
@@ -271,7 +271,7 @@ PyDoc_STRVAR(Mesher_get_model_face_info_doc,
 static PyObject * 
 Mesher_get_model_face_info(PyMeshingMesherClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__); 
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__); 
   auto mesher = self->mesher; 
   // [TODO:DaveP] Yuk!
   char info[99999];
@@ -294,7 +294,7 @@ static PyObject *
 Mesher_get_model_polydata(PyMeshingMesherClass* self, PyObject* args)
 {
   using namespace MeshingMesher;
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__); 
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__); 
 
   std::string emsg;
   auto mesher = self->mesher;
@@ -312,7 +312,7 @@ Mesher_get_model_polydata(PyMeshingMesherClass* self, PyObject* args)
 
   vtkSmartPointer<vtkPolyData> polydata = vtkSmartPointer<vtkPolyData>::New();
   polydata = cvPolydata->GetVtkPolyData();
-  return svPyUtilGetVtkObject(api, polydata); 
+  return PyUtilGetVtkObject(api, polydata); 
 }
 
 //------------------
@@ -331,7 +331,7 @@ PyDoc_STRVAR(Mesher_load_mesh_doc,
 static PyObject * 
 Mesher_load_mesh(PyMeshingMesherClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s|s", PyRunTimeErr, __func__); 
+  auto api = PyUtilApiFunction("s|s", PyRunTimeErr, __func__); 
   char *fileName;
   char *surfFileName = 0;
 
@@ -366,7 +366,7 @@ PyDoc_STRVAR(Mesher_load_model_doc,
 static PyObject * 
 Mesher_load_model(PyMeshingMesherClass* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__); 
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__); 
   static char *keywords[] = {"file_name", NULL};
   char *fileName;
 
@@ -399,7 +399,7 @@ static PyObject *
 Mesher_get_surface(PyMeshingMesherClass* self, PyObject* args)
 {
   using namespace MeshingMesher;
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__); 
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__); 
 
   std::string emsg;
   auto mesher = self->mesher;
@@ -417,7 +417,7 @@ Mesher_get_surface(PyMeshingMesherClass* self, PyObject* args)
 
   vtkSmartPointer<vtkPolyData> polydata = vtkSmartPointer<vtkPolyData>::New();
   polydata = cvPolydata->GetVtkPolyData();
-  return svPyUtilGetVtkObject(api, polydata); 
+  return PyUtilGetVtkObject(api, polydata); 
 }
 
 //---------------------------
@@ -439,7 +439,7 @@ PyDoc_STRVAR(Mesher_set_boundary_layer_options_doc,
 static PyObject * 
 Mesher_set_boundary_layer_options(PyMeshingMesherClass* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = SvPyUtilApiFunction("iO!dd", PyRunTimeErr, __func__); 
+  auto api = PyUtilApiFunction("iO!dd", PyRunTimeErr, __func__); 
   static char *keywords[] = {"number_of_layers", "constant_thickness", "thickness_factor", "layer_decreasing_ratio", NULL};
   int numLayers;
   int constant_thickness; 
@@ -485,7 +485,7 @@ PyDoc_STRVAR(Mesher_set_meshing_options_doc,
 static PyObject * 
 Mesher_set_meshing_options(PyMeshingMesherClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("O!", PyRunTimeErr, __func__); 
+  auto api = PyUtilApiFunction("O!", PyRunTimeErr, __func__); 
   char *optionName;
   PyObject* valueList;
 
@@ -531,7 +531,7 @@ static PyObject *
 Mesher_set_solid_modeler_kernel(PyMeshingMesherClass* self, PyObject* args)
 {
   std::cout << "[Mesher_set_solid_modeler_kernel] ========== Mesher_set_solid_modeler_kernel ==========" << std::endl;
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__); 
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__); 
   char *kernelName;
   if (!PyArg_ParseTuple(args, api.format, &kernelName)) {
       return api.argsError();
@@ -570,7 +570,7 @@ PyDoc_STRVAR(Mesher_set_walls_doc,
 static PyObject * 
 Mesher_set_walls(PyMeshingMesherClass* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = SvPyUtilApiFunction("O!", PyRunTimeErr, __func__); 
+  auto api = PyUtilApiFunction("O!", PyRunTimeErr, __func__); 
   static char *keywords[] = {"face_ids", NULL};
   PyObject* faceIDsList;
 
@@ -617,7 +617,7 @@ Mesher_write_mesh(PyMeshingMesherClass* self, PyObject* args, PyObject* kwargs)
 {
   using namespace MeshingMesher;
   std::cout << "[Mesher_write_mesh] ========== Mesher_write_mesh ==========" << std::endl;
-  auto api = SvPyUtilApiFunction("s|i", PyRunTimeErr, __func__); 
+  auto api = PyUtilApiFunction("s|i", PyRunTimeErr, __func__); 
   static char *keywords[] = {"file_name", NULL};
   char *fileName;
   int smsver = 0;
@@ -664,7 +664,7 @@ PyDoc_STRVAR(Mesher_write_metis_adjacency_doc,
 static PyObject * 
 Mesher_write_metis_adjacency(PyMeshingMesherClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__); 
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__); 
   char *file_name;
   if (!PyArg_ParseTuple(args, api.format, &file_name)) {
       return api.argsError();
@@ -703,7 +703,7 @@ PyDoc_STRVAR(Mesher_set_vtk_polydata_doc,
 static PyObject * 
 Mesher_set_vtk_polydata(PyMeshingMesherClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__); 
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__); 
   char *objName;
 
   if (!PyArg_ParseTuple(args, api.format, &objName)) {
@@ -761,7 +761,7 @@ PyDoc_STRVAR(Mesher_logging_on_doc,
 static PyObject * 
 Mesher_logging_on(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__); 
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__); 
   char *logFileName;
 
   if (!PyArg_ParseTuple(args, api.format, &logFileName)) {
@@ -799,7 +799,7 @@ PyDoc_STRVAR(Mesher_logging_off_doc,
 static PyObject * 
 Mesher_logging_off(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__); 
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__); 
   auto meshKernel = cvMesherSystem::GetCurrentKernel();
   if (meshKernel == NULL) {
       api.error("The mesh kernel is not set.");
@@ -830,7 +830,7 @@ PyDoc_STRVAR(Mesher_write_stats_doc,
 static PyObject * 
 Mesher_write_stats(PyMeshingMesherClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__); 
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__); 
   char *fileName;
 
   if (!PyArg_ParseTuple(args, api.format, &fileName)) {
@@ -870,7 +870,7 @@ PyDoc_STRVAR(Mesher_new_mesh_doc,
 static PyObject * 
 Mesher_new_mesh( PyMeshingMesherClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__); 
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__); 
   auto meshObject = CheckMesher(api, self);
   if (meshObject == nullptr) {
       return nullptr;
@@ -900,7 +900,7 @@ PyDoc_STRVAR(Mesher_set_size_function_based_mesh_doc,
 static PyObject * 
 Mesher_set_size_function_based_mesh(PyMeshingMesherClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("ds", PyRunTimeErr, __func__); 
+  auto api = PyUtilApiFunction("ds", PyRunTimeErr, __func__); 
   char *functionName;
   double size;
 
@@ -938,7 +938,7 @@ PyDoc_STRVAR(Mesher_set_cylinder_refinement_doc,
 static PyObject * 
 Mesher_set_cylinder_refinement(PyMeshingMesherClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("ddOO", PyRunTimeErr, __func__); 
+  auto api = PyUtilApiFunction("ddOO", PyRunTimeErr, __func__); 
   double size;
   PyObject* centerArg;
   PyObject* normalArg;
@@ -955,11 +955,11 @@ Mesher_set_cylinder_refinement(PyMeshingMesherClass* self, PyObject* args)
   }
 
   std::string emsg;
-  if (!svPyUtilCheckPointData(centerArg, emsg)) {
+  if (!PyUtilCheckPointData(centerArg, emsg)) {
       api.error("The cylinder center argument " + emsg);
       return nullptr;
   }
-  if (!svPyUtilCheckPointData(normalArg, emsg)) {
+  if (!PyUtilCheckPointData(normalArg, emsg)) {
       api.error("The normal argument " + emsg);
       return nullptr;
   }
@@ -1132,7 +1132,7 @@ PyMeshingMesherInit(PyMeshingMesherClass* self, PyObject* args, PyObject *kwds)
 {
   std::cout << "[PyMeshingMesherInit] " << std::endl;
   std::cout << "[PyMeshingMesherInit] ========== PyMeshingMesherInit ==========" << std::endl;
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, "Mesher");
+  auto api = PyUtilApiFunction("", PyRunTimeErr, "Mesher");
   static int numObjs = 1;
   char* kernelName = nullptr;
   if (!PyArg_ParseTuple(args, "|s", &kernelName)) {
@@ -1169,7 +1169,7 @@ PyMeshingMesherNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
   std::cout << "[PyMeshingMesherNew] New Python Mesher object." << std::endl;
 /*
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, "Mesher");
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, "Mesher");
   char* kernelName = nullptr;
   if (!PyArg_ParseTuple(args, api.format, &kernelName)) {
       return api.argsError();

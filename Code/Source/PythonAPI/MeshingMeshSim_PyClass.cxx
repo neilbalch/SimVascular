@@ -68,7 +68,7 @@ MeshingMeshSimCheckModelLoaded(PyMeshingMeshSimClass* self)
 // The LocalEdgeSize option needs to have a model defined for the mesh.
 //
 bool
-MeshingMeshSimCheckOption(PyMeshingMeshSimClass* self, std::string& name, SvPyUtilApiFunction& api)
+MeshingMeshSimCheckOption(PyMeshingMeshSimClass* self, std::string& name, PyUtilApiFunction& api)
 {
   // The LocalEdgeSize option needs to have the model set for the mesh.
   if (name == MeshSimOption::LocalEdgeSize) {
@@ -125,7 +125,7 @@ static PyObject *
 MeshingMeshSim_load_model(PyMeshingMesherClass* self, PyObject* args, PyObject* kwargs)
 {
   std::cout << "======================= MeshingMeshSim_load_model ================" << std::endl;
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   static char *keywords[] = {"file_name", NULL};
   char *fileName;
 
@@ -164,7 +164,7 @@ MeshingMeshSim_set_options(PyMeshingMeshSimClass* self, PyObject* args )
 {
   std::cout << "[MeshingMeshSim_set_options] " << std::endl;
   std::cout << "[MeshingMeshSim_set_options] ========== MeshingMeshSim_set_options =========" << std::endl;
-  auto api = SvPyUtilApiFunction("O!", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("O!", PyRunTimeErr, __func__);
   PyObject* options;
 
   if (!PyArg_ParseTuple(args, api.format, &PyMeshSimOptionsType, &options)) {
@@ -257,7 +257,7 @@ static int
 PyMeshingMeshSimInit(PyMeshingMeshSimClass* self, PyObject* args, PyObject *kwds)
 {
   std::cout << "[PyMeshingMeshSimInit] New MeshSim object: " << std::endl;
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, "MeshGenerator");
+  auto api = PyUtilApiFunction("", PyRunTimeErr, "MeshGenerator");
   static int numObjs = 1;
   self->super.mesher = PyCreateMeshSimObject();
   return 0;

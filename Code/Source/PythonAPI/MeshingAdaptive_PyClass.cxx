@@ -65,7 +65,7 @@ typedef struct {
 // Check if an adapt mesh object has been created. 
 //
 static cvAdaptObject *
-CheckAdaptMesh(SvPyUtilApiFunction& api, PyMeshingAdaptiveClass* self)
+CheckAdaptMesh(PyUtilApiFunction& api, PyMeshingAdaptiveClass* self)
 {
   auto name = self->name;
   auto adapt = self->adaptive_mesher;
@@ -98,7 +98,7 @@ PyDoc_STRVAR(Adapt_check_options_doc,
 static PyObject * 
 Adapt_check_options(PyMeshingAdaptiveClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
 
   if (self->adaptive_mesher->CheckOptions() == SV_OK) {
       api.error("Error checking options.");
@@ -128,7 +128,7 @@ static PyObject *
 Adapt_create_internal_mesh(PyMeshingAdaptiveClass* self, PyObject* args, PyObject* kwargs)
 {
   std::cout << "[Adapt_create_internal_mesh] ========== Adapt_create_internal_mesh ==========" << std::endl;
-  auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("ss", PyRunTimeErr, __func__);
   static char *keywords[] = {"results_file", "model_file", NULL};
 
   char *meshFileName = NULL;
@@ -173,7 +173,7 @@ PyDoc_STRVAR(Adapt_get_mesh_doc,
 static PyObject *
 Adapt_get_mesh(PyMeshingAdaptiveClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
 
   auto mesher = self->adaptive_mesher;
 
@@ -206,7 +206,7 @@ PyDoc_STRVAR(Adapt_load_model_doc,
 static PyObject * 
 Adapt_load_model(PyMeshingAdaptiveClass* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   static char *keywords[] = {"file_name", NULL};
   char *fileName = NULL;
 
@@ -240,7 +240,7 @@ PyDoc_STRVAR(Adapt_set_adapt_options_doc,
 static PyObject * 
 Adapt_set_adapt_options(PyMeshingAdaptiveClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sd", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sd", PyRunTimeErr, __func__);
   char *flag = NULL;
   double value=0;
 
@@ -283,7 +283,7 @@ PyDoc_STRVAR(Adapt_load_mesh_doc,
 static PyObject * 
 Adapt_load_mesh(PyMeshingAdaptiveClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *meshFileName = NULL;
 
   if(!(PyArg_ParseTuple(args,"s",&meshFileName))) {
@@ -319,7 +319,7 @@ PyDoc_STRVAR(Adapt_load_solution_from_file_doc,
 static PyObject * 
 Adapt_load_solution_from_file(PyMeshingAdaptiveClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *fileName = NULL;
 
   if(!(PyArg_ParseTuple(args,"s",&fileName))) {
@@ -355,7 +355,7 @@ PyDoc_STRVAR(Adapt_load_ybar_from_file_doc,
 static PyObject * 
 Adapt_load_ybar_from_file(PyMeshingAdaptiveClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *fileName = NULL;
 
   if(!(PyArg_ParseTuple(args,"s",&fileName))) {
@@ -391,7 +391,7 @@ PyDoc_STRVAR(Adapt_load_avg_speed_from_file_doc,
 static PyObject * 
 Adapt_load_avg_speed_from_file(PyMeshingAdaptiveClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *fileName = NULL;
 
   if(!(PyArg_ParseTuple(args,"s",&fileName))) {
@@ -427,7 +427,7 @@ PyDoc_STRVAR(Adapt_load_hessian_from_file_doc,
 static PyObject * 
 Adapt_load_hessian_from_file(PyMeshingAdaptiveClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *fileName = NULL;
 
   if(!(PyArg_ParseTuple(args,"s",&fileName))) {
@@ -463,7 +463,7 @@ PyDoc_STRVAR(Adapt_read_solution_from_mesh_doc,
 static PyObject * 
 Adapt_read_solution_from_mesh(PyMeshingAdaptiveClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
   auto adapt = CheckAdaptMesh(api, self);
   if (adapt == nullptr) { 
       return nullptr;
@@ -493,7 +493,7 @@ PyDoc_STRVAR(Adapt_read_ybar_from_mesh_doc,
 static PyObject * 
 Adapt_read_ybar_from_mesh(PyMeshingAdaptiveClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
   auto adapt = CheckAdaptMesh(api, self);
   if (adapt == nullptr) { 
       return nullptr;
@@ -523,7 +523,7 @@ PyDoc_STRVAR(Adapt_read_avg_speed_from_mesh_doc,
 static PyObject * 
 Adapt_read_avg_speed_from_mesh(PyMeshingAdaptiveClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
   auto adapt = CheckAdaptMesh(api, self);
   if (adapt == nullptr) { 
       return nullptr;
@@ -555,7 +555,7 @@ PyDoc_STRVAR(Adapt_set_metric_doc,
 static PyObject * 
 Adapt_set_metric(PyMeshingAdaptiveClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s|ii", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s|ii", PyRunTimeErr, __func__);
   char *fileName = NULL;
   int option = -1;
   int strategy = -1;
@@ -593,7 +593,7 @@ PyDoc_STRVAR(Adapt_setup_mesh_doc,
 static PyObject * 
 Adapt_setup_mesh(PyMeshingAdaptiveClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
 
   auto adapt = CheckAdaptMesh(api, self);
   if (adapt == nullptr) { 
@@ -624,7 +624,7 @@ PyDoc_STRVAR(Adapt_run_adaptor_doc,
 static PyObject * 
 Adapt_run_adaptor(PyMeshingAdaptiveClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
 
   auto adapt = CheckAdaptMesh(api, self);
   if (adapt == nullptr) { 
@@ -655,7 +655,7 @@ PyDoc_STRVAR(Adapt_print_statistics_doc,
 static PyObject * 
 Adapt_print_statistics(PyMeshingAdaptiveClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
 
   auto adapt = CheckAdaptMesh(api, self);
   if (adapt == nullptr) { 
@@ -686,7 +686,7 @@ PyDoc_STRVAR(Adapt_get_adapted_mesh_doc,
 static PyObject * 
 Adapt_get_adapted_mesh(PyMeshingAdaptiveClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
 
   auto adapt = CheckAdaptMesh(api, self);
   if (adapt == nullptr) { 
@@ -717,7 +717,7 @@ PyDoc_STRVAR(Adapt_transfer_solution_doc,
 static PyObject * 
 Adapt_transfer_solution(PyMeshingAdaptiveClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
 
   auto adapt = CheckAdaptMesh(api, self);
   if (adapt == nullptr) { 
@@ -748,7 +748,7 @@ PyDoc_STRVAR(Adapt_transfer_regions_doc,
 static PyObject * 
 Adapt_transfer_regions(PyMeshingAdaptiveClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
 
   auto adapt = CheckAdaptMesh(api, self);
   if (adapt == nullptr) { 
@@ -779,7 +779,7 @@ PyDoc_STRVAR(Adapt_write_adapted_model_doc,
 static PyObject * 
 Adapt_write_adapted_model(PyMeshingAdaptiveClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *fileName = NULL;
 
   if(!PyArg_ParseTuple(args,api.format,&fileName)) { 
@@ -815,7 +815,7 @@ PyDoc_STRVAR(Adapt_write_adapted_mesh_doc,
 static PyObject * 
 Adapt_write_adapted_mesh(PyMeshingAdaptiveClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *fileName = NULL;
 
   if(!PyArg_ParseTuple(args,api.format,&fileName)) {
@@ -851,7 +851,7 @@ PyDoc_STRVAR(Adapt_write_adapted_solution_doc,
 static PyObject * 
 Adapt_write_adapted_solution(PyMeshingAdaptiveClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *fileName = NULL;
 
   if(!PyArg_ParseTuple(args, api.format, &fileName)) {
@@ -1014,7 +1014,7 @@ PyMeshingAdaptInit(PyMeshingAdaptiveClass* self, PyObject* args, PyObject *kwds)
 {
   std::cout << "[PyMeshingAdaptInit] " << std::endl;
   std::cout << "[PyMeshingAdaptInit] ========== PyMeshingAdaptInit ==========" << std::endl;
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, "Adaptive");
+  auto api = PyUtilApiFunction("", PyRunTimeErr, "Adaptive");
   static int numObjs = 1;
   char* kernelName = nullptr;
   if (!PyArg_ParseTuple(args, "|s", &kernelName)) {

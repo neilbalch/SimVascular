@@ -46,7 +46,7 @@
 
 #include "sv3_PathElement.h"
 #include "Path_PyModule.h"
-#include "sv_PyUtils.h"
+#include "PyUtils.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -66,7 +66,7 @@
 // Exception type used by PyErr_SetString() to set the for the error indicator.
 static PyObject* PyRunTimeErr;
 
-// Include the definitions for the Path and PathGroups classes.
+// Include the definitions for the CalculationMethod, Path and Group classes.
 #include "PathCalcMethod_PyClass.cxx"
 #include "Path_PyClass.cxx"
 #include "PathGroup_PyClass.cxx"
@@ -79,7 +79,20 @@ static char* PATH_MODULE = "path";
 static char* PATH_MODULE_EXCEPTION = "path.PathError";
 static char* PATH_MODULE_EXCEPTION_OBJECT = "PathError";
 
-PyDoc_STRVAR(PathModule_doc, "path module functions");
+//----------------
+// PathModule_doc
+//----------------
+// Define the path module documentation.
+//
+PyDoc_STRVAR(PathModule_doc,
+   "SV path module. \n\
+   \n\
+   The path module provides an interface for SV path planning. Paths model vessel centerlines using a small number of manually selected \n\
+   control points. Path geometry is represented by a set of curve points sampled from a spline passing through the control points. \n\
+   Path curve points are used to postition a slice plane for image segmentaion.  \n\
+   \n\
+   \n\
+");
 
 //---------------------
 // PyPathModuleMethods
@@ -89,7 +102,6 @@ static PyMethodDef PyPathModuleMethods[] =
 {
     {NULL,NULL}
 };
-
 
 //-----------------------
 // Initialize the module

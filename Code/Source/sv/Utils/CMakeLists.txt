@@ -42,12 +42,10 @@ SET(CXXSRCS sv_misc_utils.cxx sv_vtk_utils.cxx
   sv_cgeom.cxx
   sv_Math.cxx sv_arg.cxx
   sv_FactoryRegistrar.cxx
-  sv_PyUtils.cxx
   )
 SET(HDRS sv_misc_utils.h sv_vtk_utils.h
   sv_cgeom.h
   sv_Math.h sv_arg.h sv_FactoryRegistrar.h
-  sv_PyUtils.h
   )
 
 add_library(${lib} ${SV_LIBRARY_TYPE} ${CXXSRCS} sv_utils_init.cxx sv_math_init.cxx)

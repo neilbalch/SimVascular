@@ -51,7 +51,7 @@
 #include "sv_arg.h"
 #include "sv_misc_utils.h"
 #include "sv_Math.h"
-#include "sv_PyUtils.h"
+#include "PyUtils.h"
 
 // The following is needed for Windows
 #ifdef GetObject
@@ -74,7 +74,7 @@ static PyObject *PyRunTimeErr;
 // [TODO:DaveP] should really use exceptions here.
 //
 static double **
-GetPointsFromList(SvPyUtilApiFunction& api, PyObject* listArg, int dim, const std::string& argName)
+GetPointsFromList(PyUtilApiFunction& api, PyObject* listArg, int dim, const std::string& argName)
 {
   // First check that the listArg is a list.
   if (!PyList_Check(listArg)){
@@ -131,7 +131,7 @@ PyDoc_STRVAR(Math_fft_doc,
 static PyObject * 
 Math_fft(PyObject *self, PyObject *args)
 {
-  auto api = SvPyUtilApiFunction("Oii", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("Oii", PyRunTimeErr, __func__);
   PyObject *pointsArg;
   int nterms = 0;
   int numInterpPoints = 0;
@@ -189,7 +189,7 @@ PyDoc_STRVAR(Math_inverse_fft_doc,
 static PyObject * 
 Math_inverse_fft(PyObject *self, PyObject *args)
 {
-  auto api = SvPyUtilApiFunction("Odddi", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("Odddi", PyRunTimeErr, __func__);
   PyObject *termsArg;
   double t0 = 0;
   double dt = 0;
@@ -257,7 +257,7 @@ PyDoc_STRVAR(Math_compute_womersley_doc,
 static PyObject *
 Math_compute_womersley(PyObject *self, PyObject *args)
 {
-  auto api = SvPyUtilApiFunction("Odddddd", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("Odddddd", PyRunTimeErr, __func__);
   PyObject *termsArg;
   double time = 0;
   double viscosity = 0;
@@ -311,7 +311,7 @@ PyDoc_STRVAR(Math_linear_interpolate_doc,
 static PyObject * 
 Math_linear_interpolate(PyObject *self, PyObject *args)
 {
-  auto api = SvPyUtilApiFunction("Oi", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("Oi", PyRunTimeErr, __func__);
   PyObject *pointsArg;
   int numInterpPoints = 0;
 
@@ -373,7 +373,7 @@ static PyObject *
 Math_curve_length(PyObject *self, PyObject *args, PyObject* kwargs)
 {
   std::cout << "========== Math_curve_length ==========" << std::endl;
-  auto api = SvPyUtilApiFunction("O!|O!", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("O!|O!", PyRunTimeErr, __func__);
   static char *keywords[] = {"points", "closed", NULL};
   PyObject *pointsArg;
   PyObject *closedArg = nullptr;
@@ -427,7 +427,7 @@ PyDoc_STRVAR(Math_linear_interpolate_curve_doc,
 static PyObject * 
 Math_linear_interpolate_curve(PyObject *self, PyObject *args)
 {
-  auto api = SvPyUtilApiFunction("Oii", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("Oii", PyRunTimeErr, __func__);
   PyObject *pointsArg;
   int numInterpPoints = 0;
   int closed = 0;
@@ -486,7 +486,7 @@ PyDoc_STRVAR(Math_fit_least_squares_doc,
 static PyObject *
 Math_fit_least_squares(PyObject *self, PyObject *args)
 {
-  auto api = SvPyUtilApiFunction("OOii", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("OOii", PyRunTimeErr, __func__);
   int xOrder = 0;
   int yOrder = 0;
 
@@ -565,7 +565,7 @@ PyDoc_STRVAR(Math_smooth_curve_doc,
 static PyObject *
 Math_smooth_curve(PyObject *self, PyObject *args)
 {
-  auto api = SvPyUtilApiFunction("Oiii", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("Oiii", PyRunTimeErr, __func__);
   int numInterpPoints = 0;
   int closed = 0;
   int numModes = 0;

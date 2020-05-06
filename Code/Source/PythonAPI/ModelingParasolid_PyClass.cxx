@@ -65,7 +65,7 @@ PyDoc_STRVAR(ParasolidSolid_write_doc,
 static PyObject *
 ParasolidSolid_write(PyModelingModelClass* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   static char *keywords[] = {"file_name", "format", "version", NULL};
   char* fileFormat;
   char* fileName;

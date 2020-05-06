@@ -179,7 +179,7 @@ static PyTypeObject PyLoftNurbsOptionsType = {
 static int 
 PyLoftNurbsOptionsInit(PyLoftNurbsOptionsClass* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = SvPyUtilApiFunction("|O", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("|O", PyRunTimeErr, __func__);
   static char *keywords[] = {"u_knot_span_type", NULL};
 
   int u_degree = 2;

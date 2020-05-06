@@ -52,7 +52,7 @@ sv4guiModel::Pointer
 ModelingGroup_read(char* fileName)
 {
   std::cout << "========== ModelingGroup_read ==========" << std::endl;
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
   std::cout << "[ModelingGroup_read] fileName: " << fileName << std::endl;
   sv4guiModel::Pointer group;
 
@@ -140,7 +140,7 @@ PyDoc_STRVAR(ModelingGroup_get_model_doc,
 static PyObject * 
 ModelingGroup_get_model(PyModelingGroup* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("i", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("i", PyRunTimeErr, __func__);
   int index;
   char* solidName = NULL;
 
@@ -207,7 +207,7 @@ PyDoc_STRVAR(ModelingGroup_write_doc,
 static PyObject *
 ModelingGroup_write(PyModelingGroup* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char* fileName = NULL;
 
   if (!PyArg_ParseTuple(args, api.format, &fileName)) {
@@ -291,7 +291,7 @@ PyModelingGroupInit(PyModelingGroup* self, PyObject* args)
 {
   static int numObjs = 1;
   std::cout << "[PyModelingGroupInit] New ModelingGroup object: " << numObjs << std::endl;
-  auto api = SvPyUtilApiFunction("|s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("|s", PyRunTimeErr, __func__);
   char* fileName = nullptr;
   if (!PyArg_ParseTuple(args, api.format, &fileName)) {
       api.argsError();

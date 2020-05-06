@@ -38,7 +38,7 @@
 #include "sv_misc_utils.h"
 #include "sv_mmg_mesh_init.h"
 #include "sv_arg.h"
-#include "sv_PyUtils.h"
+#include "PyUtils.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -70,7 +70,7 @@ PyObject* PyRunTimeErr;
 // Get the vtkPolyData object from the Python vtkPolyData object.
 //
 static vtkPolyData *
-GetVtkPolyData(SvPyUtilApiFunction& api, PyObject* obj)
+GetVtkPolyData(PyUtilApiFunction& api, PyObject* obj)
 {
   vtkPolyData* polydata = nullptr;
 
@@ -105,7 +105,7 @@ PyDoc_STRVAR(MeshUtils_remesh_doc,
 static PyObject * 
 MeshUtils_remesh(PyObject* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = SvPyUtilApiFunction("O|ddddds", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("O|ddddds", PyRunTimeErr, __func__);
   static char *keywords[] = {"surface", "hmin", "hmax", "angle", "hgrad", "hausd", "log_file", NULL};
   PyObject* surfaceArg;
   double hmin = 0.1;

@@ -176,7 +176,7 @@ PyLoftOptionsInit(PyLoftOptionsClass* self, PyObject* args, PyObject* kwargs)
 {
   static int numObjs = 1;
   std::cout << "[PyLoftOptionsInit] New LoftOptions object: " << numObjs << std::endl;
-  auto api = SvPyUtilApiFunction("|i", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("|i", PyRunTimeErr, __func__);
   static char *keywords[] = {"num_out_pts_in_segs", NULL};
   int num_out_pts_in_segs = 30;
 

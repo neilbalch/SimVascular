@@ -85,7 +85,7 @@ static PyObject *
 PyTetGenRadiusMeshing_compute_centerlines(PyMeshingTetGenRadiusMeshingClass* self, PyObject* args, PyObject* kwargs)
 {
   std::cout << "========== PyTetGenRadiusMeshing_compute_centerlines ==========" << std::endl;
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__); 
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__); 
 
   auto mesher = self->mesher;
   auto solid = mesher->GetSolid();
@@ -137,7 +137,7 @@ static PyObject *
 PyTetGenRadiusMeshing_compute_size_function(PyMeshingTetGenRadiusMeshingClass* self, PyObject* args, PyObject* kwargs)
 {
   std::cout << "========== PyTetGenRadiusMeshing_compute_size_function_doc ==========" << std::endl;
-  auto api = SvPyUtilApiFunction("d", PyRunTimeErr, __func__); 
+  auto api = PyUtilApiFunction("d", PyRunTimeErr, __func__); 
   static char *keywords[] = {"edge_size", NULL};
   double edgeSize;
 
@@ -184,7 +184,7 @@ static PyObject *
 PyTetGenRadiusMeshing_load_centerlines(PyMeshingTetGenRadiusMeshingClass* self, PyObject* args, PyObject* kwargs)
 { 
   std::cout << "========== PyTetGenRadiusMeshing_load_centerlines ==========" << std::endl;
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   static char *keywords[] = {"file_name", NULL};
   char* fileName;
     
@@ -248,7 +248,7 @@ static PyObject *
 PyTetGenRadiusMeshing_set_centerlines(PyMeshingTetGenRadiusMeshingClass* self, PyObject* args, PyObject* kwargs)
 {
   std::cout << "========== PyTetGenRadiusMeshing_set_centerlines ==========" << std::endl;
-  auto api = SvPyUtilApiFunction("O", PyRunTimeErr, __func__); 
+  auto api = PyUtilApiFunction("O", PyRunTimeErr, __func__); 
   static char *keywords[] = {"centerlines", NULL};
   PyObject* centerlinesArg;
 
@@ -277,7 +277,7 @@ PyDoc_STRVAR(PyTetGenRadiusMeshing_write_centerlines_doc,
 static PyObject *
 PyTetGenRadiusMeshing_write_centerlines(PyMeshingTetGenRadiusMeshingClass* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   static char *keywords[] = {"file_name", NULL};
   char* fileName;
 
@@ -410,7 +410,7 @@ static int
 PyTetGenRadiusMeshingInit(PyMeshingTetGenRadiusMeshingClass* self, PyObject* args, PyObject* kwargs)
 {
   std::cout << "[PyTetGenRadiusMeshingInit] Initialize a RadiusMeshing object." << std::endl;
-  auto api = SvPyUtilApiFunction("O!", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("O!", PyRunTimeErr, __func__);
   static char *keywords[] = { "mesher", NULL};
   PyObject* mesherArg = NULL;
 

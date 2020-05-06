@@ -63,7 +63,7 @@ SegmentationGroup_read(char* fileName)
 {
 
   //std::cout << "========== SegmentationGroup_read ==========" << std::endl;
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
   //std::cout << "[SegmentationGroup_read] fileName: " << fileName << std::endl;
   sv4guiContourGroup::Pointer group;
 
@@ -150,7 +150,7 @@ PyDoc_STRVAR(SegmentationGroup_get_segmentation_doc,
 static PyObject * 
 SegmentationGroup_get_segmentation(PySegmentationGroup* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("i", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("i", PyRunTimeErr, __func__);
   int index;
   char* contourName = NULL;
 
@@ -205,7 +205,7 @@ PyDoc_STRVAR(SegmentationGroup_write_doc,
 static PyObject *
 SegmentationGroup_write(PySegmentationGroup* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char* fileName = NULL;
 
   if (!PyArg_ParseTuple(args, api.format, &fileName)) {
@@ -289,7 +289,7 @@ PySegmentationGroupInit(PySegmentationGroup* self, PyObject* args)
 {
   static int numObjs = 1;
   //std::cout << "[PySegmentationGroupInit] New ContourGroup object: " << numObjs << std::endl;
-  auto api = SvPyUtilApiFunction("|s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("|s", PyRunTimeErr, __func__);
   char* fileName = nullptr;
   if (!PyArg_ParseTuple(args, api.format, &fileName)) {
       api.argsError();

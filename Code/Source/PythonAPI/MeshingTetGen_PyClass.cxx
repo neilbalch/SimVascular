@@ -77,7 +77,7 @@ MeshingTetGenCheckModelLoaded(PyMeshingTetGenClass* self)
 // The LocalEdgeSize option needs to have a model defined for the mesh.
 //
 bool
-MeshingTetGenCheckOption(PyMeshingTetGenClass* self, std::string& name, SvPyUtilApiFunction& api)
+MeshingTetGenCheckOption(PyMeshingTetGenClass* self, std::string& name, PyUtilApiFunction& api)
 {
   // The LocalEdgeSize option needs to have the model set for the mesh.
   if (name == TetGenOption::LocalEdgeSize) {
@@ -95,7 +95,7 @@ MeshingTetGenCheckOption(PyMeshingTetGenClass* self, std::string& name, SvPyUtil
 //----------------------
 //
 void 
-InitMeshSizingArrays(SvPyUtilApiFunction& api, cvMeshObject* mesher, PyObject* options)
+InitMeshSizingArrays(PyUtilApiFunction& api, cvMeshObject* mesher, PyObject* options)
 {
 
 }
@@ -110,7 +110,7 @@ InitMeshSizingArrays(SvPyUtilApiFunction& api, cvMeshObject* mesher, PyObject* o
 // array with the edge size for each face ID.
 //
 void
-GenerateLocalSizeArray(SvPyUtilApiFunction& api, cvTetGenMeshObject* mesher, PyObject* options)
+GenerateLocalSizeArray(PyUtilApiFunction& api, cvTetGenMeshObject* mesher, PyObject* options)
 {
   //std::cout << "[GenerateLocalSizeArray] " << std::endl;
   //std::cout << "[GenerateLocalSizeArray] ========== GenerateLocalSizeArray =========" << std::endl;
@@ -147,7 +147,7 @@ GenerateLocalSizeArray(SvPyUtilApiFunction& api, cvTetGenMeshObject* mesher, PyO
 //----------------------------
 //
 void
-GenerateRadiusMeshingArray(SvPyUtilApiFunction& api, cvTetGenMeshObject* mesher, PyObject* options)
+GenerateRadiusMeshingArray(PyUtilApiFunction& api, cvTetGenMeshObject* mesher, PyObject* options)
 {
   using namespace TetGenOption;
   //std::cout << "[GenerateRadiusMeshingArray] " << std::endl;
@@ -210,7 +210,7 @@ GenerateRadiusMeshingArray(SvPyUtilApiFunction& api, cvTetGenMeshObject* mesher,
 //-------------------------------
 //
 void
-GenerateSphereRefinementArray(SvPyUtilApiFunction& api, cvTetGenMeshObject* mesher, PyObject* options)
+GenerateSphereRefinementArray(PyUtilApiFunction& api, cvTetGenMeshObject* mesher, PyObject* options)
 {
   //std::cout << "[GenerateSphereRefinementArray] " << std::endl;
   //std::cout << "[GenerateSphereRefinementArray] ========== GenerateSphereRefinementArray =========" << std::endl;
@@ -260,7 +260,7 @@ GenerateSphereRefinementArray(SvPyUtilApiFunction& api, cvTetGenMeshObject* mesh
 // are set for all surface elements. 
 //
 bool 
-GenerateMeshSizingArrays(SvPyUtilApiFunction& api, cvTetGenMeshObject* mesher, PyObject* options)
+GenerateMeshSizingArrays(PyUtilApiFunction& api, cvTetGenMeshObject* mesher, PyObject* options)
 {
   using namespace TetGenOption;
   //std::cout << "[GenerateMeshSizingArrays] " << std::endl;
@@ -292,7 +292,7 @@ GenerateMeshSizingArrays(SvPyUtilApiFunction& api, cvTetGenMeshObject* mesher, P
 // Set TetGen options from a Python object.
 //
 bool 
-SetOptions(SvPyUtilApiFunction& api, cvMeshObject* mesher, PyObject* options)
+SetOptions(PyUtilApiFunction& api, cvMeshObject* mesher, PyObject* options)
 {
   //std::cout << "[SetOptions] " << std::endl;
   //std::cout << "[SetOptions] ========== SetOptions =========" << std::endl;
@@ -391,7 +391,7 @@ MesherTetGen_generate_mesh(PyMeshingMesherClass* self, PyObject* args, PyObject*
   //std::cout << std::endl;
   //std::cout << "==================== MesherTetGen_generate_mesh ====================" << std::endl;
 
-  auto api = SvPyUtilApiFunction("O!", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("O!", PyRunTimeErr, __func__);
   static char *keywords[] = {"options", NULL};
   PyObject* options;
 
@@ -459,7 +459,7 @@ static PyMethodDef PyMeshingTetGenMethods[] = {
 static int 
 PyMeshingTetGenInit(PyMeshingTetGenClass* self, PyObject* args, PyObject *kwds)
 {
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, "MeshGenerator");
+  auto api = PyUtilApiFunction("", PyRunTimeErr, "MeshGenerator");
   static int numObjs = 1;
   std::cout << "[PyMeshingTetGenClassInit] New PyMeshingTetGenClass object: " << numObjs << std::endl;
   self->super.mesher = new cvTetGenMeshObject();

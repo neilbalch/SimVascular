@@ -49,7 +49,7 @@
 
 #include "sv3_SegmentationUtils.h"
 #include "vtkPythonUtil.h"
-#include "sv_PyUtils.h"
+#include "PyUtils.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -104,7 +104,7 @@ PyDoc_STRVAR(Segmentation_create_doc,
 static PyObject* 
 Segmentation_create(PySegmentation* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char* kernelName = nullptr;
 
   if (!PyArg_ParseTuple(args, api.format, &kernelName)) {

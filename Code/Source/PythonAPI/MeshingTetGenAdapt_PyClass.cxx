@@ -67,8 +67,8 @@ pyCreateTetGenAdapt()
 //-----------------------
 //
 bool 
-TetGenAdaptSetOptions(PyTetGenAdaptClass* self, SvPyUtilApiFunction& api, PyObject* options)
-//TetGenAdaptSetOptions(PyMeshingAdaptiveClass* self, SvPyUtilApiFunction& api, PyObject* options)
+TetGenAdaptSetOptions(PyTetGenAdaptClass* self, PyUtilApiFunction& api, PyObject* options)
+//TetGenAdaptSetOptions(PyMeshingAdaptiveClass* self, PyUtilApiFunction& api, PyObject* options)
 {
   std::cout << "[TetGenAdaptSetOptions] " << std::endl;
   std::cout << "[TetGenAdaptSetOptions] ========== TetGenAdaptSetOptions =========" << std::endl;
@@ -174,7 +174,7 @@ TetGenAdapt_generate_mesh(PyTetGenAdaptClass* self, PyObject* args, PyObject* kw
 //TetGenAdapt_generate_mesh(PyMeshingAdaptiveClass* self, PyObject* args, PyObject* kwargs)
 {
   std::cout << "[TetGenAdapt_generate_mesh] ========== TetGenAdapt_generate_mesh ==========" << std::endl;
-  auto api = SvPyUtilApiFunction("ssO!|s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("ssO!|s", PyRunTimeErr, __func__);
   static char *keywords[] = {"results_file", "model_file", "options", "log_file", NULL};
   char *resultsFileName = NULL;
   char *modelFileName = NULL;
@@ -262,7 +262,7 @@ PyDoc_STRVAR(TetGenAdapt_get_mesh_doc,
 static PyObject *
 TetGenAdapt_get_mesh(PyTetGenAdaptClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
 
   if (!self->meshGenerated) {
       api.error("An adaptive mesh has not been generated.");
@@ -311,7 +311,7 @@ TetGenAdapt_set_options(PyTetGenAdaptClass* self, PyObject* args)
 {
   std::cout << "[TetGenAdapt_set_options] " << std::endl;
   std::cout << "[TetGenAdapt_set_options] ========== TetGenAdapt_set_options =========" << std::endl;
-  auto api = SvPyUtilApiFunction("O!", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("O!", PyRunTimeErr, __func__);
   PyObject* options;
 
   if (!PyArg_ParseTuple(args, api.format, &PyTetGenAdaptOptType, &options)) {
@@ -394,7 +394,7 @@ PyMethodDef PyTetGenAdaptMethods[] = {
 static int 
 PyTetGenAdaptInit(PyTetGenAdaptClass* self, PyObject* args, PyObject *kwds)
 {
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, "TetGen adaptive mesh generator");
+  auto api = PyUtilApiFunction("", PyRunTimeErr, "TetGen adaptive mesh generator");
   static int numObjs = 1;
   std::cout << "[PyTetGenAdaptClassInit] New PyTetGenAdaptClass object: " << numObjs << std::endl;
   self->super.adaptKernel = KernelType::KERNEL_TETGEN; 

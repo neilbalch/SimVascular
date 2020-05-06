@@ -60,7 +60,7 @@
 #include "sv_misc_utils.h"
 #include "sv_vtk_utils.h"
 #include "vtkSmartPointer.h"
-#include "sv_PyUtils.h"
+#include "PyUtils.h"
 #include "sv2_globals.h"
 #include "vtkPythonUtil.h"
 
@@ -86,7 +86,7 @@ static PyObject * PyRunTimeErr;
 // Get the vtkPolyData object from the Python vtkPolyData object.
 //
 static vtkPolyData * 
-GetVtkPolyData(SvPyUtilApiFunction& api, PyObject* obj)
+GetVtkPolyData(PyUtilApiFunction& api, PyObject* obj)
 {
   vtkPolyData* polydata = nullptr; 
 
@@ -112,7 +112,7 @@ GetVtkPolyData(SvPyUtilApiFunction& api, PyObject* obj)
 // functions don't use them. 
 //
 static std::vector<cvPolyData*>
-GetGeometryObjects(SvPyUtilApiFunction& api, PyObject* objList)
+GetGeometryObjects(PyUtilApiFunction& api, PyObject* objList)
 {
   std::vector<cvPolyData*> cvPolyDataList;
   auto numObjs = PyList_Size(objList);
@@ -163,7 +163,7 @@ static PyObject *
 Geom_align_profile(PyObject* self, PyObject* args, PyObject* kwargs)
 {
   //std::cout << "========== Geom_align_profile ==========" << std::endl;
-  auto api = SvPyUtilApiFunction("OO|O!", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("OO|O!", PyRunTimeErr, __func__);
   static char *keywords[] = {"reference", "align", "use_distance", NULL};
   PyObject* refObj;
   PyObject* alignObj;
@@ -224,7 +224,7 @@ PyDoc_STRVAR(Geom_average_point_doc,
 static PyObject * 
 Geom_average_point(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("O", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("O", PyRunTimeErr, __func__);
   PyObject* pdObj;
 
   if (!PyArg_ParseTuple(args, api.format, &pdObj)) {
@@ -267,7 +267,7 @@ static PyObject *
 Geom_classify_point(PyObject* self, PyObject* args, PyObject* kwargs)
 {
   //std::cout << "========== Geom_classify_point ==========" << std::endl;
-  auto api = SvPyUtilApiFunction("OO!", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("OO!", PyRunTimeErr, __func__);
   static char *keywords[] = {"polydata", "point", NULL};
   PyObject* pdObj;
   PyObject* pointArg;
@@ -285,7 +285,7 @@ Geom_classify_point(PyObject* self, PyObject* args, PyObject* kwargs)
   // Get the point data.
   double point[3];
   std::string emsg;
-  if (!svPyUtilGetPointData<double>(pointArg, emsg, point)) {
+  if (!PyUtilGetPointData<double>(pointArg, emsg, point)) {
       api.error("The point argument " + emsg);
       return nullptr;
   }
@@ -320,7 +320,7 @@ PyDoc_STRVAR(Geom_interpolate_closed_curve_doc,
 static PyObject * 
 Geom_interpolate_closed_curve(PyObject* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = SvPyUtilApiFunction("Oi", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("Oi", PyRunTimeErr, __func__);
   static char *keywords[] = {"polydata", "number_of_points", NULL};
   PyObject* pdObj;
   int numSamples;
@@ -373,7 +373,7 @@ Geom_loft_solid(PyObject* self, PyObject* args, PyObject* kwargs)
   //std::cout << " " << std::endl;
   //std::cout << "========== Geom_loft_solid ==========" << std::endl;
 
-  auto api = SvPyUtilApiFunction("O!O!", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("O!O!", PyRunTimeErr, __func__);
   static char *keywords[] = {"polydata_list", "loft_options", NULL};
   PyObject* objListArg;
   PyObject* loftOptsArg;
@@ -453,7 +453,7 @@ Geom_loft_solid_using_nurbs(PyObject* self, PyObject* args, PyObject* kwargs)
 {
   //std::cout << " " << std::endl;
   //std::cout << "========== Geom_loft_solid_using_nurbs ==========" << std::endl;
-  auto api = SvPyUtilApiFunction("O!O!", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("O!O!", PyRunTimeErr, __func__);
   static char *keywords[] = {"polydata_list", "loft_nurbs_options", NULL};
   PyObject* objListArg;
   PyObject* loftOptsArg;
@@ -531,7 +531,7 @@ PyDoc_STRVAR(Geom_reduce_doc,
 static PyObject * 
 Geom_reduce(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("ssd", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("ssd", PyRunTimeErr, __func__);
   char *srcName;
   char *dstName;
   double tol;
@@ -580,7 +580,7 @@ PyDoc_STRVAR(Geom_union_doc,
 static PyObject * 
 Geom_union(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sss|d", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sss|d", PyRunTimeErr, __func__);
   char *aName;
   char *bName;
   char *dstName;
@@ -633,7 +633,7 @@ PyDoc_STRVAR(Geom_intersect_doc,
 static PyObject * 
 Geom_intersect(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sss|d", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sss|d", PyRunTimeErr, __func__);
   char *aName;
   char *bName;
   char *dstName;
@@ -686,7 +686,7 @@ PyDoc_STRVAR(Geom_subtract_doc,
 static PyObject * 
 Geom_subtract(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sss|d", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sss|d", PyRunTimeErr, __func__);
   char *aName;
   char *bName;
   char *dstName;
@@ -739,7 +739,7 @@ PyDoc_STRVAR(Geom_check_surface_doc,
 static PyObject* 
 Geom_check_surface(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s|d", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s|d", PyRunTimeErr, __func__);
   char *srcName;
   double tol = 1e-6;
 
@@ -778,7 +778,7 @@ PyDoc_STRVAR(Geom_clean_doc,
 static PyObject * 
 Geom_clean(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *srcName;
   char *dstName;
 
@@ -825,7 +825,7 @@ PyDoc_STRVAR(Geom_set_ids_for_caps_doc,
 static PyObject * 
 Geom_set_ids_for_caps(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *srcName;
   char *dstName;
 
@@ -881,7 +881,7 @@ PyDoc_STRVAR(Geom_set_array_for_local_op_face_doc,
 static PyObject * 
 Geom_set_array_for_local_op_face(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sssO|si", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sssO|si", PyRunTimeErr, __func__);
   char *srcName;
   char *dstName;
   char *arrayName = 0;
@@ -947,7 +947,7 @@ PyDoc_STRVAR(Geom_set_array_for_local_op_sphere_doc,
 static PyObject * 
 Geom_set_array_for_local_op_sphere(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("ssdO|si", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("ssdO|si", PyRunTimeErr, __func__);
   char *srcName;
   char *dstName;
   double radius;
@@ -1013,7 +1013,7 @@ PyDoc_STRVAR(Geom_set_array_for_local_op_cells_doc,
 static PyObject * 
 Geom_set_array_for_local_op_cells(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("ssO|si", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("ssO|si", PyRunTimeErr, __func__);
   char *srcName;
   char *dstName;
   PyObject* values;
@@ -1081,7 +1081,7 @@ PyDoc_STRVAR(Geom_set_array_for_local_op_blend_doc,
 static PyObject * 
 Geom_set_array_for_local_op_blend(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sssOd|si", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sssOd|si", PyRunTimeErr, __func__);
   char *srcName;
   char *dstName;
   char *arrayName = 0;
@@ -1151,7 +1151,7 @@ PyDoc_STRVAR(Geom_local_decimation_doc,
 static PyObject * 
 Geom_local_decimation(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("ss|dss", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("ss|dss", PyRunTimeErr, __func__);
   char *srcName;
   char *dstName;
   double target = 0.25;
@@ -1200,7 +1200,7 @@ PyDoc_STRVAR(Geom_local_laplacian_smooth_doc,
 static PyObject * 
 Geom_local_laplacian_smooth(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("ss|idss", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("ss|idss", PyRunTimeErr, __func__);
   char *srcName;
   char *dstName;
   int numiters = 100;
@@ -1250,7 +1250,7 @@ PyDoc_STRVAR(Geom_local_constrain_smooth_doc,
 static PyObject * 
 Geom_local_constrain_smooth(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("ss|idiss", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("ss|idiss", PyRunTimeErr, __func__);
   char *srcName;
   char *dstName;
   char *pointArrayName = 0;
@@ -1301,7 +1301,7 @@ PyDoc_STRVAR(Geom_local_linear_subdivision_doc,
 static PyObject * 
 Geom_local_linear_subdivision(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("ss|iss", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("ss|iss", PyRunTimeErr, __func__);
   char *srcName;
   char *dstName;
   int numiters = 100;
@@ -1350,7 +1350,7 @@ PyDoc_STRVAR(Geom_local_butterfly_subdivision_doc,
 static PyObject * 
 Geom_local_butterfly_subdivision(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("ss|iss", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("ss|iss", PyRunTimeErr, __func__);
   char *srcName;
   char *dstName;
   int numiters = 100;
@@ -1399,7 +1399,7 @@ PyDoc_STRVAR(Geom_local_loop_subdivision_doc,
 static PyObject * 
 Geom_local_loop_subdivision(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("ss|iss", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("ss|iss", PyRunTimeErr, __func__);
   char *srcName;
   char *dstName;
   int numiters = 100;
@@ -1450,7 +1450,7 @@ PyDoc_STRVAR(Geom_local_blend_doc,
 static PyObject * 
 Geom_local_blend(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("ss|iiiiidss", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("ss|iiiiidss", PyRunTimeErr, __func__);
   char *srcName;
   char *dstName;
   char *pointArrayName = 0;
@@ -1506,7 +1506,7 @@ PyDoc_STRVAR(Geom_all_union_doc,
 static PyObject* 
 Geom_all_union(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("Ois|d", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("Ois|d", PyRunTimeErr, __func__);
   PyObject* srcList;
   int interT;
   char *dstName;
@@ -1570,7 +1570,7 @@ PyDoc_STRVAR(Geom_convert_nurbs_to_poly_doc,
 static PyObject * 
 Geom_convert_nurbs_to_poly(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sOOs", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sOOs", PyRunTimeErr, __func__);
   char *srcName;
   PyObject* faceList;
   PyObject* idList;
@@ -1662,7 +1662,7 @@ PyDoc_STRVAR(Geom_make_polys_consistent_doc,
 static PyObject * 
 Geom_make_polys_consistent(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *srcName;
   char *dstName;
 
@@ -1708,7 +1708,7 @@ PyDoc_STRVAR(Geom_reverse_all_cells_doc,
 static PyObject * 
 Geom_reverse_all_cells(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *srcName;
   char *dstName;
 
@@ -1754,7 +1754,7 @@ PyDoc_STRVAR(Geom_num_closed_line_regions_doc,
 static PyObject * 
 Geom_num_closed_line_regions(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *srcName;
 
   if (!PyArg_ParseTuple(args, api.format, &srcName)) {
@@ -1791,7 +1791,7 @@ PyDoc_STRVAR(Geom_get_closed_line_region_doc,
 static PyObject * 
 Geom_get_closed_line_region(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sis", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sis", PyRunTimeErr, __func__);
   char *srcName;
   char *dstName;
   int id;
@@ -1838,7 +1838,7 @@ PyDoc_STRVAR(Geom_pick_doc,
 static PyObject * 
 Geom_pick(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sOs", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sOs", PyRunTimeErr, __func__);
   char *objName;
   PyObject* posList;
   char *resultName;
@@ -1896,7 +1896,7 @@ PyDoc_STRVAR(Geom_orient_profile_doc,
 static PyObject * 
 Geom_orient_profile(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sOOOs", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sOOOs", PyRunTimeErr, __func__);
   char *srcName;
   PyObject* pathPosList;
   PyObject* pathTanList;
@@ -1968,7 +1968,7 @@ PyDoc_STRVAR(Geom_disorient_profile_doc,
 static PyObject * 
 Geom_disorient_profile(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sOOOs", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sOOOs", PyRunTimeErr, __func__);
   char *srcName;
   PyObject* pathPosList;
   PyObject* pathTanList;
@@ -2039,7 +2039,7 @@ PyDoc_STRVAR(Geom_translate_doc,
 static PyObject * 
 Geom_translate(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sOs", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sOs", PyRunTimeErr, __func__);
   char *srcName;
   PyObject* vecList;
   char *dstName;
@@ -2097,7 +2097,7 @@ PyDoc_STRVAR(Geom_scale_avg_doc,
 static PyObject * 
 Geom_scale_avg(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sds", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sds", PyRunTimeErr, __func__);
   char *srcName;
   double factor;
   char *dstName;
@@ -2144,7 +2144,7 @@ PyDoc_STRVAR(Geom_get_ordered_points_doc,
 static PyObject * 
 Geom_get_ordered_points(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *srcName;
 
   if (!PyArg_ParseTuple(args, api.format, &srcName)) {
@@ -2199,7 +2199,7 @@ PyDoc_STRVAR(Geom_write_ordered_points_doc,
 static PyObject * 
 Geom_write_ordered_points(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *objName;
   char *fileName;
 
@@ -2236,7 +2236,7 @@ PyDoc_STRVAR(Geom_write_lines_doc,
 static PyObject * 
 Geom_write_lines(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *objName;
   char *fileName;
 
@@ -2273,7 +2273,7 @@ PyDoc_STRVAR(Geom_polys_closed_doc,
 static PyObject * 
 Geom_polys_closed(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *srcName;
 
   if (!PyArg_ParseTuple(args,api.format, &srcName)) {
@@ -2310,7 +2310,7 @@ PyDoc_STRVAR(Geom_surface_area_doc,
 static PyObject * 
 Geom_surface_area(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *srcName;
 
   if (!PyArg_ParseTuple(args, api.format, &srcName)) {
@@ -2347,7 +2347,7 @@ PyDoc_STRVAR(Geom_get_poly_centroid_doc,
 static PyObject * 
 Geom_get_poly_centroid(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *srcName;
 
   if (!PyArg_ParseTuple(args, api.format, &srcName)) {
@@ -2384,7 +2384,7 @@ PyDoc_STRVAR(Geom_print_tri_stats_doc,
 static PyObject * 
 Geom_print_tri_stats(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *srcName;
 
   if (!PyArg_ParseTuple(args, api.format, &srcName)) {
@@ -2420,7 +2420,7 @@ PyDoc_STRVAR(Geom_print_small_polys_doc,
 static PyObject * 
 Geom_print_small_polys(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *srcName;
   double sideTol;
 
@@ -2457,7 +2457,7 @@ PyDoc_STRVAR(Geom_remove_small_polys_doc,
 static PyObject * 
 Geom_remove_small_polys(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("ssd", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("ssd", PyRunTimeErr, __func__);
   char *srcName;
   char *dstName;
   double sideTol;
@@ -2504,7 +2504,7 @@ PyDoc_STRVAR(Geom_bbox_doc,
 static PyObject * 
 Geom_bbox(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *objName;
 
   if (!PyArg_ParseTuple(args, api.format, &objName)) {
@@ -2547,7 +2547,7 @@ PyDoc_STRVAR(Geom_point_in_poly_doc,
 static PyObject * 
 Geom_point_in_poly(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sOi", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sOi", PyRunTimeErr, __func__);
   char *objName;
   PyObject* ptList;
   int usePrevPoly = 0;
@@ -2593,7 +2593,7 @@ PyDoc_STRVAR(Geom_merge_points_doc,
 static PyObject * 
 Geom_merge_points(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("ssd", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("ssd", PyRunTimeErr, __func__);
   char *srcName;
   char *dstName;
   double tol = 1e10 * FindMachineEpsilon();
@@ -2641,7 +2641,7 @@ PyDoc_STRVAR(Geom_warp_3d_points_doc,
 static PyObject * 
 Geom_warp_3d_points(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("ssd", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("ssd", PyRunTimeErr, __func__);
   char *srcName;
   char *dstName;
   double scale = 1.0;
@@ -2688,7 +2688,7 @@ PyDoc_STRVAR(Geom_num_points_doc,
 static PyObject * 
 Geom_num_points(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *srcName;
 
   if (!PyArg_ParseTuple(args, api.format, &srcName)) {
@@ -2724,7 +2724,7 @@ PyDoc_STRVAR(Geom_winding_number_doc,
 static PyObject * 
 Geom_winding_number(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *objName;
 
   if (!PyArg_ParseTuple(args, api.format, &objName)) {
@@ -2757,7 +2757,7 @@ PyDoc_STRVAR(Geom_polygon_normal_doc,
 static PyObject * 
 Geom_polygon_normal(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *objName;
 
   if (!PyArg_ParseTuple(args, api.format, &objName)) {
@@ -2796,7 +2796,7 @@ PyDoc_STRVAR(Geom_copy_doc,
 static PyObject * 
 Geom_copy(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("ss", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("ss", PyRunTimeErr, __func__);
   char *srcName;
   char *dstName;
 
@@ -2842,7 +2842,7 @@ PyDoc_STRVAR(Geom_reorder_polygon_doc,
 static PyObject * 
 Geom_reorder_polygon(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sis", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sis", PyRunTimeErr, __func__);
   char *srcName;
   int start;
   char *dstName;
@@ -2889,7 +2889,7 @@ PyDoc_STRVAR(Geom_spline_points_to_path_plan_doc,
 static PyObject * 
 Geom_spline_points_to_path_plan(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sii|s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sii|s", PyRunTimeErr, __func__);
   char *srcName;
   int numOutputPts;
   int flag;
@@ -2940,7 +2940,7 @@ PyDoc_STRVAR(Geom_integrate_surface_doc,
 static PyObject * 
 Geom_integrate_surface(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sOi", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sOi", PyRunTimeErr, __func__);
   char *objName;
   PyObject* nrmList;
   int tensorType;
@@ -2986,7 +2986,7 @@ PyDoc_STRVAR(Geom_integrate_surface2_doc,
 static PyObject * 
 Geom_integrate_surface2(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("si", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("si", PyRunTimeErr, __func__);
   char *objName;
   int tensorType;
 
@@ -3025,7 +3025,7 @@ PyDoc_STRVAR(Geom_integrate_energy_doc,
 static PyObject * 
 Geom_integrate_energy(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sOd", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sOd", PyRunTimeErr, __func__);
   char *objName;
   PyObject* nrmList;
   double rho = 0.0;
@@ -3071,7 +3071,7 @@ PyDoc_STRVAR(Geom_find_distance_doc,
 static PyObject * 
 Geom_find_distance(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sO", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sO", PyRunTimeErr, __func__);
   char *objName;
   PyObject* ptList;
 
@@ -3112,7 +3112,7 @@ PyDoc_STRVAR(Geom_interpolate_scalar_doc,
 static PyObject * 
 Geom_interpolate_scalar(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sO", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sO", PyRunTimeErr, __func__);
   char *objName;
   PyObject* ptList;
 
@@ -3157,7 +3157,7 @@ PyDoc_STRVAR(Geom_interpolate_vector_doc,
 static PyObject * 
 Geom_interpolate_vector(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sO", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sO", PyRunTimeErr, __func__);
   char *objName;
   PyObject* ptList;
 
@@ -3206,7 +3206,7 @@ PyDoc_STRVAR(Geom_intersect_with_line_doc,
 static PyObject * 
 Geom_intersect_with_line(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sOO", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sOO", PyRunTimeErr, __func__);
   char *objName;
   PyObject *p1List;
   PyObject *p2List;
@@ -3258,7 +3258,7 @@ PyDoc_STRVAR(Geom_add_point_data_doc,
 static PyObject * 
 Geom_add_point_data(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sssii", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sssii", PyRunTimeErr, __func__);
   char *srcNameA;
   char *srcNameB;
   char *dstName;
@@ -3323,7 +3323,7 @@ PyDoc_STRVAR(Geom_subtract_point_data_doc,
 static PyObject * 
 Geom_subtract_point_data(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sssii", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sssii", PyRunTimeErr, __func__);
   char *srcNameA;
   char *srcNameB;
   char *dstName;
@@ -3387,7 +3387,7 @@ PyDoc_STRVAR(Geom_multiply_point_data_doc,
 static PyObject * 
 Geom_multiply_point_data(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sssii", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sssii", PyRunTimeErr, __func__);
   char *srcNameA;
   char *srcNameB;
   char *dstName;
@@ -3451,7 +3451,7 @@ PyDoc_STRVAR(Geom_divide_point_data_doc,
 static PyObject * 
 Geom_divide_point_data(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sssii", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sssii", PyRunTimeErr, __func__);
   char *srcNameA;
   char *srcNameB;
   char *dstName;
@@ -3517,7 +3517,7 @@ PyDoc_STRVAR(Geom_project_doc,
 static PyObject * 
 Geom_project(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sssii", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sssii", PyRunTimeErr, __func__);
   char *srcNameA;
   char *srcNameB;
   char *dstName;
@@ -3582,7 +3582,7 @@ PyDoc_STRVAR(Geom_integrate_scalar_surface_doc,
 static PyObject * 
 Geom_integrate_scalar_surface(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char *srcName;
 
   if (!PyArg_ParseTuple(args, api.format, &srcName)) {
@@ -3620,7 +3620,7 @@ PyDoc_STRVAR(Geom_integrate_scalar_threshold_doc,
 static PyObject * 
 Geom_integrate_scalar_threshold(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sd", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sd", PyRunTimeErr, __func__);
   char *srcName;
   double wssthresh;
 
@@ -3663,7 +3663,7 @@ PyDoc_STRVAR(Geom_replace_point_data_doc,
 static PyObject * 
 Geom_replace_point_data(PyObject* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("sssii", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("sssii", PyRunTimeErr, __func__);
   char *srcNameA;
   char *srcNameB;
   char *dstName;

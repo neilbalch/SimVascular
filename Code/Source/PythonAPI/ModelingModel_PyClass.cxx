@@ -60,7 +60,7 @@ typedef struct {
 // or SM_Simplify_Invalid if the name is not valid. 
 //
 static SolidModel_SimplifyT
-CheckSimplificationName(SvPyUtilApiFunction& api, char* name)
+CheckSimplificationName(PyUtilApiFunction& api, char* name)
 {
   if (!name) {
       return SM_Simplify_All;
@@ -98,7 +98,7 @@ PyDoc_STRVAR(ModelingModel_apply4x4_doc,
 static PyObject *  
 ModelingModel_apply4x4(PyModelingModelClass *self ,PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("O", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("O", PyRunTimeErr, __func__);
   PyObject* matrixArg;
 
   if (!PyArg_ParseTuple(args, api.format, &matrixArg)) {
@@ -147,7 +147,7 @@ PyDoc_STRVAR(ModelingModel_calculate_boundary_faces_doc,
 static PyObject *
 ModelingModel_calculate_boundary_faces(PyModelingModelClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("d", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("d", PyRunTimeErr, __func__);
   double angle = 0.0;
 
   if (!PyArg_ParseTuple(args,api.format, &angle)) {
@@ -207,7 +207,7 @@ PyDoc_STRVAR(ModelingModel_classify_point_doc,
 static PyObject *  
 ModelingModel_classify_point(PyModelingModelClass* self ,PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("dd|di", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("dd|di", PyRunTimeErr, __func__);
   double x, y;
   double z = std::numeric_limits<double>::infinity();
   int v = 0;
@@ -263,7 +263,7 @@ PyDoc_STRVAR(ModelingModel_delete_faces_doc,
 static PyObject * 
 ModelingModel_delete_faces(PyModelingModelClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("O", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("O", PyRunTimeErr, __func__);
   PyObject* faceListArg;
 
   if (!PyArg_ParseTuple(args, api.format, &faceListArg)) {
@@ -325,7 +325,7 @@ PyDoc_STRVAR(ModelingModel_find_centroid_doc,
 static PyObject *  
 ModelingModel_find_centroid(PyModelingModelClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
   auto model = self->solidModel;
 
   int sdim;
@@ -368,7 +368,7 @@ PyDoc_STRVAR(ModelingModel_get_face_ids_doc,
 static PyObject * 
 ModelingModel_get_face_ids(PyModelingModelClass* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
 
   auto model = self->solidModel; 
   int numFaces;
@@ -412,7 +412,7 @@ PyDoc_STRVAR(ModelingModel_get_face_normal_doc,
 static PyObject *
 ModelingModel_get_face_normal(PyModelingModelClass* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = SvPyUtilApiFunction("idd", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("idd", PyRunTimeErr, __func__);
   static char *keywords[] = {"face_id", "u", "v", NULL};
   int faceID;
   double u,v;
@@ -448,7 +448,7 @@ PyDoc_STRVAR(ModelingModel_get_face_polydata_doc,
 static PyObject * 
 ModelingModel_get_face_polydata(PyModelingModelClass* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = SvPyUtilApiFunction("i|d", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("i|d", PyRunTimeErr, __func__);
   static char *keywords[] = {"face_id", "max_dist", NULL};
   int faceID;
   double max_dist = -1.0;
@@ -505,7 +505,7 @@ ModelingModel_get_face_polydata(PyModelingModelClass* self, PyObject* args, PyOb
       return nullptr;
   }
 
-  return svPyUtilGetVtkObject(api, polydata); 
+  return PyUtilGetVtkObject(api, polydata); 
 }
 
 //-------------------------
@@ -526,7 +526,7 @@ ModelingModel_get_polydata(PyModelingModelClass *self, PyObject* args)
 {
   std::cout << " " << std::endl;
   std::cout << " ========== ModelingModel_get_polydata ==========" << std::endl;
-  auto api = SvPyUtilApiFunction("|d", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("|d", PyRunTimeErr, __func__);
   double max_dist = -1.0;
 
   if (!PyArg_ParseTuple(args, api.format, &max_dist)) {
@@ -550,7 +550,7 @@ ModelingModel_get_polydata(PyModelingModelClass *self, PyObject* args)
       return nullptr;
   }
 
-  return svPyUtilGetVtkObject(api, polydata); 
+  return PyUtilGetVtkObject(api, polydata); 
 }
 
 //------------------
@@ -569,7 +569,7 @@ PyDoc_STRVAR(ModelingModel_write_doc,
 static PyObject * 
 ModelingModel_write(PyModelingModelClass* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = SvPyUtilApiFunction("ss|i", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("ss|i", PyRunTimeErr, __func__);
   static char *keywords[] = {"file_name", "format", "version", NULL};
   char* fileFormat;
   char* fileName;
@@ -665,7 +665,7 @@ static int
 PyModelingModelInit(PyModelingModelClass* self, PyObject* args, PyObject *kwds)
 {
   std::cout << "[PyModelingModelInit] ========== PyModelingModelInit ========== " << std::endl;
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, "ModelingModel");
+  auto api = PyUtilApiFunction("", PyRunTimeErr, "ModelingModel");
   static int numObjs = 1;
   std::cout << "[PyModelingModelInit] New PyModelingModel object: " << numObjs << std::endl;
   char* kernelName = nullptr; 
@@ -712,7 +712,7 @@ static PyObject *
 PyModelingModelNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
   std::cout << "[PyModelingModelNew] New ModelingModel" << std::endl;
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, "ModelingModel");
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, "ModelingModel");
   char* kernelName = nullptr; 
   if (!PyArg_ParseTuple(args, api.format, &kernelName)) {
       return api.argsError();

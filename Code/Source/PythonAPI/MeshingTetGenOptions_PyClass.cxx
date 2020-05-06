@@ -331,7 +331,7 @@ SphereRefinementIsOn(PyObject* optionsObj)
 // Create a PyObject dict for LocalEdgeSize option.
 //
 PyObject * 
-CreateLocalEdgeSizeValue(SvPyUtilApiFunction& api, int faceID, double edgeSize) 
+CreateLocalEdgeSizeValue(PyUtilApiFunction& api, int faceID, double edgeSize) 
 {
   if (edgeSize <= 0) {
       api.error("The '" + std::string(TetGenOption::LocalEdgeSize_EdgeSizeParam) + "' must be > 0.");
@@ -420,7 +420,7 @@ GetRadiusMeshingValues(PyObject* optionsObj, double* scale, vtkPolyData** center
 // Create a value for the SphereRefinement option. 
 //
 PyObject *
-CreateSphereRefinementValue(SvPyUtilApiFunction& api, double edgeSize, double radius, double center[3])
+CreateSphereRefinementValue(PyUtilApiFunction& api, double edgeSize, double radius, double center[3])
 {
   static std::string errorMsg = "The sphere_refinement parameter must be a " + TetGenOption::SphereRefinement_Desc; 
   if (edgeSize <= 0) {
@@ -637,7 +637,7 @@ PyTetGenOptionsAddLocalEdgeSize(PyMeshingTetGenOptionsClass* options, std::vecto
 {
   //std::cout << "================ PyTetGenOptionsAddLocalEdgeSize ================" << std::endl;
   //std::cout << "[PyTetGenOptionsAddLocalEdgeSize] vals[0]: " << vals[0] << std::endl;
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
   //std::cout << "[PyTetGenOptionsAddLocalEdgeSize] face mape: " << std::endl;
   //for (auto const& item : faceMap) {
    //   std::cout << "[PyTetGenOptionsAddLocalEdgeSize]   face: " << item.first << std::endl;
@@ -668,7 +668,7 @@ void
 PyTetGenOptionsAddSphereRefinement(PyMeshingTetGenOptionsClass* options, std::vector<std::string>& values)
 {
   //std::cout << "================ PyTetGenOptionsAddLocalEdgeSize ================" << std::endl;
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
   auto edgeSize = std::stod(values[0]);
   auto radius = std::stod(values[1]);
   double center[3] = { std::stod(values[2]), std::stod(values[3]), std::stod(values[4]) };
@@ -885,7 +885,7 @@ PyDoc_STRVAR(PyTetGenOptions_AddSubdomain_doc,
 static PyObject *
 PyTetGenOptions_AddSubdomain(PyMeshingTetGenOptionsClass* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = SvPyUtilApiFunction("O!i", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("O!i", PyRunTimeErr, __func__);
   static char *keywords[] = { TetGenOption::AddSubDomain_CoordinateParam, TetGenOption::AddSubDomain_RegionSizeParam, NULL }; 
   PyObject* coordArg = nullptr;
   int regionSize = 0;
@@ -943,7 +943,7 @@ PyDoc_STRVAR(PyTetGenOptions_LocalEdgeSize_doc,
 static PyObject *
 PyTetGenOptions_LocalEdgeSize(PyMeshingTetGenOptionsClass* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = SvPyUtilApiFunction("id", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("id", PyRunTimeErr, __func__);
   static char *keywords[] = { TetGenOption::LocalEdgeSize_FaceIDParam, TetGenOption::LocalEdgeSize_EdgeSizeParam, NULL }; 
   int faceID = 0;
   double edgeSize = 0.0;
@@ -1098,7 +1098,7 @@ PyDoc_STRVAR(PyTetGenOptions_SphereRefinement_doc,
 static PyObject *
 PyTetGenOptions_SphereRefinement(PyMeshingTetGenOptionsClass* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = SvPyUtilApiFunction("ddO", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("ddO", PyRunTimeErr, __func__);
   static char *keywords[] = { TetGenOption::SphereRefinement_EdgeSizeParam, TetGenOption::SphereRefinement_RadiusParam, 
     TetGenOption::SphereRefinement_CenterParam, NULL }; 
   double edgeSize = 0.0;
@@ -1530,7 +1530,7 @@ PyTetGenOptionsInit(PyMeshingTetGenOptionsClass* self, PyObject* args, PyObject*
 {
   static int numObjs = 1;
   std::cout << "[PyTetGenOptionsInit] New MeshingOptions object: " << numObjs << std::endl;
-  auto api = SvPyUtilApiFunction("|dO!O!O!", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("|dO!O!O!", PyRunTimeErr, __func__);
   static char *keywords[] = { TetGenOption::GlobalEdgeSize, TetGenOption::SurfaceMeshFlag, TetGenOption::VolumeMeshFlag, 
                               TetGenOption::MeshWallFirst, NULL};
   double global_edge_size = 0.0;

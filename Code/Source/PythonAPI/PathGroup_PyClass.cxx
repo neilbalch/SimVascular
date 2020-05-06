@@ -56,7 +56,7 @@ static sv3::PathGroup *
 PathGroup_read(char* fileName)
 {
   std::cout << "========== PathGroup_read ==========" << std::endl;
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
 
   std::cout << "[PathGroup_read] fileName: " << fileName << std::endl;
   sv3::PathGroup* pathGroup;
@@ -106,7 +106,7 @@ PyDoc_STRVAR(PathGroup_set_path_doc,
 static PyObject * 
 PathGroup_set_path(PyPathGroup* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("OI", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("OI", PyRunTimeErr, __func__);
   PyObject* pathArg;
   int timeStep = -2;
 
@@ -124,7 +124,7 @@ PathGroup_set_path(PyPathGroup* self, PyObject* args)
   }
 
   // Get the PathElement object.
-  auto pathObj = (PyPath*)pathArg;
+  auto pathObj = (PyPathClass*)pathArg;
   auto path = pathObj->path;
 
   // Check time step.
@@ -186,7 +186,7 @@ PyDoc_STRVAR(PathGroup_get_path_doc,
 static PyObject * 
 PathGroup_get_path(PyPathGroup* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("i", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("i", PyRunTimeErr, __func__);
   int index;
   char* pathName = NULL;
 
@@ -244,7 +244,7 @@ PyDoc_STRVAR(PathGroup_set_path_group_id_doc,
 static PyObject * 
 PathGroup_set_path_group_id(PyPathGroup* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("i", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("i", PyRunTimeErr, __func__);
   int id;
 
   if (!PyArg_ParseTuple(args, api.format, &id)) {
@@ -271,7 +271,7 @@ PyDoc_STRVAR(PathGroup_set_spacing_doc,
 static PyObject * 
 PathGroup_set_spacing(PyPathGroup* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("d", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("d", PyRunTimeErr, __func__);
   double spacing;
 
   if (!PyArg_ParseTuple(args, api.format, &spacing)) {
@@ -318,7 +318,7 @@ PyDoc_STRVAR(PathGroup_set_method_doc,
 static PyObject * 
 PathGroup_set_method(PyPathGroup* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char* methodName;
 
   if (!PyArg_ParseTuple(args, api.format, &methodName)) {
@@ -356,7 +356,7 @@ PyDoc_STRVAR(PathGroup_get_method_doc,
 static PyObject * 
 PathGroup_get_method(PyPathGroup* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
   PathElement::CalculationMethod method = self->pathGroup->GetMethod();
   std::string methodName;
 
@@ -391,7 +391,7 @@ PyDoc_STRVAR(PathGroup_set_calculation_number_doc,
 static PyObject * 
 PathGroup_set_calculation_number(PyPathGroup* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("i", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("i", PyRunTimeErr, __func__);
   int number;
 
   if (!PyArg_ParseTuple(args, api.format, &number)) {
@@ -439,7 +439,7 @@ PyDoc_STRVAR(PathGroup_write_doc,
 static PyObject *
 PathGroup_write(PyPathGroup* self, PyObject* args)
 {
-  auto api = SvPyUtilApiFunction("s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   char* fileName = NULL;
 
   if (!PyArg_ParseTuple(args, api.format, &fileName)) {
@@ -469,7 +469,15 @@ static char* PATH_GROUP_CLASS = "Group";
 // the name of the type within the module.
 static char* PATH_GROUP_MODULE_CLASS = "path.Group";
 
-PyDoc_STRVAR(PathGroup_doc, "path.Group functions.");
+//---------------
+// PathGroup_doc 
+//---------------
+// Define the Group class documentation.
+//
+PyDoc_STRVAR(PathGroup_doc,
+   "The Group class \n\
+   \n\
+");
 
 //--------------------
 // PyPathGroupMethods 
@@ -538,7 +546,7 @@ PyPathGroupInit(PyPathGroup* self, PyObject* args)
 {
   static int numObjs = 1;
   std::cout << "[PyPathGroupInit] New PathGroup object: " << numObjs << std::endl;
-  auto api = SvPyUtilApiFunction("|s", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("|s", PyRunTimeErr, __func__);
   char* fileName = nullptr;
   if (!PyArg_ParseTuple(args, api.format, &fileName)) {
       api.argsError();
@@ -564,7 +572,7 @@ static PyObject *
 PyPathGroupNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
   std::cout << "[PyPathGroupNew] PyPathGroupNew " << std::endl;
-  auto self = (PyPath*)type->tp_alloc(type, 0);
+  auto self = (PyPathClass*)type->tp_alloc(type, 0);
   if (self != NULL) {
       self->id = 1;
   }
