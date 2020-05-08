@@ -66,6 +66,7 @@ CreatePathCurve(PathElement* path)
 //----------------
 // GetPathElement
 //----------------
+// Get the path PathElement object.
 //
 static PathElement*
 GetPathElement(PyUtilApiFunction& api, PyPathClass* self)
@@ -77,7 +78,6 @@ GetPathElement(PyUtilApiFunction& api, PyPathClass* self)
   }
   return path;
 }
-
 
 //////////////////////////////////////////////////////
 //          C l a s s   M e t h o d s               //
@@ -121,9 +121,8 @@ Path_add_control_point(PyPathClass* self, PyObject* args)
       return nullptr;
   }
 
-  auto path = self->path;
+  auto path = GetPathElement(api, self);
   if (path == NULL) {
-      api.error("The path element data has not be created.");
       return nullptr;
   }
 
@@ -182,10 +181,8 @@ static PyObject *
 Path_get_control_points(PyPathClass* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
-  PathElement* path = self->path;
-
+  auto path = GetPathElement(api, self);
   if (path == NULL) {
-    api.error("The path element data has not be created.");
     return nullptr;
   }
 
@@ -240,9 +237,8 @@ Path_get_curve_normal(PyPathClass* self, PyObject* args)
       return api.argsError();
   }
 
-  auto path = self->path;
+  auto path = GetPathElement(api, self);
   if (path == NULL) {
-    api.error("The path element data has not be created.");
     return nullptr;
   }
 
@@ -286,9 +282,8 @@ Path_get_curve_point(PyPathClass* self, PyObject* args)
       return api.argsError();
   }
 
-  auto path = self->path;
+  auto path = GetPathElement(api, self);
   if (path == NULL) {
-    api.error("The path element data has not be created.");
     return nullptr;
   }
 
@@ -324,10 +319,8 @@ static PyObject *
 Path_get_curve_points(PyPathClass* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
-  PathElement* path = self->path;
-
+  auto path = GetPathElement(api, self);
   if (path == NULL) {
-    api.error("The path element data has not be created.");
     return nullptr;
   }  
     
@@ -373,9 +366,8 @@ Path_get_curve_polydata(PyPathClass* self, PyObject* args)
   auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
   char* dstName = NULL;
 
-  auto path = self->path;
+  auto path = GetPathElement(api, self);
   if (path == NULL) {
-      api.error("The path element data has not be created.");
       return nullptr;
   }
 
@@ -414,9 +406,8 @@ Path_get_curve_tangent(PyPathClass* self, PyObject* args)
       return api.argsError();
   }
 
-  auto path = self->path;
+  auto path = GetPathElement(api, self);
   if (path == NULL) {
-    api.error("The path element data has not be created.");
     return nullptr;
   }
 
@@ -451,9 +442,8 @@ static PyObject *
 Path_get_num_curve_points(PyPathClass* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
-  PathElement* path = self->path;
+  auto path = GetPathElement(api, self);
   if (path == NULL) {
-    api.error("The path element data has not be created.");
     return nullptr;
   }  
 
@@ -477,10 +467,8 @@ static PyObject *
 Path_get_num_subdivisions(PyPathClass* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
-
-  PathElement* path = self->path;
+  auto path = GetPathElement(api, self);
   if (path == NULL) {
-    api.error("The path element data has not be created.");
     return nullptr;
   }  
 
@@ -575,9 +563,8 @@ Path_remove_control_point(PyPathClass* self, PyObject* args)
       return PyUtilResetException(PyRunTimeErr);
   }
 
-  auto path = self->path;
+  auto path = GetPathElement(api, self);
   if (path == NULL) {
-      api.error("The path element data has not be created.");
       return nullptr;
   }
 
@@ -907,9 +894,8 @@ Path_smooth(PyPathClass* self, PyObject* args, PyObject* kwargs)
       return api.argsError();
   }
 
-  auto path = self->path;
+  auto path = GetPathElement(api, self);
   if (path == NULL) {
-      api.error("The path element data has not be created.");
       return nullptr;
   }  
 

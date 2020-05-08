@@ -223,24 +223,33 @@ void PathElement::ControlPointsChanged()
     CreatePathPoints();
 }
 
+//--------------------
+// SearchControlPoint
+//--------------------
+// Find the control point closest to a given point.
+//
+// Arguments:
+//   point: The query point.
+//   distance: The initial minimum distance to compare control point distances. 
+//
+// Returns the index into the control points array.
+//
 int PathElement::SearchControlPoint( std::array<double,3>  point, double distance)
 {
     int bestIndex = -2;
     double bestDist = distance;
     double dist;
 
-    for (int i = 0; i < m_ControlPoints.size(); ++i)
-    {
+    for (int i = 0; i < m_ControlPoints.size(); ++i) {
         std::array<double,3>  pt=m_ControlPoints[i].point;
 
-        if(point==pt)
-        {
+        if(point==pt) {
             return i;
         }
 
-        dist=sqrt(pow(point[0]-pt[0],2)+pow(point[1]-pt[1],2)+pow(point[2]-pt[2],2));
-        if ( dist < bestDist )
-        {
+        dist = sqrt(pow(point[0]-pt[0],2)+pow(point[1]-pt[1],2)+pow(point[2]-pt[2],2));
+
+        if (dist < bestDist) {
             bestIndex = i;
             bestDist  = dist;
         }
