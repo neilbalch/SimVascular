@@ -507,28 +507,39 @@ double sv4guiPathEdit::GetVolumeImageSpacing()
         return 0.1;
 }
 
-void sv4guiPathEdit::ChangePath(){
+//------------
+// ChangePath
+//------------
+//
+void sv4guiPathEdit::ChangePath()
+{
+    std::cout << "==================== sv4guiPathEdit::ChangePath() ====================" << std::endl;
 
-    if(m_Path==NULL) return;
+    if (m_Path == NULL) {
+        return;
+    }
 
-    int timeStep=GetTimeStep();
+    // Get the path element for the current time.
+    int timeStep = GetTimeStep();
+    sv4guiPathElement* pathElement = m_Path->GetPathElement(timeStep);
+    if (pathElement == NULL) {
+        return;
+    }
 
-    sv4guiPathElement* pathElement=m_Path->GetPathElement(timeStep);
-    if(pathElement==NULL) return;
-
-    if(m_PathCreateWidget==NULL)
-    {
-        m_PathCreateWidget=new sv4guiPathCreate(this->GetDataStorage(), this->GetDataManagerSelection().front(), timeStep);
+    if (m_PathCreateWidget == NULL) {
+        m_PathCreateWidget = new sv4guiPathCreate(this->GetDataStorage(), this->GetDataManagerSelection().front(), timeStep);
     }
 
     m_PathCreateWidget->SetCreatePath(false);
     m_PathCreateWidget->SetPathName(ui->labelPathName->text());
     m_PathCreateWidget->SetSubdivisionType(pathElement->GetMethod());
 
-    if(pathElement->GetMethod()==sv3::PathElement::CONSTANT_SPACING)
+    // Set the parameters for the selected subdivision method.
+    if (pathElement->GetMethod()==sv3::PathElement::CONSTANT_SPACING) {
         m_PathCreateWidget->SetNumber(QString::number(pathElement->GetSpacing()));
-    else
+    } else {
         m_PathCreateWidget->SetNumber(QString::number(pathElement->GetCalculationNumber()));
+    }
 
     m_PathCreateWidget->show();
     m_PathCreateWidget->SetFocus();

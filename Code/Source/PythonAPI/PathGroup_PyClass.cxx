@@ -90,82 +90,39 @@ PathGroup_read(char* fileName)
 //
 // SV Python Path Group methods. 
 
-//--------------------
-// PathGroup_set_path 
-//--------------------
+//----------------------------------
+// PathGroup_get_calculation_number 
+//----------------------------------
 //
-PyDoc_STRVAR(PathGroup_set_path_doc,
-  "set_path(name) \n\ 
+PyDoc_STRVAR(PathGroup_get_calculation_number_doc,
+  "get_calculation_number() \n\ 
    \n\
-   Store the polydata for the named path into the repository. \n\
+   Get the path group's calculation number. \n\
    \n\
-   Args: \n\
-     name (str): \n\
+   Returns (int): The path group's calculation number. \n\
 ");
 
 static PyObject * 
-PathGroup_set_path(PyPathGroup* self, PyObject* args)
+PathGroup_get_calculation_number(PyPathGroup* self, PyObject* args)
 {
-  auto api = PyUtilApiFunction("OI", PyRunTimeErr, __func__);
-  PyObject* pathArg;
-  int timeStep = -2;
-
-  if (!PyArg_ParseTuple(args, api.format, &pathArg, &timeStep)) {
-     return api.argsError();
-  }
-
-  auto pmsg = "[PathGroup_set_path] ";
-  std::cout << pmsg << std::endl;
-
-  // Check that the path argument is a SV Python Path object.
-  if (!PyObject_TypeCheck(pathArg, &PyPathType)) {
-      api.error("The 'path' argument is not a Path object.");
-      return nullptr;
-  }
-
-  // Get the PathElement object.
-  auto pathObj = (PyPathClass*)pathArg;
-  auto path = pathObj->path;
-
-  // Check time step.
-  int timestepSize = self->pathGroup->GetTimeSize();
-
-  if (timeStep < 0) {
-      api.error("The 'time_step' argument must be >= 0.");
-      return nullptr;
-  }
-
-  // Add the path to the group.
-  if (timeStep+1 >= timestepSize) {
-      self->pathGroup->Expand(timeStep);
-      self->pathGroup->SetPathElement(path, timeStep);
-  } else {
-      self->pathGroup->SetPathElement(path, timeStep);
-  }
-
-  // [TODO:DaveP] Is this the right thing to do?
-  Py_INCREF(pathArg);
-            
-  return Py_None; 
+  int number = self->pathGroup->GetCalculationNumber();
+  return Py_BuildValue("i", number);
 }
 
 //-------------------------
-// PathGroup_get_time_size 
+// PathGroup_get_num_paths 
 //-------------------------
 //
-// [TODO:DaveP] bad method name: get_number_time_steps() ?
-//
-PyDoc_STRVAR(PathGroup_get_time_size_doc,
-  "set_path(name) \n\ 
+PyDoc_STRVAR(PathGroup_get_num_paths_doc,
+  "get_num_paths() \n\ 
    \n\
-   Store the polydata for the named path into the repository. \n\
+   Get the number of paths stored in the group.  \n\
    \n\
-   Args: \n\
-     name (str): \n\
+   Returns (int): The number of paths stored in the group. \n\
 ");
 
 static PyObject * 
-PathGroup_get_time_size(PyPathGroup* self, PyObject* args)
+PathGroup_get_num_paths(PyPathGroup* self, PyObject* args)
 {
   int timestepSize = self->pathGroup->GetTimeSize();
   return Py_BuildValue("i", timestepSize); 
@@ -175,12 +132,14 @@ PathGroup_get_time_size(PyPathGroup* self, PyObject* args)
 // PathGroup_get_path 
 //--------------------
 PyDoc_STRVAR(PathGroup_get_path_doc,
-  "get_path(name) \n\ 
+  "get_path(time) \n\ 
    \n\
-   Store the polydata for the named path into the repository. \n\
+   Get the path for a given time. \n\
    \n\
    Args: \n\
-     name (str): \n\
+     time (int): The time to get the path for. \n\
+   \n\
+   Returns (sv.path.Path object): The path object for the given time.\n\
 ");
 
 static PyObject * 
@@ -208,41 +167,92 @@ PathGroup_get_path(PyPathGroup* self, PyObject* args)
   return CreatePyPath(path);
 }
 
-//-----------------------------
-// PathGroup_get_path_group_id 
-//-----------------------------
+//-----------------------
+// PathGroup_get_path_id 
+//-----------------------
 //
-PyDoc_STRVAR(PathGroup_get_path_group_id_doc,
-  "get_path_group_id(name) \n\ 
+PyDoc_STRVAR(PathGroup_get_path_id_doc,
+  "get_path_id() \n\ 
    \n\
-   Store the polydata for the named path into the repository. \n\
+   Get the path group id. \n\
    \n\
-   Args: \n\
-     name (str): \n\
+   Returns (int): The ID of the path group.\n\
 ");
 
 static PyObject * 
-PathGroup_get_path_group_id(PyPathGroup* self, PyObject* args)
+PathGroup_get_path_id(PyPathGroup* self, PyObject* args)
 {
   int id = self->pathGroup->GetPathID();
-  return Py_BuildValue("i",id); 
+  return Py_BuildValue("i", id); 
 }
-    
-//-----------------------------
-// PathGroup_set_path_group_id
-//-----------------------------
+
+//--------------------
+// PathGroup_set_path 
+//--------------------
 //
-PyDoc_STRVAR(PathGroup_set_path_group_id_doc,
-  "set_path_group_id(name) \n\ 
+PyDoc_STRVAR(PathGroup_set_path_doc,
+  "set_path(path, time) \n\ 
    \n\
-   Store the polydata for the named path into the repository. \n\
+   Set the path for a given time. \n\
    \n\
    Args: \n\
-     name (str): \n\
+     path (sv.path.Path object): The path object to set.\n\
+     time (int): The time to set the path for. \n\
 ");
 
 static PyObject * 
-PathGroup_set_path_group_id(PyPathGroup* self, PyObject* args)
+PathGroup_set_path(PyPathGroup* self, PyObject* args, PyObject* kwargs)
+{
+  auto api = PyUtilApiFunction("O!I", PyRunTimeErr, __func__);
+  static char *keywords[] = {"path", "time", NULL};
+  PyObject* pathArg;
+  int timeStep = -2;
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &PyPathType, &pathArg, &timeStep)) { 
+     return api.argsError();
+  }
+
+  auto pmsg = "[PathGroup_set_path] ";
+  std::cout << pmsg << std::endl;
+
+  // Get the PathElement object.
+  auto pathObj = (PyPathClass*)pathArg;
+  auto path = pathObj->path;
+
+  // Check time step.
+  int timestepSize = self->pathGroup->GetTimeSize();
+
+  if (timeStep < 0) {
+      api.error("The 'time' argument must be >= 0.");
+      return nullptr;
+  }
+
+  // Add the path to the group.
+  if (timeStep+1 >= timestepSize) {
+      self->pathGroup->Expand(timeStep);
+      self->pathGroup->SetPathElement(path, timeStep);
+  } else {
+      self->pathGroup->SetPathElement(path, timeStep);
+  }
+
+  return Py_None; 
+}
+    
+//-----------------------
+// PathGroup_set_path_id
+//-----------------------
+//
+PyDoc_STRVAR(PathGroup_set_path_id_doc,
+  "set_path_id(id) \n\ 
+   \n\
+   Set the ID for the path group. \n\
+   \n\
+   Args: \n\
+     id (int): The path ID.\n\
+");
+
+static PyObject * 
+PathGroup_set_path_id(PyPathGroup* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("i", PyRunTimeErr, __func__);
   int id;
@@ -260,12 +270,12 @@ PathGroup_set_path_group_id(PyPathGroup* self, PyObject* args)
 //-----------------------
 //
 PyDoc_STRVAR(PathGroup_set_spacing_doc,
-  "set_spacing(name) \n\ 
+  "set_spacing(spacing) \n\ 
    \n\
-   Store the polydata for the named path into the repository. \n\
+   Set the spacing used by the SPACING method. \n\
    \n\
    Args: \n\
-     name (str): \n\
+     spacing (float): The spacing value. \n\
 ");
 
 static PyObject * 
@@ -287,12 +297,11 @@ PathGroup_set_spacing(PyPathGroup* self, PyObject* args)
 //-----------------------
 //
 PyDoc_STRVAR(PathGroup_get_spacing_doc,
-  "get_spacing(name) \n\ 
+  "get_spacing() \n\ 
    \n\
-   Store the polydata for the named path into the repository. \n\
+   Get the spacing for the path group. \n\
    \n\
-   Args: \n\
-     name (str): \n\
+   Returns (float): The spacing for the path group. \n\
 ");
 
 static PyObject * 
@@ -307,12 +316,12 @@ PathGroup_get_spacing(PyPathGroup* self, PyObject* args)
 //----------------------
 //
 PyDoc_STRVAR(PathGroup_set_method_doc,
-  "set_method(name) \n\ 
+  "set_method(method) \n\ 
    \n\
-   Store the polydata for the named path into the repository. \n\
+   Set the path group method. \n\
    \n\
    Args: \n\
-     name (str): \n\
+     method (str): The subdivision method name. Valid names are: SPACING, SUBDIVISION or TOTAL \n\
 ");
 
 static PyObject * 
@@ -328,10 +337,10 @@ PathGroup_set_method(PyPathGroup* self, PyObject* args)
   PathElement::CalculationMethod method;
 
   try {
-      method = calcMethodNameTypeMap.at(std::string(methodName));
+      method = subdivMethodNameTypeMap.at(std::string(methodName));
   } catch (const std::out_of_range& except) {
       auto msg = "Unknown method name '" + std::string(methodName) + "'." +
-          " Valid names are: " + calcMethodValidNames + ".";
+          " Valid names are: " + subdivMethodValidNames + ".";
       api.error(msg);
       return nullptr;
   }
@@ -345,12 +354,11 @@ PathGroup_set_method(PyPathGroup* self, PyObject* args)
 //----------------------
 //
 PyDoc_STRVAR(PathGroup_get_method_doc,
-  "get_method(name) \n\ 
+  "get_method() \n\ 
    \n\
-   Store the polydata for the named path into the repository. \n\
+   Get the path group method. \n\
    \n\
-   Args: \n\
-     name (str): \n\
+   Returns (str): The path group's method name. \n\
 ");
 
 static PyObject * 
@@ -360,7 +368,7 @@ PathGroup_get_method(PyPathGroup* self, PyObject* args)
   PathElement::CalculationMethod method = self->pathGroup->GetMethod();
   std::string methodName;
 
-  for (auto const& element : calcMethodNameTypeMap) { 
+  for (auto const& element : subdivMethodNameTypeMap) { 
       if (method == element.second) {
           methodName = element.first;
           break; 
@@ -380,12 +388,12 @@ PathGroup_get_method(PyPathGroup* self, PyObject* args)
 //----------------------------------
 //
 PyDoc_STRVAR(PathGroup_set_calculation_number_doc,
-  "set_calculation_number(name) \n\ 
+  "set_calculation_number(number) \n\ 
    \n\
-   Store the polydata for the named path into the repository. \n\
+   Set the path group's calculation number. \n\
    \n\
    Args: \n\
-     name (str): \n\
+     number (int): The calculation number. \n\
 ");
 
 static PyObject * 
@@ -403,25 +411,6 @@ PathGroup_set_calculation_number(PyPathGroup* self, PyObject* args)
   return Py_None;
 }
 
-//----------------------------------
-// PathGroup_get_calculation_number 
-//----------------------------------
-//
-PyDoc_STRVAR(PathGroup_get_calculation_number_doc,
-  "get_calculation_number(name) \n\ 
-   \n\
-   Store the polydata for the named path into the repository. \n\
-   \n\
-   Args: \n\
-     name (str): \n\
-");
-
-static PyObject * 
-PathGroup_get_calculation_number(PyPathGroup* self, PyObject* args)
-{
-  int number = self->pathGroup->GetCalculationNumber();
-  return Py_BuildValue("i", number);
-}
 
 //-----------------
 // PathGroup_write
@@ -475,7 +464,7 @@ static char* PATH_GROUP_MODULE_CLASS = "path.Group";
 // Define the Group class documentation.
 //
 PyDoc_STRVAR(PathGroup_doc,
-   "The Group class \n\
+   "The Group class provides methods for querying, creating, and modifying SV path planning group objects.\n\
    \n\
 ");
 
@@ -484,28 +473,22 @@ PyDoc_STRVAR(PathGroup_doc,
 //--------------------
 // Define the methods for the path.Group class.
 //
+// [TODO:DaveP] I'm not sure if some of these original methods make sense for
+// path groups: the values for group calculation number, _method, etc. don't 
+// change. 
+//
 static PyMethodDef PyPathGroupMethods[] = {
-
   {"get_calculation_number", (PyCFunction)PathGroup_get_calculation_number, METH_NOARGS, PathGroup_get_calculation_number_doc},
-
   {"get_method", (PyCFunction)PathGroup_get_method, METH_NOARGS, PathGroup_get_method_doc}, 
-
   {"get_path", (PyCFunction)PathGroup_get_path, METH_VARARGS, PathGroup_get_path_doc},
-
-  {"get_path_group_id", (PyCFunction)PathGroup_get_path_group_id,METH_VARARGS,PathGroup_get_path_group_id_doc},
-
+  {"get_path_id", (PyCFunction)PathGroup_get_path_id,METH_VARARGS,PathGroup_get_path_id_doc},
   {"get_spacing", (PyCFunction)PathGroup_get_spacing, METH_NOARGS, PathGroup_get_spacing_doc},
-
-  {"get_time_size", (PyCFunction)PathGroup_get_time_size, METH_NOARGS, PathGroup_get_time_size_doc},
+  {"get_num_paths", (PyCFunction)PathGroup_get_num_paths, METH_NOARGS, PathGroup_get_num_paths_doc},
 
   {"set_calculation_number", (PyCFunction)PathGroup_set_calculation_number, METH_NOARGS, PathGroup_set_calculation_number_doc},
-
   {"set_method", (PyCFunction)PathGroup_set_method, METH_VARARGS, PathGroup_set_method_doc},
-
-  {"set_path", (PyCFunction)PathGroup_set_path, METH_VARARGS, PathGroup_set_path_doc},
-
-  {"set_path_group_id", (PyCFunction)PathGroup_set_path_group_id, METH_VARARGS,PathGroup_set_path_group_id_doc},
-
+  {"set_path", (PyCFunction)PathGroup_set_path, METH_VARARGS|METH_KEYWORDS, PathGroup_set_path_doc},
+  {"set_path_id", (PyCFunction)PathGroup_set_path_id, METH_VARARGS,PathGroup_set_path_id_doc},
   {"set_spacing", (PyCFunction)PathGroup_set_spacing, METH_VARARGS, PathGroup_set_spacing_doc},
 
   {"write", (PyCFunction)PathGroup_write, METH_VARARGS, PathGroup_write_doc},

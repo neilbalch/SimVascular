@@ -29,13 +29,14 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// The functions defined here implement the SV Python API path module calculation method class. 
-// The class member data provides string constants representing each of the calculation methods. 
+// The functions defined here implement the SV Python API path module subdivision method class. 
+// The class member data provides string constants representing each of the subdivision methods. 
+// Subdivision methods are refered to as calculation number in SV.
 //
-// The class name is 'CalculationMethod'. It is referenced from the path module as 'path.CalculationMethod'.
+// The class name is 'SubdivisionMethod'. It is referenced from the path module as 'path.SubdivisionMethod'.
 //
-#ifndef SV3_PATH_CALC_METHOD_PYMODULE_H
-#define SV3_PATH_CALC_METHOD_PYMODULE_H
+#ifndef PATH_SUBDIVISION_METHOD_PYMODULE_H
+#define PATH_SUBDIVISION_METHOD_PYMODULE_H
 
 #include <iostream>
 #include <string>
@@ -44,7 +45,7 @@
 
 // Define a map between method name and enum type.
 //
-static std::map<std::string, sv3::PathElement::CalculationMethod> calcMethodNameTypeMap =
+static std::map<std::string, sv3::PathElement::CalculationMethod> subdivMethodNameTypeMap =
 {
     {"SPACING", sv3::PathElement::CONSTANT_SPACING},
     {"SUBDIVISION", sv3::PathElement::CONSTANT_SUBDIVISION_NUMBER},
@@ -52,16 +53,16 @@ static std::map<std::string, sv3::PathElement::CalculationMethod> calcMethodName
 };
 
 // Define the valid calculation methods, used in error messages.
-static std::string calcMethodValidNames = "SPACING, SUBDIVISION or TOTAL";
+static std::string subdivMethodValidNames = "SPACING, SUBDIVISION or TOTAL";
 
-//-----------------------
-// PyPathCalcMethodClass 
-//-----------------------
-// Define the PyPathCalcMethodClass class (type).
+//------------------------------
+// PyPathSubdivisionMethodClass 
+//------------------------------
+// Define the PyPathSubdivisionMethodClass class (type).
 //
 typedef struct {
 PyObject_HEAD
-} PyPathCalcMethodClass;
+} PyPathSubdivisionMethodClass;
 
 //////////////////////////////////////////////////////
 //          M o d u l e  F u n c t i o n s          //
@@ -69,25 +70,25 @@ PyObject_HEAD
 //
 // Python API functions. 
 
-//--------------------------
-// PathCalcMethod_get_names
-//--------------------------
+//---------------------------------
+// PathSubdivisionMethod_get_names
+//---------------------------------
 // 
-PyDoc_STRVAR(PathCalcMethod_get_names_doc,
+PyDoc_STRVAR(PathSubdivisionMethod_get_names_doc,
   "get_names() \n\ 
    \n\
-   Get the calculation method names. \n\
+   Get the valid subdivision method names. \n\
    \n\
    Args: \n\
      None \n\
 ");
 
 static PyObject *
-PathCalcMethod_get_names()
+PathSubdivisionMethod_get_names()
 {
-  PyObject* nameList = PyList_New(calcMethodNameTypeMap.size());
+  PyObject* nameList = PyList_New(subdivMethodNameTypeMap.size());
   int n = 0;
-  for (auto const& entry : calcMethodNameTypeMap) {
+  for (auto const& entry : subdivMethodNameTypeMap) {
       auto name = entry.first.c_str();
       PyList_SetItem(nameList, n, PyUnicode_FromString(name));
       n += 1;
@@ -99,15 +100,32 @@ PathCalcMethod_get_names()
 //          C l a s s    D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
 
-static char* PATH_CALC_METHOD_CLASS = "CalculationMethod";
-static char* PATH_CALC_METHOD_MODULE_CLASS = "path.CalculationMethod";
+static char* PATH_SUBDIVISION_METHOD_CLASS = "SubdivisionMethod";
+static char* PATH_SUBDIVISION_METHOD_MODULE_CLASS = "path.SubdivisionMethod";
 // The name of the CalculationMethod class veriable that contains all of the method types.
-static char* PATH_CALC_METHOD_CLASS_VARIBLE_NAMES = "names";
+static char* PATH_SUBDIVISION_METHOD_CLASS_VARIBLE_NAMES = "names";
 
-PyDoc_STRVAR(PathCalcMethod_doc, "path calculate method functions");
+PyDoc_STRVAR(PathSubdivisionMethod_doc, 
+   "The SubdivisionMethod class provides the names used to set the subdivision method for a path as class variables. \n\
+   \n\
+    The subdivision method is used to determine the number of path curve points N created between two adjacent control points. \n\
+   \n\
+   Valid subdivision method names are: \n\ 
+   \n\
+      SPACING - Divide the distance D between adjacent control points by a given spacing value S: N = D/S - 1 \n\
+   \n\
+      SUBDIVISION - Set N to a given subdivision number. \n\
+   \n\
+      TOTAL - Appoximate the total number of path points using the number of control points Nc and total numner Nt: N = (Nt-1)/(Nc-1) - 1 \n\
+   \n\
+");
 
-static PyMethodDef PyPathCalcMethodMethods[] = {
-  { "get_names", (PyCFunction)PathCalcMethod_get_names, METH_NOARGS, PathCalcMethod_get_names_doc},
+//--------------------------------
+// PyPathSubdivisionMethodMethods
+//--------------------------------
+//
+static PyMethodDef PyPathSubdivisionMethodMethods[] = {
+  { "get_names", (PyCFunction)PathSubdivisionMethod_get_names, METH_NOARGS, PathSubdivisionMethod_get_names_doc},
   {NULL, NULL}
 };
 
@@ -116,56 +134,56 @@ static PyMethodDef PyPathCalcMethodMethods[] = {
 //------------------------------
 // Define the Python type object that stores path.CalculationMethod types. 
 //
-static PyTypeObject PyPathCalcMethodType = {
+static PyTypeObject PyPathSubdivisionMethodType = {
   PyVarObject_HEAD_INIT(NULL, 0)
-  .tp_name = PATH_CALC_METHOD_MODULE_CLASS,
-  .tp_basicsize = sizeof(PyPathCalcMethodClass)
+  .tp_name = PATH_SUBDIVISION_METHOD_MODULE_CLASS,
+  .tp_basicsize = sizeof(PyPathSubdivisionMethodClass)
 };
 
 //-----------------------------
-// SetPathCalcMethodTypeFields 
+// SetPathSubdivisionMethodTypeFields 
 //-----------------------------
 //
 static void
-SetPathCalcMethodTypeFields(PyTypeObject& methodType)
+SetPathSubdivisionMethodTypeFields(PyTypeObject& methodType)
  {
-  methodType.tp_doc = PathCalcMethod_doc; 
+  methodType.tp_doc = PathSubdivisionMethod_doc; 
   methodType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
-  methodType.tp_methods = PyPathCalcMethodMethods;
+  methodType.tp_methods = PyPathSubdivisionMethodMethods;
   methodType.tp_dict = PyDict_New();
 };
 
-//------------------------
-// SetPathCalcMethodTypes 
-//------------------------
-// Set the calculate method names in the PyPathCalcMethodType dictionary.
+//-------------------------------
+// SetPathSubdivisionMethodTypes 
+//-------------------------------
+// Set the calculate method names in the PyPathSubdivisionMethodType dictionary.
 //
-// The names in the PyPathCalcMethodType dictionary are referenced as a 
+// The names in the PyPathSubdivisionMethodType dictionary are referenced as a 
 // string class variable for the Python CalculareMethod class.
 //
 static void
-SetPathCalcMethodTypes(PyTypeObject& methodType)
+SetPathSubdivisionMethodTypes(PyTypeObject& methodType)
 {
-  // Add calculate method names to the PyPathCalcMethodType dictionary.
-  for (auto const& entry : calcMethodNameTypeMap) {
+  // Add calculate method names to the PyPathSubdivisionMethodType dictionary.
+  for (auto const& entry : subdivMethodNameTypeMap) {
       auto name = entry.first.c_str();
       if (PyDict_SetItemString(methodType.tp_dict, name, PyUnicode_FromString(name))) {
-          std::cout << "Error initializing Python API path calculation method types." << std::endl;
+          std::cout << "Error initializing Python API path subdivision method types." << std::endl;
           return;
       }
   }
 
   // Create a string list of method names refenced by 'names'.
   //
-  PyObject* nameList = PyList_New(calcMethodNameTypeMap.size());
+  PyObject* nameList = PyList_New(subdivMethodNameTypeMap.size());
   int n = 0;
-  for (auto const& entry : calcMethodNameTypeMap) {
+  for (auto const& entry : subdivMethodNameTypeMap) {
       auto name = entry.first.c_str();
       PyList_SetItem(nameList, n, PyUnicode_FromString(name));
       n += 1;
   }
 
-  if (PyDict_SetItemString(methodType.tp_dict, PATH_CALC_METHOD_CLASS_VARIBLE_NAMES, nameList)) {
+  if (PyDict_SetItemString(methodType.tp_dict, PATH_SUBDIVISION_METHOD_CLASS_VARIBLE_NAMES, nameList)) {
       std::cout << "Error initializing Python API path calculation method types." << std::endl;
       return;
   }

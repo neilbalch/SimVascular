@@ -67,7 +67,7 @@
 static PyObject* PyRunTimeErr;
 
 // Include the definitions for the CalculationMethod, Path and Group classes.
-#include "PathCalcMethod_PyClass.cxx"
+#include "PathSubdivisionMethod_PyClass.cxx"
 #include "Path_PyClass.cxx"
 #include "PathGroup_PyClass.cxx"
 
@@ -158,11 +158,11 @@ PyMODINIT_FUNC PyInit_PyPath()
     return SV_PYTHON_ERROR;
   }
 
-  // Setup the PathCalcMethod class type.
+  // Setup the PathSubdivisionMethod class type.
   //
-  SetPathCalcMethodTypeFields(PyPathCalcMethodType);
-  if (PyType_Ready(&PyPathCalcMethodType) < 0) {
-      fprintf(stdout,"Error in PyPathCalcMethodType\n");
+  SetPathSubdivisionMethodTypeFields(PyPathSubdivisionMethodType);
+  if (PyType_Ready(&PyPathSubdivisionMethodType) < 0) {
+      fprintf(stdout,"Error in PyPathSubdivisionMethodType\n");
       return nullptr;
   }
 
@@ -186,12 +186,12 @@ PyMODINIT_FUNC PyInit_PyPath()
   Py_INCREF(&PyPathGroupType);
   PyModule_AddObject(module, PATH_GROUP_CLASS, (PyObject*)&PyPathGroupType);
 
-  // Add PathCalcMethod class.
-  Py_INCREF(&PyPathCalcMethodType);
-  PyModule_AddObject(module, PATH_CALC_METHOD_CLASS, (PyObject*)&PyPathCalcMethodType);
+  // Add PathSubdivisionMethod class.
+  Py_INCREF(&PyPathSubdivisionMethodType);
+  PyModule_AddObject(module, PATH_SUBDIVISION_METHOD_CLASS, (PyObject*)&PyPathSubdivisionMethodType);
 
-  // Set the calculate method names in the PyPathCalcMethodType dictionary.
-  SetPathCalcMethodTypes(PyPathCalcMethodType);
+  // Set the calculate method names in the PyPathSubdivisionMethodType dictionary.
+  SetPathSubdivisionMethodTypes(PyPathSubdivisionMethodType);
 
   return module;
 }

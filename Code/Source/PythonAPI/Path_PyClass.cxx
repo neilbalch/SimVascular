@@ -63,6 +63,22 @@ CreatePathCurve(PathElement* path)
   return true; 
 }
 
+//----------------
+// GetPathElement
+//----------------
+//
+static PathElement*
+GetPathElement(PyUtilApiFunction& api, PyPathClass* self)
+{
+  auto path = self->path;
+  if (path == NULL) {
+      api.error("The path element data has not be created.");
+      return nullptr;
+  }
+  return path;
+}
+
+
 //////////////////////////////////////////////////////
 //          C l a s s   M e t h o d s               //
 //////////////////////////////////////////////////////
@@ -142,6 +158,10 @@ Path_add_control_point(PyPathClass* self, PyObject* args)
       index = path->GetInsertintIndexByDistance(point);
   }
 
+  // Insert the control point.
+  //
+  // The path curve points are generated each time a new control point is added.
+  //
   path->InsertControlPoint(index, point);
   return SV_PYTHON_OK; 
 }
@@ -432,7 +452,6 @@ Path_get_num_curve_points(PyPathClass* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
   PathElement* path = self->path;
-
   if (path == NULL) {
     api.error("The path element data has not be created.");
     return nullptr;
@@ -442,6 +461,96 @@ Path_get_num_curve_points(PyPathClass* self, PyObject* args)
   return Py_BuildValue("i", num);
 }
 
+//---------------------------
+// Path_get_num_subdivisions 
+//---------------------------
+//
+PyDoc_STRVAR(Path_get_num_subdivisions_doc,
+  "get_num_subdivisions() \n\ 
+   \n\
+   Get the path group's calculation number. \n\
+   \n\
+   Returns (int): The path group's calculation number. \n\
+");
+
+static PyObject *
+Path_get_num_subdivisions(PyPathClass* self, PyObject* args)
+{
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
+
+  PathElement* path = self->path;
+  if (path == NULL) {
+    api.error("The path element data has not be created.");
+    return nullptr;
+  }  
+
+  int number = path->GetCalculationNumber();
+  return Py_BuildValue("i", number);
+}
+
+//----------------------------
+//Path_get_subdivision_method 
+//----------------------------
+//
+PyDoc_STRVAR(Path_get_subdivision_method_doc,
+  "get_subdivision_method() \n\ 
+   \n\
+   Get the path's subdivision method. \n\
+   \n\
+   Returns (str): The path's subdivsion method. \n\
+");
+
+static PyObject *
+Path_get_subdivision_method(PyPathClass* self, PyObject* args)
+{
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto path = GetPathElement(api, self);
+  if (path == NULL) {
+      return nullptr;
+  }
+
+  // Get the method name.
+  PathElement::CalculationMethod method = path->GetMethod();
+  std::string methodName;
+  for (auto const& element : subdivMethodNameTypeMap) {
+      if (method == element.second) {
+          methodName = element.first;
+          break;
+      }
+  }
+
+  if (methodName == "") {
+      api.error("No subdivision method is set.");
+      return nullptr;
+  }
+   
+  return Py_BuildValue("s", methodName.c_str());
+}
+
+//------------------------------
+// Path_get_subdivision_spacing 
+//------------------------------
+//
+PyDoc_STRVAR(Path_get_subdivision_spacing_doc,
+  "get_subdivision_spacing() \n\ 
+   \n\
+   Get the path's subdivsion spacing value. \n\
+   \n\
+   Returns (float): The path's subdivsion spacling value. \n\
+");
+
+static PyObject *
+Path_get_subdivision_spacing(PyPathClass* self, PyObject* args)
+{
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
+  auto path = GetPathElement(api, self);
+  if (path == NULL) {
+      return nullptr;
+  }
+
+  double spacing = path->GetSpacing();
+  return Py_BuildValue("d", spacing);
+}
 
 //---------------------------
 // Path_remove_control_point
@@ -514,9 +623,8 @@ Path_replace_control_point(PyPathClass* self, PyObject* args)
       return api.argsError();
   }
     
-  auto path = self->path;
+  auto path = GetPathElement(api, self);
   if (path == NULL) {
-      api.error("The path element data has not be created.");
       return nullptr;
   }
 
@@ -546,6 +654,223 @@ Path_replace_control_point(PyPathClass* self, PyObject* args)
   path->SetControlPoint(index, point);
         
   return SV_PYTHON_OK; 
+}
+
+//-------------------------
+// Path_set_control_points
+//-------------------------
+//
+PyDoc_STRVAR(Path_set_control_points_doc,
+  "set_control_points(points) \n\ 
+   \n\
+   Set the path's control points. \n\
+   \n\
+   Args: \n\
+     points (list(list[float,float,float])): The list of control points. \n\
+");
+
+static PyObject *
+Path_set_control_points(PyPathClass* self, PyObject* args)
+{
+  auto api = PyUtilApiFunction("O!", PyRunTimeErr, __func__);
+  PyObject* pointsArg;
+
+  if (!PyArg_ParseTuple(args, api.format, &PyList_Type, &pointsArg)) {
+      return api.argsError();
+  }
+  auto path = GetPathElement(api, self);
+  if (path == NULL) {
+      return nullptr;
+  }
+
+  std::vector<std::array<double,3> > points;
+  int numPts = PyList_Size(pointsArg);
+  for (int i = 0; i < numPts; i++) {
+      PyObject* ptObj = PyList_GetItem(pointsArg,i);
+      std::string msg; 
+      //double point[3];
+      std::array<double,3> point;
+      if (!PyUtilGetPointData(ptObj, msg, point.data())) {
+          api.error("The 'points' argument at index " + std::to_string(i) + " " + msg);
+          return nullptr;
+      }
+      points.push_back(point);
+  }
+
+  bool update = false;
+  path->SetControlPoints(points, update);
+
+  // Generate curve points.
+  path->ControlPointsChanged();
+
+  return Py_None;
+}
+
+//---------------------------
+// Path_set_num_subdivisions
+//---------------------------
+//
+PyDoc_STRVAR(Path_set_num_subdivisions_doc,
+  "set_num_subdivisions(number) \n\ 
+   \n\
+   Set the number of subdivisions used for the TOTAL and SUBDIVISION subdivision methods. \n\
+   \n\
+   Args: \n\
+     number (int): The number of subdivision. \n\
+");
+
+static PyObject *
+Path_set_num_subdivisions(PyPathClass* self, PyObject* args)
+{
+  auto api = PyUtilApiFunction("i", PyRunTimeErr, __func__);
+  int number;
+
+  if (!PyArg_ParseTuple(args, api.format, &number)) {
+     return api.argsError();
+  }
+
+  auto path = GetPathElement(api, self);
+  if (path == NULL) {
+      return nullptr;
+  }
+
+  if (number < 1) {
+      api.error("The 'number' argument must be > 0.");
+      return nullptr;
+  }
+  
+  path->SetCalculationNumber(number);
+  return Py_None;
+}
+
+//-----------------------------
+// Path_set_subdivision_method
+//-----------------------------
+//
+PyDoc_STRVAR(Path_set_subdivision_method_doc,
+  "set_subdivision_method(method, num_subdiv=None, num_total=None, spacing=None) \n\ 
+   \n\
+   Set the subdivision method and paramters used to determine the number of path curve points created between two adjacent control points. \n\
+   \n\
+   The optional parameters are only used with the appropriate method being set. The path's curve points are updated using the given \n\
+   method and paramater value. \n\
+   \n\
+   Args: \n\
+     method (str): The subdivision method name. Valid names are: SPACING, SUBDIVISION or TOTAL \n\
+     num_div (Optional[int]): The number of subdivisions used with the SUBDIVISION method. \n\
+     num_total (Optional[int]): The number of total subdivisions used with the TOTAL method. \n\
+     spacing (Optional[float]): The spacing by the SPACING method. \n\
+");
+
+static PyObject *
+Path_set_subdivision_method(PyPathClass* self, PyObject* args, PyObject* kwargs)
+{ 
+  auto api = PyUtilApiFunction("s|O!O!O!", PyRunTimeErr, __func__);
+  static char *keywords[] = {"method", "num_div", "num_total", "spacing", NULL};
+  char* methodName;
+  PyObject* numDivObj = nullptr;
+  PyObject* numTotalObj = nullptr;
+  PyObject* spacingObj = nullptr;
+  
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &methodName, &PyInt_Type, &numDivObj, &PyInt_Type, &numTotalObj, 
+        &PyFloat_Type, &spacingObj)) {
+      return api.argsError();
+  }
+
+  auto path = GetPathElement(api, self);
+  if (path == NULL) {
+      return nullptr;
+  }
+  
+  // Set the subdision method.
+  //
+  PathElement::CalculationMethod method;
+  
+  try {
+      method = subdivMethodNameTypeMap.at(std::string(methodName));
+  } catch (const std::out_of_range& except) {
+      auto msg = "Unknown method name '" + std::string(methodName) + "'." + " Valid names are: " + subdivMethodValidNames + ".";
+      api.error(msg);
+      return nullptr;
+  }
+
+  path->SetMethod(method);
+
+  // Set the parameters for the SPACING method.
+  //
+  if (method == sv3::PathElement::CONSTANT_SPACING) {
+      if (spacingObj == nullptr) { 
+          api.error("The SPACING method requires a 'spacing' value.");
+          return nullptr;
+      }
+
+      double spacing = PyFloat_AsDouble(spacingObj);
+      if (PyErr_Occurred()) {
+          return nullptr;
+      }
+
+      if (spacing <= 0.0) {
+          api.error("The 'spacing' argument must be >= 0.0.");
+          return nullptr;
+      }
+
+      path->SetCalculationNumber(0);
+      path->SetSpacing(spacing);
+
+  // Set the parameters for the SUBDIVISION method.
+  //
+  } else if (method == sv3::PathElement::CONSTANT_SUBDIVISION_NUMBER) {
+      if (numDivObj == nullptr) { 
+          api.error("The SUBDIVISION method requires a 'num_div' value.");
+          return nullptr;
+      }
+
+      int numDiv = PyInt_AsLong(numDivObj);
+      if (PyErr_Occurred()) {
+          return nullptr;
+      }
+
+      if (numDiv < 2) {
+          api.error("The 'num_div' argument must be > 1.");
+          return nullptr;
+      }
+
+      path->SetCalculationNumber(numDiv);
+      path->SetSpacing(0.0);
+
+  // Set the parameters for the TOTAL method.
+  //
+  } else if (method == sv3::PathElement::CONSTANT_TOTAL_NUMBER) {
+      if (numTotalObj == nullptr) { 
+          api.error("The TOTAL method requires a 'num_total' value.");
+          return nullptr;
+      }
+
+      int numTotal = PyInt_AsLong(numTotalObj);
+      if (PyErr_Occurred()) {
+          return nullptr;
+      }
+
+      if (numTotal < 2) {
+          api.error("The 'num_total' argument must be > 1.");
+          return nullptr;
+      }
+
+      path->SetCalculationNumber(numTotal);
+      path->SetSpacing(0.0);
+
+  // This is an internal error, all methods should be supported.
+  //
+  } else {
+      auto msg = "INTERNAL ERROR: Unsupported method name '" + std::string(methodName) + "'." + " Valid names are: " + subdivMethodValidNames + ".";
+      api.error(msg);
+      return nullptr;
+  }
+  
+  // Generate path curve points.
+  path->ControlPointsChanged();
+
+  return Py_None;
 }
 
 //-------------
@@ -657,9 +982,17 @@ static PyMethodDef PyPathClassMethods[] = {
 
   {"get_num_curve_points", (PyCFunction)Path_get_num_curve_points, METH_NOARGS, Path_get_num_curve_points_doc },
 
+  {"get_num_subdivisions", (PyCFunction)Path_get_num_subdivisions, METH_NOARGS, Path_get_num_subdivisions_doc},
+  {"get_subdivision_spacing", (PyCFunction)Path_get_subdivision_spacing, METH_NOARGS, Path_get_subdivision_spacing_doc},
+
+  {"get_subdivision_method", (PyCFunction)Path_get_subdivision_method, METH_NOARGS, Path_get_subdivision_method_doc},
+
   {"remove_control_point", (PyCFunction)Path_remove_control_point, METH_VARARGS, Path_remove_control_point_doc },
 
   {"replace_control_point", (PyCFunction)Path_replace_control_point, METH_VARARGS, Path_replace_control_point_doc },
+
+  {"set_control_points", (PyCFunction)Path_set_control_points, METH_VARARGS, Path_set_control_points_doc },
+  {"set_subdivision_method", (PyCFunction)Path_set_subdivision_method, METH_VARARGS|METH_KEYWORDS, Path_set_subdivision_method_doc},
 
   {"smooth", (PyCFunction)Path_smooth, METH_VARARGS|METH_KEYWORDS, Path_smooth_doc },
 

@@ -158,6 +158,8 @@ void sv4guiPathCreate::SetCreatePath(bool create)
 //
 void sv4guiPathCreate::CreatePath()
 {
+    std::cout << "==================== sv4guiPathCreate::CreatePath() ====================" << std::endl;
+
     auto pathName = ui->lineEditPathName->text().trimmed().toStdString();
 
     if (!sv4guiDataNodeOperationInterface::IsValidDataNodeName(pathName)) { 
@@ -187,11 +189,12 @@ void sv4guiPathCreate::CreatePath()
         }
     }
 
-    int currentIndex=ui->comboBoxSubdivisionType->currentIndex();
-
-    bool ok=false;
-
+    // Get the subdivision parameters.
+    //
+    int currentIndex = ui->comboBoxSubdivisionType->currentIndex();
+    bool ok = false;
     int subdivisionNum=ui->lineEditNumber->text().trimmed().toInt(&ok);
+
     if(currentIndex==0 && (!ok || subdivisionNum<2)){
         QMessageBox::warning(NULL,"Total Point Number Not Valid","Please give a valid number >= 2!");
         return;
@@ -208,43 +211,53 @@ void sv4guiPathCreate::CreatePath()
         return;
     }
 
-    int maxPathID=sv4guiPath::GetMaxPathID(m_DataStorage->GetDerivations(m_PathFolderNode));
+    // Create a new path.
+    //
+    int maxPathID = sv4guiPath::GetMaxPathID(m_DataStorage->GetDerivations(m_PathFolderNode));
 
-    if(m_CreatePath)
-    {
+    if (m_CreatePath) {
+        std::cout << "[CreatePath] Create a new path." << std::endl;
         sv4guiPath::Pointer path = sv4guiPath::New();
         path->SetPathID(maxPathID+1);
         int timeStep=m_TimeStep;
 
-        switch(currentIndex)
-        {
-        case 0:
-            path->SetMethod(sv3::PathElement::CONSTANT_TOTAL_NUMBER);
-            path->SetCalculationNumber(subdivisionNum);
-            path->SetSpacing(0);
+        // Set the subdivision parameters.
+        //
+        std::cout << "[CreatePath] currentIndex: " << currentIndex << std::endl;
+        switch(currentIndex) {
+            case 0:
+                path->SetMethod(sv3::PathElement::CONSTANT_TOTAL_NUMBER);
+                path->SetCalculationNumber(subdivisionNum);
+                path->SetSpacing(0);
             break;
-        case 1:
-            path->SetMethod(sv3::PathElement::CONSTANT_SUBDIVISION_NUMBER);
-            path->SetCalculationNumber(subdivisionNum);
-            path->SetSpacing(0);
+
+            case 1:
+                path->SetMethod(sv3::PathElement::CONSTANT_SUBDIVISION_NUMBER);
+                path->SetCalculationNumber(subdivisionNum);
+                path->SetSpacing(0);
             break;
-        case 2:
-            path->SetMethod(sv3::PathElement::CONSTANT_SPACING);
-            path->SetSpacing(spacing);
-            path->SetCalculationNumber(0);
+
+            case 2:
+                path->SetMethod(sv3::PathElement::CONSTANT_SPACING);
+                path->SetSpacing(spacing);
+                path->SetCalculationNumber(0);
             break;
-        default:
-            return;
+
+            default:
+                return;
         }
 
-        sv4guiPathElement* pathElement=new sv4guiPathElement();
+        // Create a new path element.
+        //
+        sv4guiPathElement* pathElement = new sv4guiPathElement();
         pathElement->SetMethod(path->GetMethod());
         pathElement->SetCalculationNumber(path->GetCalculationNumber());
         pathElement->SetSpacing(path->GetSpacing());
-
         path->SetPathElement(pathElement,timeStep);
         path->SetDataModified();
 
+        // Create a new path data manager node.
+        //
         mitk::DataNode::Pointer pathNode = mitk::DataNode::New();
         pathNode->SetData(path);
         pathNode->SetName(pathName);
@@ -253,31 +266,29 @@ void sv4guiPathCreate::CreatePath()
         float pointSize=0;
         float resliceSize=0;
 
-        if(m_SelecteNode.IsNotNull())
-        {
+        if(m_SelecteNode.IsNotNull()) {
             m_SelecteNode->GetFloatProperty("point 2D display size",point2DSize);
             m_SelecteNode->GetFloatProperty("point size",pointSize);
             m_SelecteNode->GetFloatProperty("reslice size",resliceSize);
-            if(resliceSize==0)
-            {
+            if(resliceSize==0) {
                 sv4guiPath* originalPath=dynamic_cast<sv4guiPath*>(m_SelecteNode->GetData());
-                if(originalPath)
+                if(originalPath) {
                     resliceSize=originalPath->GetResliceSize();
+                }
             }
         }
 
-        if(point2DSize!=0)
-        {
+        if(point2DSize!=0) {
             pathNode->SetFloatProperty("point 2D display size",point2DSize);
             path->SetProp("point 2D display size",QString::number(point2DSize).toStdString());
         }
-        if(pointSize!=0)
-        {
+        if(pointSize!=0) {
             pathNode->SetFloatProperty("point size",pointSize);
             path->SetProp("point size",QString::number(pointSize).toStdString());
         }
-        if(resliceSize!=0)
+        if(resliceSize!=0) {
             path->SetResliceSize(resliceSize);
+        }
 
 //        m_DataStorage->Add(pathNode,m_PathFolderNode);
         mitk::OperationEvent::IncCurrObjectEventId();
@@ -292,44 +303,46 @@ void sv4guiPathCreate::CreatePath()
         }
         m_Interface->ExecuteOperation(doOp);
     }
-    else if(m_SelecteNode.IsNotNull())
-    {
-        sv4guiPath* path=dynamic_cast<sv4guiPath*>(m_SelecteNode->GetData());
+
+    // Modify an existing path. 
+    //
+    else if (m_SelecteNode.IsNotNull()) {
+        std::cout << "[CreatePath] Modify an existing path." << std::endl;
+        sv4guiPath* path = dynamic_cast<sv4guiPath*>(m_SelecteNode->GetData());
         int timeStep=m_TimeStep;
-        sv4guiPathElement* pathElement=path->GetPathElement(timeStep);
-        sv4guiPathElement* changedPathElement=pathElement->Clone();
+        sv4guiPathElement* pathElement = path->GetPathElement(timeStep);
+        sv4guiPathElement* changedPathElement = pathElement->Clone();
 
-        switch(currentIndex)
-
-        {
-        case 0:
-            changedPathElement->SetMethod(sv3::PathElement::CONSTANT_TOTAL_NUMBER);
-            changedPathElement->SetCalculationNumber(subdivisionNum);
-            changedPathElement->SetSpacing(0);
+        switch(currentIndex) {
+            case 0:
+                changedPathElement->SetMethod(sv3::PathElement::CONSTANT_TOTAL_NUMBER);
+                changedPathElement->SetCalculationNumber(subdivisionNum);
+                changedPathElement->SetSpacing(0);
             break;
-        case 1:
-            changedPathElement->SetMethod(sv3::PathElement::CONSTANT_SUBDIVISION_NUMBER);
-            changedPathElement->SetCalculationNumber(subdivisionNum);
-            changedPathElement->SetSpacing(0);
+            case 1:
+                changedPathElement->SetMethod(sv3::PathElement::CONSTANT_SUBDIVISION_NUMBER);
+                changedPathElement->SetCalculationNumber(subdivisionNum);
+                changedPathElement->SetSpacing(0);
             break;
-        case 2:
-            changedPathElement->SetMethod(sv3::PathElement::CONSTANT_SPACING);
-            changedPathElement->SetSpacing(spacing);
-            changedPathElement->SetCalculationNumber(0);
-
+            case 2:
+                changedPathElement->SetMethod(sv3::PathElement::CONSTANT_SPACING);
+                changedPathElement->SetSpacing(spacing);
+                changedPathElement->SetCalculationNumber(0);
             break;
-        default:
+            default:
             return;
         }
+
+        // Regenerate the path's curve points.
         changedPathElement->CreatePathPoints();//update
 
+        // [TODO:DaveP] What is this all about?
+        //
         mitk::OperationEvent::IncCurrObjectEventId();
-
         sv4guiPathOperation* doOp = new sv4guiPathOperation(sv4guiPathOperation::OpSETPATHELEMENT,timeStep,changedPathElement);
         sv4guiPathOperation* undoOp = new sv4guiPathOperation(sv4guiPathOperation::OpSETPATHELEMENT,timeStep,pathElement);
         mitk::OperationEvent *operationEvent = new mitk::OperationEvent(path, doOp, undoOp, "Set PathElement");
         mitk::UndoController::GetCurrentUndoModel()->SetOperationEvent( operationEvent );
-
         path->ExecuteOperation(doOp);
     }
 

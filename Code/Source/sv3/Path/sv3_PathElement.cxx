@@ -95,16 +95,26 @@ std::array<double,3>  PathElement::GetControlPoint(int index)
     return GetsvControlPoint(index).point;
 }
 
-void PathElement::InsertControlPoint(int index, std::array<double,3>  point)
+//--------------------
+// InsertControlPoint
+//--------------------
+// Insert a control point into the current list of control points.
+//
+// The path curve points are regenerated each time a new control
+// point has been added.
+//
+void PathElement::InsertControlPoint(int index, std::array<double,3> point)
 {
-    if(index==-1) index=m_ControlPoints.size();
+  // Insert at the end of the list.
+  if (index == -1) {
+      index = m_ControlPoints.size();
+  }
 
-    if(index>-1 && index<=m_ControlPoints.size())
-    {
-        svControlPoint controlPoint;
-        controlPoint.point=point;
-        m_ControlPoints.insert(m_ControlPoints.begin()+index,controlPoint);
-        ControlPointsChanged();
+  if ((index > -1) && (index <= m_ControlPoints.size())) {
+      svControlPoint controlPoint;
+      controlPoint.point = point;
+      m_ControlPoints.insert(m_ControlPoints.begin()+index,controlPoint);
+      ControlPointsChanged();
     }
 }
 
@@ -203,6 +213,11 @@ int PathElement::GetControlPointSelectedIndex()
     return -2;
 }
 
+//----------------------
+// ControlPointsChanged
+//----------------------
+// Generate path curve points.
+//
 void PathElement::ControlPointsChanged()
 {
     CreatePathPoints();
@@ -407,41 +422,54 @@ void PathElement::SetPathPoints(std::vector<PathElement::PathPoint> pathPoints)
     m_PathPoints=pathPoints;
 }
 
+//------------------
+// CreatePathPoints
+//------------------
+// Generate the PathElement curve points.
+//
+// Modifies:   
+//   m_PathPoints 
+//
 void PathElement::CreatePathPoints()
 {
-
     m_PathPoints.clear();
+    int controlNumber = m_ControlPoints.size();
 
-    int controlNumber=m_ControlPoints.size();
-
-    if(controlNumber<2)
-    {
+    // [TODO:DaveP] Great, just return with no error.
+    if (controlNumber < 2) {
         return;
     }
 
-    Spline* spline=new Spline();
+    // Create an interpolating spline and set its parameters
+    // based on subdivision method. 
+    //
+    Spline* spline = new Spline();
     spline->SetClosed(false);
 
-    switch(m_Method)
-    {
-    case CONSTANT_TOTAL_NUMBER:
-        spline->SetMethod(Spline::CONSTANT_TOTAL_NUMBER);
-        spline->SetCalculationNumber(m_CalculationNumber);
+    switch (m_Method) {
+        case CONSTANT_TOTAL_NUMBER:
+            spline->SetMethod(Spline::CONSTANT_TOTAL_NUMBER);
+            spline->SetCalculationNumber(m_CalculationNumber);
         break;
-    case CONSTANT_SUBDIVISION_NUMBER:
-        spline->SetMethod(Spline::CONSTANT_SUBDIVISION_NUMBER);
-        spline->SetCalculationNumber(m_CalculationNumber);
+
+        case CONSTANT_SUBDIVISION_NUMBER:
+            spline->SetMethod(Spline::CONSTANT_SUBDIVISION_NUMBER);
+            spline->SetCalculationNumber(m_CalculationNumber);
         break;
-    case CONSTANT_SPACING:
-        spline->SetMethod(Spline::CONSTANT_SPACING);
-        spline->SetSpacing(m_Spacing);
+
+        case CONSTANT_SPACING:
+            spline->SetMethod(Spline::CONSTANT_SPACING);
+            spline->SetSpacing(m_Spacing);
         break;
-    default:
+
+        default:
         break;
     }
+
+    // Spline is a vtk thing so be sure to call Update().
     spline->SetInputPoints(GetControlPoints());
-    spline->Update();//remember Update() before fetching spline points
-    m_PathPoints=spline->GetSplinePoints();
+    spline->Update();
+    m_PathPoints = spline->GetSplinePoints();
 }
 
 void PathElement::CalculateBoundingBox(double *bounds)
