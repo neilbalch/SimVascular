@@ -9,7 +9,7 @@ The code is organized using seprate files for modules and classes belonging to t
 
   - Modules are implemented in *ModuleName*\_PyModule.(cxx,h) files
   
-  - Classes are implemented in *ModuleNameClassName*\_PyClass.cxx files
+  - Classes are implemented in *ModuleNameClassName*\_PyClass.cxx file. 
 
 For example the **path** module code is contained in
 ```
