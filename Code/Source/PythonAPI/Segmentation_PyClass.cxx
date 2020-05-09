@@ -672,12 +672,12 @@ static char* SEGMENTATION_MODULE_CLASS = "segmentation.Segmentation";
 
 PyDoc_STRVAR(SegmentationClass_doc, "segmentation class functions.");
 
-//----------------------------
-// PySegmentationClassMethods 
-//----------------------------
+//-----------------------
+// PySegmentationMethods 
+//-----------------------
 // Define the methods for the Python 'Segmentation' class.
 //
-static PyMethodDef PySegmentationClassMethods[] = {
+static PyMethodDef PySegmentationMethods[] = {
 
   {"get_center", (PyCFunction)Segmentation_get_center, METH_NOARGS, Segmentation_get_center_doc }, 
 
@@ -717,15 +717,15 @@ static PyMethodDef PySegmentationClassMethods[] = {
   {NULL,NULL}
 };
 
-//-------------------------
-// PySegmentationClassType 
-//-------------------------
+//--------------------
+// PySegmentationType 
+//--------------------
 // Define the Python type object for the Python 'Segmentation' class. 
 //
 // Can't set all the fields here because g++ does not suppor non-trivial 
 // designated initializers. 
 //
-static PyTypeObject PySegmentationClassType = {
+static PyTypeObject PySegmentationType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   .tp_name = SEGMENTATION_CLASS,
   .tp_basicsize = sizeof(PySegmentation)
@@ -810,7 +810,7 @@ SetSegmentationTypeFields(PyTypeObject& contourType)
   contourType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
   contourType.tp_init = (initproc)PySegmentationInit;
   contourType.tp_dealloc = (destructor)PySegmentationDealloc;
-  contourType.tp_methods = PySegmentationClassMethods;
+  contourType.tp_methods = PySegmentationMethods;
 };
 
 //--------------------------
@@ -821,6 +821,6 @@ SetSegmentationTypeFields(PyTypeObject& contourType)
 static PySegmentation * 
 PyCreateSegmentationType()
 {
-  return PyObject_New(PySegmentation, &PySegmentationClassType);
+  return PyObject_New(PySegmentation, &PySegmentationType);
 }
 

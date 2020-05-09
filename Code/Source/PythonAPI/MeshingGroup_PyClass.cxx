@@ -285,7 +285,7 @@ MeshingGroup_get_mesh(PyMeshingGroup* self, PyObject* args)
 
   // Create a Python mesher object.
   auto pyMesherObj = PyMesherCreateObject(meshKernel);
-  auto mesher = ((PyMeshingMesherClass*)pyMesherObj)->mesher;
+  auto mesher = ((PyMeshingMesher*)pyMesherObj)->mesher;
 
   // Set the solid model associated with the mesher.
   std::map<std::string,int> faceIDMap;
@@ -312,7 +312,7 @@ MeshingGroup_get_mesh(PyMeshingGroup* self, PyObject* args)
   auto commands = guiMesh->GetCommandHistory();
   PyObject *options;
   try {
-      ((PyMeshingMesherClass*)pyMesherObj)->CreateOptionsFromList(mesher, commands, faceIDMap, &options);
+      ((PyMeshingMesher*)pyMesherObj)->CreateOptionsFromList(mesher, commands, faceIDMap, &options);
   } catch (const std::exception& exception) {
       api.error(exception.what());
       return nullptr;
@@ -394,14 +394,14 @@ static PyMethodDef PyMeshingGroupMethods[] = {
 };
 
 //-------------------------
-// PyMeshingGroupClassType 
+// PyMeshingGroupType 
 //-------------------------
 // Define the Python type that stores MeshingGroup data. 
 //
 // Can't set all the fields here because g++ does not suppor non-trivial 
 // designated initializers. 
 //
-PyTypeObject PyMeshingGroupClassType = {
+PyTypeObject PyMeshingGroupType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   MESHING_GROUP_MODULE_CLASS,     
   sizeof(PyMeshingGroup)
@@ -515,7 +515,7 @@ CreatePyMeshingGroup(sv4guiMitkMesh::Pointer meshingGroup)
   //std::cout << std::endl;
   //std::cout << "========== CreatePyMeshingGroup ==========" << std::endl;
   std::cout << "[CreatePyMeshingGroup] Create MeshingGroup object ... " << std::endl;
-  auto meshingGroupObj = PyObject_CallObject((PyObject*)&PyMeshingGroupClassType, NULL);
+  auto meshingGroupObj = PyObject_CallObject((PyObject*)&PyMeshingGroupType, NULL);
   auto pyMeshingGroup = (PyMeshingGroup*)meshingGroupObj;
 
   if (meshingGroup != nullptr) {

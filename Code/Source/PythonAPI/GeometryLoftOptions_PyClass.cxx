@@ -58,9 +58,9 @@ PyObject_HEAD
   double bias;
   double tension;
   double continuity;
-} PyLoftOptionsClass;
+} PyLoftOptions;
 
-// PyLoftOptionsClass attribute names.
+// PyLoftOptions attribute names.
 //
 namespace LoftOptions {
   char* NUM_OUT_PTS_IN_SEGS = "num_out_pts_in_segs";
@@ -121,21 +121,21 @@ static PyMethodDef PyLoftOptionsMethods[] = {
 //          C l a s s    M e m b e r s                //
 ////////////////////////////////////////////////////////
 //
-// Define the PyLoftOptionsClass attribute names.
+// Define the PyLoftOptions attribute names.
 //
 // The attributes can be set/get directly in from the LoftOptions object.
 //
 static PyMemberDef PyLoftOptionsMembers[] = {
-    {LoftOptions::BIAS, T_DOUBLE, offsetof(PyLoftOptionsClass, bias), 0, "first name"},
-    {LoftOptions::CONTINUITY, T_DOUBLE, offsetof(PyLoftOptionsClass, continuity), 0, "first name"},
-    {LoftOptions::NUM_LINEAR_PTS_ALONG_LENGTH, T_INT, offsetof(PyLoftOptionsClass, num_linear_pts_along_length), 0, "first name"},
-    {LoftOptions::NUM_MODES, T_INT, offsetof(PyLoftOptionsClass, num_modes), 0, "first name"},
-    {LoftOptions::NUM_OUT_PTS_IN_SEGS, T_INT, offsetof(PyLoftOptionsClass, num_out_pts_in_segs), 0, "first name"},
-    {LoftOptions::NUM_OUT_PTS_ALONG_LENGTH, T_INT, offsetof(PyLoftOptionsClass, num_out_pts_along_length), 0, "first name"},
-    {LoftOptions::SPLINE_TYPE, T_INT, offsetof(PyLoftOptionsClass, spline_type), 0, "first name"},
-    {LoftOptions::TENSION, T_DOUBLE, offsetof(PyLoftOptionsClass, tension), 0, "first name"},
-    {LoftOptions::USE_FFT, T_BOOL, offsetof(PyLoftOptionsClass, use_fft), 0, "first name"},
-    {LoftOptions::USE_LINEAR_SAMPLE_ALONG_LENGTH, T_BOOL, offsetof(PyLoftOptionsClass, use_linear_sample_along_length), 0, "first name"},
+    {LoftOptions::BIAS, T_DOUBLE, offsetof(PyLoftOptions, bias), 0, "first name"},
+    {LoftOptions::CONTINUITY, T_DOUBLE, offsetof(PyLoftOptions, continuity), 0, "first name"},
+    {LoftOptions::NUM_LINEAR_PTS_ALONG_LENGTH, T_INT, offsetof(PyLoftOptions, num_linear_pts_along_length), 0, "first name"},
+    {LoftOptions::NUM_MODES, T_INT, offsetof(PyLoftOptions, num_modes), 0, "first name"},
+    {LoftOptions::NUM_OUT_PTS_IN_SEGS, T_INT, offsetof(PyLoftOptions, num_out_pts_in_segs), 0, "first name"},
+    {LoftOptions::NUM_OUT_PTS_ALONG_LENGTH, T_INT, offsetof(PyLoftOptions, num_out_pts_along_length), 0, "first name"},
+    {LoftOptions::SPLINE_TYPE, T_INT, offsetof(PyLoftOptions, spline_type), 0, "first name"},
+    {LoftOptions::TENSION, T_DOUBLE, offsetof(PyLoftOptions, tension), 0, "first name"},
+    {LoftOptions::USE_FFT, T_BOOL, offsetof(PyLoftOptions, use_fft), 0, "first name"},
+    {LoftOptions::USE_LINEAR_SAMPLE_ALONG_LENGTH, T_BOOL, offsetof(PyLoftOptions, use_linear_sample_along_length), 0, "first name"},
     {NULL}  
 };
 
@@ -156,7 +156,7 @@ PyDoc_STRVAR(LoftOptionsClass_doc, "solid modeling kernel class functions");
 static PyTypeObject PyLoftOptionsType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   .tp_name = GEOMETRY_LOFT_OPTIONS_MODULE_CLASS,
-  .tp_basicsize = sizeof(PyLoftOptionsClass)
+  .tp_basicsize = sizeof(PyLoftOptions)
 };
 
 //--------------------
@@ -172,7 +172,7 @@ static PyTypeObject PyLoftOptionsType = {
 //     the contents of the file. (optional)
 //
 static int 
-PyLoftOptionsInit(PyLoftOptionsClass* self, PyObject* args, PyObject* kwargs)
+PyLoftOptionsInit(PyLoftOptions* self, PyObject* args, PyObject* kwargs)
 {
   static int numObjs = 1;
   std::cout << "[PyLoftOptionsInit] New LoftOptions object: " << numObjs << std::endl;
@@ -210,7 +210,7 @@ static PyObject *
 PyLoftOptionsNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
   std::cout << "[PyLoftOptionsNew] PyLoftOptionsNew " << std::endl;
-  auto self = (PyLoftOptionsClass*)type->tp_alloc(type, 0);
+  auto self = (PyLoftOptions*)type->tp_alloc(type, 0);
   if (self == NULL) {
       std::cout << "[PyLoftOptionsNew] ERROR: Can't allocate type." << std::endl;
       return nullptr; 
@@ -223,7 +223,7 @@ PyLoftOptionsNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 //----------------------
 //
 static void
-PyLoftOptionsDealloc(PyLoftOptionsClass* self)
+PyLoftOptionsDealloc(PyLoftOptions* self)
 {
   std::cout << "[PyLoftOptionsDealloc] Free PyLoftOptions" << std::endl;
   Py_TYPE(self)->tp_free(self);

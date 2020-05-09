@@ -216,7 +216,7 @@ PathGroup_set_path(PyPathGroup* self, PyObject* args, PyObject* kwargs)
   std::cout << pmsg << std::endl;
 
   // Get the PathElement object.
-  auto pathObj = (PyPathClass*)pathArg;
+  auto pathObj = (PyPath*)pathArg;
   auto path = pathObj->path;
 
   // Check time step.
@@ -555,7 +555,7 @@ static PyObject *
 PyPathGroupNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
   std::cout << "[PyPathGroupNew] PyPathGroupNew " << std::endl;
-  auto self = (PyPathClass*)type->tp_alloc(type, 0);
+  auto self = (PyPath*)type->tp_alloc(type, 0);
   if (self != NULL) {
       self->id = 1;
   }

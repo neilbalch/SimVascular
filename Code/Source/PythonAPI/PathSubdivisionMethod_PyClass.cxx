@@ -56,13 +56,13 @@ static std::map<std::string, sv3::PathElement::CalculationMethod> subdivMethodNa
 static std::string subdivMethodValidNames = "SPACING, SUBDIVISION or TOTAL";
 
 //------------------------------
-// PyPathSubdivisionMethodClass 
+// PyPathSubdivisionMethod 
 //------------------------------
-// Define the PyPathSubdivisionMethodClass class (type).
+// Define the PyPathSubdivisionMethod class (type).
 //
 typedef struct {
 PyObject_HEAD
-} PyPathSubdivisionMethodClass;
+} PyPathSubdivisionMethod;
 
 //////////////////////////////////////////////////////
 //          M o d u l e  F u n c t i o n s          //
@@ -137,7 +137,7 @@ static PyMethodDef PyPathSubdivisionMethodMethods[] = {
 static PyTypeObject PyPathSubdivisionMethodType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   .tp_name = PATH_SUBDIVISION_METHOD_MODULE_CLASS,
-  .tp_basicsize = sizeof(PyPathSubdivisionMethodClass)
+  .tp_basicsize = sizeof(PyPathSubdivisionMethod)
 };
 
 //-----------------------------

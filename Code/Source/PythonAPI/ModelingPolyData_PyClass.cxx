@@ -40,7 +40,7 @@
 // Define the PolyDataSolid class (type).
 //
 typedef struct {
-  PyModelingModelClass super;
+  PyModelingModel super;
 } PyPolyDataSolid;
 
 cvPolyDataSolid* pyCreatePolyDataSolid()
@@ -115,14 +115,14 @@ PyPolyDataSolidDealloc(PyPolyDataSolid* self)
 }
 
 //--------------------------
-// PyPolyDataSolidClassType 
+// PyPolyDataSolidType 
 //--------------------------
-// Define the Python type object that stores PolyDataSolidClass data. 
+// Define the Python type object that stores PolyDataSolid data. 
 //
 // Can't set all the fields here because g++ does not suppor non-trivial 
 // designated initializers. 
 //
-PyTypeObject PyPolyDataSolidClassType = {
+PyTypeObject PyPolyDataSolidType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   // Dotted name that includes both the module name and 
   // the name of the type within the module.
@@ -150,7 +150,7 @@ SetPolyDataSolidTypeFields(PyTypeObject& solidType)
   //.tp_new = PyType_GenericNew,
 
   // Subclass to PyPolyDataSolid.
-  solidType.tp_base = &PyModelingModelClassType;
+  solidType.tp_base = &PyModelingModelType;
 
   solidType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
   solidType.tp_init = (initproc)PyPolyDataSolidInit;

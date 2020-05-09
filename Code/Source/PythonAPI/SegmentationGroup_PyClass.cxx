@@ -259,14 +259,14 @@ static PyMethodDef PySegmentationGroupMethods[] = {
 };
 
 //-------------------------
-// PySegmentationGroupClassType 
+// PySegmentationGroupType 
 //-------------------------
 // Define the Python type that stores ContourGroup data. 
 //
 // Can't set all the fields here because g++ does not suppor non-trivial 
 // designated initializers. 
 //
-static PyTypeObject PySegmentationGroupClassType = {
+static PyTypeObject PySegmentationGroupType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   SEGMENTATION_GROUP_MODULE_CLASS,     
   sizeof(PySegmentationGroup)
@@ -375,7 +375,7 @@ PyObject *
 CreatePySegmentationGroup(sv4guiContourGroup* contourGroup)
 {
   std::cout << "[CreatePySegmentationGroup] Create ContourGroup object ... " << std::endl;
-  auto contourGroupObj = PyObject_CallObject((PyObject*)&PySegmentationGroupClassType, NULL);
+  auto contourGroupObj = PyObject_CallObject((PyObject*)&PySegmentationGroupType, NULL);
   auto pyContourGroup = (PySegmentationGroup*)contourGroupObj;
 
   if (contourGroup != nullptr) {

@@ -34,13 +34,13 @@
 // The class name is 'meshing.MeshSim'.
 
 //-----------------------
-// PyMeshingMeshSimClass
+// PyMeshingMeshSim
 //-----------------------
-// Define the PyMeshingMeshSimClass class.
+// Define the PyMeshingMeshSim class.
 //
 typedef struct {
-  PyMeshingMesherClass super;
-} PyMeshingMeshSimClass;
+  PyMeshingMesher super;
+} PyMeshingMeshSim;
 
 CreateMesherObjectFunction PyCreateMeshSimObject = nullptr;
 
@@ -54,7 +54,7 @@ CreateMesherObjectFunction PyCreateMeshSimObject = nullptr;
 // Check if the mesh has a solid model.
 //
 bool
-MeshingMeshSimCheckModelLoaded(PyMeshingMeshSimClass* self)
+MeshingMeshSimCheckModelLoaded(PyMeshingMeshSim* self)
 {
   auto mesher = self->super.mesher;
   return mesher->HasSolid();
@@ -68,7 +68,7 @@ MeshingMeshSimCheckModelLoaded(PyMeshingMeshSimClass* self)
 // The LocalEdgeSize option needs to have a model defined for the mesh.
 //
 bool
-MeshingMeshSimCheckOption(PyMeshingMeshSimClass* self, std::string& name, PyUtilApiFunction& api)
+MeshingMeshSimCheckOption(PyMeshingMeshSim* self, std::string& name, PyUtilApiFunction& api)
 {
   // The LocalEdgeSize option needs to have the model set for the mesh.
   if (name == MeshSimOption::LocalEdgeSize) {
@@ -85,7 +85,7 @@ MeshingMeshSimCheckOption(PyMeshingMeshSimClass* self, std::string& name, PyUtil
 //              C l a s s   F u n c t i o n s                  //
 /////////////////////////////////////////////////////////////////
 //
-// Python API functions for the PyMeshingMeshSimClass class. 
+// Python API functions for the PyMeshingMeshSim class. 
 
 //-------------------------------
 // MeshingMeshSim_create_options
@@ -122,7 +122,7 @@ PyDoc_STRVAR(MeshingMeshSim_load_model_doc,
 ");
 
 static PyObject *
-MeshingMeshSim_load_model(PyMeshingMesherClass* self, PyObject* args, PyObject* kwargs)
+MeshingMeshSim_load_model(PyMeshingMesher* self, PyObject* args, PyObject* kwargs)
 {
   std::cout << "======================= MeshingMeshSim_load_model ================" << std::endl;
   auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
@@ -160,7 +160,7 @@ PyDoc_STRVAR(MeshingMeshSim_set_options_doc,
 ");
 
 static PyObject *
-MeshingMeshSim_set_options(PyMeshingMeshSimClass* self, PyObject* args )
+MeshingMeshSim_set_options(PyMeshingMeshSim* self, PyObject* args )
 {
   std::cout << "[MeshingMeshSim_set_options] " << std::endl;
   std::cout << "[MeshingMeshSim_set_options] ========== MeshingMeshSim_set_options =========" << std::endl;
@@ -233,7 +233,7 @@ static char* MESHING_MESHSIM_CLASS = "MeshSim";
 // the name of the type within the module.
 static char* MESHING_MESHSIM_MODULE_CLASS = "meshing.MeshSim";
 
-PyDoc_STRVAR(PyMeshingMeshSimClass_doc, "MeshSim mesh generator class methods.");
+PyDoc_STRVAR(PyMeshingMeshSim_doc, "MeshSim mesh generator class methods.");
 
 //-------------------------
 // PyMeshingMeshSimMethods
@@ -254,7 +254,7 @@ static PyMethodDef PyMeshingMeshSimMethods[] = {
 // This function is used to initialize an object after it is created.
 //
 static int 
-PyMeshingMeshSimInit(PyMeshingMeshSimClass* self, PyObject* args, PyObject *kwds)
+PyMeshingMeshSimInit(PyMeshingMeshSim* self, PyObject* args, PyObject *kwds)
 {
   std::cout << "[PyMeshingMeshSimInit] New MeshSim object: " << std::endl;
   auto api = PyUtilApiFunction("", PyRunTimeErr, "MeshGenerator");
@@ -271,7 +271,7 @@ static PyObject *
 PyMeshingMeshSimNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
   std::cout << "[PyMeshingMeshSimNew] PyMeshingMeshSimNew " << std::endl;
-  auto self = (PyMeshingMesherClass*)type->tp_alloc(type, 0);
+  auto self = (PyMeshingMesher*)type->tp_alloc(type, 0);
   if (self != NULL) {
       //self->super.id = 2;
   }
@@ -283,7 +283,7 @@ PyMeshingMeshSimNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 //-------------------------
 //
 static void
-PyMeshingMeshSimDealloc(PyMeshingMeshSimClass* self)
+PyMeshingMeshSimDealloc(PyMeshingMeshSim* self)
 {
   std::cout << "[PyMeshingMeshSimDealloc] Free PyMeshingMeshSim" << std::endl;
   delete self->super.mesher;
@@ -291,19 +291,19 @@ PyMeshingMeshSimDealloc(PyMeshingMeshSimClass* self)
 }
 
 //---------------------------
-// PyMeshingMeshSimClassType 
+// PyMeshingMeshSimType 
 //---------------------------
-// Define the Python type object that stores PolyDataSolidClass data. 
+// Define the Python type object that stores meshsim data. 
 //
 // Can't set all the fields here because g++ does not suppor non-trivial 
 // designated initializers. 
 //
-PyTypeObject PyMeshingMeshSimClassType = {
+PyTypeObject PyMeshingMeshSimType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   // Dotted name that includes both the module name and 
   // the name of the type within the module.
   .tp_name = MESHING_MESHSIM_MODULE_CLASS,
-  .tp_basicsize = sizeof(PyMeshingMeshSimClass)
+  .tp_basicsize = sizeof(PyMeshingMeshSim)
 };
 
 //-----------------------------
@@ -318,15 +318,15 @@ void
 SetMeshingMeshSimTypeFields(PyTypeObject& mesherType)
  {
   // Doc string for this type.
-  mesherType.tp_doc = PyMeshingMeshSimClass_doc;
+  mesherType.tp_doc = PyMeshingMeshSim_doc;
 
   // Object creation function, equivalent to the Python __new__() method. 
   // The generic handler creates a new instance using the tp_alloc field.
   mesherType.tp_new = PyMeshingMeshSimNew;
   //.tp_new = PyType_GenericNew,
 
-  // Subclass to PyMeshingMesherClassType.
-  mesherType.tp_base = &PyMeshingMesherClassType; 
+  // Subclass to PyMeshingMesherType.
+  mesherType.tp_base = &PyMeshingMesherType; 
 
   mesherType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
   mesherType.tp_init = (initproc)PyMeshingMeshSimInit;
@@ -351,7 +351,7 @@ PyAPI_InitMeshSim(CreateMesherObjectFunction create_object)
   CvMesherCtorMap[cvMeshObject::KERNEL_MESHSIM] = []()-> cvMeshObject*{ return PyCreateMeshSimObject(); };
 
   // Add a method to create a MeshSim mesh generation PyObject.
-  PyMesherCtorMap[cvMeshObject::KERNEL_MESHSIM] = []()->PyObject*{ return PyObject_CallObject((PyObject*)&PyMeshingMeshSimClassType, NULL); };
+  PyMesherCtorMap[cvMeshObject::KERNEL_MESHSIM] = []()->PyObject*{ return PyObject_CallObject((PyObject*)&PyMeshingMeshSimType, NULL); };
 
 }
 

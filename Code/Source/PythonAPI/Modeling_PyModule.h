@@ -29,8 +29,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef MODELING_PY_MODULE_H
-#define MODELING_PY_MODULE_H
+#ifndef PYAPI_MODELING_MODULE_H
+#define PYAPI_MODELING_MODULE_H
 
 #include "SimVascular.h"
 #include "sv4gui_Model.h"
@@ -45,7 +45,7 @@
 
 //extern "C" SV_EXPORT_SOLID int Solid_PyInit();
 
-extern PyTypeObject PyModelingGroupClassType;
+extern PyTypeObject PyModelingGroupType;
 
 typedef cvSolidModel * (*CreateSolidModelObjectFunction)();
 

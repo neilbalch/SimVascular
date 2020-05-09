@@ -776,7 +776,7 @@ Dmg_add_path(PyObject* self, PyObject* args, PyObject* kwargs)
         return api.argsError();
     }
 
-    auto pyPath = (PyPathClass*)pathArg;
+    auto pyPath = (PyPath*)pathArg;
     auto pathElem = pyPath->path; 
     if (pathElem == nullptr) {
         api.error("The path elem data is null.");
@@ -1023,7 +1023,7 @@ Dmg_add_model(PyObject* self, PyObject* args, PyObject* kwargs)
   char* modelName = NULL;
   PyObject* modelArg;
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &modelName, &PyModelingGroupClassType, &modelArg)) {
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &modelName, &PyModelingGroupType, &modelArg)) {
       return api.argsError();
   }
 

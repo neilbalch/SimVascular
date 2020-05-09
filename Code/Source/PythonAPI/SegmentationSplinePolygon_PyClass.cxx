@@ -132,15 +132,15 @@ PySplinePolygonSegmentationDealloc(PySplinePolygonSegmentation* self)
   Py_TYPE(self)->tp_free(self);
 }
 
-//--------------------------------------
-// PySplinePolygonSegmentationClassType 
-//--------------------------------------
+//---------------------------------
+// PySplinePolygonSegmentationType 
+//---------------------------------
 // Define the Python type object that stores Segmentation data. 
 //
 // Can't set all the fields here because g++ does not suppor non-trivial 
 // designated initializers. 
 //
-static PyTypeObject PySplinePolygonSegmentationClassType = {
+static PyTypeObject PySplinePolygonSegmentationType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   // Dotted name that includes both the module name and 
   // the name of the type within the module.
@@ -167,7 +167,7 @@ SetSplinePolygonSegmentationTypeFields(PyTypeObject& contourType)
   contourType.tp_new = PySplinePolygonSegmentationNew;
   //.tp_new = PyType_GenericNew,
 
-  contourType.tp_base = &PySegmentationClassType;
+  contourType.tp_base = &PySegmentationType;
 
   contourType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
   contourType.tp_init = (initproc)PySplinePolygonSegmentationInit;

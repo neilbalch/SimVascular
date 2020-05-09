@@ -73,7 +73,7 @@
 static PyObject * PyRunTimeErr;
 
 // Prototypes for creating SV and Python contour objects. 
-static PySegmentation * PyCreateSegmentationType();
+static PySegmentation* PyCreateSegmentationType();
 static PyObject * PyCreateSegmentation(cKernelType contourType); 
 static PyObject * PyCreateSegmentation(sv3::Contour* contour);
 
@@ -169,12 +169,12 @@ static PyMethodDef PySegmentationModuleMethods[] =
 //
 using PySegmentationCtorMapType = std::map<cKernelType, std::function<PyObject*()>>;
 PySegmentationCtorMapType PySegmentationCtorMap = {
-  {cKernelType::cKERNEL_CIRCLE,        []()->PyObject* {return PyObject_CallObject((PyObject*)&PyCircleSegmentationClassType, NULL);}},
-  {cKernelType::cKERNEL_ELLIPSE,       []()->PyObject* {return PyObject_CallObject((PyObject*)&PyCircleSegmentationClassType, NULL);}},
-  {cKernelType::cKERNEL_LEVELSET,      []()->PyObject* {return PyObject_CallObject((PyObject*)&PyLevelSetSegmentationClassType, NULL);}},
-  {cKernelType::cKERNEL_POLYGON,       []()->PyObject* {return PyObject_CallObject((PyObject*)&PyPolygonSegmentationClassType, NULL);}},
-  {cKernelType::cKERNEL_SPLINEPOLYGON, []()->PyObject* {return PyObject_CallObject((PyObject*)&PySplinePolygonSegmentationClassType, NULL);}},
-  {cKernelType::cKERNEL_THRESHOLD,     []()->PyObject* {return PyObject_CallObject((PyObject*)&PyThresholdSegmentationClassType, NULL);}},
+  {cKernelType::cKERNEL_CIRCLE,        []()->PyObject* {return PyObject_CallObject((PyObject*)&PyCircleSegmentationType, NULL);}},
+  {cKernelType::cKERNEL_ELLIPSE,       []()->PyObject* {return PyObject_CallObject((PyObject*)&PyCircleSegmentationType, NULL);}},
+  {cKernelType::cKERNEL_LEVELSET,      []()->PyObject* {return PyObject_CallObject((PyObject*)&PyLevelSetSegmentationType, NULL);}},
+  {cKernelType::cKERNEL_POLYGON,       []()->PyObject* {return PyObject_CallObject((PyObject*)&PyPolygonSegmentationType, NULL);}},
+  {cKernelType::cKERNEL_SPLINEPOLYGON, []()->PyObject* {return PyObject_CallObject((PyObject*)&PySplinePolygonSegmentationType, NULL);}},
+  {cKernelType::cKERNEL_THRESHOLD,     []()->PyObject* {return PyObject_CallObject((PyObject*)&PyThresholdSegmentationType, NULL);}},
 };
 
 //----------------------
@@ -216,7 +216,7 @@ PyCreateSegmentation(sv3::Contour* contour)
   PyObject* contourObj;
 
   if (ctype == "Contour") { 
-      contourObj = PyObject_CallObject((PyObject*)&PySegmentationClassType, NULL);
+      contourObj = PyObject_CallObject((PyObject*)&PySegmentationType, NULL);
   } else {
       contourObj = PyCreateSegmentation(kernel);
   }
@@ -271,57 +271,57 @@ PyInit_PySegmentation()
   std::cout << "========== load segmentation module ==========" << std::endl;
 
   // Initialize the Contour class type.
-  SetSegmentationTypeFields(PySegmentationClassType);
-  if (PyType_Ready(&PySegmentationClassType) < 0) {
-    fprintf(stdout,"Error in PySegmentationClassType\n");
+  SetSegmentationTypeFields(PySegmentationType);
+  if (PyType_Ready(&PySegmentationType) < 0) {
+    fprintf(stdout,"Error in PySegmentationType\n");
     return SV_PYTHON_ERROR;
   }
 
   // Initialize the group class type.
-  SetSegmentationGroupTypeFields(PySegmentationGroupClassType);
-  if (PyType_Ready(&PySegmentationGroupClassType) < 0) {
+  SetSegmentationGroupTypeFields(PySegmentationGroupType);
+  if (PyType_Ready(&PySegmentationGroupType) < 0) {
       std::cout << "Error creating SegmentationGroup type" << std::endl;
       return nullptr;
   }
 
   // Initialize the circle class type.
-  SetCircleSegmentationTypeFields(PyCircleSegmentationClassType);
-  if (PyType_Ready(&PyCircleSegmentationClassType) < 0) {
+  SetCircleSegmentationTypeFields(PyCircleSegmentationType);
+  if (PyType_Ready(&PyCircleSegmentationType) < 0) {
       std::cout << "Error creating CircleSegmentation type" << std::endl;
       return nullptr;
   }
 
   // Initialize the level set class type.
-  SetLevelSetSegmentationTypeFields(PyLevelSetSegmentationClassType);
-  if (PyType_Ready(&PyLevelSetSegmentationClassType) < 0) {
+  SetLevelSetSegmentationTypeFields(PyLevelSetSegmentationType);
+  if (PyType_Ready(&PyLevelSetSegmentationType) < 0) {
       std::cout << "Error creating LevelSetSegmentation type" << std::endl;
       return nullptr;
   }
 
   // Initialize the polygon class type.
-  SetPolygonSegmentationTypeFields(PyPolygonSegmentationClassType);
-  if (PyType_Ready(&PyPolygonSegmentationClassType) < 0) {
+  SetPolygonSegmentationTypeFields(PyPolygonSegmentationType);
+  if (PyType_Ready(&PyPolygonSegmentationType) < 0) {
       std::cout << "Error creating PolygonSegmentation type" << std::endl;
       return nullptr;
   }
 
   // Initialize the spline polygon class type.
-  SetSplinePolygonSegmentationTypeFields(PySplinePolygonSegmentationClassType);
-  if (PyType_Ready(&PySplinePolygonSegmentationClassType) < 0) {
+  SetSplinePolygonSegmentationTypeFields(PySplinePolygonSegmentationType);
+  if (PyType_Ready(&PySplinePolygonSegmentationType) < 0) {
       std::cout << "Error creating SplinePolygonSegmentation type" << std::endl;
       return nullptr;
   }
 
   // Initialize the threshold class type.
-  SetThresholdSegmentationTypeFields(PyThresholdSegmentationClassType);
-  if (PyType_Ready(&PyThresholdSegmentationClassType) < 0) {
+  SetThresholdSegmentationTypeFields(PyThresholdSegmentationType);
+  if (PyType_Ready(&PyThresholdSegmentationType) < 0) {
       std::cout << "Error creating ThresholdSegmentation type" << std::endl;
       return nullptr;
   }
 
   // Initialize the kernel class type.
-  SetSegmentationMethodTypeFields(PySegmentationMethodClassType);
-  if (PyType_Ready(&PySegmentationMethodClassType) < 0) {
+  SetSegmentationMethodTypeFields(PySegmentationMethodType);
+  if (PyType_Ready(&PySegmentationMethodType) < 0) {
       std::cout << "Error creating SegmentationMethod type" << std::endl;
       return nullptr;
   }
@@ -338,39 +338,39 @@ PyInit_PySegmentation()
   PyModule_AddObject(module, SEGMENTATION_MODULE_EXCEPTION_OBJECT, PyRunTimeErr);
 
   // Add the 'Segmentation' object.
-  Py_INCREF(&PySegmentationClassType);
-  PyModule_AddObject(module, SEGMENTATION_CLASS, (PyObject*)&PySegmentationClassType);
+  Py_INCREF(&PySegmentationType);
+  PyModule_AddObject(module, SEGMENTATION_CLASS, (PyObject*)&PySegmentationType);
 
   // Add the 'Group' object.
-  Py_INCREF(&PySegmentationGroupClassType);
-  PyModule_AddObject(module, SEGMENTATION_GROUP_CLASS, (PyObject*)&PySegmentationGroupClassType);
+  Py_INCREF(&PySegmentationGroupType);
+  PyModule_AddObject(module, SEGMENTATION_GROUP_CLASS, (PyObject*)&PySegmentationGroupType);
 
   // Add the 'Circle' class.
-  Py_INCREF(&PyCircleSegmentationClassType);
-  PyModule_AddObject(module, SEGMENTATION_CIRCLE_CLASS, (PyObject*)&PyCircleSegmentationClassType);
+  Py_INCREF(&PyCircleSegmentationType);
+  PyModule_AddObject(module, SEGMENTATION_CIRCLE_CLASS, (PyObject*)&PyCircleSegmentationType);
 
   // Add the 'LevelSet' class.
-  Py_INCREF(&PyLevelSetSegmentationClassType);
-  PyModule_AddObject(module, SEGMENTATION_LEVELSET_CLASS, (PyObject*)&PyLevelSetSegmentationClassType);
+  Py_INCREF(&PyLevelSetSegmentationType);
+  PyModule_AddObject(module, SEGMENTATION_LEVELSET_CLASS, (PyObject*)&PyLevelSetSegmentationType);
 
   // Add the 'Polygon' class.
-  Py_INCREF(&PyPolygonSegmentationClassType);
-  PyModule_AddObject(module, SEGMENTATION_POLYGON_CLASS, (PyObject*)&PyPolygonSegmentationClassType);
+  Py_INCREF(&PyPolygonSegmentationType);
+  PyModule_AddObject(module, SEGMENTATION_POLYGON_CLASS, (PyObject*)&PyPolygonSegmentationType);
 
   // Add the 'SplinePolygon' class.
-  Py_INCREF(&PySplinePolygonSegmentationClassType);
-  PyModule_AddObject(module, SEGMENTATION_SPLINE_POLYGON_CLASS, (PyObject*)&PySplinePolygonSegmentationClassType);
+  Py_INCREF(&PySplinePolygonSegmentationType);
+  PyModule_AddObject(module, SEGMENTATION_SPLINE_POLYGON_CLASS, (PyObject*)&PySplinePolygonSegmentationType);
 
   // Add the 'Threshold' class.
-  Py_INCREF(&PyThresholdSegmentationClassType);
-  PyModule_AddObject(module, SEGMENTATION_THRESHOLD_CLASS, (PyObject*)&PyThresholdSegmentationClassType);
+  Py_INCREF(&PyThresholdSegmentationType);
+  PyModule_AddObject(module, SEGMENTATION_THRESHOLD_CLASS, (PyObject*)&PyThresholdSegmentationType);
 
   // Add the 'Method' class.
-  Py_INCREF(&PySegmentationMethodClassType);
-  PyModule_AddObject(module, SEGMENTATION_METHOD_CLASS, (PyObject*)&PySegmentationMethodClassType);
+  Py_INCREF(&PySegmentationMethodType);
+  PyModule_AddObject(module, SEGMENTATION_METHOD_CLASS, (PyObject*)&PySegmentationMethodType);
 
   // Set the kernel names in the SegmentationMethodType dictionary.
-  SetSegmentationMethodClassTypes(PySegmentationMethodClassType);
+  SetSegmentationMethodTypes(PySegmentationMethodType);
 
   return module;
 }
@@ -403,9 +403,9 @@ PyMODINIT_FUNC initPySegmentation()
   Segmentation::gCurrentKernel = cKERNEL_INVALID;
 
   // Create a Segmentation class.
-  PySegmentationClassType.tp_new = PyType_GenericNew;
-  if (PyType_Ready(&PySegmentationClassType)<0) {
-    fprintf(stdout,"Error in PySegmentationClassType\n");
+  PySegmentationType.tp_new = PyType_GenericNew;
+  if (PyType_Ready(&PySegmentationType)<0) {
+    fprintf(stdout,"Error in PySegmentationType\n");
     return;
   }
 
@@ -417,14 +417,14 @@ PyMODINIT_FUNC initPySegmentation()
   PyRunTimeErr = PyErr_NewException("PySegmentation.error",NULL,NULL);
   PyModule_AddObject(module,"error",PyRunTimeErr);
 
-  Py_INCREF(&PySegmentationClassType);
-  PyModule_AddObject(pythonC,"PySegmentation",(PyObject*)&PySegmentationClassType);
+  Py_INCREF(&PySegmentationType);
+  PyModule_AddObject(pythonC,"PySegmentation",(PyObject*)&PySegmentationType);
 
   // Add the 'kernel' class.
-  Py_INCREF(&SegmentationMethodClassType);
-  PyModule_AddObject(module, "kernel", (PyObject*)&SegmentationMethodClassType);
+  Py_INCREF(&SegmentationMethodType);
+  PyModule_AddObject(module, "kernel", (PyObject*)&SegmentationMethodType);
 
-  SetSegmentationMethodClassTypes(SegmentationMethodClassType);
+  SetSegmentationMethodTypes(SegmentationMethodType);
 
   
   return module;

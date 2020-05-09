@@ -69,7 +69,7 @@ CreatePathCurve(PathElement* path)
 // Get the path PathElement object.
 //
 static PathElement*
-GetPathElement(PyUtilApiFunction& api, PyPathClass* self)
+GetPathElement(PyUtilApiFunction& api, PyPath* self)
 {
   auto path = self->path;
   if (path == NULL) {
@@ -103,7 +103,7 @@ PyDoc_STRVAR(Path_add_control_point_doc,
 ");
 
 static PyObject * 
-Path_add_control_point(PyPathClass* self, PyObject* args)
+Path_add_control_point(PyPath* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("O!|i", PyRunTimeErr, __func__);
   PyObject* pointArg;
@@ -178,7 +178,7 @@ PyDoc_STRVAR(Path_get_control_points_doc,
 ");
 
 static PyObject * 
-Path_get_control_points(PyPathClass* self, PyObject* args)
+Path_get_control_points(PyPath* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
   auto path = GetPathElement(api, self);
@@ -228,7 +228,7 @@ PyDoc_STRVAR(Path_get_curve_normal_doc,
 ");
 
 static PyObject * 
-Path_get_curve_normal(PyPathClass* self, PyObject* args)
+Path_get_curve_normal(PyPath* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("i", PyRunTimeErr, __func__);
   int indexArg;
@@ -273,7 +273,7 @@ PyDoc_STRVAR(Path_get_curve_point_doc,
 ");
 
 static PyObject * 
-Path_get_curve_point(PyPathClass* self, PyObject* args)
+Path_get_curve_point(PyPath* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("i", PyRunTimeErr, __func__);
   int index;
@@ -316,7 +316,7 @@ PyDoc_STRVAR(Path_get_curve_points_doc,
 ");
 
 static PyObject * 
-Path_get_curve_points(PyPathClass* self, PyObject* args)
+Path_get_curve_points(PyPath* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
   auto path = GetPathElement(api, self);
@@ -361,7 +361,7 @@ PyDoc_STRVAR(Path_get_curve_polydata_doc,
 ");
 
 static PyObject*
-Path_get_curve_polydata(PyPathClass* self, PyObject* args)
+Path_get_curve_polydata(PyPath* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
   char* dstName = NULL;
@@ -397,7 +397,7 @@ PyDoc_STRVAR(Path_get_curve_tangent_doc,
 ");
 
 static PyObject * 
-Path_get_curve_tangent(PyPathClass* self, PyObject* args)
+Path_get_curve_tangent(PyPath* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("i", PyRunTimeErr, __func__);
   int indexArg;
@@ -439,7 +439,7 @@ PyDoc_STRVAR(Path_get_num_curve_points_doc,
 ");
 
 static PyObject * 
-Path_get_num_curve_points(PyPathClass* self, PyObject* args)
+Path_get_num_curve_points(PyPath* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
   auto path = GetPathElement(api, self);
@@ -464,7 +464,7 @@ PyDoc_STRVAR(Path_get_num_subdivisions_doc,
 ");
 
 static PyObject *
-Path_get_num_subdivisions(PyPathClass* self, PyObject* args)
+Path_get_num_subdivisions(PyPath* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
   auto path = GetPathElement(api, self);
@@ -489,7 +489,7 @@ PyDoc_STRVAR(Path_get_subdivision_method_doc,
 ");
 
 static PyObject *
-Path_get_subdivision_method(PyPathClass* self, PyObject* args)
+Path_get_subdivision_method(PyPath* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
   auto path = GetPathElement(api, self);
@@ -528,7 +528,7 @@ PyDoc_STRVAR(Path_get_subdivision_spacing_doc,
 ");
 
 static PyObject *
-Path_get_subdivision_spacing(PyPathClass* self, PyObject* args)
+Path_get_subdivision_spacing(PyPath* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
   auto path = GetPathElement(api, self);
@@ -554,7 +554,7 @@ PyDoc_STRVAR(Path_remove_control_point_doc,
 ");
 
 static PyObject * 
-Path_remove_control_point(PyPathClass* self, PyObject* args)
+Path_remove_control_point(PyPath* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("i", PyRunTimeErr, __func__);
   int index;
@@ -600,7 +600,7 @@ PyDoc_STRVAR(Path_replace_control_point_doc,
 ");
 
 static PyObject * 
-Path_replace_control_point(PyPathClass* self, PyObject* args)
+Path_replace_control_point(PyPath* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("iO!", PyRunTimeErr, __func__);
   PyObject* pointArg;
@@ -657,7 +657,7 @@ PyDoc_STRVAR(Path_set_control_points_doc,
 ");
 
 static PyObject *
-Path_set_control_points(PyPathClass* self, PyObject* args)
+Path_set_control_points(PyPath* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("O!", PyRunTimeErr, __func__);
   PyObject* pointsArg;
@@ -707,7 +707,7 @@ PyDoc_STRVAR(Path_set_num_subdivisions_doc,
 ");
 
 static PyObject *
-Path_set_num_subdivisions(PyPathClass* self, PyObject* args)
+Path_set_num_subdivisions(PyPath* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("i", PyRunTimeErr, __func__);
   int number;
@@ -750,7 +750,7 @@ PyDoc_STRVAR(Path_set_subdivision_method_doc,
 ");
 
 static PyObject *
-Path_set_subdivision_method(PyPathClass* self, PyObject* args, PyObject* kwargs)
+Path_set_subdivision_method(PyPath* self, PyObject* args, PyObject* kwargs)
 { 
   auto api = PyUtilApiFunction("s|O!O!O!", PyRunTimeErr, __func__);
   static char *keywords[] = {"method", "num_div", "num_total", "spacing", NULL};
@@ -883,7 +883,7 @@ PyDoc_STRVAR(Path_smooth_doc,
 ");
 
 static PyObject * 
-Path_smooth(PyPathClass* self, PyObject* args, PyObject* kwargs)
+Path_smooth(PyPath* self, PyObject* args, PyObject* kwargs)
 {
   auto api = PyUtilApiFunction("ii|O!", PyRunTimeErr, __func__);
   static char *keywords[] = {"sample_rate", "num_modes", "smooth_control_pts", NULL};
@@ -955,7 +955,7 @@ PyDoc_STRVAR(PathClass_doc,
 //--------------------
 // Path class methods.
 //
-static PyMethodDef PyPathClassMethods[] = {
+static PyMethodDef PyPathMethods[] = {
 
   {"add_control_point", (PyCFunction)Path_add_control_point, METH_VARARGS, Path_add_control_point_doc },
   {"get_control_points", (PyCFunction)Path_get_control_points, METH_NOARGS, Path_get_control_points_doc },
@@ -998,7 +998,7 @@ PyTypeObject PyPathType = {
   // Dotted name that includes both the module name and 
   // the name of the type within the module.
   PATH_MODULE_CLASS, 
-  sizeof(PyPathClass)
+  sizeof(PyPath)
 };
 
 //------------
@@ -1009,7 +1009,7 @@ PyTypeObject PyPathType = {
 // This function is used to initialize an object after it is created.
 //
 static int
-PyPathInit(PyPathClass* self, PyObject* args, PyObject *kwds)
+PyPathInit(PyPath* self, PyObject* args, PyObject *kwds)
 {
   static int numObjs = 1;
   std::cout << "[PyPathInit] New Path object: " << numObjs << std::endl;
@@ -1029,7 +1029,7 @@ static PyObject *
 PyPathNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
   std::cout << "[PyPathNew] PyPathNew " << std::endl;
-  auto self = (PyPathClass*)type->tp_alloc(type, 0);
+  auto self = (PyPath*)type->tp_alloc(type, 0);
   if (self != NULL) {
       self->id = 1;
   }
@@ -1042,7 +1042,7 @@ PyPathNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 //---------------
 //
 static void
-PyPathDealloc(PyPathClass* self)
+PyPathDealloc(PyPath* self)
 {
   std::cout << "[PyPathDealloc] Free PyPath" << std::endl;
   delete self->path;
@@ -1068,7 +1068,7 @@ SetPyPathTypeFields(PyTypeObject& pathType)
   pathType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
   pathType.tp_init = (initproc)PyPathInit;
   pathType.tp_dealloc = (destructor)PyPathDealloc;
-  pathType.tp_methods = PyPathClassMethods;
+  pathType.tp_methods = PyPathMethods;
 }
 
 //--------------
@@ -1084,7 +1084,7 @@ CreatePyPath(PathElement* path)
 {
   std::cout << "[CreatePyPath] Create Path object ... " << std::endl;
   auto pathObj = PyObject_CallObject((PyObject*)&PyPathType, NULL);
-  auto pyPath = (PyPathClass*)pathObj;
+  auto pyPath = (PyPath*)pathObj;
 
   if (path != nullptr) {
       delete pyPath->path; 

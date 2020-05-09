@@ -29,6 +29,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+// ****** this is not used *****
+
 // Define the Python 'meshing.TetGenRadiusBased' class that encapsulates the parameters
 // used for radius-based mesh generation using TetGen. 
 //
@@ -45,10 +47,10 @@
 #include <vtkXMLPolyDataReader.h>
 #include "vtkXMLPolyDataWriter.h"
 
-extern PyTypeObject PyMeshingTetGenClassType; 
+extern PyTypeObject PyMeshingTetGenType; 
 
 //-----------------------------------
-// PyMeshingTetGenRadiusMeshingClass 
+// PyMeshingTetGenRadiusMeshing 
 //-----------------------------------
 // Define the MeshingOptionsClass. 
 //
@@ -58,7 +60,7 @@ typedef struct {
   cvTetGenMeshObject* mesher;
   vtkPolyData* centerlines;
   vtkPolyData* centerlineDistanceData;
-} PyMeshingTetGenRadiusMeshingClass;
+} PyMeshingTetGenRadiusMeshing;
 
 //////////////////////////////////////////////////////
 //          U t i l i t y  F u n c t i o n s        //
@@ -82,7 +84,7 @@ PyDoc_STRVAR(PyTetGenRadiusMeshing_compute_centerlines_doc,
 ");
 
 static PyObject *
-PyTetGenRadiusMeshing_compute_centerlines(PyMeshingTetGenRadiusMeshingClass* self, PyObject* args, PyObject* kwargs)
+PyTetGenRadiusMeshing_compute_centerlines(PyMeshingTetGenRadiusMeshing* self, PyObject* args, PyObject* kwargs)
 {
   std::cout << "========== PyTetGenRadiusMeshing_compute_centerlines ==========" << std::endl;
   auto api = PyUtilApiFunction("", PyRunTimeErr, __func__); 
@@ -134,7 +136,7 @@ PyDoc_STRVAR(PyTetGenRadiusMeshing_compute_size_function_doc,
 ");
 
 static PyObject *
-PyTetGenRadiusMeshing_compute_size_function(PyMeshingTetGenRadiusMeshingClass* self, PyObject* args, PyObject* kwargs)
+PyTetGenRadiusMeshing_compute_size_function(PyMeshingTetGenRadiusMeshing* self, PyObject* args, PyObject* kwargs)
 {
   std::cout << "========== PyTetGenRadiusMeshing_compute_size_function_doc ==========" << std::endl;
   auto api = PyUtilApiFunction("d", PyRunTimeErr, __func__); 
@@ -181,7 +183,7 @@ PyDoc_STRVAR(PyTetGenRadiusMeshing_load_centerlines_doc,
 ");
 
 static PyObject *
-PyTetGenRadiusMeshing_load_centerlines(PyMeshingTetGenRadiusMeshingClass* self, PyObject* args, PyObject* kwargs)
+PyTetGenRadiusMeshing_load_centerlines(PyMeshingTetGenRadiusMeshing* self, PyObject* args, PyObject* kwargs)
 { 
   std::cout << "========== PyTetGenRadiusMeshing_load_centerlines ==========" << std::endl;
   auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
@@ -245,7 +247,7 @@ PyDoc_STRVAR(PyTetGenRadiusMeshing_set_centerlines_doc,
 ");
 
 static PyObject *
-PyTetGenRadiusMeshing_set_centerlines(PyMeshingTetGenRadiusMeshingClass* self, PyObject* args, PyObject* kwargs)
+PyTetGenRadiusMeshing_set_centerlines(PyMeshingTetGenRadiusMeshing* self, PyObject* args, PyObject* kwargs)
 {
   std::cout << "========== PyTetGenRadiusMeshing_set_centerlines ==========" << std::endl;
   auto api = PyUtilApiFunction("O", PyRunTimeErr, __func__); 
@@ -275,7 +277,7 @@ PyDoc_STRVAR(PyTetGenRadiusMeshing_write_centerlines_doc,
 ");
 
 static PyObject *
-PyTetGenRadiusMeshing_write_centerlines(PyMeshingTetGenRadiusMeshingClass* self, PyObject* args, PyObject* kwargs)
+PyTetGenRadiusMeshing_write_centerlines(PyMeshingTetGenRadiusMeshing* self, PyObject* args, PyObject* kwargs)
 {
   auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   static char *keywords[] = {"file_name", NULL};
@@ -324,7 +326,7 @@ static PyMethodDef PyTetGenRadiusMeshingMethods[] = {
 //          C l a s s    M e m b e r s                //
 ////////////////////////////////////////////////////////
 //
-// Define the PyMeshingTetGenRadiusMeshingClass attribute names.
+// Define the PyMeshingTetGenRadiusMeshing attribute names.
 //
 // The attributes can be set/get directly in from the MeshingOptions object.
 //
@@ -349,13 +351,13 @@ PyDoc_STRVAR(PyTetGenRadiusMeshing_edge_size_doc,
 ");
 
 static PyObject*
-PyTetGenRadiusMeshing_get_edge_size(PyMeshingTetGenRadiusMeshingClass* self, void* closure)
+PyTetGenRadiusMeshing_get_edge_size(PyMeshingTetGenRadiusMeshing* self, void* closure)
 {
   //return self->add_hole;
 }
 
 static int 
-PyTetGenRadiusMeshing_set_edge_size(PyMeshingTetGenRadiusMeshingClass* self, PyObject* value, void* closure)
+PyTetGenRadiusMeshing_set_edge_size(PyMeshingTetGenRadiusMeshing* self, PyObject* value, void* closure)
 {
   auto edge_size = PyFloat_AsDouble(value);
   if (PyErr_Occurred()) {
@@ -394,7 +396,7 @@ PyDoc_STRVAR(TetGenRadiusMeshingClass_doc, "TetGen meshing options class functio
 PyTypeObject PyTetGenRadiusMeshingType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   .tp_name = MESHING_TETGEN_RADIUS_MESHING_MODULE_CLASS,
-  .tp_basicsize = sizeof(PyMeshingTetGenRadiusMeshingClass)
+  .tp_basicsize = sizeof(PyMeshingTetGenRadiusMeshing)
 };
 
 //--------------------------
@@ -407,7 +409,7 @@ PyTypeObject PyTetGenRadiusMeshingType = {
 // Arguments:
 //
 static int 
-PyTetGenRadiusMeshingInit(PyMeshingTetGenRadiusMeshingClass* self, PyObject* args, PyObject* kwargs)
+PyTetGenRadiusMeshingInit(PyMeshingTetGenRadiusMeshing* self, PyObject* args, PyObject* kwargs)
 {
   std::cout << "[PyTetGenRadiusMeshingInit] Initialize a RadiusMeshing object." << std::endl;
   auto api = PyUtilApiFunction("O!", PyRunTimeErr, __func__);
@@ -437,7 +439,7 @@ static PyObject *
 PyTetGenRadiusMeshingNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
   std::cout << "[PyTetGenRadiusMeshingNew] PyTetGenRadiusMeshingNew " << std::endl;
-  auto self = (PyMeshingTetGenRadiusMeshingClass*)type->tp_alloc(type, 0);
+  auto self = (PyMeshingTetGenRadiusMeshing*)type->tp_alloc(type, 0);
   if (self == NULL) {
       std::cout << "[PyTetGenRadiusMeshingNew] ERROR: Can't allocate type." << std::endl;
       return nullptr; 
@@ -450,7 +452,7 @@ PyTetGenRadiusMeshingNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 //----------------------------
 //
 static void
-PyTetGenRadiusMeshingDealloc(PyMeshingTetGenRadiusMeshingClass* self)
+PyTetGenRadiusMeshingDealloc(PyMeshingTetGenRadiusMeshing* self)
 {
   std::cout << "[PyTetGenRadiusMeshingDealloc] Free PyTetGenRadiusMeshing" << std::endl;
   Py_TYPE(self)->tp_free(self);

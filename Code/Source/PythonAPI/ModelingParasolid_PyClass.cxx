@@ -39,7 +39,7 @@
 // Define the ParasolidSolid class (type).
 //
 typedef struct {
-  PyModelingModelClass super;
+  PyModelingModel super;
 } PyParasolidSolid;
 
 CreateSolidModelObjectFunction PyCreateParasolidSolidObject = nullptr;
@@ -63,7 +63,7 @@ PyDoc_STRVAR(ParasolidSolid_write_doc,
 ");
 
 static PyObject *
-ParasolidSolid_write(PyModelingModelClass* self, PyObject* args, PyObject* kwargs)
+ParasolidSolid_write(PyModelingModel* self, PyObject* args, PyObject* kwargs)
 {
   auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   static char *keywords[] = {"file_name", "format", "version", NULL};
@@ -164,14 +164,14 @@ PyParasolidSolidDealloc(PyParasolidSolid* self)
 }
 
 //---------------------------
-// PyParasolidSolidClassType 
+// PyParasolidSolidType 
 //---------------------------
-// Define the Python type object that stores ParasolidSolidClass data. 
+// Define the Python type object that stores ParasolidSolid data. 
 //
 // Can't set all the fields here because g++ does not suppor non-trivial 
 // designated initializers. 
 //
-PyTypeObject PyParasolidSolidClassType = {
+PyTypeObject PyParasolidSolidType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   // Dotted name that includes both the module name and 
   // the name of the type within the module.
@@ -199,7 +199,7 @@ SetParasolidSolidTypeFields(PyTypeObject& solidType)
   //.tp_new = PyType_GenericNew,
 
   // Subclass to PyParasolidSolid.
-  solidType.tp_base = &PyModelingModelClassType;
+  solidType.tp_base = &PyModelingModelType;
 
   solidType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
   solidType.tp_init = (initproc)PyParasolidSolidInit;

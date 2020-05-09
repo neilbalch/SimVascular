@@ -59,9 +59,9 @@ typedef struct {
   PyObject* v_knot_span_type;
   PyObject* u_parametric_span_type;
   PyObject* v_parametric_span_type;
-} PyLoftNurbsOptionsClass;
+} PyLoftNurbsOptions;
 
-// PyLoftNurbsOptionsClass attribute names.
+// PyLoftNurbsOptions attribute names.
 //
 namespace LoftNurbsOptions {
   char* U_DEGREE = "u_degree";
@@ -129,21 +129,21 @@ static PyMethodDef PyLoftNurbsOptionsMethods[] = {
 //          C l a s s    M e m b e r s                //
 ////////////////////////////////////////////////////////
 //
-// Define the PyLoftNurbsOptionsClass attribute names.
+// Define the PyLoftNurbsOptions attribute names.
 //
 // The attributes can be set/get directly in from the LoftNurbsOptions object.
 //
 static PyMemberDef PyLoftNurbsOptionsMembers[] = {
-    {LoftNurbsOptions::U_DEGREE, T_INT, offsetof(PyLoftNurbsOptionsClass, u_degree), 0, "u degree"},
-    {LoftNurbsOptions::V_DEGREE, T_INT, offsetof(PyLoftNurbsOptionsClass, v_degree), 0, "v degree"},
-    {LoftNurbsOptions::U_SPACING, T_DOUBLE, offsetof(PyLoftNurbsOptionsClass, u_spacing), 0, "u spacing"},
-    {LoftNurbsOptions::V_SPACING, T_DOUBLE, offsetof(PyLoftNurbsOptionsClass, v_spacing), 0, "v spacing"},
+    {LoftNurbsOptions::U_DEGREE, T_INT, offsetof(PyLoftNurbsOptions, u_degree), 0, "u degree"},
+    {LoftNurbsOptions::V_DEGREE, T_INT, offsetof(PyLoftNurbsOptions, v_degree), 0, "v degree"},
+    {LoftNurbsOptions::U_SPACING, T_DOUBLE, offsetof(PyLoftNurbsOptions, u_spacing), 0, "u spacing"},
+    {LoftNurbsOptions::V_SPACING, T_DOUBLE, offsetof(PyLoftNurbsOptions, v_spacing), 0, "v spacing"},
 
-    {LoftNurbsOptions::U_KNOT_SPAN_TYPE, T_OBJECT_EX, offsetof(PyLoftNurbsOptionsClass, u_knot_span_type), 0, "u knot span type"},
+    {LoftNurbsOptions::U_KNOT_SPAN_TYPE, T_OBJECT_EX, offsetof(PyLoftNurbsOptions, u_knot_span_type), 0, "u knot span type"},
 
-    {LoftNurbsOptions::V_KNOT_SPAN_TYPE, T_OBJECT_EX, offsetof(PyLoftNurbsOptionsClass, v_knot_span_type), 0, "v knot span type"},
-    {LoftNurbsOptions::U_PARAMETRIC_SPAN_TYPE, T_OBJECT_EX, offsetof(PyLoftNurbsOptionsClass, u_parametric_span_type), 0, "u parametric span type"},
-    {LoftNurbsOptions::V_PARAMETRIC_SPAN_TYPE, T_OBJECT_EX, offsetof(PyLoftNurbsOptionsClass, v_parametric_span_type), 0, "v parametric span type"},
+    {LoftNurbsOptions::V_KNOT_SPAN_TYPE, T_OBJECT_EX, offsetof(PyLoftNurbsOptions, v_knot_span_type), 0, "v knot span type"},
+    {LoftNurbsOptions::U_PARAMETRIC_SPAN_TYPE, T_OBJECT_EX, offsetof(PyLoftNurbsOptions, u_parametric_span_type), 0, "u parametric span type"},
+    {LoftNurbsOptions::V_PARAMETRIC_SPAN_TYPE, T_OBJECT_EX, offsetof(PyLoftNurbsOptions, v_parametric_span_type), 0, "v parametric span type"},
     {NULL}  
 };
 
@@ -164,7 +164,7 @@ PyDoc_STRVAR(LoftNurbsOptionsClass_doc, "Geometry loft nurbs options methods.");
 static PyTypeObject PyLoftNurbsOptionsType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   .tp_name = GEOMETRY_LOFT_NURBS_OPTIONS_MODULE_CLASS,
-  .tp_basicsize = sizeof(PyLoftNurbsOptionsClass)
+  .tp_basicsize = sizeof(PyLoftNurbsOptions)
 };
 
 //-------------------------
@@ -177,7 +177,7 @@ static PyTypeObject PyLoftNurbsOptionsType = {
 // Arguments:
 //
 static int 
-PyLoftNurbsOptionsInit(PyLoftNurbsOptionsClass* self, PyObject* args, PyObject* kwargs)
+PyLoftNurbsOptionsInit(PyLoftNurbsOptions* self, PyObject* args, PyObject* kwargs)
 {
   auto api = PyUtilApiFunction("|O", PyRunTimeErr, __func__);
   static char *keywords[] = {"u_knot_span_type", NULL};
@@ -251,7 +251,7 @@ static PyObject *
 PyLoftNurbsOptionsNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
   std::cout << "[PyLoftNurbsOptionsNew] PyLoftNurbsOptionsNew " << std::endl;
-  auto self = (PyLoftNurbsOptionsClass*)type->tp_alloc(type, 0);
+  auto self = (PyLoftNurbsOptions*)type->tp_alloc(type, 0);
   if (self == NULL) {
       std::cout << "[PyLoftNurbsOptionsNew] ERROR: Can't allocate type." << std::endl;
       return nullptr; 
@@ -267,7 +267,7 @@ PyLoftNurbsOptionsNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 //---------------------------
 //
 static void
-PyLoftNurbsOptionsDealloc(PyLoftNurbsOptionsClass* self)
+PyLoftNurbsOptionsDealloc(PyLoftNurbsOptions* self)
 {
   std::cout << "[PyLoftNurbsOptionsDealloc] Free PyLoftNurbsOptions" << std::endl;
   Py_TYPE(self)->tp_free(self);

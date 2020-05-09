@@ -35,18 +35,18 @@
 
 #include "sv_TetGenAdapt.h"
 
-//---------------------------
-// PyMeshingTetGenAdaptClass 
-//---------------------------
-// Define the PyMeshingTetGenAdaptClass class.
+//----------------------
+// PyMeshingTetGenAdapt
+//----------------------
+// Define the PyMeshingTetGenAdapt class.
 //
 // mesher - The cvTetGenMeshObject object that is used to perform the actual adaptive mesh generation.
 //
 typedef struct {
-  PyMeshingAdaptiveClass super;
+  PyMeshingAdaptive super;
   cvTetGenMeshObject* mesher;
   bool meshGenerated;
-} PyTetGenAdaptClass;
+} PyTetGenAdapt;
 
 //////////////////////////////////////////////////////
 //          U t i l i t y  F u n c t i o n s        //
@@ -67,8 +67,7 @@ pyCreateTetGenAdapt()
 //-----------------------
 //
 bool 
-TetGenAdaptSetOptions(PyTetGenAdaptClass* self, PyUtilApiFunction& api, PyObject* options)
-//TetGenAdaptSetOptions(PyMeshingAdaptiveClass* self, PyUtilApiFunction& api, PyObject* options)
+TetGenAdaptSetOptions(PyTetGenAdapt* self, PyUtilApiFunction& api, PyObject* options)
 {
   std::cout << "[TetGenAdaptSetOptions] " << std::endl;
   std::cout << "[TetGenAdaptSetOptions] ========== TetGenAdaptSetOptions =========" << std::endl;
@@ -134,7 +133,7 @@ TetGenAdaptSetOptions(PyTetGenAdaptClass* self, PyUtilApiFunction& api, PyObject
 //              C l a s s   F u n c t i o n s                  //
 /////////////////////////////////////////////////////////////////
 //
-// Python API functions for the PyMeshingTetGenAdaptClass class. 
+// Python API functions for the PyMeshingTetGenAdapt class. 
 
 //------------------------------
 // MeshingTetGen_create_options
@@ -170,7 +169,7 @@ PyDoc_STRVAR(TetGenAdapt_generate_mesh_doc,
 ");
 
 static PyObject * 
-TetGenAdapt_generate_mesh(PyTetGenAdaptClass* self, PyObject* args, PyObject* kwargs)
+TetGenAdapt_generate_mesh(PyTetGenAdapt* self, PyObject* args, PyObject* kwargs)
 //TetGenAdapt_generate_mesh(PyMeshingAdaptiveClass* self, PyObject* args, PyObject* kwargs)
 {
   std::cout << "[TetGenAdapt_generate_mesh] ========== TetGenAdapt_generate_mesh ==========" << std::endl;
@@ -260,7 +259,7 @@ PyDoc_STRVAR(TetGenAdapt_get_mesh_doc,
 ");
 
 static PyObject *
-TetGenAdapt_get_mesh(PyTetGenAdaptClass* self, PyObject* args)
+TetGenAdapt_get_mesh(PyTetGenAdapt* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
 
@@ -307,7 +306,7 @@ PyDoc_STRVAR(TetGenAdapt_set_options_doc,
 ");
 
 static PyObject *
-TetGenAdapt_set_options(PyTetGenAdaptClass* self, PyObject* args)
+TetGenAdapt_set_options(PyTetGenAdapt* self, PyObject* args)
 {
   std::cout << "[TetGenAdapt_set_options] " << std::endl;
   std::cout << "[TetGenAdapt_set_options] ========== TetGenAdapt_set_options =========" << std::endl;
@@ -365,7 +364,7 @@ static char* MESHING_TETGEN_ADAPTIVE_CLASS = "TetGenAdaptive";
 // the name of the type within the module.
 static char* MESHING_TETGEN_ADAPTIVE_MODULE_CLASS = "meshing.TetGenAdaptive";
 
-PyDoc_STRVAR(PyTetGenAdaptClass_doc, "TetGen adaptive mesh generator class methods.");
+PyDoc_STRVAR(PyTetGenAdapt_doc, "TetGen adaptive mesh generator class methods.");
 
 //--------------------
 // TetGenAdaptMethods
@@ -392,11 +391,11 @@ PyMethodDef PyTetGenAdaptMethods[] = {
 // This function is used to initialize an object after it is created.
 //
 static int 
-PyTetGenAdaptInit(PyTetGenAdaptClass* self, PyObject* args, PyObject *kwds)
+PyTetGenAdaptInit(PyTetGenAdapt* self, PyObject* args, PyObject *kwds)
 {
   auto api = PyUtilApiFunction("", PyRunTimeErr, "TetGen adaptive mesh generator");
   static int numObjs = 1;
-  std::cout << "[PyTetGenAdaptClassInit] New PyTetGenAdaptClass object: " << numObjs << std::endl;
+  std::cout << "[PyTetGenAdaptInit] New PyTetGenAdapt object: " << numObjs << std::endl;
   self->super.adaptKernel = KernelType::KERNEL_TETGEN; 
   self->super.meshKernel = cvMeshObject::KERNEL_TETGEN; 
   self->super.adaptive_mesher = new cvTetGenAdapt();
@@ -416,7 +415,7 @@ static PyObject *
 PyTetGenAdaptNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
   std::cout << "[PyTetGenAdaptNew] PyTetGenAdaptNew " << std::endl;
-  auto self = (PyMeshingAdaptiveClass*)type->tp_alloc(type, 0);
+  auto self = (PyMeshingAdaptive*)type->tp_alloc(type, 0);
   if (self != NULL) {
       //self->super.id = 2;
   }
@@ -428,7 +427,7 @@ PyTetGenAdaptNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 //----------------------
 //
 static void
-PyTetGenAdaptDealloc(PyTetGenAdaptClass* self)
+PyTetGenAdaptDealloc(PyTetGenAdapt* self)
 {
   std::cout << "[PyTetGenAdaptDealloc] Free PyTetGenAdapt" << std::endl;
   delete self->super.adaptive_mesher;
@@ -436,19 +435,19 @@ PyTetGenAdaptDealloc(PyTetGenAdaptClass* self)
 }
 
 //------------------------
-// PyTetGenAdaptClassType 
+// PyTetGenAdaptType 
 //------------------------
 // Define the Python type object that stores TetGen adaptive meshing data. 
 //
 // Can't set all the fields here because g++ does not suppor non-trivial 
 // designated initializers. 
 //
-PyTypeObject PyTetGenAdaptClassType = {
+PyTypeObject PyTetGenAdaptType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   // Dotted name that includes both the module name and 
   // the name of the type within the module.
   .tp_name = MESHING_TETGEN_ADAPTIVE_MODULE_CLASS,
-  .tp_basicsize = sizeof(PyTetGenAdaptClass)
+  .tp_basicsize = sizeof(PyTetGenAdapt)
 };
 
 //--------------------------
@@ -463,15 +462,15 @@ void
 SetTetGenAdaptTypeFields(PyTypeObject& mesherType)
  {
   // Doc string for this type.
-  mesherType.tp_doc = PyTetGenAdaptClass_doc;
+  mesherType.tp_doc = PyTetGenAdapt_doc;
 
   // Object creation function, equivalent to the Python __new__() method. 
   // The generic handler creates a new instance using the tp_alloc field.
   mesherType.tp_new = PyTetGenAdaptNew;
   //.tp_new = PyType_GenericNew,
 
-  // Subclass to PyMeshingMesherClassType.
-  mesherType.tp_base = &PyMeshingAdaptiveClassType; 
+  // Subclass to PyMeshingMesherType.
+  mesherType.tp_base = &PyMeshingAdaptiveType; 
 
   mesherType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
   mesherType.tp_init = (initproc)PyTetGenAdaptInit;

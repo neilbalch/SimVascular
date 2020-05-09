@@ -36,7 +36,7 @@
 // model surface.
 //
 //----------------------
-// PyModelingModelClass 
+// PyModelingModel 
 //----------------------
 // The Python modeling.Model class internal data.
 //
@@ -45,7 +45,7 @@ typedef struct {
   int id;
   SolidModel_KernelT kernel;
   cvSolidModel* solidModel;
-} PyModelingModelClass;
+} PyModelingModel;
 
 //////////////////////////////////////////////////////
 //          U t i l i t y   F u n c t i o n s       //
@@ -96,7 +96,7 @@ PyDoc_STRVAR(ModelingModel_apply4x4_doc,
 ");
 
 static PyObject *  
-ModelingModel_apply4x4(PyModelingModelClass *self ,PyObject* args)
+ModelingModel_apply4x4(PyModelingModel *self ,PyObject* args)
 {
   auto api = PyUtilApiFunction("O", PyRunTimeErr, __func__);
   PyObject* matrixArg;
@@ -145,7 +145,7 @@ PyDoc_STRVAR(ModelingModel_calculate_boundary_faces_doc,
 ");
 
 static PyObject *
-ModelingModel_calculate_boundary_faces(PyModelingModelClass* self, PyObject* args)
+ModelingModel_calculate_boundary_faces(PyModelingModel* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("d", PyRunTimeErr, __func__);
   double angle = 0.0;
@@ -183,7 +183,7 @@ PyDoc_STRVAR(ModelingModel_check_doc,
 ");
 
 static PyObject *
-ModelingModel_check(PyModelingModelClass *self ,PyObject* args)
+ModelingModel_check(PyModelingModel *self ,PyObject* args)
 {
   auto model = self->solidModel;
   int nerr;
@@ -205,7 +205,7 @@ PyDoc_STRVAR(ModelingModel_classify_point_doc,
 ");
 
 static PyObject *  
-ModelingModel_classify_point(PyModelingModelClass* self ,PyObject* args)
+ModelingModel_classify_point(PyModelingModel* self ,PyObject* args)
 {
   auto api = PyUtilApiFunction("dd|di", PyRunTimeErr, __func__);
   double x, y;
@@ -261,7 +261,7 @@ PyDoc_STRVAR(ModelingModel_delete_faces_doc,
 ");
 
 static PyObject * 
-ModelingModel_delete_faces(PyModelingModelClass* self, PyObject* args)
+ModelingModel_delete_faces(PyModelingModel* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("O", PyRunTimeErr, __func__);
   PyObject* faceListArg;
@@ -323,7 +323,7 @@ PyDoc_STRVAR(ModelingModel_find_centroid_doc,
 ");
 
 static PyObject *  
-ModelingModel_find_centroid(PyModelingModelClass* self, PyObject* args)
+ModelingModel_find_centroid(PyModelingModel* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
   auto model = self->solidModel;
@@ -366,7 +366,7 @@ PyDoc_STRVAR(ModelingModel_get_face_ids_doc,
 ");
 
 static PyObject * 
-ModelingModel_get_face_ids(PyModelingModelClass* self, PyObject* args)
+ModelingModel_get_face_ids(PyModelingModel* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
 
@@ -410,7 +410,7 @@ PyDoc_STRVAR(ModelingModel_get_face_normal_doc,
 ");
 
 static PyObject *
-ModelingModel_get_face_normal(PyModelingModelClass* self, PyObject* args, PyObject* kwargs)
+ModelingModel_get_face_normal(PyModelingModel* self, PyObject* args, PyObject* kwargs)
 {
   auto api = PyUtilApiFunction("idd", PyRunTimeErr, __func__);
   static char *keywords[] = {"face_id", "u", "v", NULL};
@@ -446,7 +446,7 @@ PyDoc_STRVAR(ModelingModel_get_face_polydata_doc,
 ");
 
 static PyObject * 
-ModelingModel_get_face_polydata(PyModelingModelClass* self, PyObject* args, PyObject* kwargs)
+ModelingModel_get_face_polydata(PyModelingModel* self, PyObject* args, PyObject* kwargs)
 {
   auto api = PyUtilApiFunction("i|d", PyRunTimeErr, __func__);
   static char *keywords[] = {"face_id", "max_dist", NULL};
@@ -522,7 +522,7 @@ PyDoc_STRVAR(ModelingModel_get_polydata_doc,
 ");
 
 static PyObject *  
-ModelingModel_get_polydata(PyModelingModelClass *self, PyObject* args)
+ModelingModel_get_polydata(PyModelingModel *self, PyObject* args)
 {
   std::cout << " " << std::endl;
   std::cout << " ========== ModelingModel_get_polydata ==========" << std::endl;
@@ -567,7 +567,7 @@ PyDoc_STRVAR(ModelingModel_write_doc,
 ");
 
 static PyObject * 
-ModelingModel_write(PyModelingModelClass* self, PyObject* args, PyObject* kwargs)
+ModelingModel_write(PyModelingModel* self, PyObject* args, PyObject* kwargs)
 {
   auto api = PyUtilApiFunction("ss|i", PyRunTimeErr, __func__);
   static char *keywords[] = {"file_name", "format", "version", NULL};
@@ -617,11 +617,11 @@ static char* MODELING_MODEL_MODULE_CLASS = "modeling.Model";
 PyDoc_STRVAR(ModelingModelClass_doc, "modeling model class methods.");
 
 //--------------------------
-// PyModelingModelClassMethods
+// PyModelingModelMethods
 //--------------------------
 // Define method names for ModelingModel class 
 //
-static PyMethodDef PyModelingModelClassMethods[] = {
+static PyMethodDef PyModelingModelMethods[] = {
 
   // [TODO:DaveP] The cvModelingModel Apply4x4() method is not implemented.
   // { "apply4x4", (PyCFunction)ModelingModel_apply4x4, METH_VARARGS, ModelingModel_apply4x4_doc },
@@ -662,7 +662,7 @@ static PyMethodDef PyModelingModelClassMethods[] = {
 // This function is used to initialize an object after it is created.
 //
 static int
-PyModelingModelInit(PyModelingModelClass* self, PyObject* args, PyObject *kwds)
+PyModelingModelInit(PyModelingModel* self, PyObject* args, PyObject *kwds)
 {
   std::cout << "[PyModelingModelInit] ========== PyModelingModelInit ========== " << std::endl;
   auto api = PyUtilApiFunction("", PyRunTimeErr, "ModelingModel");
@@ -691,17 +691,17 @@ PyModelingModelInit(PyModelingModelClass* self, PyObject* args, PyObject *kwds)
 }
 
 //-----------------------
-// PyModelingModelClassType 
+// PyModelingModelType 
 //-----------------------
 // This is the definition of the ModelingModel class.
 //
 // The type object stores a large number of values, mostly C function pointers, 
 // each of which implements a small part of the type’s functionality.
 //
-static PyTypeObject PyModelingModelClassType = {
+static PyTypeObject PyModelingModelType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   .tp_name = MODELING_MODEL_MODULE_CLASS, 
-  .tp_basicsize = sizeof(PyModelingModelClass) 
+  .tp_basicsize = sizeof(PyModelingModel) 
 };
 
 //-----------------
@@ -729,7 +729,7 @@ PyModelingModelNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
       return nullptr;
   }
 
-  auto self = (PyModelingModelClass*)type->tp_alloc(type, 0);
+  auto self = (PyModelingModel*)type->tp_alloc(type, 0);
   if (self != NULL) {
       //self->id = 1;
   }
@@ -742,7 +742,7 @@ PyModelingModelNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 //---------------------
 //
 static void
-PyModelingModelDealloc(PyModelingModelClass* self)
+PyModelingModelDealloc(PyModelingModel* self)
 {
   std::cout << "[PyModelingModelDealloc] Free PyModelingModel: " << self->id << std::endl;
   //delete self->solidModel;
@@ -769,15 +769,15 @@ SetModelingModelTypeFields(PyTypeObject& solidModelType)
   solidModelType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
   solidModelType.tp_init = (initproc)PyModelingModelInit;
   solidModelType.tp_dealloc = (destructor)PyModelingModelDealloc;
-  solidModelType.tp_methods = PyModelingModelClassMethods;
+  solidModelType.tp_methods = PyModelingModelMethods;
 };
 
 //-------------------------
 // CreateModelingModelType 
 //-------------------------
-static PyModelingModelClass * 
+static PyModelingModel * 
 CreateModelingModelType()
 {
-  return PyObject_New(PyModelingModelClass, &PyModelingModelClassType);
+  return PyObject_New(PyModelingModel, &PyModelingModelType);
 }
 

@@ -29,8 +29,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
  
-#ifndef PYTHON_API_SEGMENTATION_PYMODULE_H
-#define PYTHON_API_SEGMENTATION_PYMODULE_H 
+#ifndef PYAPI_SEGMENTATION_PYMODULE_H
+#define PYAPI_SEGMENTATION_PYMODULE_H 
 
 #include "SimVascular.h"
 #include "Python.h"
@@ -42,6 +42,10 @@
 // Need to define US_MODULE_NAME because we are including sv4gui_ContourGroupIO.h.
 #define US_MODULE_NAME 
 
+//----------------
+// PySegmentation
+//----------------
+//
 extern "C" SV_EXPORT_PYTHON_API typedef struct
 {
   PyObject_HEAD

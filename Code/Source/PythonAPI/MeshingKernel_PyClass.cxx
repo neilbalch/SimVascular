@@ -54,13 +54,13 @@ static std::map<std::string,cvMeshObject::KernelType> kernelNameEnumMap =
 static std::string kernelValidNames = "GMSH, MESHSIM, or TETGEN"; 
 
 //--------------------
-// MeshingKernelClass
+// PyMeshingKernel
 //--------------------
-// Define the MeshingKernelClass.
+// Define the PyMeshingKernel.
 //
 typedef struct {
 PyObject_HEAD
-} MeshingKernelClass;
+} PyMeshingKernel;
 
 std::string 
 MeshingKernel_get_name(cvMeshObject::KernelType kernelType)
@@ -110,28 +110,28 @@ static char* MESHING_KERNEL_MODULE_CLASS = "mesh.Kernel";
 // The name of the Kernel class veriable that contains all of the kernel types.
 static char* MESHING_KERNEL_CLASS_VARIBLE_NAMES = "names";
 
-PyDoc_STRVAR(MeshingKernelClass_doc, "mesh kernel class functions");
+PyDoc_STRVAR(PyMeshingKernel_doc, "mesh kernel class functions");
 
 //------------------------------------
 // Define the MeshingType type object
 //------------------------------------
 // Define the Python type object that stores contour.kernel types. 
 //
-static PyTypeObject PyMeshingKernelClassType = {
+static PyTypeObject PyMeshingKernelType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   .tp_name = MESHING_KERNEL_MODULE_CLASS,
-  .tp_basicsize = sizeof(MeshingKernelClass)
+  .tp_basicsize = sizeof(PyMeshingKernel)
 };
 
 //----------------------------
-// SetMeshingKernelClassTypeFields
+// SetPyMeshingKernelTypeFields
 //----------------------------
 // Set the Python type object fields that stores Kernel data. 
 //
 static void
 SetMeshingKernelTypeFields(PyTypeObject& contourType)
  {
-  contourType.tp_doc = MeshingKernelClass_doc; 
+  contourType.tp_doc = PyMeshingKernel_doc; 
   contourType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
   contourType.tp_methods = MeshingKernelMethods;
   contourType.tp_dict = PyDict_New();
@@ -147,7 +147,7 @@ SetMeshingKernelTypeFields(PyTypeObject& contourType)
 // Kernel class.
 //
 static void
-SetMeshingKernelClassTypes(PyTypeObject& meshType)
+SetPyMeshingKernelTypes(PyTypeObject& meshType)
 {
   // Add kernel types to MeshingKernelType dictionary.
   for (auto const& entry : kernelNameEnumMap) {

@@ -46,9 +46,9 @@
 // The options used to set atributes on faces (e.g. local_curvature) are stored as a list of dicts.
 // These options can be implemented three ways
 //
-// 1) Use PyMemberDef to defined atributes in PyMeshingMeshSimOptionsClass that can be directtly store into 
+// 1) Use PyMemberDef to defined atributes in PyMeshingMeshSimOptions that can be directtly store into 
 //
-//   {MeshSimOption::LocalCurvature, T_OBJECT_EX, offsetof(PyMeshingMeshSimOptionsClass, local_curvature) , 0, "local curvature"},
+//   {MeshSimOption::LocalCurvature, T_OBJECT_EX, offsetof(PyMeshingMeshSimOptions, local_curvature) , 0, "local curvature"},
 //
 //   This allows the local_curvature lists to be created using Python list methods
 //
@@ -76,9 +76,9 @@
 #include <tuple>
 
 //------------------------------
-// PyMeshingMeshSimOptionsClass 
+// PyMeshingMeshSimOptions 
 //------------------------------
-// Define the PyMeshingMeshSimOptionsClass data. 
+// Define the PyMeshingMeshSimOptions data. 
 //
 //  surface_optimization (bool):   
 //
@@ -101,12 +101,12 @@ typedef struct {
   int volume_mesh_flag;
   int volume_optimization;
   int volume_smoothing;
-} PyMeshingMeshSimOptionsClass;
+} PyMeshingMeshSimOptions;
 
 //--------------
 // MeshSimOption
 //--------------
-// PyMeshingMeshSimOptionsClass attribute names.
+// PyMeshingMeshSimOptions attribute names.
 //
 // [TODO:DaveP] Maybe change some of these names to be more descriptive.
 //
@@ -425,7 +425,7 @@ PyMeshSimOptionsGetLocalEdgeSizes(PyObject* meshingOptions, std::string name)
 // create in Python using a class.
 //
 void
-PyMeshSimOptions_parse_python_meshsim_options(PyMeshingMeshSimOptionsClass* self, PyObject* optionArg)
+PyMeshSimOptions_parse_python_meshsim_options(PyMeshingMeshSimOptions* self, PyObject* optionArg)
 {
   std::cout << "---------- PyMeshSimOptions_check ----------" << std::endl;
 
@@ -503,7 +503,7 @@ PyDoc_STRVAR(PyMeshSimOptions_add_local_curvature_doc,
 ");
 
 static PyObject *
-PyMeshSimOptions_add_local_curvature(PyMeshingMeshSimOptionsClass* self, PyObject* args, PyObject* kwargs) 
+PyMeshSimOptions_add_local_curvature(PyMeshingMeshSimOptions* self, PyObject* args, PyObject* kwargs) 
 {
   auto api = PyUtilApiFunction("id|O!", PyRunTimeErr, __func__);
   static char* keywords[] = { const_cast<char*>(MeshSimOption::localCurvatureParam.intName.c_str()), 
@@ -549,7 +549,7 @@ PyDoc_STRVAR(PyMeshSimOptions_add_local_edge_size_doc,
 ");
 
 static PyObject *
-PyMeshSimOptions_add_local_edge_size(PyMeshingMeshSimOptionsClass* self, PyObject* args, PyObject* kwargs) 
+PyMeshSimOptions_add_local_edge_size(PyMeshingMeshSimOptions* self, PyObject* args, PyObject* kwargs) 
 {
   auto api = PyUtilApiFunction("id|O!", PyRunTimeErr, __func__);
   static char* keywords[] = { const_cast<char*>(MeshSimOption::localEdgeSizeParam.intName.c_str()), 
@@ -590,7 +590,7 @@ PyDoc_STRVAR(PyMeshSimOptions_check_doc,
 ");
 
 static PyObject *
-PyMeshSimOptions_check(PyMeshingMeshSimOptionsClass* self, PyObject* args)
+PyMeshSimOptions_check(PyMeshingMeshSimOptions* self, PyObject* args)
 {
   std::cout << "---------- PyMeshSimOptions_check ----------" << std::endl;
 
@@ -617,7 +617,7 @@ PyDoc_STRVAR(PyMeshSimOptions_create_local_edge_size_parameter_doc,
 ");
 
 static PyObject *
-PyMeshSimOptions_create_local_edge_size_parameter(PyMeshingMeshSimOptionsClass* self, PyObject* args, PyObject* kwargs)
+PyMeshSimOptions_create_local_edge_size_parameter(PyMeshingMeshSimOptions* self, PyObject* args, PyObject* kwargs)
 {
   auto api = PyUtilApiFunction("id|O!", PyRunTimeErr, __func__);
   static char *keywords[] = { const_cast<char*>(MeshSimOption::localEdgeSizeParam.intName.c_str()), 
@@ -657,7 +657,7 @@ PyDoc_STRVAR(PyMeshSimOptions_get_values_doc,
 ");
 
 static PyObject *
-PyMeshSimOptions_get_values(PyMeshingMeshSimOptionsClass* self, PyObject* args)
+PyMeshSimOptions_get_values(PyMeshingMeshSimOptions* self, PyObject* args)
 {
   PyObject* values = PyDict_New();
 
@@ -685,7 +685,7 @@ PyDoc_STRVAR(PyMeshSimOptions_set_defaults_doc,
 ");
 
 static PyObject *
-PyMeshSimOptions_set_defaults(PyMeshingMeshSimOptionsClass* self)
+PyMeshSimOptions_set_defaults(PyMeshingMeshSimOptions* self)
 {
   self->global_curvature = Py_BuildValue("{}"); 
   self->global_curvature_min = Py_BuildValue("{}"); 
@@ -725,7 +725,7 @@ PyDoc_STRVAR(PyMeshSimOptions_set_local_curvature_doc,
 ");
 
 static PyObject *
-PyMeshSimOptions_set_local_curvature(PyMeshingMeshSimOptionsClass* self, PyObject* args, PyObject* kwargs) 
+PyMeshSimOptions_set_local_curvature(PyMeshingMeshSimOptions* self, PyObject* args, PyObject* kwargs) 
 {
   auto api = PyUtilApiFunction("id|O!", PyRunTimeErr, __func__);
   static char* keywords[] = { const_cast<char*>(MeshSimOption::localCurvatureParam.intName.c_str()), 
@@ -778,7 +778,7 @@ PyDoc_STRVAR(PyMeshSimOptions_set_local_edge_size_doc,
 ");
 
 static PyObject *
-PyMeshSimOptions_set_local_edge_size(PyMeshingMeshSimOptionsClass* self, PyObject* args, PyObject* kwargs) 
+PyMeshSimOptions_set_local_edge_size(PyMeshingMeshSimOptions* self, PyObject* args, PyObject* kwargs) 
 {
   auto api = PyUtilApiFunction("id|O!", PyRunTimeErr, __func__);
   static char* keywords[] = { const_cast<char*>(MeshSimOption::localEdgeSizeParam.intName.c_str()), 
@@ -830,7 +830,7 @@ static PyMethodDef PyMeshSimOptionsMethods[] = {
 //          C l a s s    M e m b e r s                //
 ////////////////////////////////////////////////////////
 //
-// Define the PyMeshingMeshSimOptionsClass attribute names.
+// Define the PyMeshingMeshSimOptions attribute names.
 //
 // The attributes can be set/get directly in from the MeshingOptions object.
 //
@@ -838,15 +838,15 @@ static PyMethodDef PyMeshSimOptionsMethods[] = {
 //
 static PyMemberDef PyMeshSimOptionsMembers[] = {
 
-    //{MeshSimOption::LocalCurvature, T_OBJECT_EX, offsetof(PyMeshingMeshSimOptionsClass, local_curvature) , 0, "local curvature"},
+    //{MeshSimOption::LocalCurvature, T_OBJECT_EX, offsetof(PyMeshingMeshSimOptions, local_curvature) , 0, "local curvature"},
 
-    {MeshSimOption::LocalEdgeSize, T_OBJECT_EX, offsetof(PyMeshingMeshSimOptionsClass, local_edge_size) , 0, "local edge size"},
+    {MeshSimOption::LocalEdgeSize, T_OBJECT_EX, offsetof(PyMeshingMeshSimOptions, local_edge_size) , 0, "local edge size"},
 
-    {MeshSimOption::SurfaceMeshFlag, T_BOOL, offsetof(PyMeshingMeshSimOptionsClass, surface_mesh_flag), 0, "surface_mesh_flag"},
+    {MeshSimOption::SurfaceMeshFlag, T_BOOL, offsetof(PyMeshingMeshSimOptions, surface_mesh_flag), 0, "surface_mesh_flag"},
 
-    {MeshSimOption::SurfaceMeshFlag, T_BOOL, offsetof(PyMeshingMeshSimOptionsClass, surface_mesh_flag), 0, "surface_mesh_flag"},
+    {MeshSimOption::SurfaceMeshFlag, T_BOOL, offsetof(PyMeshingMeshSimOptions, surface_mesh_flag), 0, "surface_mesh_flag"},
 
-    {MeshSimOption::VolumeMeshFlag, T_BOOL, offsetof(PyMeshingMeshSimOptionsClass, volume_mesh_flag), 0, "volume_mesh_flag"},
+    {MeshSimOption::VolumeMeshFlag, T_BOOL, offsetof(PyMeshingMeshSimOptions, volume_mesh_flag), 0, "volume_mesh_flag"},
     {NULL}  
 };
 
@@ -861,7 +861,7 @@ static PyMemberDef PyMeshSimOptionsMembers[] = {
 //------------------------------------------
 //
 static PyObject*
-PyMeshSimOptions_global_curvature_getter(PyMeshingMeshSimOptionsClass* self, void* closure)
+PyMeshSimOptions_global_curvature_getter(PyMeshingMeshSimOptions* self, void* closure)
 {
   return self->global_curvature;
 }
@@ -870,7 +870,7 @@ PyMeshSimOptions_global_curvature_getter(PyMeshingMeshSimOptionsClass* self, voi
 // setter
 //--------
 static int
-PyMeshSimOptions_global_curvature_setter(PyMeshingMeshSimOptionsClass* self, PyObject* value, void* closure)
+PyMeshSimOptions_global_curvature_setter(PyMeshingMeshSimOptions* self, PyObject* value, void* closure)
 {
   std::cout << "---------- PyMeshSimOptions_global_curvature_setter ----------" << std::endl;
 
@@ -898,13 +898,13 @@ PyMeshSimOptions_global_curvature_setter(PyMeshingMeshSimOptionsClass* self, PyO
 //---------------------------------------
 //
 static PyObject*
-PyMeshSimOptions_global_edge_size_getter(PyMeshingMeshSimOptionsClass* self, void* closure)
+PyMeshSimOptions_global_edge_size_getter(PyMeshingMeshSimOptions* self, void* closure)
 {
   return self->global_edge_size;
 }
 
 static int
-PyMeshSimOptions_global_edge_size_setter(PyMeshingMeshSimOptionsClass* self, PyObject* value, void* closure)
+PyMeshSimOptions_global_edge_size_setter(PyMeshingMeshSimOptions* self, PyObject* value, void* closure)
 {
   static std::string errorMsg = "The global_edge_size parameter must be a " + MeshSimOption::globalEdgeSizeParam.description; 
   std::cout << "[PyMeshSimOptions_set_global_edge_size]  " << std::endl;
@@ -929,7 +929,7 @@ PyMeshSimOptions_global_edge_size_setter(PyMeshingMeshSimOptionsClass* self, PyO
 //------------------------------------------
 //
 static PyObject*
-PyMeshSimOptions_local_curvature_getter(PyMeshingMeshSimOptionsClass* self, void* closure)
+PyMeshSimOptions_local_curvature_getter(PyMeshingMeshSimOptions* self, void* closure)
 {
   return self->local_curvature;
 }
@@ -938,7 +938,7 @@ PyMeshSimOptions_local_curvature_getter(PyMeshingMeshSimOptionsClass* self, void
 // setter
 //--------
 static int
-PyMeshSimOptions_local_curvature_setter(PyMeshingMeshSimOptionsClass* self, PyObject* value, void* closure)
+PyMeshSimOptions_local_curvature_setter(PyMeshingMeshSimOptions* self, PyObject* value, void* closure)
 {
   std::cout << "---------- PyMeshSimOptions_local_curvature_setter ----------" << std::endl;
   static std::string errorMsg = "The local_curvature parameter must be a " + MeshSimOption::localCurvatureParam.description;
@@ -997,7 +997,7 @@ PyDoc_STRVAR(MeshSimOptionsClass_doc, "MeshSim meshing options class functions")
 static PyTypeObject PyMeshSimOptionsType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   .tp_name = MESHING_MESHSIM_OPTIONS_MODULE_CLASS,
-  .tp_basicsize = sizeof(PyMeshingMeshSimOptionsClass)
+  .tp_basicsize = sizeof(PyMeshingMeshSimOptions)
 };
 
 //-----------------------
@@ -1008,7 +1008,7 @@ static PyTypeObject PyMeshSimOptionsType = {
 // This function is used to initialize an object after it is created.
 //
 static int 
-PyMeshSimOptionsInit(PyMeshingMeshSimOptionsClass* self, PyObject* args, PyObject* kwargs)
+PyMeshSimOptionsInit(PyMeshingMeshSimOptions* self, PyObject* args, PyObject* kwargs)
 {
   static int numObjs = 1;
   std::cout << "[PyMeshSimOptionsInit] New MeshingOptions object: " << numObjs << std::endl;
@@ -1057,7 +1057,7 @@ static PyObject *
 PyMeshSimOptionsNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
   std::cout << "[PyMeshSimOptionsNew] PyMeshSimOptionsNew " << std::endl;
-  auto self = (PyMeshingMeshSimOptionsClass*)type->tp_alloc(type, 0);
+  auto self = (PyMeshingMeshSimOptions*)type->tp_alloc(type, 0);
   if (self == NULL) {
       std::cout << "[PyMeshSimOptionsNew] ERROR: Can't allocate type." << std::endl;
       return nullptr; 
@@ -1070,7 +1070,7 @@ PyMeshSimOptionsNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 //-------------------------
 //
 static void
-PyMeshSimOptionsDealloc(PyMeshingMeshSimOptionsClass* self)
+PyMeshSimOptionsDealloc(PyMeshingMeshSimOptions* self)
 {
   std::cout << "[PyMeshSimOptionsDealloc] Free PyMeshSimOptions" << std::endl;
   Py_TYPE(self)->tp_free(self);
@@ -1104,7 +1104,7 @@ SetMeshSimOptionsTypeFields(PyTypeObject& meshingOpts)
 // These are for read only attibutes.
 //
 static void
-SetMeshSimOptionsClassTypes(PyTypeObject& meshingOptsType)
+SetMeshSimOptionsTypes(PyTypeObject& meshingOptsType)
 {
 /*
   std::cout << "=============== SetMeshingOptionsClassTypes ==========" << std::endl;

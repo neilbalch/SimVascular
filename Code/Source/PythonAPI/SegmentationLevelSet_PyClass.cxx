@@ -54,9 +54,9 @@
 #undef GetObject
 #endif
 
-//-----------------
-// PyLevelSetSegmentation
-//-----------------
+//------------------------
+// PyLevelSetSegmentation 
+//------------------------
 // Define the LevelSet class (type).
 //
 typedef struct {
@@ -139,7 +139,7 @@ PyLevelSetSegmentationDealloc(PyLevelSetSegmentation* self)
 // Can't set all the fields here because g++ does not suppor non-trivial 
 // designated initializers. 
 //
-static PyTypeObject PyLevelSetSegmentationClassType = {
+static PyTypeObject PyLevelSetSegmentationType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   .tp_name = SEGMENTATION_LEVELSET_MODULE_CLASS,
   .tp_basicsize = sizeof(PyLevelSetSegmentation)
@@ -164,7 +164,7 @@ SetLevelSetSegmentationTypeFields(PyTypeObject& contourType)
   contourType.tp_new = PyLevelSetSegmentationNew;
   //.tp_new = PyType_GenericNew,
 
-  contourType.tp_base = &PySegmentationClassType;
+  contourType.tp_base = &PySegmentationType;
 
   contourType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
   contourType.tp_init = (initproc)PyLevelSetSegmentationInit;

@@ -36,13 +36,13 @@
 #include "sv4gui_ModelUtils.h"
 
 //----------------------
-// PyMeshingTetGenClass
+// PyMeshingTetGen
 //----------------------
-// Define the PyMeshingTetGenClass class.
+// Define the PyMeshingTetGen class.
 //
 typedef struct {
-  PyMeshingMesherClass super;
-} PyMeshingTetGenClass;
+  PyMeshingMesher super;
+} PyMeshingTetGen;
 
 // Define the names assocuted with TetGen meshing parameters.
 //
@@ -63,7 +63,7 @@ namespace MeshingTetGen {
 // Check if the mesh has a solid model.
 //
 bool
-MeshingTetGenCheckModelLoaded(PyMeshingTetGenClass* self)
+MeshingTetGenCheckModelLoaded(PyMeshingTetGen* self)
 {
   auto mesher = self->super.mesher;
   return mesher->HasSolid();
@@ -77,7 +77,7 @@ MeshingTetGenCheckModelLoaded(PyMeshingTetGenClass* self)
 // The LocalEdgeSize option needs to have a model defined for the mesh.
 //
 bool
-MeshingTetGenCheckOption(PyMeshingTetGenClass* self, std::string& name, PyUtilApiFunction& api)
+MeshingTetGenCheckOption(PyMeshingTetGen* self, std::string& name, PyUtilApiFunction& api)
 {
   // The LocalEdgeSize option needs to have the model set for the mesh.
   if (name == TetGenOption::LocalEdgeSize) {
@@ -296,7 +296,7 @@ SetOptions(PyUtilApiFunction& api, cvMeshObject* mesher, PyObject* options)
 {
   //std::cout << "[SetOptions] " << std::endl;
   //std::cout << "[SetOptions] ========== SetOptions =========" << std::endl;
-  //auto options = (PyMeshingTetGenOptionsClass*)optionsObj;
+  //auto options = (PyMeshingTetGenOptions*)optionsObj;
 
   // Set options that are not a list.
   //
@@ -361,7 +361,7 @@ SetOptions(PyUtilApiFunction& api, cvMeshObject* mesher, PyObject* options)
 //              C l a s s   F u n c t i o n s                  //
 /////////////////////////////////////////////////////////////////
 //
-// Python API functions for the PyMeshingTetGenClass class. 
+// Python API functions for the PyMeshingTetGen class. 
 
 //-------------------------
 // MeshingTetGen_available 
@@ -385,7 +385,7 @@ PyDoc_STRVAR(MesherTetGen_generate_mesh_doc,
 ");
 
 static PyObject *
-MesherTetGen_generate_mesh(PyMeshingMesherClass* self, PyObject* args, PyObject* kwargs)
+MesherTetGen_generate_mesh(PyMeshingMesher* self, PyObject* args, PyObject* kwargs)
 {
   using namespace MeshingTetGen;
   //std::cout << std::endl;
@@ -438,7 +438,7 @@ static char* MESHING_TETGEN_CLASS = "TetGen";
 // the name of the type within the module.
 static char* MESHING_TETGEN_MODULE_CLASS = "meshing.TetGen";
 
-PyDoc_STRVAR(PyMeshingTetGenClass_doc, "TetGen mesh generator class methods.");
+PyDoc_STRVAR(PyMeshingTetGen_doc, "TetGen mesh generator class methods.");
 
 //------------------------
 // PyMeshingTetGenMethods
@@ -457,11 +457,11 @@ static PyMethodDef PyMeshingTetGenMethods[] = {
 // This function is used to initialize an object after it is created.
 //
 static int 
-PyMeshingTetGenInit(PyMeshingTetGenClass* self, PyObject* args, PyObject *kwds)
+PyMeshingTetGenInit(PyMeshingTetGen* self, PyObject* args, PyObject *kwds)
 {
   auto api = PyUtilApiFunction("", PyRunTimeErr, "MeshGenerator");
   static int numObjs = 1;
-  std::cout << "[PyMeshingTetGenClassInit] New PyMeshingTetGenClass object: " << numObjs << std::endl;
+  std::cout << "[PyMeshingTetGenInit] New PyMeshingTetGen object: " << numObjs << std::endl;
   self->super.mesher = new cvTetGenMeshObject();
   self->super.CreateOptionsFromList = PyTetGenOptionsCreateFromList;
   numObjs += 1;
@@ -476,7 +476,7 @@ static PyObject *
 PyMeshingTetGenNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
   std::cout << "[PyMeshingTetGenNew] PyMeshingTetGenNew " << std::endl;
-  auto self = (PyMeshingMesherClass*)type->tp_alloc(type, 0);
+  auto self = (PyMeshingMesher*)type->tp_alloc(type, 0);
   if (self != NULL) {
       //self->super.id = 2;
   }
@@ -488,7 +488,7 @@ PyMeshingTetGenNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 //------------------------
 //
 static void
-PyMeshingTetGenDealloc(PyMeshingTetGenClass* self)
+PyMeshingTetGenDealloc(PyMeshingTetGen* self)
 {
   std::cout << "[PyMeshingTetGenDealloc] Free PyMeshingTetGen" << std::endl;
   delete self->super.mesher;
@@ -496,19 +496,19 @@ PyMeshingTetGenDealloc(PyMeshingTetGenClass* self)
 }
 
 //--------------------------
-// PyMeshingTetGenClassType 
+// PyMeshingTetGenType 
 //--------------------------
-// Define the Python type object that stores PolyDataSolidClass data. 
+// Define the Python type object that stores PolyDataSolid data. 
 //
 // Can't set all the fields here because g++ does not suppor non-trivial 
 // designated initializers. 
 //
-PyTypeObject PyMeshingTetGenClassType = {
+PyTypeObject PyMeshingTetGenType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   // Dotted name that includes both the module name and 
   // the name of the type within the module.
   .tp_name = MESHING_TETGEN_MODULE_CLASS,
-  .tp_basicsize = sizeof(PyMeshingTetGenClass)
+  .tp_basicsize = sizeof(PyMeshingTetGen)
 };
 
 //----------------------------
@@ -523,15 +523,15 @@ void
 SetMeshingTetGenTypeFields(PyTypeObject& mesherType)
  {
   // Doc string for this type.
-  mesherType.tp_doc = PyMeshingTetGenClass_doc;
+  mesherType.tp_doc = PyMeshingTetGen_doc;
 
   // Object creation function, equivalent to the Python __new__() method. 
   // The generic handler creates a new instance using the tp_alloc field.
   mesherType.tp_new = PyMeshingTetGenNew;
   //.tp_new = PyType_GenericNew,
 
-  // Subclass to PyMeshingMesherClassType.
-  mesherType.tp_base = &PyMeshingMesherClassType; 
+  // Subclass to PyMeshingMesherType.
+  mesherType.tp_base = &PyMeshingMesherType; 
 
   mesherType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
   mesherType.tp_init = (initproc)PyMeshingTetGenInit;
@@ -549,6 +549,6 @@ SetMeshingTetGenTypeFields(PyTypeObject& mesherType)
 void
 PyAPI_InitTetGen()
 {
-  PyMesherCtorMap[cvMeshObject::KERNEL_TETGEN] = []()->PyObject* {return PyObject_CallObject((PyObject*)&PyMeshingTetGenClassType, NULL);};
+  PyMesherCtorMap[cvMeshObject::KERNEL_TETGEN] = []()->PyObject* {return PyObject_CallObject((PyObject*)&PyMeshingTetGenType, NULL);};
 }
 

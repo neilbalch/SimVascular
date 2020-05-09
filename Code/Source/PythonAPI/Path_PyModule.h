@@ -47,7 +47,7 @@ typedef struct
   PyObject_HEAD
   sv3::PathElement* path;
   int id;
-} PyPathClass;
+} PyPath;
 
 PyObject * CreatePyPath(sv3::PathElement* path = nullptr);
 extern PyTypeObject PyPathType;

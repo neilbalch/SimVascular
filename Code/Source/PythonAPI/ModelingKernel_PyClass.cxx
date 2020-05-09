@@ -154,14 +154,14 @@ PyDoc_STRVAR(ModelingKernelClass_doc, "modeling kernel class functions");
 //------------------------------------
 // Define the Python type object that stores contour.kernel types. 
 //
-static PyTypeObject PyModelingKernelClassType = {
+static PyTypeObject PyModelingKernelType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   .tp_name = MODELING_KERNEL_MODULE_CLASS,
   .tp_basicsize = sizeof(ModelingKernelObject)
 };
 
 //----------------------------
-// SetModelingKernelClassTypeFields
+// SetModelingKernelTypeFields
 //----------------------------
 // Set the Python type object fields that stores Kernel data. 
 //
@@ -184,7 +184,7 @@ SetModelingKernelTypeFields(PyTypeObject& contourType)
 // Kernel class.
 //
 static void
-SetModelingKernelClassTypes(PyTypeObject& solidType)
+SetModelingKernelTypes(PyTypeObject& solidType)
 {
   // Add kernel types to ModelingKernelType dictionary.
   for (auto const& entry : kernelNameEnumMap) {

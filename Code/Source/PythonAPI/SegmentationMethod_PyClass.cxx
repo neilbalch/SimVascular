@@ -114,20 +114,20 @@ static char* SEGMENTATION_METHOD_CLASS_VARIBLE_NAMES = "names";
 
 PyDoc_STRVAR(SegmentationMethodClass_doc, "segmentation method class functions.");
 
-//-------------------------------
-// PySegmentationMethodClassType 
-//-------------------------------
+//--------------------------
+// PySegmentationMethodType 
+//--------------------------
 // Define the Python type object that stores segmentation.Method types. 
 //
-static PyTypeObject PySegmentationMethodClassType = {
+static PyTypeObject PySegmentationMethodType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   .tp_name = SEGMENTATION_METHOD_MODULE_CLASS,
   .tp_basicsize = sizeof(SegmentationMethodObject)
 };
 
-//--------------------------------------
-// SetSegmentationMethodClassTypeFields
-//--------------------------------------
+//---------------------------------
+// SetSegmentationMethodTypeFields
+//---------------------------------
 // Set the Python type object fields that stores Kernel data. 
 //
 static void
@@ -150,15 +150,15 @@ SetSegmentationMethodTypeFields(PyTypeObject& contourType)
 //    sv.segmentation.Method.CIRCLE -> "CIRCLE"
 //
 static void
-SetSegmentationMethodClassTypes(PyTypeObject& contourType)
+SetSegmentationMethodTypes(PyTypeObject& contourType)
 {
-  //std::cout << "[SetSegmentationMethodClassTypes] " << std::endl;
-  //std::cout << "[SetSegmentationMethodClassTypes] =============== SetSegmentationMethodClassTypes ==========" << std::endl;
+  //std::cout << "[SetSegmentationMethodTypes] " << std::endl;
+  //std::cout << "[SetSegmentationMethodTypes] =============== SetSegmentationMethodTypes ==========" << std::endl;
 
   // Add kernel types to SegmentationMethodType dictionary.
   for (auto const& entry : kernelNameEnumMap) {
       auto name = entry.first.c_str();
-      //std::cout << "[SetSegmentationMethodClassTypes] name: " << name << std::endl;
+      //std::cout << "[SetSegmentationMethodTypes] name: " << name << std::endl;
       if (PyDict_SetItemString(contourType.tp_dict, name, PyUnicode_FromString(name))) {
           std::cout << "Error initializing Python API contour kernel types." << std::endl;
           return;

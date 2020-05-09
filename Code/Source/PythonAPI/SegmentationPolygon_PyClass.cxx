@@ -128,15 +128,15 @@ PyPolygonSegmentationDealloc(PyPolygonSegmentation* self)
   Py_TYPE(self)->tp_free(self);
 }
 
-//--------------------------------
-// PyPolygonSegmentationClassType 
-//--------------------------------
+//---------------------------
+// PyPolygonSegmentationType 
+//---------------------------
 // Define the Python type object that stores Segmentation data. 
 //
 // Can't set all the fields here because g++ does not suppor non-trivial 
 // designated initializers. 
 //
-static PyTypeObject PyPolygonSegmentationClassType = {
+static PyTypeObject PyPolygonSegmentationType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   // Dotted name that includes both the module name and 
   // the name of the type within the module.
@@ -163,7 +163,7 @@ SetPolygonSegmentationTypeFields(PyTypeObject& contourType)
   contourType.tp_new = PyPolygonSegmentationNew;
   //.tp_new = PyType_GenericNew,
 
-  contourType.tp_base = &PySegmentationClassType;
+  contourType.tp_base = &PySegmentationType;
   contourType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
   contourType.tp_init = (initproc)PyPolygonSegmentationInit;
   contourType.tp_dealloc = (destructor)PyPolygonSegmentationDealloc;

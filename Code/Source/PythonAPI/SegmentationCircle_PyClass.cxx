@@ -166,15 +166,15 @@ PyCircleSegmentationDealloc(PyCircleSegmentation* self)
   Py_TYPE(self)->tp_free(self);
 }
 
-//------------------------------------------
-// Define the PyCircleSegmentationClassType 
-//------------------------------------------
+//-------------------------------------
+// Define the PyCircleSegmentationType 
+//-------------------------------------
 // Define the Python type object that stores Segmentation data. 
 //
 // Can't set all the fields here because g++ does not suppor non-trivial 
 // designated initializers. 
 //
-static PyTypeObject PyCircleSegmentationClassType = {
+static PyTypeObject PyCircleSegmentationType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   // Dotted name that includes both the module name and 
   // the name of the type within the module.
@@ -201,7 +201,7 @@ SetCircleSegmentationTypeFields(PyTypeObject& segType)
   segType.tp_new = PyCircleSegmentationNew;
   //.tp_new = PyType_GenericNew,
 
-  segType.tp_base = &PySegmentationClassType;
+  segType.tp_base = &PySegmentationType;
 
   segType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
   segType.tp_init = (initproc)PyCircleSegmentationInit;

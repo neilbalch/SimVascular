@@ -41,7 +41,7 @@
 extern void MeshingMesherSetParameter(cvMeshObject* mesher, std::string& name, std::vector<double>& values);
 
 //----------------------
-// PyMeshingMesherClass
+// PyMeshingMesher
 //----------------------
 //
 // Data Members:
@@ -58,7 +58,7 @@ typedef struct {
   void (*CreateOptionsFromList)(cvMeshObject*, std::vector<std::string>&, std::map<std::string,int>&, PyObject**);
   // [TODO:DaveP] I'm not sure if you can have std:vector in the struct.
   std::vector<int> wallFaceIDs;
-} PyMeshingMesherClass;
+} PyMeshingMesher;
 
 //////////////////////////////////////////////////////
 //          U t i l i t y  F u n c t i o n s        //
@@ -103,7 +103,7 @@ PyDoc_STRVAR(Mesher_adapt_doc,
 ");
 
 static PyObject * 
-Mesher_adapt(PyMeshingMesherClass* self, PyObject* args)
+Mesher_adapt(PyMeshingMesher* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("", PyRunTimeErr, __func__); 
   std::string emsg;
@@ -132,7 +132,7 @@ PyDoc_STRVAR(Mesher_compute_model_boundary_faces_doc,
 ");
 
 static PyObject * 
-Mesher_compute_model_boundary_faces(PyMeshingMesherClass* self, PyObject* args, PyObject* kwargs)
+Mesher_compute_model_boundary_faces(PyMeshingMesher* self, PyObject* args, PyObject* kwargs)
 {
   auto api = PyUtilApiFunction("d", PyRunTimeErr, __func__); 
   static char *keywords[] = {"angle", NULL};
@@ -164,7 +164,7 @@ PyDoc_STRVAR(Mesher_generate_mesh_doc,
 ");
 
 static PyObject * 
-Mesher_generate_mesh(PyMeshingMesherClass* self, PyObject* args)
+Mesher_generate_mesh(PyMeshingMesher* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("", PyRunTimeErr, __func__); 
   auto mesher = self->mesher;
@@ -191,7 +191,7 @@ PyDoc_STRVAR(Mesher_get_face_polydata_doc,
 ");
 
 static PyObject * 
-Mesher_get_face_polydata(PyMeshingMesherClass* self, PyObject* args, PyObject* kwargs)
+Mesher_get_face_polydata(PyMeshingMesher* self, PyObject* args, PyObject* kwargs)
 {
   using namespace MeshingMesher;
   auto api = PyUtilApiFunction("i", PyRunTimeErr, __func__); 
@@ -234,7 +234,7 @@ PyDoc_STRVAR(Mesher_get_mesh_doc,
 ");
 
 static PyObject * 
-Mesher_get_mesh(PyMeshingMesherClass* self, PyObject* args)
+Mesher_get_mesh(PyMeshingMesher* self, PyObject* args)
 {
   using namespace MeshingMesher;
   auto api = PyUtilApiFunction("", PyRunTimeErr, __func__); 
@@ -269,7 +269,7 @@ PyDoc_STRVAR(Mesher_get_model_face_info_doc,
 ");
 
 static PyObject * 
-Mesher_get_model_face_info(PyMeshingMesherClass* self, PyObject* args)
+Mesher_get_model_face_info(PyMeshingMesher* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("", PyRunTimeErr, __func__); 
   auto mesher = self->mesher; 
@@ -291,7 +291,7 @@ PyDoc_STRVAR(Mesher_get_model_polydata_doc,
 ");
 
 static PyObject * 
-Mesher_get_model_polydata(PyMeshingMesherClass* self, PyObject* args)
+Mesher_get_model_polydata(PyMeshingMesher* self, PyObject* args)
 {
   using namespace MeshingMesher;
   auto api = PyUtilApiFunction("", PyRunTimeErr, __func__); 
@@ -329,7 +329,7 @@ PyDoc_STRVAR(Mesher_load_mesh_doc,
 ");
 
 static PyObject * 
-Mesher_load_mesh(PyMeshingMesherClass* self, PyObject* args)
+Mesher_load_mesh(PyMeshingMesher* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("s|s", PyRunTimeErr, __func__); 
   char *fileName;
@@ -364,7 +364,7 @@ PyDoc_STRVAR(Mesher_load_model_doc,
 ");
 
 static PyObject * 
-Mesher_load_model(PyMeshingMesherClass* self, PyObject* args, PyObject* kwargs)
+Mesher_load_model(PyMeshingMesher* self, PyObject* args, PyObject* kwargs)
 {
   auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__); 
   static char *keywords[] = {"file_name", NULL};
@@ -396,7 +396,7 @@ PyDoc_STRVAR(Mesher_get_surface_doc,
 ");
 
 static PyObject * 
-Mesher_get_surface(PyMeshingMesherClass* self, PyObject* args)
+Mesher_get_surface(PyMeshingMesher* self, PyObject* args)
 {
   using namespace MeshingMesher;
   auto api = PyUtilApiFunction("", PyRunTimeErr, __func__); 
@@ -437,7 +437,7 @@ PyDoc_STRVAR(Mesher_set_boundary_layer_options_doc,
 ");
 
 static PyObject * 
-Mesher_set_boundary_layer_options(PyMeshingMesherClass* self, PyObject* args, PyObject* kwargs)
+Mesher_set_boundary_layer_options(PyMeshingMesher* self, PyObject* args, PyObject* kwargs)
 {
   auto api = PyUtilApiFunction("iO!dd", PyRunTimeErr, __func__); 
   static char *keywords[] = {"number_of_layers", "constant_thickness", "thickness_factor", "layer_decreasing_ratio", NULL};
@@ -483,7 +483,7 @@ PyDoc_STRVAR(Mesher_set_meshing_options_doc,
 ");
 
 static PyObject * 
-Mesher_set_meshing_options(PyMeshingMesherClass* self, PyObject* args)
+Mesher_set_meshing_options(PyMeshingMesher* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("O!", PyRunTimeErr, __func__); 
   char *optionName;
@@ -528,7 +528,7 @@ PyDoc_STRVAR(Mesher_set_solid_modeler_kernel_doc,
 ");
 
 static PyObject * 
-Mesher_set_solid_modeler_kernel(PyMeshingMesherClass* self, PyObject* args)
+Mesher_set_solid_modeler_kernel(PyMeshingMesher* self, PyObject* args)
 {
   std::cout << "[Mesher_set_solid_modeler_kernel] ========== Mesher_set_solid_modeler_kernel ==========" << std::endl;
   auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__); 
@@ -568,7 +568,7 @@ PyDoc_STRVAR(Mesher_set_walls_doc,
 ");
 
 static PyObject * 
-Mesher_set_walls(PyMeshingMesherClass* self, PyObject* args, PyObject* kwargs)
+Mesher_set_walls(PyMeshingMesher* self, PyObject* args, PyObject* kwargs)
 {
   auto api = PyUtilApiFunction("O!", PyRunTimeErr, __func__); 
   static char *keywords[] = {"face_ids", NULL};
@@ -613,7 +613,7 @@ PyDoc_STRVAR(Mesher_write_mesh_doc,
 ");
 
 static PyObject * 
-Mesher_write_mesh(PyMeshingMesherClass* self, PyObject* args, PyObject* kwargs)
+Mesher_write_mesh(PyMeshingMesher* self, PyObject* args, PyObject* kwargs)
 {
   using namespace MeshingMesher;
   std::cout << "[Mesher_write_mesh] ========== Mesher_write_mesh ==========" << std::endl;
@@ -662,7 +662,7 @@ PyDoc_STRVAR(Mesher_write_metis_adjacency_doc,
 ");
 
 static PyObject * 
-Mesher_write_metis_adjacency(PyMeshingMesherClass* self, PyObject* args)
+Mesher_write_metis_adjacency(PyMeshingMesher* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__); 
   char *file_name;
@@ -701,7 +701,7 @@ PyDoc_STRVAR(Mesher_set_vtk_polydata_doc,
 ");
 
 static PyObject * 
-Mesher_set_vtk_polydata(PyMeshingMesherClass* self, PyObject* args)
+Mesher_set_vtk_polydata(PyMeshingMesher* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__); 
   char *objName;
@@ -828,7 +828,7 @@ PyDoc_STRVAR(Mesher_write_stats_doc,
 ");
 
 static PyObject * 
-Mesher_write_stats(PyMeshingMesherClass* self, PyObject* args)
+Mesher_write_stats(PyMeshingMesher* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__); 
   char *fileName;
@@ -868,7 +868,7 @@ PyDoc_STRVAR(Mesher_new_mesh_doc,
 ");
 
 static PyObject * 
-Mesher_new_mesh( PyMeshingMesherClass* self, PyObject* args)
+Mesher_new_mesh( PyMeshingMesher* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("", PyRunTimeErr, __func__); 
   auto meshObject = CheckMesher(api, self);
@@ -898,7 +898,7 @@ PyDoc_STRVAR(Mesher_set_size_function_based_mesh_doc,
 ");
 
 static PyObject * 
-Mesher_set_size_function_based_mesh(PyMeshingMesherClass* self, PyObject* args)
+Mesher_set_size_function_based_mesh(PyMeshingMesher* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("ds", PyRunTimeErr, __func__); 
   char *functionName;
@@ -936,7 +936,7 @@ PyDoc_STRVAR(Mesher_set_cylinder_refinement_doc,
 ");
 
 static PyObject * 
-Mesher_set_cylinder_refinement(PyMeshingMesherClass* self, PyObject* args)
+Mesher_set_cylinder_refinement(PyMeshingMesher* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("ddOO", PyRunTimeErr, __func__); 
   double size;
@@ -1064,17 +1064,17 @@ static PyMethodDef PyMeshingMesherMethods[] = {
 
 
 //--------------------------
-// PyMeshingMesherClassType 
+// PyMeshingMesherType 
 //--------------------------
 // This is the definition of the Mesher class.
 //
 // The type object stores a large number of values, mostly C function pointers, 
 // each of which implements a small part of the type’s functionality.
 //
-static PyTypeObject PyMeshingMesherClassType = {
+static PyTypeObject PyMeshingMesherType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   MESHING_MESHER_MODULE_CLASS,
-  sizeof(PyMeshingMesherClass)
+  sizeof(PyMeshingMesher)
 };
 
 //-----------------
@@ -1089,7 +1089,7 @@ static PyTypeObject PyMeshingMesherClassType = {
 //
 using PyMesherCtorMapType = std::map<cvMeshObject::KernelType, std::function<PyObject*()>>;
 PyMesherCtorMapType PyMesherCtorMap = {
-  //{cvMeshObject::KernelType::KERNEL_TETGEN, []()->PyObject* {return PyObject_CallObject((PyObject*)&PyMeshingTetGenClassType, NULL);}},
+  //{cvMeshObject::KernelType::KERNEL_TETGEN, []()->PyObject* {return PyObject_CallObject((PyObject*)&PyMeshingTetGenType, NULL);}},
 };
 
 // Include derived mesh generator classes.
@@ -1128,7 +1128,7 @@ PyMesherCreateObject(cvMeshObject::KernelType kernel)
 // This function is used to initialize an object after it is created.
 //
 static int 
-PyMeshingMesherInit(PyMeshingMesherClass* self, PyObject* args, PyObject *kwds)
+PyMeshingMesherInit(PyMeshingMesher* self, PyObject* args, PyObject *kwds)
 {
   std::cout << "[PyMeshingMesherInit] " << std::endl;
   std::cout << "[PyMeshingMesherInit] ========== PyMeshingMesherInit ==========" << std::endl;
@@ -1187,7 +1187,7 @@ PyMeshingMesherNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
   }
 */
 
-  auto self = (PyMeshingMesherClass*)type->tp_alloc(type, 0);
+  auto self = (PyMeshingMesher*)type->tp_alloc(type, 0);
   if (self != NULL) {
       //self->id = 1;
   }
@@ -1200,7 +1200,7 @@ PyMeshingMesherNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 //------------------------
 //
 static void
-PyMeshingMesherDealloc(PyMeshingMesherClass* self)
+PyMeshingMesherDealloc(PyMeshingMesher* self)
 {
   std::cout << "[PyMeshingMesherDealloc] Free PyMeshingMesher: " << self->id << std::endl;
   //delete self->solidModel;
@@ -1233,9 +1233,9 @@ SetMesherTypeFields(PyTypeObject& meshType)
 //------------------
 // CreateMesherType 
 //------------------
-static PyMeshingMesherClass *
+static PyMeshingMesher *
 CreateMesherType()
 {
-  return PyObject_New(PyMeshingMesherClass, &PyMeshingMesherClassType);
+  return PyObject_New(PyMeshingMesher, &PyMeshingMesherType);
 }
 

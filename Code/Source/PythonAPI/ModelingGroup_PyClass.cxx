@@ -261,14 +261,14 @@ static PyMethodDef PyModelingGroupMethods[] = {
 };
 
 //--------------------------
-// PyModelingGroupClassType 
+// PyModelingGroupType 
 //--------------------------
 // Define the Python type that stores ModelingGroup data. 
 //
 // Can't set all the fields here because g++ does not suppor non-trivial 
 // designated initializers. 
 //
-PyTypeObject PyModelingGroupClassType = {
+PyTypeObject PyModelingGroupType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   MODELING_GROUP_MODULE_CLASS,     
   sizeof(PyModelingGroup)
@@ -322,7 +322,7 @@ static PyObject *
 PyModelingGroupNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
   std::cout << "[PyModelingGroupNew] PyModelingGroupNew " << std::endl;
-  auto self = (PyModelingModelClass*)type->tp_alloc(type, 0);
+  auto self = (PyModelingModel*)type->tp_alloc(type, 0);
   //auto self = (PyContour*)type->tp_alloc(type, 0);
   if (self == NULL) {
       std::cout << "[PyModelingGroupNew] ERROR: Can't allocate type." << std::endl;
@@ -380,7 +380,7 @@ CreatePyModelingGroup(sv4guiModel::Pointer solidGroup)
   std::cout << std::endl;
   std::cout << "========== CreatePyModelingGroup ==========" << std::endl;
   std::cout << "[CreatePyModelingGroup] Create ModelingGroup object ... " << std::endl;
-  auto solidGroupObj = PyObject_CallObject((PyObject*)&PyModelingGroupClassType, NULL);
+  auto solidGroupObj = PyObject_CallObject((PyObject*)&PyModelingGroupType, NULL);
   auto pyModelingGroup = (PyModelingGroup*)solidGroupObj;
 
   if (solidGroup != nullptr) {
