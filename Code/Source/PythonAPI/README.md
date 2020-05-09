@@ -5,7 +5,7 @@ The files in this directory implement most of the SimVascular Python API. The im
 
 # Code Organization
 
-The code is organized using seprate files for modules and classes belonging to those modules
+The code is organized using seprate files for modules and classes defined for those modules
 
   - Modules are implemented in *ModuleName*\_PyModule.(cxx,h) files
   
