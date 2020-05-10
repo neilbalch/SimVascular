@@ -53,7 +53,7 @@
 //#include "sv_polydatasolid_init_py.h"
 
 #include "Modeling_PyModule.h"
-#include "Path_PyModule.h"
+#include "PathPlanning_PyModule.h"
 //#include "sv3_PathGroup_init_py.h"
 #include "Segmentation_PyModule.h"
 //#include "sv3_CircleContour_init_py.h"
@@ -110,7 +110,7 @@ void SimVascular_pyInit()
     //PyImport_AppendInittab("levelset_contour",PyInit_pylevelSetContour);
     // [DaveP] Don't expose math module.
     //PyImport_AppendInittab("math", PyInit_PyMath);
-    PyImport_AppendInittab("path", PyInit_PyPath);
+    PyImport_AppendInittab("pathplanning", PyInit_PyPathplanning);
     //PyImport_AppendInittab("path_group", PyInit_PyPathGroup);
     //PyImport_AppendInittab("polygon_contour",PyInit_pyPolygonContour);
     //PyImport_AppendInittab("project", PyInit_PyProject);

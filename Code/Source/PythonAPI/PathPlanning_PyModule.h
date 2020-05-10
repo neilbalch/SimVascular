@@ -29,8 +29,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef PATH_PY_MODULE_H
-#define PATH_PY_MODUL_H
+#ifndef PYAPI_PATH_PLANNING_MODULE_H
+#define PYAPI_PATH_PLANNING_MODULE_H 
 
 #include "SimVascular.h"
 #include "Python.h"
@@ -56,7 +56,7 @@ extern PyTypeObject PyPathType;
 PyMODINIT_FUNC  initpyPath();
 #endif
 #if PYTHON_MAJOR_VERSION == 3
-PyMODINIT_FUNC PyInit_PyPath();
+PyMODINIT_FUNC PyInit_PyPathplanning();
 #endif
 
 #endif 

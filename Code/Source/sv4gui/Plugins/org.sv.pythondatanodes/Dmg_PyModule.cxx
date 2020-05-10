@@ -50,7 +50,7 @@
 #include "Dmg_PyModule.h"
 #include "Segmentation_PyModule.h"
 #include "Meshing_PyModule.h"
-#include "Path_PyModule.h"
+#include "PathPlanning_PyModule.h"
 #include "Modeling_PyModule.h"
 
 //#include "sv_Repository.h"

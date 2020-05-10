@@ -29,11 +29,11 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// The functions defined here implement the SV Python API path Module. 
+// The functions defined here implement the SV Python API path planning Module. 
 //
-// The module name is 'path'. 
+// The module name is 'pathplanning'. 
 //
-// A Python exception sv.path.PathError is defined for this module. 
+// A Python exception sv.pathplanning.PathError is defined for this module. 
 // The exception can be used in a Python 'try' statement with an 'except' clause 
 // like this
 //
@@ -45,7 +45,7 @@
 #include "Python.h"
 
 #include "sv3_PathElement.h"
-#include "Path_PyModule.h"
+#include "PathPlanning_PyModule.h"
 #include "PyUtils.h"
 
 #include <stdio.h>
@@ -67,17 +67,17 @@
 static PyObject* PyRunTimeErr;
 
 // Include the definitions for the CalculationMethod, Path and Group classes.
-#include "PathSubdivisionMethod_PyClass.cxx"
-#include "Path_PyClass.cxx"
-#include "PathGroup_PyClass.cxx"
+#include "PathPlanningSubdivMethod_PyClass.cxx"
+#include "PathPlanningPath_PyClass.cxx"
+#include "PathPlanningGroup_PyClass.cxx"
 
 ////////////////////////////////////////////////////////
 //          M o d u l e  D e f i n i t i o n          //
 ////////////////////////////////////////////////////////
 
-static char* PATH_MODULE = "path";
-static char* PATH_MODULE_EXCEPTION = "path.PathError";
-static char* PATH_MODULE_EXCEPTION_OBJECT = "PathError";
+static char* PATHPLANNING_MODULE = "pathplanning";
+static char* PATHPLANNING_MODULE_EXCEPTION = "pathplanning.PathError";
+static char* PATHPLANNING_MODULE_EXCEPTION_OBJECT = "PathError";
 
 //----------------
 // PathModule_doc
@@ -95,10 +95,10 @@ PyDoc_STRVAR(PathModule_doc,
 ");
 
 //---------------------
-// PyPathModuleMethods
+// PyPathPlanningModuleMethods
 //---------------------
 //
-static PyMethodDef PyPathModuleMethods[] =
+static PyMethodDef PyPathPlanningModuleMethods[] =
 {
     {NULL,NULL}
 };
@@ -125,22 +125,22 @@ static PyModuleDef_Base m_base = PyModuleDef_HEAD_INIT;
 // Define the module definition struct which holds all information 
 // needed to create a module object. 
 //
-static struct PyModuleDef PyPathModule = {
+static struct PyModuleDef PyPathPlanningModule = {
    m_base,
-   PATH_MODULE,
+   PATHPLANNING_MODULE,
    PathModule_doc, 
    perInterpreterStateSize,
-   PyPathModuleMethods
+   PyPathPlanningModuleMethods
 };
 
-//---------------
-// PyInit_PyPath
-//---------------
+//-----------------------
+// PyInit_PyPathplanning 
+//-----------------------
 // The initialization function called by the Python interpreter when the module is loaded.
 //
-PyMODINIT_FUNC PyInit_PyPath()
+PyMODINIT_FUNC PyInit_PyPathplanning()
 {
-  std::cout << "========== load path module ==========" << std::endl;
+  std::cout << "========== load pathplanning module ==========" << std::endl;
 
   // Setup the Path class type.
   //
@@ -167,7 +167,7 @@ PyMODINIT_FUNC PyInit_PyPath()
   }
 
   // Create the path module.
-  auto module = PyModule_Create(&PyPathModule);
+  auto module = PyModule_Create(&PyPathPlanningModule);
   if (module == NULL) {
     fprintf(stdout,"Error in initializing 'path' module \n");
     return SV_PYTHON_ERROR;
@@ -175,8 +175,8 @@ PyMODINIT_FUNC PyInit_PyPath()
 
   // Add path.PathException exception.
   //
-  PyRunTimeErr = PyErr_NewException(PATH_MODULE_EXCEPTION, NULL, NULL);
-  PyModule_AddObject(module, PATH_MODULE_EXCEPTION_OBJECT, PyRunTimeErr);
+  PyRunTimeErr = PyErr_NewException(PATHPLANNING_MODULE_EXCEPTION, NULL, NULL);
+  PyModule_AddObject(module, PATHPLANNING_MODULE_EXCEPTION_OBJECT, PyRunTimeErr);
 
   // Add Path class.
   Py_INCREF(&PyPathType);

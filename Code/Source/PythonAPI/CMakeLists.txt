@@ -47,7 +47,7 @@ list (APPEND CXXSRCS
   Math_PyModule.cxx
   Meshing_PyModule.cxx
   MeshUtils_PyModule.cxx
-  Path_PyModule.cxx
+  PathPlanning_PyModule.cxx
   PyUtils.cxx
   Modeling_PyModule.cxx
   Vmtk_PyModule.cxx

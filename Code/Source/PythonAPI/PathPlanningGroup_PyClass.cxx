@@ -29,13 +29,13 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// The functions defined here implement the SV Python API 'path' module 'Group' class. 
+// The functions defined here implement the SV Python API 'pathplanning' module 'Group' class. 
 // It provides an interface to the SV PathGroup class.
 //
-//     aorta_path_group = path.Group()
+//     aorta_path_group = pathplanning.Group()
 //
 #include "sv3_PathGroup.h"
-#include "PathGroup_PyClass.h"
+#include "PathplanningGroup_PyClass.h"
 #include "sv3_PathIO.h"
 
 using sv3::PathGroup;
@@ -456,7 +456,7 @@ PathGroup_write(PyPathGroup* self, PyObject* args)
 static char* PATH_GROUP_CLASS = "Group";
 // Dotted name that includes both the module name and 
 // the name of the type within the module.
-static char* PATH_GROUP_MODULE_CLASS = "path.Group";
+static char* PATHPLANNINNG_GROUP_MODULE_CLASS = "pathplanning.Group";
 
 //---------------
 // PathGroup_doc 
@@ -508,7 +508,7 @@ static PyTypeObject PyPathGroupType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   // Dotted name that includes both the module name and 
   // the name of the type within the module.
-  PATH_GROUP_MODULE_CLASS, 
+  PATHPLANNINNG_GROUP_MODULE_CLASS, 
   sizeof(PyPathGroup)
 };
 

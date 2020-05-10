@@ -29,11 +29,11 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// The functions defined here implement the SV Python API path module subdivision method class. 
+// The functions defined here implement the SV Python API pathplanning module subdivision method class. 
 // The class member data provides string constants representing each of the subdivision methods. 
 // Subdivision methods are refered to as calculation number in SV.
 //
-// The class name is 'SubdivisionMethod'. It is referenced from the path module as 'path.SubdivisionMethod'.
+// The class name is 'SubdivisionMethod'. It is referenced from the pathplanning module as 'pathplanning.SubdivisionMethod'.
 //
 #ifndef PATH_SUBDIVISION_METHOD_PYMODULE_H
 #define PATH_SUBDIVISION_METHOD_PYMODULE_H
@@ -101,7 +101,7 @@ PathSubdivisionMethod_get_names()
 ////////////////////////////////////////////////////////
 
 static char* PATH_SUBDIVISION_METHOD_CLASS = "SubdivisionMethod";
-static char* PATH_SUBDIVISION_METHOD_MODULE_CLASS = "path.SubdivisionMethod";
+static char* PATH_SUBDIVISION_METHOD_MODULE_CLASS = "pathplanning.SubdivisionMethod";
 // The name of the CalculationMethod class veriable that contains all of the method types.
 static char* PATH_SUBDIVISION_METHOD_CLASS_VARIBLE_NAMES = "names";
 

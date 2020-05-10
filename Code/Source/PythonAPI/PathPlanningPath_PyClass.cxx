@@ -29,11 +29,11 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// The functions defined here implement the SV Python API path class. 
+// The functions defined here implement the SV Python API Path class. 
 //
 // The class name is 'Path'. 
 //
-//     path = path.Path()
+//     path = pathplanning.Path()
 //
 using sv3::PathElement;
 
@@ -938,7 +938,7 @@ Path_smooth(PyPath* self, PyObject* args, PyObject* kwargs)
 static char* PATH_CLASS = "Path";
 // Dotted name that includes both the module name and 
 // the name of the type within the module.
-static char* PATH_MODULE_CLASS = "path.Path";
+static char* PATHPLANNING_MODULE_CLASS = "pathplanning.Path";
 
 //---------------
 // PathClass_doc
@@ -950,9 +950,9 @@ PyDoc_STRVAR(PathClass_doc,
    \n\
 ");
 
-//--------------------
-// PyPathClassMethods 
-//--------------------
+//---------------
+// PyPathMethods 
+//---------------
 // Path class methods.
 //
 static PyMethodDef PyPathMethods[] = {
@@ -997,7 +997,7 @@ PyTypeObject PyPathType = {
   PyVarObject_HEAD_INIT(NULL, 0)
   // Dotted name that includes both the module name and 
   // the name of the type within the module.
-  PATH_MODULE_CLASS, 
+  PATHPLANNING_MODULE_CLASS, 
   sizeof(PyPath)
 };
 
