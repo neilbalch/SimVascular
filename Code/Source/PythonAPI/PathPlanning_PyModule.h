@@ -35,6 +35,7 @@
 #include "SimVascular.h"
 #include "Python.h"
 #include "sv3_PathElement.h"
+#include "sv3_PathGroup.h"
 #include "sv3PathExports.h"
 
 //--------
@@ -48,6 +49,18 @@ typedef struct
   sv3::PathElement* path;
   int id;
 } PyPath;
+
+//-------------
+// PyPathGroup
+//-------------
+// Define the SV Python Group class.
+//
+typedef struct
+{
+  PyObject_HEAD
+  sv3::PathGroup* pathGroup;
+  int id;
+} PyPathGroup;
 
 PyObject * CreatePyPath(sv3::PathElement* path = nullptr);
 extern PyTypeObject PyPathType;

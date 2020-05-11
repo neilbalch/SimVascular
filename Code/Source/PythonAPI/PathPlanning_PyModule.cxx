@@ -34,11 +34,7 @@
 // The module name is 'pathplanning'. 
 //
 // A Python exception sv.pathplanning.PathError is defined for this module. 
-// The exception can be used in a Python 'try' statement with an 'except' clause 
-// like this
-//
-//    try:
-//    except sv.path.PathError:
+// The exception can be used in a Python 'try' statement with an 'except' clause.
 //
 #include "SimVascular.h"
 #include "SimVascular_python.h"
@@ -76,27 +72,27 @@ static PyObject* PyRunTimeErr;
 ////////////////////////////////////////////////////////
 
 static char* PATHPLANNING_MODULE = "pathplanning";
-static char* PATHPLANNING_MODULE_EXCEPTION = "pathplanning.PathError";
-static char* PATHPLANNING_MODULE_EXCEPTION_OBJECT = "PathError";
+static char* PATHPLANNING_MODULE_EXCEPTION = "pathplanning.PathPlanningError";
+static char* PATHPLANNING_MODULE_EXCEPTION_OBJECT = "PathPlanningError";
 
-//----------------
-// PathModule_doc
-//----------------
+//------------------------
+// PathPlanningModule_doc
+//------------------------
 // Define the path module documentation.
 //
-PyDoc_STRVAR(PathModule_doc,
-   "SV path module. \n\
+PyDoc_STRVAR(PathPlanningModule_doc,
+   "SV pathplanning module. \n\
    \n\
-   The path module provides an interface for SV path planning. Paths model vessel centerlines using a small number of manually selected \n\
+   The pathplanning module provides an interface for SV path planning. Paths model vessel centerlines using a small number of manually selected \n\
    control points. Path geometry is represented by a set of curve points sampled from a spline passing through the control points. \n\
    Path curve points are used to postition a slice plane for image segmentaion.  \n\
    \n\
    \n\
 ");
 
-//---------------------
+//-----------------------------
 // PyPathPlanningModuleMethods
-//---------------------
+//-----------------------------
 //
 static PyMethodDef PyPathPlanningModuleMethods[] =
 {
@@ -128,7 +124,7 @@ static PyModuleDef_Base m_base = PyModuleDef_HEAD_INIT;
 static struct PyModuleDef PyPathPlanningModule = {
    m_base,
    PATHPLANNING_MODULE,
-   PathModule_doc, 
+   PathPlanningModule_doc, 
    perInterpreterStateSize,
    PyPathPlanningModuleMethods
 };
@@ -146,16 +142,16 @@ PyMODINIT_FUNC PyInit_PyPathplanning()
   //
   SetPyPathTypeFields(PyPathType);
   if (PyType_Ready(&PyPathType) < 0) {
-    fprintf(stdout, "Error initilizing PathType \n");
-    return SV_PYTHON_ERROR;
+      fprintf(stdout, "Error initilizing PathType \n");
+      return nullptr;
   }
 
   // Setup the PathGroup class type.
   //
   SetPyPathGroupTypeFields(PyPathGroupType);
   if (PyType_Ready(&PyPathGroupType) < 0) {
-    fprintf(stdout,"Error in PyPathGroupType\n");
-    return SV_PYTHON_ERROR;
+      fprintf(stdout,"Error in PyPathGroupType\n");
+      return nullptr;
   }
 
   // Setup the PathSubdivisionMethod class type.
@@ -166,11 +162,11 @@ PyMODINIT_FUNC PyInit_PyPathplanning()
       return nullptr;
   }
 
-  // Create the path module.
+  // Create the pathplanning module.
   auto module = PyModule_Create(&PyPathPlanningModule);
   if (module == NULL) {
-    fprintf(stdout,"Error in initializing 'path' module \n");
-    return SV_PYTHON_ERROR;
+      fprintf(stdout,"Error in initializing 'path' module \n");
+      return nullptr;
   }
 
   // Add path.PathException exception.

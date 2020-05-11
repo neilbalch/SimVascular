@@ -30,12 +30,17 @@
  */
 
 // The functions defined here implement the SV Python API 'pathplanning' module 'Group' class. 
-// It provides an interface to the SV PathGroup class.
 //
-//     aorta_path_group = pathplanning.Group()
+//     path_group = pathplanning.Group()
+//
+// The Python Group class is implemented using the PyPathGroup struct defined in PathPlanning_PyModule.h. 
+//
+//   PyPathGroup:
+//      Attributes: None 
+//      Data members: 
+//         sv3::PathGroup* pathGroup; 
 //
 #include "sv3_PathGroup.h"
-#include "PathplanningGroup_PyClass.h"
 #include "sv3_PathIO.h"
 
 using sv3::PathGroup;

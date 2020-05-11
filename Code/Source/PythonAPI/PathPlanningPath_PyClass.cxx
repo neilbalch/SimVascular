@@ -29,39 +29,23 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// The functions defined here implement the SV Python API Path class. 
-//
-// The class name is 'Path'. 
+// The functions defined here implement the SV Python API 'pathplanning' module 'Path' class. 
 //
 //     path = pathplanning.Path()
 //
+// The Python Path class is implemented using the PyPath struct defined in PathPlanning_PyModule.h. 
+//
+//   PyPath:
+//      Attributes: None 
+//      Data members: 
+//         sv3::PathElement* path;
+
+// Declare SV object that stores path data.
 using sv3::PathElement;
 
 //////////////////////////////////////////////////////
 //          U t i l i t y  F u n c t i o n s        //
 //////////////////////////////////////////////////////
-
-//-----------------
-// CreatePathCurve
-//-----------------
-//
-static bool 
-CreatePathCurve(PathElement* path)
-{
-  // Check that conrol points have be defined for the path.
-  if (path->GetControlPoints().size() == 0) {
-    return false;
-  }  
-
-  // Create the sample points along the path curve  defined by its control poitns. 
-  path->CreatePathPoints();
-  int num = path->GetPathPoints().size();
-  if (num == 0) {
-      //api.error("Error creating path from control points");
-      return false;
-  } 
-  return true; 
-}
 
 //----------------
 // GetPathElement

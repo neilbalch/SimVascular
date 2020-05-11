@@ -29,20 +29,25 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// The functions defined here implement the SV Python API pathplanning module subdivision method class. 
-// The class member data provides string constants representing each of the subdivision methods. 
+// The functions defined here implement the SV Python API 'pathplanning' module 'SubdivisionMethod' class. 
+//
+// The class attributes provide string constants representing each of the subdivision methods. The strings
+// are stored as a dict created using SetPathSubdivisionMethodTypes().
+//
 // Subdivision methods are refered to as calculation number in SV.
 //
-// The class name is 'SubdivisionMethod'. It is referenced from the pathplanning module as 'pathplanning.SubdivisionMethod'.
-//
-#ifndef PATH_SUBDIVISION_METHOD_PYMODULE_H
-#define PATH_SUBDIVISION_METHOD_PYMODULE_H
+#ifndef PYAPI_PATHPLANNING_SUBDIVISION_METHOD_PYCLASS_H
+#define PYAPI_PATHPLANNING_SUBDIVISION_METHOD_PYCLASS_H
 
 #include <iostream>
 #include <string>
 #include <structmember.h>
 #include "sv3_PathGroup.h"
 
+//-------------------------
+// subdivMethodNameTypeMap
+//-------------------------
+//
 // Define a map between method name and enum type.
 //
 static std::map<std::string, sv3::PathElement::CalculationMethod> subdivMethodNameTypeMap =
@@ -55,9 +60,9 @@ static std::map<std::string, sv3::PathElement::CalculationMethod> subdivMethodNa
 // Define the valid calculation methods, used in error messages.
 static std::string subdivMethodValidNames = "SPACING, SUBDIVISION or TOTAL";
 
-//------------------------------
+//-------------------------
 // PyPathSubdivisionMethod 
-//------------------------------
+//-------------------------
 // Define the PyPathSubdivisionMethod class (type).
 //
 typedef struct {
@@ -140,9 +145,9 @@ static PyTypeObject PyPathSubdivisionMethodType = {
   .tp_basicsize = sizeof(PyPathSubdivisionMethod)
 };
 
-//-----------------------------
+//------------------------------------
 // SetPathSubdivisionMethodTypeFields 
-//-----------------------------
+//------------------------------------
 //
 static void
 SetPathSubdivisionMethodTypeFields(PyTypeObject& methodType)
