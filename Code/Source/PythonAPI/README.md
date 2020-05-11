@@ -39,6 +39,15 @@ PathPlanningGroup_PyClass.h
 PathPlanningSubdivMethod_PyClass.cxx
 ```
 
+# Implementing Python Extensions in C++
+
+Python extension modules and classes have been implemented using certain coding and naming conventions.
+
+## Modules
+
+- static char* *ModuleName*_MODULE
+- static PyMethodDef Py*ModuleName*ModuleMethods[] =
+
 
 # Modules
 
