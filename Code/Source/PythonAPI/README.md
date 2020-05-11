@@ -1,13 +1,7 @@
 
 # SimVascular Python API 
 
-The SimVascular Python API is implemented using Python and C++. The code for the SimVascular Python API **sv** package is locted in **SimVascular/Python/site-packages/sv**. This directory also contains Python code implementing the following classes
-
-- MeshSimOptions 
-- Project
-- Visualization
-
-The files in this directory implement most of the SimVascular Python API. The following modules have been implemented 
+The SimVascular Python API is implemented using Python and C++. The files in this directory implement most of the SimVascular Python API. The following modules have been implemented 
 
 - geometry
 - meshing
@@ -16,9 +10,15 @@ The files in this directory implement most of the SimVascular Python API. The fo
 - segmentation
 - vmtk
 
-The modules names reflect the names of the SV application tools.
+The module names reflect the names of the SV application tools.
 
 The code for the **dmg** module is located in **SimVascular/Code/Source/sv4gui/Plugins/org.sv.pythondatanodes**. The  **dmg** module must be impemented within a project so it can interact with the SV Data Manager (MITK) framework.
+
+The code for the SimVascular Python API **sv** package is locted in **SimVascular/Python/site-packages/sv**. This directory also contains Python code implementing the following classes
+
+- MeshSimOptions 
+- Project
+- Visualization
 
 
 # Code Organization
