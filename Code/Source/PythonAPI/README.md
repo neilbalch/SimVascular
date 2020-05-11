@@ -29,7 +29,7 @@ The code is organized using seprate files for modules and classes defined for th
   
   - Classes are implemented in *ModuleNameClassName*\_PyClass.cxx file. 
 
-For example the **pathplanning** module code is contained in the following files
+For example the **pathplanning** module code is contained in the files
 ```
 PathPlanning_PyModule.cxx
 PathPlanning_PyModule.h
@@ -57,7 +57,7 @@ Python extension modules and classes have been implemented using certain coding 
 
 ## _pathplanning_ Module
 
-The **path** module code is contained in
+The **path** module code is contained in the files
 ```
 Path_PyModule.cxx
 Path_PyModule.h
