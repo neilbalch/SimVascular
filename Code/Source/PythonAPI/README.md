@@ -43,10 +43,14 @@ PathPlanningSubdivMethod_PyClass.cxx
 
 Python extension modules and classes have been implemented using certain coding and naming conventions.
 
-## Modules
+## Defining a Module
 
-- static char* *ModuleName*_MODULE
-- static PyMethodDef Py*ModuleName*ModuleMethods[] =
+- name: static char* *ModuleName*_MODULE = ...
+- methods: static PyMethodDef Py*ModuleName*ModuleMethods[] = { ... }
+- module definition: static struct PyModuleDef Py*ModuleName*Module = { ... }
+
+## Defining a Class
+
 
 
 # Modules
