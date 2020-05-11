@@ -45,9 +45,9 @@ Python extension modules and classes have been implemented using certain coding 
 
 ## Defining a Module
 
-- name: static char* *ModuleName*_MODULE = ...
-- methods: static PyMethodDef Py*ModuleName*ModuleMethods[] = { ... }
-- module definition: static struct PyModuleDef Py*ModuleName*Module = { ... }
+- Name: static char* *ModuleName*_MODULE = ...
+- Methods: static PyMethodDef Py*ModuleName*ModuleMethods[] = { ... }
+- Module definition: static struct PyModuleDef Py*ModuleName*Module = { ... }
 
 ## Defining a Class
 
