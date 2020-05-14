@@ -92,12 +92,9 @@ CreateSegmentationObject(cKernelType contourType, PathElement::PathPoint pathPoi
 PyDoc_STRVAR(Segmentation_get_center_doc,
   "get_center()  \n\ 
    \n\
-   Get the center of the contour. \n\
+   Get the center of the segmentation. \n\
    \n\
-   Args:                                    \n\
-     None \n\
-   \n\
-   Returns list([x,y,z]): The center of the contour. \n\
+   Returns list([x,y,z]): The center of the segmentation. \n\
 ");
 
 static PyObject * 

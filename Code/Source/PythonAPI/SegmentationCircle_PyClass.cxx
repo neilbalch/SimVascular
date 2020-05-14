@@ -76,19 +76,48 @@ extern bool PyPathFrameGetData(PyObject* object, int& id, std::array<double,3>& 
 //--------------------------------
 // CircleSegmentationSetFrameData
 //--------------------------------
+// Get the data used to define a cicle.
 //
 bool
-CircleSegmentationSetFrameData(PyUtilApiFunction& api, PyObject* frameObj, sv3::PathElement::PathPoint& pathPoint, PyObject* planeObj,
-   vtkPlane** plane, std::array<double,3>& point)
+CircleSegmentationSetFrameData(PyUtilApiFunction& api, PyObject* centerArg, std::array<double,3>& center, 
+     PyObject* normalArg, std::array<double,3>& normal, PyObject* frameObj, sv3::PathElement::PathPoint& pathPoint)
 {
-  if ((frameObj != nullptr) &&  (planeObj != nullptr)) {
-      api.error("Both a 'frame' and 'plane' argument was given; only one is allowed.");
+  
+  // Get the center and normal data.
+  //
+  bool haveCenter = false;
+
+  if ((centerArg != nullptr) || (normalArg != nullptr)) { 
+      if ((centerArg == nullptr) || (normalArg == nullptr)) { 
+          api.error("Both a 'center' and a 'normal' argument must be given.");
+          return false;
+      }
+      std::string emsg;
+      double cval[3];
+      if (!PyUtilGetPointData(centerArg, emsg, cval)) { 
+          api.error("The 'center' argument " + emsg);
+          return false;
+      }
+      double nval[3];
+      if (!PyUtilGetPointData(normalArg, emsg, nval)) { 
+          api.error("The 'normal' argument " + emsg);
+          return false;
+      }
+
+      for (int i = 0; i < 3; i++) {
+         center[i] = cval[i];
+         normal[i] = nval[i];
+      }
+      haveCenter = true;
+  }
+
+  if ((frameObj != nullptr) && haveCenter) {
+      api.error("Both a 'center/normal' and 'frame' argument was given; only one is allowed.");
       return false;
   }
 
-  if ((frameObj == nullptr) &&  (planeObj == nullptr)) {
-      api.error("A 'frame' or 'plane' argument must be given.");
-      return false;
+  if (haveCenter) {
+      return true;
   }
 
   // Get the frame argument value.
@@ -99,21 +128,12 @@ CircleSegmentationSetFrameData(PyUtilApiFunction& api, PyObject* frameObj, sv3::
           api.error("The 'frame' argument " + emsg);
           return false;
       }
-      point[0] = pathPoint.pos[0];
-      point[1] = pathPoint.pos[1];
-      point[2] = pathPoint.pos[2];
-  }
-
-  // Get the plane data.
-  //
-  *plane = nullptr;
-  if (planeObj != nullptr) {
-      *plane = (vtkPlane*)vtkPythonUtil::GetPointerFromObject(planeObj, "vtkPlane");
-      if (*plane == nullptr) {
-          PyErr_SetString(PyExc_ValueError, "The 'plane' argument must be a vtkPlane object.");
-          return false;
-      }
-      (*plane)->GetOrigin(point.data());
+      center[0] = pathPoint.pos[0];
+      center[1] = pathPoint.pos[1];
+      center[2] = pathPoint.pos[2];
+  } else {
+      api.error("A 'center/normal' or 'frame' argument must be given.");
+      return false;
   }
 
   return true;
@@ -124,6 +144,53 @@ CircleSegmentationSetFrameData(PyUtilApiFunction& api, PyObject* frameObj, sv3::
 //////////////////////////////////////////////////////
 //
 // Python API functions. 
+
+//-------------------------------
+// CircleSegmentation_get_center 
+//-------------------------------
+// There is also a 'get_center' method in the Segmentation class.
+// This is a geometric center based on contour points so it may
+// not be the exact center for a circle.
+//
+PyDoc_STRVAR(CircleSegmentation_get_center_doc,
+  "get_center() \n\ 
+   \n\
+   Get the circle segmentation center. \n\
+   \n\
+   Returns (list([float,float,float]): The circle center. \n\
+   \n\
+");
+
+static PyObject*
+CircleSegmentation_get_center(PyCircleSegmentation* self, PyObject* args)
+{
+  auto circleContour = dynamic_cast<sv3::circleContour*>(self->super.contour);
+  auto center = circleContour->GetControlPoint(0);
+  return Py_BuildValue("[d, d, d]", center[0], center[1], center[2]);
+}
+
+//-------------------------------
+// CircleSegmentation_get_normal 
+//-------------------------------
+//
+PyDoc_STRVAR(CircleSegmentation_get_normal_doc,
+  "get_normal() \n\ 
+   \n\
+   Get the circle segmentation normal. \n\
+   \n\
+   Returns (list([float,float,float]): The circle normal. \n\
+   \n\
+");
+
+static PyObject*
+CircleSegmentation_get_normal(PyCircleSegmentation* self, PyObject* args)
+{
+  auto circleContour = dynamic_cast<sv3::circleContour*>(self->super.contour);
+  auto plane = circleContour->GetPlaneGeometry();
+  auto normal = plane->GetNormal(); 
+  
+  return Py_BuildValue("[d, d, d]", normal[0], normal[1], normal[2]);
+}
 
 //-------------------------------
 // CircleSegmentation_get_radius 
@@ -145,6 +212,47 @@ CircleSegmentation_get_radius(PyCircleSegmentation* self, PyObject* args)
   return Py_BuildValue("d", radius);
 }
 
+//-------------------------------
+// CircleSegmentation_set_center 
+//-------------------------------
+//
+PyDoc_STRVAR(CircleSegmentation_set_center_doc,
+  "set_center(center) \n\ 
+   \n\
+   Set the circle segmentation center. \n\
+   \n\
+   Args: \n\
+     center (list([float,float,float]): The circle center. \n\
+   \n\
+");
+
+static PyObject*
+CircleSegmentation_set_center(PyCircleSegmentation* self, PyObject* args, PyObject *kwargs)
+{
+  auto api = PyUtilApiFunction("O!", PyRunTimeErr, __func__);
+  static char *keywords[] = {"center", NULL};
+  PyObject* centerArg = nullptr;
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &PyList_Type, &centerArg)) { 
+      return nullptr;
+  }
+
+  std::string emsg;
+  std::array<double,3> center;
+  if (!PyUtilGetPointData(centerArg, emsg, center.data())) {
+      api.error("The 'center' argument " + emsg);
+      return nullptr;
+  }
+
+  auto circleContour = dynamic_cast<sv3::circleContour*>(self->super.contour);
+
+  // Set the circle center (control point 0);
+  int index = 0;
+  circleContour->SetControlPoint(index, center);
+
+  Py_RETURN_NONE;
+}
+
 //------------------------------
 // CircleSegmentation_set_frame  
 //------------------------------
@@ -163,37 +271,82 @@ static PyObject*
 CircleSegmentation_set_frame(PyCircleSegmentation* self, PyObject* args, PyObject *kwargs)
 {
   std::cout << "[CircleSegmentation_set_frame] ========== CircleSegmentation_set_frame ========== " << std::endl;
-  auto api = PyUtilApiFunction("|O!O!", PyRunTimeErr, __func__);
-  static char *keywords[] = {"frame", "plane", NULL};
+  auto api = PyUtilApiFunction("O!", PyRunTimeErr, __func__);
+  static char *keywords[] = {"frame", NULL};
   PyObject* frameArg = nullptr;
-  PyObject* planeArg = nullptr;
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &PyPathFrameType, &frameArg, &planeArg)) {
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &PyPathFrameType, &frameArg)) {
       return nullptr;
   }
 
-  std::array<double,3> point;
-  sv3::PathElement::PathPoint pathPoint;
-  vtkPlane* plane = nullptr;
-
   // Extract data from the input arguments.
-  if (!CircleSegmentationSetFrameData(api, frameArg, pathPoint, planeArg, &plane, point)) {
+  //
+  PyObject* centerArg = nullptr;
+  PyObject* normalArg = nullptr;
+  sv3::PathElement::PathPoint pathPoint;
+  std::array<double,3> normal;
+  std::array<double,3> center;
+
+  if (!CircleSegmentationSetFrameData(api, centerArg, center, normalArg, normal, frameArg, pathPoint)) {
       return nullptr;
   }
 
   auto circleContour = dynamic_cast<sv3::circleContour*>(self->super.contour);
 
-  // Set the circle path point if it is given, else set its plane geometry.
+  // Set the circle path point.
   //
-  if (frameArg != nullptr) {
-      circleContour->SetPathPoint(pathPoint);
-  } else { 
-      circleContour->SetPlaneGeometry(plane);
-  }
+  circleContour->SetPathPoint(pathPoint);
 
   // Set the circle center (control point 0);
   int index = 0;
-  circleContour->SetControlPoint(index, point);
+  circleContour->SetControlPoint(index, center);
+
+  Py_RETURN_NONE;
+}
+
+//-------------------------------
+// CircleSegmentation_set_normal 
+//-------------------------------
+//
+PyDoc_STRVAR(CircleSegmentation_set_normal_doc,
+  "set_normal(normal)  \n\ 
+   \n\
+   Set the circle segmentation normal. \n\
+   \n\
+   Args: \n\
+     normal (list([float,float,float]): The circle normal. \n\
+   \n\
+");
+
+static PyObject*
+CircleSegmentation_set_normal(PyCircleSegmentation* self, PyObject* args, PyObject *kwargs)
+{
+  auto api = PyUtilApiFunction("O!", PyRunTimeErr, __func__);
+  static char *keywords[] = {"normal", NULL};
+  PyObject* normalArg = nullptr;
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &PyList_Type, &normalArg)) {
+      return nullptr;
+  }
+
+  std::string emsg;
+  std::array<double,3> normal;
+  if (!PyUtilGetPointData(normalArg, emsg, normal.data())) {
+      api.error("The 'normal' argument " + emsg);
+      return nullptr;
+  }
+
+  auto circleContour = dynamic_cast<sv3::circleContour*>(self->super.contour);
+
+  // Set the circle normal using a plane.
+  auto center = circleContour->GetControlPoint(0);
+  auto plane = vtkSmartPointer<vtkPlane>::New();
+  plane->SetOrigin(center.data());
+  plane->SetNormal(normal.data());
+  circleContour->SetPlaneGeometry(plane);
+
+  // Generate new curve points.
+  circleContour->ControlPointsChanged();
 
   Py_RETURN_NONE;
 }
@@ -240,14 +393,22 @@ static char* SEGMENTATION_CIRCLE_CLASS = "Circle";
 static char* SEGMENTATION_CIRCLE_MODULE_CLASS = "segmentation.Circle";
 
 PyDoc_STRVAR(PyCircleSegmentationClass_doc, 
-   "Circle(radius, plane=None, frame=None)  \n\
+   "Circle(radius, center=None, normal=None, frame=None)  \n\
    \n\
    The CircleSegmentation class provides an interface for creating a circle segmentation. \n\
-   A CircleSegmentation object is created using a vtkPlane or PathFrame object. \n\
+   A circle segmentation is defined by a radius, a 3D point defining its center and a normal. \n\
+   The normal defines its orientation (i.e. the plane the circle lies in). \n\
+   \n\
+   A CircleSegmentation object is created using a radius, center and normal or a PathFrame object. \n\
+   \n\
+   \n\
+   A PathFrame object contains a path's interpolating spline (curve points) position, tangent, and normal data \n\
+   at a given location. The position is used for the circle center, the tangent for its normal.\n\
    \n\
    Args: \n\
      radius (float): The circle radius. \n\
-     plane (Optional[vktPlane]): A vktPlane object defing the circle's center and coordinate frame. \n\
+     center (list([float,float,float]): The circle center. \n\
+     normal(list([float,float,float]): The circle normal direction. \n\
      frame (Optional[PathFrame]): A PathFrame object defing the circle's center and coordinate frame. \n\
    \n\
 ");
@@ -258,11 +419,13 @@ PyDoc_STRVAR(PyCircleSegmentationClass_doc,
 //
 static PyMethodDef PyCircleSegmentationMethods[] = {
 
-  // { "set_center", (PyCFunction)CircleSegmentation_set_center, METH_VARARGS, CircleSegmentation_set_center_doc},
+  { "get_center", (PyCFunction)CircleSegmentation_get_center, METH_NOARGS, CircleSegmentation_get_center_doc},
+  { "get_normal", (PyCFunction)CircleSegmentation_get_normal, METH_NOARGS, CircleSegmentation_get_normal_doc},
+  { "get_radius", (PyCFunction)CircleSegmentation_get_radius, METH_NOARGS, CircleSegmentation_get_radius_doc},
 
-  { "get_radius", (PyCFunction)CircleSegmentation_get_radius, METH_VARARGS, CircleSegmentation_get_radius_doc},
-
+  { "set_center", (PyCFunction)CircleSegmentation_set_center, METH_VARARGS|METH_KEYWORDS, CircleSegmentation_set_center_doc},
   { "set_frame", (PyCFunction)CircleSegmentation_set_frame, METH_VARARGS|METH_KEYWORDS, CircleSegmentation_set_frame_doc},
+  { "set_normal", (PyCFunction)CircleSegmentation_set_normal, METH_VARARGS|METH_KEYWORDS, CircleSegmentation_set_normal_doc},
   { "set_radius", (PyCFunction)CircleSegmentation_set_radius, METH_VARARGS, CircleSegmentation_set_radius_doc},
 
   {NULL, NULL}
@@ -275,24 +438,24 @@ static PyMethodDef PyCircleSegmentationMethods[] = {
 //
 // This function is used to initialize an object after it is created.
 //
-// A 'radius' and 'frame' or 'plane' argumnet are required.
+// A 'radius' and 'normal or 'frame' arguments are required.
 //
 static int
 PyCircleSegmentationInit(PyCircleSegmentation* self, PyObject* args, PyObject *kwargs)
 {
   static int numObjs = 1;
   std::cout << "[PyCircleSegmentationInit] Init Circle Segmentation object: " << numObjs << std::endl;
-  auto api = PyUtilApiFunction("O!|O!O", PyRunTimeErr, "CircleSegmentation");
-  static char *keywords[] = {"radius", "frame", "plane", NULL};
+  auto api = PyUtilApiFunction("O!|O!O!O!", PyRunTimeErr, "CircleSegmentation");
+  static char *keywords[] = {"radius", "center", "normal", "frame", NULL};
   PyObject* radiusArg = nullptr;
+  PyObject* centerArg = nullptr;
+  PyObject* normalArg = nullptr;
   PyObject* frameArg = nullptr;
-  PyObject* planeArg = nullptr;
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &PyFloat_Type, &radiusArg, 
-        &PyPathFrameType, &frameArg, &planeArg)) {
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &PyFloat_Type, &radiusArg, &PyList_Type, &centerArg, &PyList_Type, &normalArg,
+        &PyPathFrameType, &frameArg)) {
       return -1;
   }
-
 
   // Get the radius argument value.
   double radius = PyFloat_AsDouble(radiusArg);
@@ -303,11 +466,11 @@ PyCircleSegmentationInit(PyCircleSegmentation* self, PyObject* args, PyObject *k
   }
 
   // Extract data from the input arguments.
-  std::array<double,3> point;
+  //
+  std::array<double,3> normal;
+  std::array<double,3> center;
   sv3::PathElement::PathPoint pathPoint;
-  vtkPlane* plane = nullptr;
-
-  if (!CircleSegmentationSetFrameData(api, frameArg, pathPoint, planeArg, &plane, point)) {
+  if (!CircleSegmentationSetFrameData(api, centerArg, center, normalArg, normal, frameArg, pathPoint)) {
       return -1;
   }
 
@@ -320,6 +483,9 @@ PyCircleSegmentationInit(PyCircleSegmentation* self, PyObject* args, PyObject *k
   if (frameArg != nullptr) {
       circleContour->SetPathPoint(pathPoint);
   } else { 
+      auto plane = vtkSmartPointer<vtkPlane>::New();
+      plane->SetOrigin(center.data());
+      plane->SetNormal(normal.data());
       circleContour->SetPlaneGeometry(plane);
   }
 
@@ -328,7 +494,7 @@ PyCircleSegmentationInit(PyCircleSegmentation* self, PyObject* args, PyObject *k
   // The circle center is set to the projection of the 'point' 
   // onto the given plane or frame.
   //
-  circleContour->SetControlPointByRadius(radius, point.data());
+  circleContour->SetControlPointByRadius(radius, center.data());
 
   numObjs += 1;
   return 0;
