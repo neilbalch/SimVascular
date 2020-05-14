@@ -72,12 +72,12 @@
 // Exception type used by PyErr_SetString() to set the for the error indicator.
 static PyObject * PyRunTimeErr;
 
-// Prototypes for creating SV and Python contour objects. 
+// Prototypes for creating Python segmentation objects. 
 static PySegmentation* PyCreateSegmentationType();
 static PyObject * PyCreateSegmentation(cKernelType contourType); 
 static PyObject * PyCreateSegmentation(sv3::Contour* contour);
 
-// Include implementations for the 'ContourKernel' and Contour' classes.
+// Include implementations for the 'SegmentationMethod' and 'Segmentation' classes.
 #include "SegmentationMethod_PyClass.cxx"
 #include "Segmentation_PyClass.cxx"
 
@@ -138,16 +138,31 @@ static char* SEGMENTATION_MODULE = "segmentation";
 static char* SEGMENTATION_MODULE_EXCEPTION = "segmentation.SegmentationError";
 static char* SEGMENTATION_MODULE_EXCEPTION_OBJECT = "SegmentationError";
 
-PyDoc_STRVAR(SegmentationModule_doc, "Segmentation module functions.");
+//------------------------
+// SegmentationModule_doc
+//------------------------
+//
+PyDoc_STRVAR(SegmentationModule_doc,
+   "SV segmentation module. \n\
+   \n\
+   The segmentation module provides an interface for SV segmentation methods. A segmentation defines the contour geometry of a \n\
+   region of interest using various 2D image segmentation methods. The segmentation module provides several classes used to create \n\
+   and modify 2D segmentations using circle, ellipse, level set, polygon, spline polygon and threshold methods. \n\ 
+   \n\
+   \n\ Circle, ellipse, polygon, and spline polygon methods are used to manually define the segmentation region using a set of control points. \n\ 
+   \n\
+   \n\ The level set and threshold methods compute the segmentation region automatically based on image properties and option settings. \n\
+   \n\
+");
 
-//------------------------
+//-----------------------------
 // PySegmentationModuleMethods
-//------------------------
-// Define the methods for the Python 'contour' module.
+//-----------------------------
+// Define the methods for the Python 'segmentation' module.
 //
 static PyMethodDef PySegmentationModuleMethods[] =
 {
-    {"create", (PyCFunction)Segmentation_create, METH_VARARGS, "Create a Contour object."},
+    {"create", (PyCFunction)Segmentation_create, METH_VARARGS, "Create a segmentation object."},
 
     {NULL,NULL}
 };
@@ -162,9 +177,9 @@ static PyMethodDef PySegmentationModuleMethods[] =
 // Include segmentation.Group definition.
 #include "SegmentationGroup_PyClass.cxx"
 
-//------------------
+//-----------------------
 // PySegmentationCtorMap
-//------------------
+//-----------------------
 // Define an object factory for Python Contour derived classes.
 //
 using PySegmentationCtorMapType = std::map<cKernelType, std::function<PyObject*()>>;

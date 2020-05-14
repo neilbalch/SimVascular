@@ -51,9 +51,9 @@ using sv3::circleContour;
 using sv3::PathElement;
 using sv3::SegmentationUtils;
 
-circleContour::circleContour()
-    : Contour()
+circleContour::circleContour() : Contour()
 {
+    std::cout << "---------- circleContour() ----------- " << std::endl;
     m_Method="Manual";
     m_Type="Circle";
 
@@ -66,13 +66,13 @@ circleContour::circleContour()
     m_SubdivisionNumber=36;
 }
 
-circleContour::circleContour(const circleContour &other) 
-    : Contour( other )
+circleContour::circleContour(const circleContour &other) : Contour( other )
 {
 }
 
 circleContour::~circleContour()
 {
+  std::cout << "#### ~circleContour() " << std::endl;
 }
 
 circleContour* circleContour::Clone()
@@ -86,78 +86,125 @@ std::string circleContour::GetClassName()
     return "circleContour";
 }
 
+//-----------------
+// SetControlPoint
+//-----------------
+// Set the value of a control point.
+//
+// This sets the circle center (index=0) or boundary point (index=1).
+//
 void circleContour::SetControlPoint(int index, std::array<double,3> point)
 {
+    std::cout << "========== circleContour::SetControlPoint ==========" << std::endl;
     double projPt[3];
     double pt[3];
     pt[0] = point[0]; pt[1] = point[1]; pt[2] = point[2];
-    printf("Plane pointer in circle is %p\n", m_vtkPlaneGeometry);
-    if (sv3::Contour::m_vtkPlaneGeometry==NULL)
-    {
-        std::array<double, 3> PT = this->GetPathPosPoint();
-        std::cout <<"PathPosPoint: "<<PT[0]<<" "<<PT[1]<<" "<<PT[2]<<std::endl;
-    }
-    //m_vtkPlaneGeometry->ProjectPoint(pt, projPt);
-    if(index == 0)
-    {
+    m_vtkPlaneGeometry->ProjectPoint(point.data(), projPt);
 
-        if(m_ControlPoints.size()==0)
-        {
+    // Set the circle center.
+    //
+    if (index == 0) {
+        if (m_ControlPoints.size() == 0) {
             m_ControlPoints.push_back(std::array<double,3>{projPt[0],projPt[1],projPt[2]});
-        }
-        else
-        {
+        } else {
             std::array<double,3> dirVec;
-            for (int i=0; i<3; i++)
-                dirVec[i]=projPt[i]-GetControlPoint(0)[i];
+            for (int i = 0; i < 3; i++) {
+                dirVec[i] = projPt[i] - GetControlPoint(0)[i];
+            }
             Shift(dirVec);
         }
-    }
-    else if ( index == 1 )
-    {
-        if(m_ControlPoints.size()<2)
+
+    // Set the circle radius.
+    //
+    } else if (index == 1) {
+        if (m_ControlPoints.size() < 2) {
             m_ControlPoints.push_back(std::array<double,3>{projPt[0],projPt[1],projPt[2]});
-        else
-            m_ControlPoints[1]=std::array<double,3>{projPt[0],projPt[1],projPt[2]};
+        } else {
+            m_ControlPoints[1] = std::array<double,3>{projPt[0],projPt[1],projPt[2]};
+        }
         ControlPointsChanged();
     }
 
 }
 
-// SetControlPointByRadius
+//-----------
+// GetRadius
+//-----------
+// Get the circle radius.
+//
+double circleContour::GetRadius()
+{
+  auto cpt1 = GetControlPoint(0);
+  auto cpt2 = GetControlPoint(1);
 
+  double mag = 0.0;
+  for (int i = 0; i < 3; i++) {
+      mag += (cpt1[i]-cpt2[i]) * (cpt1[i]-cpt2[i]);
+  }
+
+  return sqrt(mag);
+}
+
+//-----------
+// SetRadius
+//-----------
+//
+void circleContour::SetRadius(double radius)
+{
+  auto center = GetControlPoint(0);
+  SetControlPointByRadius(radius, center.data());
+}
+
+//-------------------------
+// SetControlPointByRadius
+//-------------------------
+// Set the circle's boundary point using a radius.
+//
+// This seems to define the circle's center if it is not defined. 
+//
 void circleContour::SetControlPointByRadius(double radius, double* point)
 {
+    std::cout << "========== SetControlPointByRadius ==========" << std::endl;
+    std::cout << "[SetControlPointByRadius] m_vtkPlaneGeometry: " << m_vtkPlaneGeometry << std::endl;
     double centerPt[3];
     m_vtkPlaneGeometry->ProjectPoint(point, centerPt);
     std::array<double,3> dirVec;
+    std::cout << "[SetControlPointByRadius] point: " << point[0] << " " << point[1] << " " << point[2] << std::endl;
+    std::cout << "[SetControlPointByRadius] centerPt: " << centerPt[0] << " " << centerPt[1] << " " << centerPt[2] << std::endl;
 
-    if (m_ControlPoints.size()==0) {
+    if (m_ControlPoints.size() == 0) {
         m_ControlPoints.push_back(std::array<double,3>{centerPt[0],centerPt[1],centerPt[2]});
     } else {
-        for (int i=0; i<3; i++)
-            dirVec[i]=centerPt[i]-GetControlPoint(0)[i];
+        auto center = GetControlPoint(0);
+        for (int i = 0; i < 3; i++) {
+            dirVec[i] = centerPt[i] - center[i];
+        }
+        // Translate control points and contour points by dirVec.
         Shift(dirVec);
     }
-    std::array<double,3> boundaryPoint;
+
+    // Create the circle's boundary point.
+    //
     double* normal = m_vtkPlaneGeometry->GetNormal();
     double vec[3];
-    
     SegmentationUtils::getOrthogonalVector(normal,vec);
     
-    if (vec==NULL)
-        return;
-
-    boundaryPoint[0]=centerPt[0]+radius*vec[0];
-    boundaryPoint[1]=centerPt[1]+radius*vec[1];
-    boundaryPoint[2]=centerPt[2]+radius*vec[2];
+    std::array<double,3> boundaryPoint;
+    boundaryPoint[0] = centerPt[0] + radius*vec[0];
+    boundaryPoint[1] = centerPt[1] + radius*vec[1];
+    boundaryPoint[2] = centerPt[2] + radius*vec[2];
     
-    if(m_ControlPoints.size()<2)
+    if (m_ControlPoints.size() < 2) {
         m_ControlPoints.push_back(boundaryPoint);
-    else
-        m_ControlPoints[1]=boundaryPoint;
+    } else {
+        m_ControlPoints[1] = boundaryPoint;
+    }
+
+    // Generate contour points.
     ControlPointsChanged();
 
+    auto cpt = GetControlPoint(0);
+    std::cout << "[SetControlPointByRadius] Control point 0:: " << cpt[0] << " " << cpt[1] << " " << cpt[2] << std::endl;
 }
 
 void circleContour::AssignCenterScalingPoints()

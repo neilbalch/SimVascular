@@ -64,6 +64,7 @@ static PyObject* PyRunTimeErr;
 
 // Include the definitions for the CalculationMethod, Path and Group classes.
 #include "PathPlanningSubdivMethod_PyClass.cxx"
+#include "PathPlanningPathFrame_PyClass.cxx"
 #include "PathPlanningPath_PyClass.cxx"
 #include "PathPlanningGroup_PyClass.cxx"
 
@@ -146,6 +147,14 @@ PyMODINIT_FUNC PyInit_PyPathplanning()
       return nullptr;
   }
 
+  // Setup the PathFrame class type.
+  //
+  SetPathFrameTypeFields(PyPathFrameType);
+  if (PyType_Ready(&PyPathFrameType) < 0) {
+      fprintf(stdout,"Error in PyPathFrameType\n");
+      return nullptr;
+  }
+
   // Setup the PathGroup class type.
   //
   SetPyPathGroupTypeFields(PyPathGroupType);
@@ -177,6 +186,10 @@ PyMODINIT_FUNC PyInit_PyPathplanning()
   // Add Path class.
   Py_INCREF(&PyPathType);
   PyModule_AddObject(module, PATH_CLASS, (PyObject*)&PyPathType);
+
+  // Add PathFrame class.
+  Py_INCREF(&PyPathFrameType);
+  PyModule_AddObject(module, PATH_FRAME_CLASS, (PyObject*)&PyPathFrameType);
 
   // Add PathGroup class.
   Py_INCREF(&PyPathGroupType);

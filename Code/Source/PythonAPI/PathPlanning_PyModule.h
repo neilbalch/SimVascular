@@ -62,6 +62,23 @@ typedef struct
   int id;
 } PyPathGroup;
 
+//-------------
+// PyPathFrame 
+//-------------
+// Define the PyPathFrame class (type).
+//
+// This class stores data for a coordinate frame.
+//
+// This reproduces SplinePoint (see SimVascular/Code/Source/sv3/Path/sv3_Spline.h).
+//
+typedef struct {
+  PyObject_HEAD
+  int id;
+  PyObject* normal;
+  PyObject* position;
+  PyObject* tangent;
+} PyPathFrame;
+
 PyObject * CreatePyPath(sv3::PathElement* path = nullptr);
 extern PyTypeObject PyPathType;
 

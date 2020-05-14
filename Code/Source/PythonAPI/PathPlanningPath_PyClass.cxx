@@ -196,6 +196,53 @@ Path_get_control_points(PyPath* self, PyObject* args)
   return output;
 }
 
+//----------------------
+// Path_get_curve_frame
+//----------------------
+//
+PyDoc_STRVAR(Path_get_curve_frame_doc,
+  "get_curve_frame(index) \n\ 
+   \n\
+   Get the coordinate frame at the path's interpolating curve at a given location. \n\
+   \n\
+   Args: \n\
+     index (int): The index into the path's curve frames. 0 <= index <= number of path curve frames - 1. \n\
+   \n\
+   Returns (list([float,float,float])): The path's curve normal at the given location. \n\
+");
+
+static PyObject * 
+Path_get_curve_frame(PyPath* self, PyObject* args)
+{
+  auto api = PyUtilApiFunction("i", PyRunTimeErr, __func__);
+  int indexArg;
+
+  if (!PyArg_ParseTuple(args, api.format, &indexArg)) {
+      return api.argsError();
+  }
+
+  auto path = GetPathElement(api, self);
+  if (path == NULL) {
+    return nullptr;
+  }
+
+  int num = path->GetPathPointNumber();
+  if (num == 0) {
+    api.error("The path does not have points created for it.");
+    return nullptr;
+  }  
+
+  if ((indexArg < 0) || (indexArg >= num)) {
+    api.error("The 'index' argument must be between 0 and " + std::to_string(num-1) + ".");
+    return nullptr;
+  }  
+
+  auto pathPoint = path->GetPathPoint(indexArg);
+  auto pathFrameObj = CreatePyPathFrame(pathPoint);
+  return pathFrameObj;
+  //return Py_BuildValue("[d, d, d]", pathPoint.rotation[0], pathPoint.rotation[1], pathPoint.rotation[2]);
+}
+
 //-----------------------
 // Path_get_curve_normal 
 //-----------------------
@@ -944,6 +991,7 @@ static PyMethodDef PyPathMethods[] = {
   {"add_control_point", (PyCFunction)Path_add_control_point, METH_VARARGS, Path_add_control_point_doc },
   {"get_control_points", (PyCFunction)Path_get_control_points, METH_NOARGS, Path_get_control_points_doc },
 
+  {"get_curve_frame", (PyCFunction)Path_get_curve_frame, METH_VARARGS, Path_get_curve_frame_doc },
   {"get_curve_normal", (PyCFunction)Path_get_curve_normal, METH_VARARGS, Path_get_curve_normal_doc },
   {"get_curve_point", (PyCFunction)Path_get_curve_point, METH_VARARGS, Path_get_curve_point_doc },
   {"get_curve_points", (PyCFunction)Path_get_curve_points, METH_NOARGS, Path_get_curve_points_doc },
@@ -951,8 +999,8 @@ static PyMethodDef PyPathMethods[] = {
   {"get_curve_tangent", (PyCFunction)Path_get_curve_tangent, METH_VARARGS, Path_get_curve_tangent_doc },
 
   {"get_num_curve_points", (PyCFunction)Path_get_num_curve_points, METH_NOARGS, Path_get_num_curve_points_doc },
-
   {"get_num_subdivisions", (PyCFunction)Path_get_num_subdivisions, METH_NOARGS, Path_get_num_subdivisions_doc},
+
   {"get_subdivision_spacing", (PyCFunction)Path_get_subdivision_spacing, METH_NOARGS, Path_get_subdivision_spacing_doc},
 
   {"get_subdivision_method", (PyCFunction)Path_get_subdivision_method, METH_NOARGS, Path_get_subdivision_method_doc},

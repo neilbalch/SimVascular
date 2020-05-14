@@ -39,6 +39,9 @@
 #include "sv_FactoryRegistrar.h"
 #include "sv4gui_ContourGroup.h"
 
+// Segmentation references Path objects.
+#include "PathPlanning_PyModule.h"
+
 // Need to define US_MODULE_NAME because we are including sv4gui_ContourGroupIO.h.
 #define US_MODULE_NAME 
 

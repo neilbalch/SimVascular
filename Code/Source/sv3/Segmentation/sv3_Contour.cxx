@@ -404,11 +404,14 @@ void Contour::ClearContourPoints()
     m_ContourPoints.clear();
 }
 
+//---------------
+// CreateContour
+//---------------
+// Generate contour points.
+//
 void Contour::CreateContour()
 {
-    
-    if(m_ControlPoints.size()<1)
-    {
+    if (m_ControlPoints.size() < 1) {
         return;
     }
 
@@ -417,8 +420,14 @@ void Contour::CreateContour()
     ContourPointsChanged();
 }
 
-void Contour::ControlPointsChanged(){
-    CreateContour();
+//----------------------
+// ControlPointsChanged
+//----------------------
+// Generate contour points.
+//
+void Contour::ControlPointsChanged()
+{
+  CreateContour();
 }
 
 void Contour::SetContourPoints(std::vector<std::array<double, 3> > contourPoints, bool update)
@@ -453,6 +462,10 @@ std::vector<std::array<double,3> > Contour::GetContourPoints()
     return m_ContourPoints;
 }
 
+//----------------------
+// ContourPointsChanged
+//----------------------
+//
 void Contour::ContourPointsChanged()
 {
     CreateCenterScalingPoints();
@@ -618,18 +631,23 @@ int Contour::SearchControlPointByContourPoint( int contourPointIndex )
     return contourPointIndex;
 }
 
-void Contour::Shift(std::array<double, 3>  dirVec){
-
-    for(int i=0;i<m_ControlPoints.size();i++)
-    {
-        for (int j = 0; j<3;j++)
-            m_ControlPoints[i][j]=m_ControlPoints[i][j]+dirVec[j];
+//-------
+// Shift
+//-------
+// Translate all control points and contour points in the given direction.
+//
+void Contour::Shift(std::array<double,3>  dirVec)
+{
+    for (int i = 0; i < m_ControlPoints.size();i++) {
+        for (int j = 0; j<3;j++) {
+            m_ControlPoints[i][j] = m_ControlPoints[i][j] + dirVec[j];
+        }
     }
 
-    for(int i=0;i<m_ContourPoints.size();i++)
-    {
-        for (int j = 0; j<3;j++)
-            m_ContourPoints[i][j]=m_ContourPoints[i][j]+dirVec[j];
+    for (int i = 0; i < m_ContourPoints.size(); i++) {
+        for (int j = 0; j<3;j++) {
+            m_ContourPoints[i][j] = m_ContourPoints[i][j] + dirVec[j];
+        }
     }
 }
 

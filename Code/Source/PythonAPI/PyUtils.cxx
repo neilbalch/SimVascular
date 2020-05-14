@@ -33,6 +33,14 @@
 #include <string>
 #include <iostream>
 
+//////////////////////////////////////////////////////
+//             PyUtilApiFunction                    //
+//////////////////////////////////////////////////////
+
+//-------------------
+// PyUtilApiFunction
+//-------------------
+//
 PyUtilApiFunction::PyUtilApiFunction(const std::string& format, PyObject* pyError, const char* function)
 {
   std::string functionName = PyUtilGetFunctionName(function);
@@ -84,6 +92,10 @@ std::string PyUtilGetFunctionName(const char* functionName)
     }
     return name.replace(pos, 1, ".");
 }
+
+//////////////////////////////////////////////////////
+//        U t i l i t y     F u n c t i o n s       //
+//////////////////////////////////////////////////////
 
 //--------------------
 // PyUtilGetMsgPrefix 
