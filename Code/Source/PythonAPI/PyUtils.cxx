@@ -308,4 +308,68 @@ PyUtilGetVtkObject(PyUtilApiFunction& api, vtkSmartPointer<vtkPolyData> polydata
   return pyObject;
 }
 
+//--------------------
+// PyUtilGetFrameData 
+//--------------------
+// Get the data used to define a coordinate frame.
+//
+bool
+PyUtilGetFrameData(PyUtilApiFunction& api, PyObject* centerArg, std::array<double,3>& center, 
+     PyObject* normalArg, std::array<double,3>& normal, PyObject* frameObj, sv3::PathElement::PathPoint& pathPoint)
+{
+  // Get the center and normal data.
+  //
+  bool haveCenter = false;
+
+  if ((centerArg != nullptr) || (normalArg != nullptr)) { 
+      if ((centerArg == nullptr) || (normalArg == nullptr)) { 
+          api.error("Both a 'center' and a 'normal' argument must be given.");
+          return false;
+      }
+      std::string emsg;
+      double cval[3];
+      if (!PyUtilGetPointData(centerArg, emsg, cval)) { 
+          api.error("The 'center' argument " + emsg);
+          return false;
+      }
+      double nval[3];
+      if (!PyUtilGetPointData(normalArg, emsg, nval)) { 
+          api.error("The 'normal' argument " + emsg);
+          return false;
+      }
+
+      for (int i = 0; i < 3; i++) {
+         center[i] = cval[i];
+         normal[i] = nval[i];
+      }
+      haveCenter = true;
+  }
+
+  if ((frameObj != nullptr) && haveCenter) {
+      api.error("Both a 'center/normal' and 'frame' argument was given; only one is allowed.");
+      return false;
+  }
+
+  if (haveCenter) {
+      return true;
+  }
+
+  // Get the frame argument value.
+  //
+  if (frameObj != nullptr) {
+      std::string emsg;
+      if (!PyPathFrameGetData(frameObj, pathPoint.id, pathPoint.pos, pathPoint.rotation, pathPoint.tangent, emsg)) {
+          api.error("The 'frame' argument " + emsg);
+          return false;
+      }
+      center[0] = pathPoint.pos[0];
+      center[1] = pathPoint.pos[1];
+      center[2] = pathPoint.pos[2];
+  } else {
+      api.error("A 'center/normal' or 'frame' argument must be given.");
+      return false;
+  }
+
+  return true;
+}
 

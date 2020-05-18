@@ -67,12 +67,15 @@ ContourCtorMapType ContourCtorMap = {
 static Contour * 
 CreateSegmentationObject(cKernelType contourType, PathElement::PathPoint pathPoint)
 {
+  std::cout << std::endl;
+  std::cout << "[CreateSegmentationObject] ========= CreateSegmentationObject ==========" << std::endl;
   Contour* contour = nullptr;
 
   try {
       contour = ContourCtorMap[contourType]();
   } catch (const std::bad_function_call& except) {
       contour = new sv3::Contour();
+      std::cout << "[CreateSegmentationObject] ERROR: Unknown type: " << contourType << std::endl;
   }
 
   contour->SetPathPoint(pathPoint);
@@ -674,6 +677,8 @@ PyDoc_STRVAR(SegmentationClass_doc, "segmentation class functions.");
 //-----------------------
 // Define the methods for the Python 'Segmentation' class.
 //
+// [TODO:DaveP] I'm not sure which of these to expose, e.g. don't want to use get_control_points for circle contour.
+//
 static PyMethodDef PySegmentationMethods[] = {
 
   {"get_center", (PyCFunction)Segmentation_get_center, METH_NOARGS, Segmentation_get_center_doc }, 
@@ -782,7 +787,7 @@ PySegmentationNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 static void
 PySegmentationDealloc(PySegmentation* self)
 {
-  //std::cout << "[PySegmentationDealloc] Free PySegmentation: " << self->id << std::endl;
+  std::cout << "[PySegmentationDealloc] **** Free PySegmentation ****  " << self->id << std::endl;
   //delete self->contour;
   Py_TYPE(self)->tp_free(self);
 }

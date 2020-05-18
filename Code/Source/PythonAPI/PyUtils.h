@@ -38,7 +38,16 @@
 #include "vtkPythonUtil.h"
 #include "vtkSmartPointer.h"
 #include "vtkPolyData.h"
+#include "sv3_Contour.h"
 
+#include <array>
+
+//-------------------
+// PyUtilApiFunction
+//-------------------
+// This class is used to manage argument formats for API methods 
+// and error reporting.
+//
 class PyUtilApiFunction
 {
   public:
@@ -50,6 +59,14 @@ class PyUtilApiFunction
       std::string msgp; 
       PyObject* pyError; 
 };
+
+// Types and functions used to data from PathFrame objects.
+extern PyTypeObject PyPathFrameType;
+extern bool PyPathFrameGetData(PyObject* object, int& id, std::array<double,3>&  position, std::array<double,3>& normal,
+  std::array<double,3>& tangent, std::string& msg);
+
+bool PyUtilGetFrameData(PyUtilApiFunction& api, PyObject* centerArg, std::array<double,3>& center,                  
+  PyObject* normalArg, std::array<double,3>& normal, PyObject* frameObj, sv3::PathElement::PathPoint& pathPoint);
 
 std::string PyUtilGetFunctionName(const char* functionName);
 

@@ -45,6 +45,8 @@
 #include "sv3_ThresholdContour.h"
 #include "Segmentation_PyModule.h"
 
+#include "sv4gui_ContourCircle.h"
+
 #include "sv3_PathElement.h"
 
 #include "sv3_SegmentationUtils.h"
@@ -124,7 +126,7 @@ Segmentation_create(PySegmentation* self, PyObject* args)
 
   //std::cout << "[Segmentation_create] Kernel name: " << kernelName << std::endl;
   auto cont = PyCreateSegmentation(contourType);
-  Py_INCREF(cont);
+  //Py_INCREF(cont);
   return cont;
 }
 
@@ -200,12 +202,15 @@ PySegmentationCtorMapType PySegmentationCtorMap = {
 static PyObject *
 PyCreateSegmentation(cKernelType contourType)
 {
-  //std::cout << "[PyCreateSegmentation] ========== PyCreateSegmentation ==========" << std::endl;
+  std::cout << std::endl;
+  std::cout << "[PyCreateSegmentation(cKernelType)] ========== PyCreateSegmentation (cKernelType) ==========" << std::endl;
+  std::cout << "[PyCreateSegmentation(cKernelType)] contourType: " << contourType << std::endl;
   PyObject* contourObj;
 
   try {
       contourObj = PySegmentationCtorMap[contourType]();
   } catch (const std::bad_function_call& except) {
+      std::cout << "[PyCreateSegmentation(cKernelType)] ERROR: unknown contourType: " << contourType << std::endl;
       return nullptr; 
   }
 
@@ -225,10 +230,17 @@ PyCreateSegmentation(cKernelType contourType)
 static PyObject *
 PyCreateSegmentation(sv3::Contour* contour)
 {
-  //std::cout << "[PyCreateSegmentation] ========== PyCreateSegmentation ==========" << std::endl;
+  std::cout << std::endl;
+  std::cout << "[PyCreateSegmentation(contour)] ========== PyCreateSegmentation (contour) ==========" << std::endl;
   auto kernel = contour->GetKernel();
   auto ctype = contour->GetType();
   PyObject* contourObj;
+  std::cout << "[PyCreateSegmentation(contour)] type: " << ctype << std::endl;
+  std::cout << "[PyCreateSegmentation(contour)] kernel: " << kernel << std::endl;
+  std::cout << "[PyCreateSegmentation(contour)] contour: " << contour << std::endl;
+  std::cout << "[PyCreateSegmentation(contour)] cast contour to circleContour: " << dynamic_cast<sv3::circleContour*>(contour) << std::endl;
+  std::cout << "[PyCreateSegmentation(contour)] cast contour to Contour: " << dynamic_cast<sv3::Contour*>(contour) << std::endl;
+  std::cout << "[PyCreateSegmentation(contour)] cast contour to sv4guiContourCircle: " << dynamic_cast<sv4guiContourCircle*>(contour) << std::endl;
 
   if (ctype == "Contour") { 
       contourObj = PyObject_CallObject((PyObject*)&PySegmentationType, NULL);
@@ -239,8 +251,12 @@ PyCreateSegmentation(sv3::Contour* contour)
   // Replace the PySegmentation->contour with 'contour'.
   //
   auto pyContour = (PySegmentation*)contourObj;
+  std::cout << "[PyCreateSegmentation(contour)] pyContour->contour: " << pyContour->contour << std::endl;
+  std::cout << "[PyCreateSegmentation(contour)] cast pyContour->contour: " << dynamic_cast<sv3::circleContour*>(pyContour->contour) << std::endl;
+
   delete pyContour->contour;
   pyContour->contour = contour;
+  std::cout << "[PyCreateSegmentation(contour)] Done. " << std::endl;
 
   return contourObj;
 }

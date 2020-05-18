@@ -112,9 +112,9 @@ SegmentationGroup_get_time_size(PySegmentationGroup* self, PyObject* args)
 */
 }
 
-//-----------------------
-// SegmentationGroup_get_size 
-//-----------------------
+//-------------------------------------------
+// SegmentationGroup_number_of_segmentations
+//-------------------------------------------
 //
 PyDoc_STRVAR(SegmentationGroup_number_of_segmentations_doc,
   "get_size() \n\ 
@@ -150,6 +150,7 @@ PyDoc_STRVAR(SegmentationGroup_get_segmentation_doc,
 static PyObject * 
 SegmentationGroup_get_segmentation(PySegmentationGroup* self, PyObject* args)
 {
+  std::cout << "========== SegmentationGroup_get_segmentation ==========" << std::endl;
   auto api = PyUtilApiFunction("i", PyRunTimeErr, __func__);
   int index;
   char* contourName = NULL;
@@ -171,7 +172,7 @@ SegmentationGroup_get_segmentation(PySegmentationGroup* self, PyObject* args)
 
   // Get the contour for the given index.
   //
-  auto contour = contourGroup->GetContour(index);
+  sv4guiContour* contour = contourGroup->GetContour(index);
 
   if (contour == nullptr) {
       api.error("ERROR getting the contour for the index argument '" + std::to_string(index) + "'.");
@@ -179,10 +180,12 @@ SegmentationGroup_get_segmentation(PySegmentationGroup* self, PyObject* args)
   }
   auto kernel = contour->GetKernel();
   auto ctype = contour->GetType();
+  auto cmethod = contour->GetMethod();
   auto contourType = SegmentationMethod_get_name(kernel);
-  //std::cout << "[SegmentationGroup_get_segmentation] ctype: " << ctype << std::endl;
-  //std::cout << "[SegmentationGroup_get_segmentation] kernel: " << kernel << std::endl;
-  //std::cout << "[SegmentationGroup_get_segmentation] Contour type: " << contourType << std::endl;
+  std::cout << "[SegmentationGroup_get_segmentation] ctype: " << ctype << std::endl;
+  std::cout << "[SegmentationGroup_get_segmentation] kernel: " << kernel << std::endl;
+  std::cout << "[SegmentationGroup_get_segmentation] cmethod: " << cmethod << std::endl;
+  std::cout << "[SegmentationGroup_get_segmentation] Contour type: " << contourType << std::endl;
 
   // Create a PyContour object from the SV Contour object 
   // and return it as a PyObject*.
