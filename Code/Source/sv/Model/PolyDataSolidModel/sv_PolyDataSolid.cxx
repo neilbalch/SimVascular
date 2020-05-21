@@ -202,13 +202,11 @@ int cvPolyDataSolid::ReadNative( char *filename )
   }
   geom_ = vtkPolyData::New();
 
-  if ( PlyDtaUtils_ReadNative( filename, geom_) != SV_OK) {
+  if (PlyDtaUtils_ReadNative(filename, geom_) != SV_OK) {
     return SV_ERROR;
   }
 
-  vtkSmartPointer<vtkCleanPolyData> cleaner =
-    vtkSmartPointer<vtkCleanPolyData>::New();
-
+  auto cleaner = vtkSmartPointer<vtkCleanPolyData>::New();
   cleaner->SetInputData(geom_);
   cleaner->Update();
 
@@ -425,69 +423,57 @@ int cvPolyDataSolid::DeleteRegion(int regionid)
   return SV_OK;
 }
 
-// ----------------
+//-----------
 // Intersect
-// ----------------
-/**
- * @brief Function to intersect two PolyData using the vtk Booleans filter
- * @param *a Pointer to the first object to be intersected
- * @param *b Pointer to the second object to be intersected
- * @return SV_ERROR if the objects don't exist of the filter doesn't work
- * correctly
- */
-
-int cvPolyDataSolid::Intersect( cvSolidModel *a, cvSolidModel *b,
-       		 SolidModel_SimplifyT st )
+//-----------
+// Compute the Boolean intersection of two solids.
+//
+// [TODO:DaveP] The SolidModel_SimplifyT argument is not used. Why is it given?
+//
+int cvPolyDataSolid::Intersect( cvSolidModel *a, cvSolidModel *b, SolidModel_SimplifyT st)
 {
   //Geometry should be empty prior to boolean
-  if (geom_ != NULL)
-  {
+  if (geom_ != NULL) {
     return SV_ERROR;
   }
 
-  //Need both objects to create an intersection
-  if (a == NULL)
+  if ((a == NULL) || (b == NULL)) {
     return SV_ERROR;
-  if (a->GetKernelT() != SM_KT_POLYDATA ) {
+  }
+
+  if ((a->GetKernelT() != SM_KT_POLYDATA) || (b->GetKernelT() != SM_KT_POLYDATA)) {
     fprintf(stderr,"Model not of type POLYDATA\n");
     return SV_ERROR;
   }
 
-  if (b == NULL)
-    return SV_ERROR;
-  if (b->GetKernelT() != SM_KT_POLYDATA ) {
-    fprintf(stderr,"Model not of type POLYDATA\n");
-    return SV_ERROR;
-  }
-  vtkSVLoopBooleanPolyDataFilter *intersectPolyData;
+  // Get Polydata from the cvSolidModel objects.
   vtkPolyData *pd1;
   vtkPolyData *pd2;
+  bool useMaxDist = false; 
+  double max_dist = 0.0;
+  pd1 = (a->GetPolyData(useMaxDist, max_dist))->GetVtkPolyData();
+  pd2 = (b->GetPolyData(useMaxDist, max_dist))->GetVtkPolyData();;
 
-  intersectPolyData = vtkSVLoopBooleanPolyDataFilter::New();
-  pd1 = (a->GetPolyData(0,0.))->GetVtkPolyData();
-  pd2 = (b->GetPolyData(0,0.))->GetVtkPolyData();;
-
+  // Compute the intersection.
+  auto intersectPolyData = vtkSVLoopBooleanPolyDataFilter::New();
   intersectPolyData->SetOperationToIntersection();
-
   intersectPolyData->SetInputData(0,pd1);
   intersectPolyData->SetInputData(1,pd2);
   intersectPolyData->Update();
 
-  vtkSmartPointer<vtkPolyDataNormals> normaler =
-    vtkSmartPointer<vtkPolyDataNormals>::New();
+  // Compute point and/or cell normals for the polygonal mesh.
+  auto normaler = vtkSmartPointer<vtkPolyDataNormals>::New();
   normaler->SetInputData(intersectPolyData->GetOutput());
   normaler->Update();
 
-  //set output vtp to output from filter
   geom_ = vtkPolyData::New();
   geom_->DeepCopy(normaler->GetOutput());
 
   intersectPolyData->Delete();
 
   return SV_OK;
-
-
 }
+
 // ----------------
 // Union
 // ----------------

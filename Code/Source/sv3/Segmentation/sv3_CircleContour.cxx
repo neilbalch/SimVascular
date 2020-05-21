@@ -53,7 +53,7 @@ using sv3::SegmentationUtils;
 
 circleContour::circleContour() : Contour()
 {
-    std::cout << "---------- circleContour() ----------- " << std::endl;
+    std::cout << "++++ circleContour() ctor ++++" << std::endl;
     m_Method="Manual";
     m_Type="Circle";
 
@@ -72,7 +72,7 @@ circleContour::circleContour(const circleContour &other) : Contour( other )
 
 circleContour::~circleContour()
 {
-  std::cout << "#### ~circleContour() " << std::endl;
+  std::cout << "######## ~ c i r c l e C o n t o u r   d t o r  ######## " << std::endl;
 }
 
 circleContour* circleContour::Clone()

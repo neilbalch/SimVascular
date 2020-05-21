@@ -41,15 +41,21 @@
 #include <string>
 #include <structmember.h>
 
-//---------------------
+extern bool ModelingCheckFileFormat(PyUtilApiFunction& api, SolidModel_KernelT kernel, std::string fileName);
+extern bool ModelingCheckModelsKernels(PyUtilApiFunction& api, cvSolidModel* model1, cvSolidModel* model2);
+
+//-------------------
 // PyModelingModeler 
-//---------------------
-// Define the PyModelingModeler.
+//-------------------
+// Define the data members for the modeling.Modeler class.
 //
-// This is the data stored in a Python solid.Modeler object.
+// Data members exposed as Python attributes:
+//
+//   kernelName
 //
 typedef struct {
   PyObject_HEAD
+  PyObject* kernelName;      // Put data members at the front. 
   int id;
   SolidModel_KernelT kernel;
 } PyModelingModeler;
@@ -58,12 +64,13 @@ typedef struct {
 //          U t i l i t y   F u n c t i o n s       //
 //////////////////////////////////////////////////////
 
-//---------------------------
-// ModelingModelerUtil_GetModel 
-//---------------------------
+//-------------------
+// GetModelFromPyObj 
+//-------------------
+// Get the cvSolidModel object from a Python PyModelingModel object.
 //
 static cvSolidModel *
-ModelingModelerUtil_GetModelFromPyObj(PyObject* obj)
+GetModelFromPyObj(PyObject* obj)
 {
   // Check that the Python object is an SV Python Model object.
   if (!PyObject_TypeCheck(obj, &PyModelingModelType)) {
@@ -78,18 +85,22 @@ ModelingModelerUtil_GetModelFromPyObj(PyObject* obj)
 //
 // Python 'Modeler' class methods. 
 //
-
-//-----------------------
-// ModelingModeler_box3d 
-//-----------------------
+//---------------------
+// ModelingModeler_box
+//---------------------
 //
 PyDoc_STRVAR(ModelingModeler_box_doc,
-  "box(kernel)  \n\ 
+  "box(center, width, height, length)  \n\ 
    \n\
-   ??? Set the computational kernel used to segment image data.       \n\
+   Create a 3D solid box. \n\
    \n\
    Args:\n\
-     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+     center (list([float,float,float]): The box center. \n\  
+     width (float): The box width in the X coordinate direction. \n\  
+     height (float): The box height in the Y coordinate direction. \n\  
+     length (float): The box length in the Z coordinate direction. \n\  
+   \n\
+   Returns (Modeler object): The box solid model. \n\
 ");
 
 static PyObject * 
@@ -97,14 +108,14 @@ ModelingModeler_box(PyModelingModel* self, PyObject* args, PyObject* kwargs)
 {
   std::cout << "[ModelingModeler_box] ========== ModelingModeler_box ==========" << std::endl;
   std::cout << "[ModelingModel_box] Kernel: " << self->kernel << std::endl;
-  auto api = PyUtilApiFunction("O|ddd", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("O!ddd", PyRunTimeErr, __func__);
   static char *keywords[] = {"center", "width", "height", "length", NULL};
   double width = 1.0;
   double height = 1.0;
   double length = 1.0;
   PyObject* centerArg;
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &centerArg, &width, &height, &length)) { 
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &PyList_Type, &centerArg, &width, &height, &length)) { 
       return api.argsError();
   }
 
@@ -162,64 +173,22 @@ ModelingModeler_box(PyModelingModel* self, PyObject* args, PyObject* kwargs)
   return pyModelingModelObj;
 }
 
-//------------------------
-// ModelingModeler_circle 
-//------------------------
-//
-PyDoc_STRVAR(ModelingModeler_circle_doc,
-  "circle(kernel)  \n\ 
-   \n\
-   ??? Set the computational kernel used to segment image data.       \n\
-   \n\
-   Args:\n\
-     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
-");
-
-static PyObject * 
-ModelingModeler_circle(PyModelingModeler* self, PyObject* args, PyObject* kwargs)
-{
-  auto api = PyUtilApiFunction("sddd", PyRunTimeErr, __func__);
-  static char *keywords[] = {"radius", "x", "y", NULL};
-  double radius;
-  double center[2];
-
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &radius, &(center[0]), &(center[1]))) { 
-      return api.argsError();
-  }
-
-  if (radius <= 0.0) {
-      api.error("The radius argument <= 0.0."); 
-      return nullptr;
-  }
-
-  // Create the new solid object.
-  auto pyModelingModelObj = CreatePyModelingModelObject(self->kernel);
-  auto model = ((PyModelingModel*)pyModelingModelObj)->solidModel; 
-  if (model == NULL) {
-      api.error("Error creating a 3D box solid model.");
-      return nullptr;
-  }
-
-  if (model->MakeCircle(radius, center) != SV_OK) {
-      delete model;
-      api.error("Error creating a circle solid model.");
-      return nullptr;
-  }
-
-  return pyModelingModelObj;
-}
-
 //--------------------------
 // ModelingModeler_cylinder 
 //--------------------------
 //
 PyDoc_STRVAR(ModelingModeler_cylinder_doc,
-  "cylinder(kernel)  \n\ 
+  "cylinder(center, axis, radius, length)  \n\ 
    \n\
-   ??? Set the computational kernel used to segment image data.       \n\
+   Create a 3D solid cylinder aligned with an axis. \n\
    \n\
    Args:\n\
-     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+     center (list([float,float,float]): The cylinder center. \n\  
+     axis (list([float,float,float]): The cylinder axis. \n\  
+     radius (float): The cylinder radius. \n\  
+     length (float): The cylinder length. \n\  
+   \n\
+   Returns (Modeler object): The cylinder solid model. \n\
 ");
 
 static PyObject * 
@@ -227,14 +196,14 @@ ModelingModeler_cylinder(PyModelingModeler* self, PyObject* args, PyObject* kwar
 {
   std::cout << "[ModelingModeler_cylinder] ========== ModelingModeler_cylinder ==========" << std::endl;
   std::cout << "[ModelingModel_cylinder] Kernel: " << self->kernel << std::endl;
-  auto api = PyUtilApiFunction("ddOO", PyRunTimeErr, __func__);
-  static char *keywords[] = {"radius", "length", "center", "axis", NULL};
+  auto api = PyUtilApiFunction("O!O!dd", PyRunTimeErr, __func__);
+  static char *keywords[] = {"center", "axis", "radius", "length", NULL};
   double radius;
   double length;
   PyObject* centerArg;
   PyObject* axisArg;
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &radius, &length, &centerArg , &axisArg)) {
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &PyList_Type, &centerArg, &PyList_Type, &axisArg, &radius, &length)) {
       return api.argsError();
   }
 
@@ -246,10 +215,6 @@ ModelingModeler_cylinder(PyModelingModeler* self, PyObject* args, PyObject* kwar
       return nullptr;
   }
 
-  if (!PyUtilCheckPointData(axisArg, emsg)) {
-      api.error("The cylinder axis argument " + emsg);
-      return nullptr;
-  }
 
   if (radius <= 0.0) { 
       api.error("The radius argument is <= 0.0."); 
@@ -258,6 +223,11 @@ ModelingModeler_cylinder(PyModelingModeler* self, PyObject* args, PyObject* kwar
 
   if (length <= 0.0) { 
       api.error("The length argument is <= 0.0."); 
+      return nullptr;
+  }
+
+  if ((axisArg != nullptr) && !PyUtilCheckPointData(axisArg, emsg)) {
+      api.error("The cylinder axis argument " + emsg);
       return nullptr;
   }
 
@@ -296,46 +266,48 @@ ModelingModeler_cylinder(PyModelingModeler* self, PyObject* args, PyObject* kwar
 //---------------------------
 // ModelingModeler_ellipsoid 
 //---------------------------
+//
 // [TODO:DaveP] The cvModelingModel MakeEllipsoid method is not implemented.
 //
 PyDoc_STRVAR(ModelingModeler_ellipsoid_doc,
-  "ellipsoid()  \n\ 
+  "ellipsoid(center, radii)  \n\ 
    \n\
-   ??? Set the computational kernel used to segment image data.       \n\
+   Create a 3D solid ellipsoid. \n\
    \n\
    Args:\n\
-     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+     center (list([float,float,float]): The ellipsoid center. \n\  
+     radii (list([float,float,float]): The ellipsoid axes radii. \n\  
 ");
 
 static PyObject * 
 ModelingModeler_ellipsoid(PyModelingModeler* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = PyUtilApiFunction("OO", PyRunTimeErr, __func__);
+  auto api = PyUtilApiFunction("O!O!", PyRunTimeErr, __func__);
   static char *keywords[] = {"center", "radii", NULL};
-  PyObject* rList;
-  PyObject* centerList;
+  PyObject* centerArg;
+  PyObject* radiiArg;
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &rList, &centerList)) { 
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &PyList_Type, &centerArg, PyList_Type, &radiiArg)) { 
       return api.argsError();
   }
 
   std::string emsg;
-  if (!PyUtilCheckPointData(centerList, emsg)) {
+  if (!PyUtilCheckPointData(centerArg, emsg)) {
       api.error("The ellipsoid center argument " + emsg);
       return nullptr;
   }
 
-  if (!PyUtilCheckPointData(rList, emsg)) {
-      api.error("The ellipsoid radius vector argument " + emsg);
+  if (!PyUtilCheckPointData(radiiArg, emsg)) {
+      api.error("The ellipsoid 'radii' argument " + emsg);
       return nullptr;
   }
 
   double center[3];
   double r[3];
 
-  for (int i=0;i<3;i++) {
-    r[i] = PyFloat_AsDouble(PyList_GetItem(rList,i));
-    center[i] = PyFloat_AsDouble(PyList_GetItem(centerList,i));
+  for (int i = 0; i < 3; i++) {
+      r[i] = PyFloat_AsDouble(PyList_GetItem(radiiArg, i));
+      center[i] = PyFloat_AsDouble(PyList_GetItem(centerArg, i));
   }
 
   // Create the new solid.
@@ -364,45 +336,48 @@ ModelingModeler_ellipsoid(PyModelingModeler* self, PyObject* args, PyObject* kwa
 // ModelingModeler_intersect 
 //---------------------------
 //
+// [TODO:DaveP] The SolidModel_SimplifyT argument is not used by SV. Why is it given?
+
 PyDoc_STRVAR(ModelingModeler_intersect_doc,
-  "intersect(kernel)  \n\ 
+  "intersect(model1, model2)  \n\ 
    \n\
-   ??? Set the computational kernel used to segment image data.       \n\
+   Create a solid from the Booealn intersect operation on two solids. \n\
    \n\
    Args:\n\
-     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+     model1 (Modeler object): A solid model created by a modeler. \n\
+     model2 (Modeler object): A solid model created by a modeler. \n\
+   \n\
+   Returns (Modeler object): The solid model of the intersected models. \n\
 ");
 
 static PyObject * 
 ModelingModeler_intersect(PyModelingModeler* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = PyUtilApiFunction("OO|s", PyRunTimeErr, __func__);
-  static char *keywords[] = {"model1", "model2", "simplification", NULL};
+  auto api = PyUtilApiFunction("OO", PyRunTimeErr, __func__);
+  static char *keywords[] = {"model1", "model2", NULL};
   PyObject* model1Arg;
   PyObject* model2Arg;
-  char *smpName=NULL;
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &model1Arg, &model2Arg, &smpName)) { 
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &model1Arg, &model2Arg)) { 
       return api.argsError();
   }
 
-  // Parse the simplification flag if given.
-  auto smp = CheckSimplificationName(api, smpName);
-  if (smp == SM_Simplify_Invalid) {
-      return nullptr;
-  }
-
   // Check that the model1 argument is a SV Python Model object.
-  auto model1 = ModelingModelerUtil_GetModelFromPyObj(model1Arg);
+  auto model1 = GetModelFromPyObj(model1Arg);
   if (model1 == nullptr) {
       api.error("The first model argument is not a Model object.");
       return nullptr;
   }
 
   // Check that the model2 argument is a SV Python Model object.
-  auto model2 = ModelingModelerUtil_GetModelFromPyObj(model2Arg);
+  auto model2 = GetModelFromPyObj(model2Arg);
   if (model2 == nullptr) {
       api.error("The second model argument is not a Model object.");
+      return nullptr;
+  }
+
+  // Check that the models were created using the same kernel.
+  if (!ModelingCheckModelsKernels(api, model1, model2)) {
       return nullptr;
   }
 
@@ -418,7 +393,12 @@ ModelingModeler_intersect(PyModelingModeler* self, PyObject* args, PyObject* kwa
       return nullptr;
   }
 
-  if (model->Intersect(model1, model2, smp) != SV_OK ) {
+  // Compute the intersection.
+  //
+  // The 'simplification' argument is not used.
+  //
+  SolidModel_SimplifyT simplification;
+  if (model->Intersect(model1, model2, simplification) != SV_OK ) {
       delete model;
       api.error("Error performing a Boolean intersection.");
       return nullptr;
@@ -434,10 +414,20 @@ ModelingModeler_intersect(PyModelingModeler* self, PyObject* args, PyObject* kwa
 PyDoc_STRVAR(ModelingModeler_read_doc,
   "read(file_name)  \n\ 
    \n\
-   ??? Set the computational kernel used to segment image data.       \n\
+   Read a solid model from a native format file. \n\
+   \n\
+   The native formats supported for each modeling kernel are: \n\
+   \n\
+         OpenCascade: brep \n\
+   \n\
+         Parasolid: xmt_txt \n\
+   \n\
+         PolyData:  ply, stl, vtk and vtp  \n\
    \n\
    Args:\n\
-     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+     file_name (str): The name of the file contining the solid model. \n\
+   \n\
+   Returns (Modeler object): The solid model read from the file. \n\
 ");
 
 static PyObject *
@@ -446,11 +436,14 @@ ModelingModeler_read(PyModelingModeler* self, PyObject* args, PyObject* kwargs)
   auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
   static char *keywords[] = {"file_name", NULL};
   char *fileName;
-  std::cout << "[ModelingModeler_box] ========== ModelingModeler_read ==========" << std::endl;
-  std::cout << "[ModelingModel_box] Kernel: " << self->kernel << std::endl;
 
   if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &fileName)) { 
       return api.argsError();
+  }
+
+  // Check that the file extension is valid for the modeler kernel.
+  if (!ModelingCheckFileFormat(api, self->kernel, std::string(fileName))) {
+      return nullptr;
   }
 
   // Create the new solid.
@@ -479,27 +472,30 @@ ModelingModeler_read(PyModelingModeler* self, PyObject* args, PyObject* kwargs)
 //------------------------
 //
 PyDoc_STRVAR(ModelingModeler_sphere_doc,
-  "sphere(kernel)  \n\ 
+  "sphere(center, radius)  \n\ 
    \n\
-   ??? Set the computational kernel used to segment image data.       \n\
+   Create a 3D solid sphere. \n\
    \n\
    Args:\n\
-     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+     center (list([float,float,float]): The sphere center. \n\  
+     radius (float): The sphere radius. \n\  
+   \n\
+   Returns (Modeler object): The sphere solid model. \n\
 ");
 
 static PyObject * 
 ModelingModeler_sphere(PyModelingModeler* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = PyUtilApiFunction("dO", PyRunTimeErr, __func__);
-  static char *keywords[] = {"radius", "center", NULL};
+  auto api = PyUtilApiFunction("O!d", PyRunTimeErr, __func__);
+  static char *keywords[] = {"center", "radius", NULL};
   PyObject* centerArg;
-  double center[3];
   double radius;
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &radius, &centerArg)) {
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &PyList_Type, &centerArg, &radius)) {
       return api.argsError();
   }
 
+  // Check for valid center data.
   std::string emsg;
   if (!PyUtilCheckPointData(centerArg, emsg)) {
       api.error("The sphere center argument " + emsg);
@@ -507,10 +503,12 @@ ModelingModeler_sphere(PyModelingModeler* self, PyObject* args, PyObject* kwargs
   }
 
   if (radius <= 0.0) {
-      api.error("The radius argument is <= 0.0.");
+      api.error("The 'radius' argument must be > 0.0.");
       return nullptr;
   }
 
+  // Get sphere center.
+  double center[3];
   for (int i = 0; i < PyList_Size(centerArg); i++) {
       center[i] = PyFloat_AsDouble(PyList_GetItem(centerArg, i));
   }
@@ -541,44 +539,45 @@ ModelingModeler_sphere(PyModelingModeler* self, PyObject* args, PyObject* kwargs
 //--------------------------
 //
 PyDoc_STRVAR(ModelingModeler_subtract_doc,
-  "subtract(kernel)  \n\ 
+  "subtract(main, subtract)  \n\ 
    \n\
-   ??? Set the computational kernel used to segment image data.       \n\
+   Creates a solid from the result of a Boolean subtract operation on two solids. \n\
    \n\
    Args:\n\
-     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+     main (Modeler object): The solid model to subtract from. \n\
+     subtract (Modeler object): The solid model to subtract with. \n\
+   \n\
+   Returns (Modeler object): The solid model of the subtracted models. \n\
 ");
 
 static PyObject * 
 ModelingModeler_subtract(PyModelingModeler* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = PyUtilApiFunction("OO|s", PyRunTimeErr, __func__);
-  static char *keywords[] = {"main", "subtract", "simplification", NULL};
+  auto api = PyUtilApiFunction("OO", PyRunTimeErr, __func__);
+  static char *keywords[] = {"main", "subtract", NULL};
   PyObject* mainModelArg;
   PyObject* subtractModelArg;
-  char *smpName=NULL;
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &mainModelArg, &subtractModelArg, &smpName)) { 
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &mainModelArg, &subtractModelArg)) { 
       return api.argsError();
   }
 
-  // Parse the simplification flag if given.
-  auto smp = CheckSimplificationName(api, smpName);
-  if (smp == SM_Simplify_Invalid) {
-      return nullptr;
-  }
-
   // Check that the mainModel argument is a SV Python Model object.
-  auto mainModel = ModelingModelerUtil_GetModelFromPyObj(mainModelArg);
+  auto mainModel = GetModelFromPyObj(mainModelArg);
   if (mainModel == nullptr) { 
       api.error("The main model argument is not a Model object.");
       return nullptr;
   }
 
   // Check that the subtractModel argument is a SV Python Model object.
-  auto subtractModel = ModelingModelerUtil_GetModelFromPyObj(subtractModelArg);
+  auto subtractModel = GetModelFromPyObj(subtractModelArg);
   if (subtractModel == nullptr) { 
       api.error("The subtract model argument is not a Model object.");
+      return nullptr;
+  }
+
+  // Check that the models were created using the same kernel.
+  if (!ModelingCheckModelsKernels(api, mainModel, subtractModel)) {
       return nullptr;
   }
 
@@ -594,7 +593,12 @@ ModelingModeler_subtract(PyModelingModeler* self, PyObject* args, PyObject* kwar
       return nullptr;
   }
 
-  if (model->Subtract(mainModel, subtractModel, smp) != SV_OK) {
+  // Compute the subtraction.
+  //
+  // The 'simplification' argument is not used.
+  //
+  SolidModel_SimplifyT simplification;
+  if (model->Subtract(mainModel, subtractModel, simplification) != SV_OK) {
       delete model;
       api.error("Error performing the Boolean subtract.");
       return nullptr;
@@ -608,44 +612,45 @@ ModelingModeler_subtract(PyModelingModeler* self, PyObject* args, PyObject* kwar
 //-----------------------
 //
 PyDoc_STRVAR(ModelingModeler_union_doc,
-  "union(kernel)  \n\ 
+  "union(model1, model2)  \n\ 
    \n\
-   ??? Set the computational kernel used to segment image data.       \n\
+   Create a solid from the Booealn union operation on two solids. \n\
    \n\
    Args:\n\
-     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+     model1 (Modeler object): A solid model created by a modeler. \n\
+     model2 (Modeler object): A solid model created by a modeler. \n\
+   \n\
+   Returns (Modeler object): The solid model of the unioned models. \n\
 ");
 
 static PyObject * 
 ModelingModeler_union(PyModelingModeler* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = PyUtilApiFunction("OO|s", PyRunTimeErr, __func__);
-  static char *keywords[] = {"model1", "model2", "simplification", NULL};
+  auto api = PyUtilApiFunction("OO", PyRunTimeErr, __func__);
+  static char *keywords[] = {"model1", "model2", NULL};
   PyObject* model1Arg;
   PyObject* model2Arg;
-  char *smpName = NULL;
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &model1Arg, &model2Arg, &smpName)) { 
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &model1Arg, &model2Arg)) { 
       return api.argsError();
   }
 
-  // Parse the simplification flag if given.
-  auto smp = CheckSimplificationName(api, smpName);
-  if (smp == SM_Simplify_Invalid) {
-      return nullptr;
-  }
-
   // Check that the model1 argument is a SV Python Model object.
-  auto model1 = ModelingModelerUtil_GetModelFromPyObj(model1Arg);
+  auto model1 = GetModelFromPyObj(model1Arg);
   if (model1 == nullptr) { 
       api.error("The first model argument is not a Model object.");
       return nullptr;
   }
 
   // Check that the model2 argument is a SV Python Model object.
-  auto model2 = ModelingModelerUtil_GetModelFromPyObj(model2Arg);
+  auto model2 = GetModelFromPyObj(model2Arg);
   if (model2 == nullptr) { 
       api.error("The second model argument is not a Model object.");
+      return nullptr;
+  }
+
+  // Check that the models were created using the same kernel.
+  if (!ModelingCheckModelsKernels(api, model1, model2)) {
       return nullptr;
   }
 
@@ -661,7 +666,12 @@ ModelingModeler_union(PyModelingModeler* self, PyObject* args, PyObject* kwargs)
       return nullptr;
   }
 
-  if (model->Union(model1, model2, smp) != SV_OK) {
+  // Compute the union.
+  //
+  // The 'simplification' argument is not used.
+  //
+  SolidModel_SimplifyT simplification;
+  if (model->Union(model1, model2, simplification) != SV_OK) {
       delete model;
       api.error("Error performing the Boolean union.");
       return nullptr;
@@ -679,18 +689,45 @@ static char* MODELING_MODELER_MODULE_CLASS = "modeling.Modeler";
 // The name of the Modeler class veriable that contains all of the kernel types.
 static char* MODELING_MODELER_CLASS_VARIBLE_NAMES = "names";
 
-PyDoc_STRVAR(ModelingModelerClass_doc, "Modeling modeler class functions");
+PyDoc_STRVAR(ModelingModelerClass_doc, 
+   "SV Modeler class. \n\
+   \n\
+   Modeler(kernel) \n\
+   \n\
+   ----------------------------------------------------------------------   \n\
+   The Modeler class provides an interface for creating solid models and    \n\
+   performing intersect, subtract and union Boolean operations them.        \n\
+   \n\
+   A Modeler object is created for a specific kernel by passing a kernel    \n\
+   as an argument to the Modeler() constructor. The kernel name is specified\n\
+   using the modeling.Kernel class.                                         \n\
+   \n\
+   Example: Creating a modeler for a PolyData kernel                        \n\
+   \n\
+       modeler = sv.modeling.Modeler(sv.modeling.Kernel.POLYDATA)           \n\
+   \n\
+   Args:\n\
+     kernel (str): The name of the kernel used to create a modeler.         \n\
+   \n\
+");
 
-//---------------------
+//--------------------------
+// PyModelingModelerMembers
+//--------------------------
+// Set the class data attributes.
+//
+PyMemberDef PyModelingModelerMembers[] = {
+  {"kernel",  offsetof(PyModelingModeler, kernelName),  T_OBJECT_EX, READONLY,  "The kernel name for this modeler."},
+  {NULL}
+};
+
+//------------------------
 // ModelingModelerMethods
-//---------------------
+//------------------------
 //
 static PyMethodDef PyModelingModelerMethods[] = {
 
   { "box", (PyCFunction)ModelingModeler_box, METH_VARARGS | METH_KEYWORDS, ModelingModeler_box_doc },
-
-  // [TODO:DaveP] The cvModelingModel MakeCircle method is not implemented.
-  //{ "circle", (PyCFunction)ModelingModeler_circle, METH_VARARGS, ModelingModeler_circle_doc },
 
   { "cylinder", (PyCFunction)ModelingModeler_cylinder, METH_VARARGS | METH_KEYWORDS, ModelingModeler_cylinder_doc },
 
@@ -732,13 +769,14 @@ PyModelingModelerInit(PyModelingModeler* self, PyObject* args, PyObject *kwds)
 
   self->id = numObjs;
   self->kernel = kernel;
+  self->kernelName = Py_BuildValue("s", kernelName); 
   numObjs += 1;
   return 0;
 }
 
-//----------------------------
+//-----------------------
 // PyModelingModelerType 
-//----------------------------
+//-----------------------
 // Define the Python type object that stores contour.kernel types. 
 //
 static PyTypeObject PyModelingModelerType = {
@@ -821,6 +859,7 @@ SetModelingModelerTypeFields(PyTypeObject& solidModelType)
   solidModelType.tp_init = (initproc)PyModelingModelerInit;
   solidModelType.tp_dealloc = (destructor)PyModelingModelerDealloc;
   solidModelType.tp_methods = PyModelingModelerMethods;
+  solidModelType.tp_members = PyModelingModelerMembers;
 };
 
 //---------------------------

@@ -709,38 +709,37 @@ int cvOCCTSolidModel::Union( cvSolidModel *a, cvSolidModel *b,
   return SV_OK;
 }
 
-// ------------
+//-----------
 // Intersect
-// ------------
-int cvOCCTSolidModel::Intersect( cvSolidModel *a, cvSolidModel *b,
-			      SolidModel_SimplifyT st)
+//-----------
+// Compute the Boolean intersection of two solids.
+//
+// [TODO:DaveP] The SolidModel_SimplifyT argument is not used. Why is it given?
+//
+int cvOCCTSolidModel::Intersect( cvSolidModel *a, cvSolidModel *b, SolidModel_SimplifyT st)
 {
-  cvOCCTSolidModel *occtPtrA;
-  cvOCCTSolidModel *occtPtrB;
-
-  if (geom_ != NULL)
+  if (geom_ != NULL) {
     return SV_ERROR;
+  }
 
   //Need both objects to create an intersection
-  if (a == NULL)
+
+  if ((a == NULL) || (b == NULL)) {
     return SV_ERROR;
-  if (a->GetKernelT() != SM_KT_OCCT ) {
+  }
+
+  if ((a->GetKernelT() != SM_KT_OCCT) || (b->GetKernelT() != SM_KT_OCCT)) {
     fprintf(stderr,"Model not of type OCCT\n");
     return SV_ERROR;
   }
 
-  if (b == NULL)
-    return SV_ERROR;
-  if (b->GetKernelT() != SM_KT_OCCT ) {
-    fprintf(stderr,"Model not of type OCCT\n");
-    return SV_ERROR;
-  }
-
-  occtPtrA = (cvOCCTSolidModel *)( a );
-  occtPtrB = (cvOCCTSolidModel *)( b );
+  // Get the cvOCCTSolidModel objects.
+  auto occtPtrA = (cvOCCTSolidModel *)( a );
+  auto occtPtrB = (cvOCCTSolidModel *)( b );
   TopoDS_Shape shapeA = *(occtPtrA->geom_);
   TopoDS_Shape shapeB = *(occtPtrB->geom_);
 
+  // Compute the intersection.
   BRepAlgoAPI_Common intersectionOCCT(shapeA,shapeB);
   intersectionOCCT.Build();
 
@@ -748,22 +747,18 @@ int cvOCCTSolidModel::Intersect( cvSolidModel *a, cvSolidModel *b,
   *geom_ = intersectionOCCT.Shape();
   this->AddShape();
 
-  //Transfer modified shape info from input A
+  // Transfer modified shape info from input A.
+  //
   TopExp_Explorer anExp(shapeA,TopAbs_FACE);
-  for (int i=0;anExp.More();anExp.Next(),i++)
-  {
-    const TopTools_ListOfShape &modListA =
-      intersectionOCCT.Modified(anExp.Current());
+  for (int i=0;anExp.More();anExp.Next(),i++) {
+    const TopTools_ListOfShape &modListA = intersectionOCCT.Modified(anExp.Current());
     TopoDS_Face oldFace = TopoDS::Face(anExp.Current());
-    if (modListA.Extent() != 0)
-    {
+
+    if (modListA.Extent() != 0) {
       TopTools_ListIteratorOfListOfShape modFaceIt(modListA);
-      for (int j=0;modFaceIt.More();modFaceIt.Next(),j++)
-      {
+      for (int j=0;modFaceIt.More();modFaceIt.Next(),j++) {
         TopoDS_Face newFace = TopoDS::Face(modFaceIt.Value());
-	if (OCCTUtils_PassFaceAttributes(oldFace,newFace,
-	      shapetool_,*shapelabel_,*shapelabel_) != SV_OK)
-	{
+	if (OCCTUtils_PassFaceAttributes(oldFace,newFace, shapetool_,*shapelabel_,*shapelabel_) != SV_OK) {
 	  fprintf(stderr,"Could not pass face info\n");
 	  return SV_ERROR;
 	}
@@ -771,22 +766,17 @@ int cvOCCTSolidModel::Intersect( cvSolidModel *a, cvSolidModel *b,
     }
   }
 
-  //Transfer modified shape info from input B
+  // Transfer modified shape info from input B.
+  //
   anExp.Init(shapeB,TopAbs_FACE);
-  for (int i=0;anExp.More();anExp.Next(),i++)
-  {
-    const TopTools_ListOfShape &modListB =
-      intersectionOCCT.Modified(anExp.Current());
+  for (int i=0;anExp.More();anExp.Next(),i++) {
+    const TopTools_ListOfShape &modListB = intersectionOCCT.Modified(anExp.Current());
     TopoDS_Face oldFace = TopoDS::Face(anExp.Current());
-    if (modListB.Extent() != 0)
-    {
+    if (modListB.Extent() != 0) {
       TopTools_ListIteratorOfListOfShape modFaceIt(modListB);
-      for (int j=0;modFaceIt.More();modFaceIt.Next(),j++)
-      {
+      for (int j=0;modFaceIt.More();modFaceIt.Next(),j++) {
         TopoDS_Face newFace = TopoDS::Face(modFaceIt.Value());
-	if (OCCTUtils_PassFaceAttributes(oldFace,newFace,
-	      shapetool_,*shapelabel_,*shapelabel_) != SV_OK)
-	{
+	if (OCCTUtils_PassFaceAttributes(oldFace,newFace, shapetool_,*shapelabel_,*shapelabel_) != SV_OK) {
 	  fprintf(stderr,"Could not pass face info\n");
 	  return SV_ERROR;
 	}

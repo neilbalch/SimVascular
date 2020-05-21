@@ -117,6 +117,7 @@ Contour::Contour(const Contour &other)
 
 Contour::~Contour()
 {
+  std::cout << "######## ~ C o n t o u r   d t o r  ######## " << std::endl;
 }
 
 std::string Contour::GetClassName()
