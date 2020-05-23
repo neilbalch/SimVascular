@@ -100,7 +100,7 @@ PyDoc_STRVAR(ModelingModeler_box_doc,
      height (float): The box height in the Y coordinate direction. \n\  
      length (float): The box length in the Z coordinate direction. \n\  
    \n\
-   Returns (Modeler object): The box solid model. \n\
+   Returns (Model object): The box solid model. \n\
 ");
 
 static PyObject * 
@@ -188,7 +188,7 @@ PyDoc_STRVAR(ModelingModeler_cylinder_doc,
      radius (float): The cylinder radius. \n\  
      length (float): The cylinder length. \n\  
    \n\
-   Returns (Modeler object): The cylinder solid model. \n\
+   Returns (Model object): The cylinder solid model. \n\
 ");
 
 static PyObject * 
@@ -344,10 +344,10 @@ PyDoc_STRVAR(ModelingModeler_intersect_doc,
    Create a solid from the Booealn intersect operation on two solids. \n\
    \n\
    Args:\n\
-     model1 (Modeler object): A solid model created by a modeler. \n\
-     model2 (Modeler object): A solid model created by a modeler. \n\
+     model1 (Model object): A solid model created by a modeler. \n\
+     model2 (Model object): A solid model created by a modeler. \n\
    \n\
-   Returns (Modeler object): The solid model of the intersected models. \n\
+   Returns (Model object): The solid model of the intersected models. \n\
 ");
 
 static PyObject * 
@@ -427,7 +427,7 @@ PyDoc_STRVAR(ModelingModeler_read_doc,
    Args:\n\
      file_name (str): The name of the file contining the solid model. \n\
    \n\
-   Returns (Modeler object): The solid model read from the file. \n\
+   Returns (Model object): The solid model read from the file. \n\
 ");
 
 static PyObject *
@@ -480,7 +480,7 @@ PyDoc_STRVAR(ModelingModeler_sphere_doc,
      center (list([float,float,float]): The sphere center. \n\  
      radius (float): The sphere radius. \n\  
    \n\
-   Returns (Modeler object): The sphere solid model. \n\
+   Returns (Model object): The sphere solid model. \n\
 ");
 
 static PyObject * 
@@ -544,10 +544,10 @@ PyDoc_STRVAR(ModelingModeler_subtract_doc,
    Creates a solid from the result of a Boolean subtract operation on two solids. \n\
    \n\
    Args:\n\
-     main (Modeler object): The solid model to subtract from. \n\
-     subtract (Modeler object): The solid model to subtract with. \n\
+     main (Model object): The solid model to subtract from. \n\
+     subtract (Model object): The solid model to subtract with. \n\
    \n\
-   Returns (Modeler object): The solid model of the subtracted models. \n\
+   Returns (Model object): The solid model of the subtracted models. \n\
 ");
 
 static PyObject * 
@@ -617,10 +617,10 @@ PyDoc_STRVAR(ModelingModeler_union_doc,
    Create a solid from the Booealn union operation on two solids. \n\
    \n\
    Args:\n\
-     model1 (Modeler object): A solid model created by a modeler. \n\
-     model2 (Modeler object): A solid model created by a modeler. \n\
+     model1 (Model object): A solid model created by a modeler. \n\
+     model2 (Model object): A solid model created by a modeler. \n\
    \n\
-   Returns (Modeler object): The solid model of the unioned models. \n\
+   Returns (Model object): The solid model of the unioned models. \n\
 ");
 
 static PyObject * 

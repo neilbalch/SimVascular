@@ -598,16 +598,11 @@ int cvPolyDataSolid::Subtract( cvSolidModel *a, cvSolidModel *b,
   return SV_OK;
 }
 
-// -------------------
+//-------------
 // DeleteFaces
-// -------------------
-/**
- * @brief Function to delete the cells in the polydata
- * @param numfaces this is the number of cells to delete from the polydata
- * @param faces this is an array containing the ids of the cells to delete
- * @return SV_OK if executed correctly, SV_ERROR if the geometry is NULL
- * or the function does not return properly.
- */
+//--------------
+// Delete cells from the geom_ polydata.
+//
 int cvPolyDataSolid::DeleteFaces( int numfaces, int *faces)
 {
   if (geom_ == NULL)
@@ -621,8 +616,6 @@ int cvPolyDataSolid::DeleteFaces( int numfaces, int *faces)
     fprintf(stderr,"Error: Faces were not deleted correctly\n");
     return SV_ERROR;
   }
-
-
 
   return SV_OK;
 }
@@ -657,21 +650,21 @@ int cvPolyDataSolid::CombineFaces( int targetface, int loseface)
   return SV_OK;
 }
 
-int cvPolyDataSolid::RemeshFace(int numfaces,int *excludedFaces,double size)
+//------------
+// RemeshFace
+//------------
+//
+int cvPolyDataSolid::RemeshFace(int numfaces, int *excludedFaces, double edgeSize)
 {
 #ifdef SV_USE_VMTK
-  if (geom_ == NULL)
-  {
+  if (geom_ == NULL) {
     fprintf(stderr,"Need PolyData to perform operation\n");
     return SV_ERROR;
   }
 
-  int i;
-  vtkSmartPointer<vtkIdList> excluded =
-    vtkSmartPointer<vtkIdList>::New();
+  auto excluded = vtkSmartPointer<vtkIdList>::New();
 
-  for (i = 0; i< numfaces; i++)
-  {
+  for (int i = 0; i < numfaces; i++) {
     excluded->InsertNextId(excludedFaces[i]);
   }
 
@@ -683,14 +676,11 @@ int cvPolyDataSolid::RemeshFace(int numfaces,int *excludedFaces,double size)
   int useSizeFunction = 0;
   std::string markerListName = "ModelFaceID";
 
-  if (VMTKUtils_SurfaceRemeshing(geom_,size,meshcaps,preserveedges,
-	trianglesplitfactor,collapseanglethreshold,excluded,
-	markerListName,useSizeFunction,NULL) != SV_OK)
-  {
+  if (VMTKUtils_SurfaceRemeshing(geom_, edgeSize, meshcaps, preserveedges, trianglesplitfactor, collapseanglethreshold,
+        excluded, markerListName, useSizeFunction, NULL) != SV_OK) {
     fprintf(stderr,"Issue while remeshing surface\n");
     return SV_ERROR;
   }
-
 
   return SV_OK;
 #else

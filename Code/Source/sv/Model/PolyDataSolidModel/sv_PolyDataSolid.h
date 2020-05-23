@@ -55,19 +55,10 @@
 #include "sv_VTK.h"
 #include "sv_misc_utils.h"
 
-
-// Some elementary notes on abstract base classes (ABC's)
-// ------------------------------------------------------
-// ABC's provide a means for defining an *interface*.  Since (by
-// definition) they contain pure  methods, objects of these
-// classes can not be instantiated.  Clients of ABC's are interested
-// in using the abstract interface, but can not work with the objects
-// themselves.  Instead, clients instantiate concrete classes derived
-// from the ABC.  And then, to use the abstraction, clients use
-// *pointers* or *references* to the ABC.  See Meyers' Effective C++,
-// Item 34.
+//-----------------
+// cvPolyDataSolid
+//-----------------
 //
-
 class SV_EXPORT_POLYDATASOLID cvPolyDataSolid : public cvSolidModel {
 
 public:

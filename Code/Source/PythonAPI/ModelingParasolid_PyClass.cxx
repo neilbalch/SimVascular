@@ -107,8 +107,18 @@ ParasolidSolid_write(PyModelingModel* self, PyObject* args, PyObject* kwargs)
 static char* MODELING_PARAMODELING_CLASS = "Parasolid";
 static char* MODELING_PARAMODELING_MODULE_CLASS = "modeling.Parasolid";
 
-PyDoc_STRVAR(PyParasolidSolidClass_doc, "Parasolid solid modeling methods.");
+PyDoc_STRVAR(PyParasolidSolidClass_doc, 
+  "SV Parasolid class. \n\
+   \n\
+   ----------------------------------------------------------------------   \n\
+   The Parasolid class provides an interface to SV Parasolid modeler        \n\
+   functionality. \n\
+");
 
+//-------------------------
+// PyParasolidSolidMethods
+//-------------------------
+//
 PyMethodDef PyParasolidSolidMethods[] = {
   {"write", (PyCFunction)ParasolidSolid_write, METH_VARARGS|METH_KEYWORDS, NULL},
   {NULL, NULL}

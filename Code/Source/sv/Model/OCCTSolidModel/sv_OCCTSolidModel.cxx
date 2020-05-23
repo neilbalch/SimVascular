@@ -300,6 +300,16 @@ void cvOCCTSolidModel::Print() const
   return;
 }
 
+//------------------
+// GetBoundaryFaces
+//------------------
+// Note: Assume that the faces are defined in the model.
+//
+int cvOCCTSolidModel::GetBoundaryFaces(double angle) 
+{
+  return SV_OK;
+}
+
 
 // ----------
 // MakeBox3d

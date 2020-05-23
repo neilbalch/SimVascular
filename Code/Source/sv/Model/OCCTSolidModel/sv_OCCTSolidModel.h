@@ -60,18 +60,10 @@
 #include "XCAFDoc_ShapeTool.hxx"
 
 
-// Some elementary notes on abstract base classes (ABC's)
-// ------------------------------------------------------
-// ABC's provide a means for defining an *interface*.  Since (by
-// definition) they contain pure  methods, objects of these
-// classes can not be instantiated.  Clients of ABC's are interested
-// in using the abstract interface, but can not work with the objects
-// themselves.  Instead, clients instantiate concrete classes derived
-// from the ABC.  And then, to use the abstraction, clients use
-// *pointers* or *references* to the ABC.  See Meyers' Effective C++,
-// Item 34.
+//------------------
+// cvOCCTSolidModel
+//------------------
 //
-
 class SV_EXPORT_OPENCASCADE cvOCCTSolidModel : public cvSolidModel {
 
 public:
@@ -151,7 +143,7 @@ public:
 
   // Attribute related & required methods:
   void MakeSurf() { return; }
-  int GetBoundaryFaces(double angle) {return SV_ERROR;}
+  int GetBoundaryFaces(double angle);
   int GetFaceIds (int *numFaces, int **faceIds);
   int GetFaceAttribute(char *attr,int faceid, char **value);
   int SetFaceAttribute(char *attr,int faceid, char *value);

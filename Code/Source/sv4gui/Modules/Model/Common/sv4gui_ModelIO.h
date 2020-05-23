@@ -49,6 +49,8 @@ public:
     mitk::IFileIO::ConfidenceLevel GetReaderConfidenceLevel() const override;
 
     void Write() override;
+    void WriteGroupToFile(sv4guiModel* model, std::string& fileName);
+
     mitk::IFileIO::ConfidenceLevel GetWriterConfidenceLevel() const override;
 
 private:

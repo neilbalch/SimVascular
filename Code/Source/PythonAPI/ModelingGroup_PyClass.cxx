@@ -51,20 +51,17 @@
 sv4guiModel::Pointer 
 ModelingGroup_read(char* fileName)
 {
-  std::cout << "========== ModelingGroup_read ==========" << std::endl;
   auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
-  std::cout << "[ModelingGroup_read] fileName: " << fileName << std::endl;
+  std::cout << "[ModelingGroup_read] File name: " << fileName << std::endl;
   sv4guiModel::Pointer group;
 
   try {
       group = sv4guiModelIO().CreateGroupFromFile(std::string(fileName));
   } catch (...) {
       api.error("Error reading the model group file '" + std::string(fileName) + "'.");
-      std::cout << "[ModelingGroup_read] ERROR: can't read fileName: " << fileName << std::endl;
       return nullptr;
   }
 
-  std::cout << "[ModelingGroup_read] File read and group returned." << std::endl;
   auto solidGroup = dynamic_cast<sv4guiModel*>(group.GetPointer());
   int numSolids = solidGroup->GetTimeSize();
   std::cout << "[ModelingGroup_read] Number of solids: " << numSolids << std::endl;
@@ -78,50 +75,23 @@ ModelingGroup_read(char* fileName)
 //
 // SV Python solid.Group methods. 
 
-//-----------------------------
-// ModelingGroup_get_time_size 
-//-----------------------------
+//------------------------------
+// ModelingGroup_get_num_models 
+//------------------------------
 //
-// [TODO:DaveP] bad method name: get_number_time_steps() ?
-//
-PyDoc_STRVAR(ModelingGroup_get_time_size_doc,
-  "get_time_size_doc,(name) \n\ 
-   \n\
-   Store the polydata for the named contour into the repository. \n\
-   \n\
-   Args: \n\
-     name (str): \n\
+PyDoc_STRVAR(ModelingGroup_get_num_models_doc,
+  "get_num_models() \n\ 
+  \n\
+  Get the number of solid models in the group. \n\
+  \n\
+  Returns (int): The number of solid models in the group.\n\
 ");
 
 static PyObject * 
-ModelingGroup_get_time_size(PyModelingGroup* self, PyObject* args)
-{
-/*
-  int timestepSize = self->contourGroup->GetTimeSize();
-  return Py_BuildValue("i", timestepSize); 
-*/
-}
-
-//------------------------
-// ModelingGroup_get_size 
-//------------------------
-//
-PyDoc_STRVAR(ModelingGroup_number_of_models_doc,
-  "get_size() \n\ 
-   \n\
-   Get the number of solid models in the group. \n\
-   \n\
-   Args: \n\
-     None \n\
-   Returns (int): The number of solid models in the group.\n\
-");
-
-static PyObject * 
-ModelingGroup_number_of_models(PyModelingGroup* self, PyObject* args)
+ModelingGroup_get_num_models(PyModelingGroup* self, PyObject* args)
 {
   auto solidGroup = self->solidGroup;
   int numSolidModels = solidGroup->GetTimeSize();
-  std::cout << "[ModelingGroup_number_of_models] Number of solid models: " << numSolidModels << std::endl;
   return Py_BuildValue("i", numSolidModels); 
 }
 
@@ -129,32 +99,35 @@ ModelingGroup_number_of_models(PyModelingGroup* self, PyObject* args)
 // ModelingGroup_get_solid_model 
 //-------------------------------
 PyDoc_STRVAR(ModelingGroup_get_model_doc,
-  "get_model(name) \n\ 
+  "get_model(time) \n\ 
    \n\
-   Store the polydata for the named contour into the repository. \n\
+   Get the solid model for a given time. \n\
    \n\
    Args: \n\
-     name (str): \n\
+     time (int): The time step to get the solid model for. 0 <= time < number of models in the group. \n\
+   \n\
+   Returns (ModelingModel object): The ModelingModel object for the solid model.\n\
 ");
 
 static PyObject * 
-ModelingGroup_get_model(PyModelingGroup* self, PyObject* args)
+ModelingGroup_get_model(PyModelingGroup* self, PyObject* args, PyObject* kwargs)
 {
   auto api = PyUtilApiFunction("i", PyRunTimeErr, __func__);
+  static char *keywords[] = {"time", NULL};
   int index;
   char* solidName = NULL;
 
-  if (!PyArg_ParseTuple(args, api.format, &index)) {
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &index)) {
      return api.argsError();
   }
 
+  // Check for valid index.
+  //
   auto solidGroup = self->solidGroup;
   int numSolids = solidGroup->GetTimeSize();
-  std::cout << "[ModelingGroup_get_solid_model] Number of solids: " << numSolids << std::endl;
 
-  // Check for valid index.
   if ((index < 0) || (index > numSolids-1)) {
-      api.error("The index argument '" + std::to_string(index) + "' is must be between 0 and " +
+      api.error("The 'time' argument '" + std::to_string(index) + "' is must be between 0 and " +
         std::to_string(numSolids-1));
       return nullptr;
   }
@@ -168,20 +141,14 @@ ModelingGroup_get_model(PyModelingGroup* self, PyObject* args)
       return nullptr;
   }
   auto ctype = solidModelElement->GetType();
-  std::cout << "[ModelingGroup_get_solid_model] ctype: " << ctype << std::endl;
-
   auto faceNames = solidModelElement->GetFaceNames();
-  std::cout << "[ModelingGroup_get_solid_model] Number of faces: " << faceNames.size() << std::endl;
-
   auto solidModel = solidModelElement->GetInnerSolid();
-  std::cout << "[ModelingGroup_get_solid_model] solidModel: " << solidModel << std::endl;
 
   // No inner solid is created for models read from .vtp or .stl files
   // so create a PolyData solid model and set its polydata.
   //
   if (solidModel == nullptr) {
       auto polydata = solidModelElement->GetWholeVtkPolyData();
-      std::cout << "[ModelingGroup_get_solid_model] polydata: " << polydata << std::endl;
       solidModel = new cvPolyDataSolid();
       solidModel->SetVtkPolyDataObject(polydata);
   } 
@@ -198,38 +165,38 @@ ModelingGroup_get_model(PyModelingGroup* self, PyObject* args)
 PyDoc_STRVAR(ModelingGroup_write_doc,
   "write(file_name) \n\ 
    \n\
-   Write the contour group to an SV .pth file.\n\
+   Write the modeling group to an SV .mdl format file.\n\
+   \n\
+   The .mdl file stores modeling group data in an XML format that \n\
+   that can be read by SV into a SV Modeling node. \n\
    \n\
    Args: \n\
-     file_name (str): The name of the file to write the contour group to.\n\
+     file_name (str): The name of the file to write the modeling group to. \n\
 ");
 
 static PyObject *
-ModelingGroup_write(PyModelingGroup* self, PyObject* args)
+ModelingGroup_write(PyModelingGroup* self, PyObject* args, PyObject* kwargs)
 {
   auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
-  char* fileName = NULL;
+  static char *keywords[] = {"file_name", NULL};
+  char* fileNameArg = NULL;
 
-  if (!PyArg_ParseTuple(args, api.format, &fileName)) {
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &fileNameArg)) {
       return api.argsError();
   }
 
-/*
+  auto modelGroup = self->solidGroup;
+  std::string fileName(fileNameArg);
 
   try {
-      if (sv3::ContourIO().Write(fileName, self->contourGroup) != SV_OK) {
-          api.error("Error writing contour group to the file '" + std::string(fileName) + "'.");
-          return nullptr;
-      }
+      sv4guiModelIO().WriteGroupToFile(modelGroup, fileName);
   } catch (const std::exception& readException) {
-      api.error("Error writing contour group to the file '" + std::string(fileName) + "': " + readException.what());
+      api.error("Error writing modeling group to the file '" + std::string(fileName) + "': " + readException.what());
       return nullptr;
   }
-*/
 
-  return SV_PYTHON_OK;
+  Py_RETURN_NONE;
 }
-
 
 ////////////////////////////////////////////////////////
 //          C l a s s    D e f i n i t i o n          //
@@ -240,29 +207,47 @@ static char* MODELING_GROUP_CLASS = "Group";
 // type within the module.
 static char* MODELING_GROUP_MODULE_CLASS = "modeling.Group";
 
-PyDoc_STRVAR(ModelingGroup_doc, "modeling.Group functions");
+PyDoc_STRVAR(ModelingGroup_doc, 
+  "SV modeling Group class. \n\
+   \n\
+   Group(file_name) \n\
+   \n\
+   ----------------------------------------------------------------------   \n\
+   The modeling Group class provides an interface to SV modeling group      \n\
+   functionality.                                                           \n\
+   \n\
+   A Group object can be created with the name of SV .mdl model group file. \n\
+   The file is read and Model objects are created for each model defined    \n\
+   in it.                                                                   \n\
+   \n\
+   Example: Creating a modeling group object from a .mdl file               \n\
+   \n\
+       group = sv.modeling.Group(\"demo.mdl\")                              \n\
+   \n\
+   Args:\n\
+     file_name (Optional[str]): The name of an SV .mdl model group file. \n\
+   \n\
+");
 
-//--------------------
+//------------------------
 // PyModelingGroupMethods 
-//--------------------
+//------------------------
 // Define the methods for the contour.Group class.
 //
 static PyMethodDef PyModelingGroupMethods[] = {
 
-  {"get_model", (PyCFunction)ModelingGroup_get_model, METH_VARARGS, ModelingGroup_get_model_doc},
+  {"get_model", (PyCFunction)ModelingGroup_get_model, METH_VARARGS|METH_KEYWORDS, ModelingGroup_get_model_doc},
 
-  {"number_of_models", (PyCFunction)ModelingGroup_number_of_models, METH_VARARGS, ModelingGroup_number_of_models_doc},
+  {"get_num_models", (PyCFunction)ModelingGroup_get_num_models, METH_VARARGS, ModelingGroup_get_num_models_doc},
 
-  //{"get_time_size", (PyCFunction)ModelingGroup_get_time_size, METH_NOARGS, ModelingGroup_get_time_size_doc},
-
-  //{"write", (PyCFunction)ModelingGroup_write, METH_VARARGS, ModelingGroup_write_doc},
+  {"write", (PyCFunction)ModelingGroup_write, METH_VARARGS|METH_KEYWORDS, ModelingGroup_write_doc},
 
   {NULL, NULL}
 };
 
-//--------------------------
+//---------------------
 // PyModelingGroupType 
-//--------------------------
+//---------------------
 // Define the Python type that stores ModelingGroup data. 
 //
 // Can't set all the fields here because g++ does not suppor non-trivial 
@@ -283,14 +268,13 @@ PyTypeObject PyModelingGroupType = {
 //
 // Arguments:
 //
-//   fileName - An SV .ctgr pth file. A new ModelingGroup object is created from 
-//     the contents of the file. (optional)
+//   fileName - An SV .mdl modeling file. A new ModelingGroup object is 
+//     created from the contents of the file. (optional)
 //
 static int 
 PyModelingGroupInit(PyModelingGroup* self, PyObject* args)
 {
   static int numObjs = 1;
-  std::cout << "[PyModelingGroupInit] New ModelingGroup object: " << numObjs << std::endl;
   auto api = PyUtilApiFunction("|s", PyRunTimeErr, __func__);
   char* fileName = nullptr;
   if (!PyArg_ParseTuple(args, api.format, &fileName)) {
@@ -298,7 +282,6 @@ PyModelingGroupInit(PyModelingGroup* self, PyObject* args)
       return 1;
   }
   if (fileName != nullptr) {
-      std::cout << "[PyModelingGroupInit] File name: " << fileName << std::endl;
       self->solidGroupPointer = ModelingGroup_read(fileName);
       self->solidGroup = dynamic_cast<sv4guiModel*>(self->solidGroupPointer.GetPointer());
   } else {
@@ -356,7 +339,7 @@ static void
 SetModelingGroupTypeFields(PyTypeObject& solidType)
 {
   // Doc string for this type.
-  solidType.tp_doc = "ModelingGroup  objects";
+  solidType.tp_doc = ModelingGroup_doc; 
   // Object creation function, equivalent to the Python __new__() method. 
   // The generic handler creates a new instance using the tp_alloc field.
   solidType.tp_new = PyModelingGroupNew;
@@ -377,9 +360,6 @@ SetModelingGroupTypeFields(PyTypeObject& solidType)
 PyObject *
 CreatePyModelingGroup(sv4guiModel::Pointer solidGroup)
 {
-  std::cout << std::endl;
-  std::cout << "========== CreatePyModelingGroup ==========" << std::endl;
-  std::cout << "[CreatePyModelingGroup] Create ModelingGroup object ... " << std::endl;
   auto solidGroupObj = PyObject_CallObject((PyObject*)&PyModelingGroupType, NULL);
   auto pyModelingGroup = (PyModelingGroup*)solidGroupObj;
 
@@ -387,7 +367,7 @@ CreatePyModelingGroup(sv4guiModel::Pointer solidGroup)
       //delete pyModelingGroup->solidGroup;
       pyModelingGroup->solidGroup = solidGroup;
   }
-  std::cout << "[CreatePyContour] pyModelingGroup id: " << pyModelingGroup->id << std::endl;
+
   return solidGroupObj;
 }
 

@@ -31,7 +31,7 @@
 
 // The functions defined here implement the SV Python API polydata solid class. 
 //
-// The class name is 'PolyDataSolid'.
+// The class name is 'PolyData'.
 //
 
 //-----------------
@@ -51,7 +51,69 @@ cvPolyDataSolid* pyCreatePolyDataSolid()
 //////////////////////////////////////////////////////
 //          C l a s s    M e t h o d s              //
 //////////////////////////////////////////////////////
-// PolyDataSolid class methods. 
+// PolyData class methods. 
+
+//-------------------------------
+// ModelingPolyData_delete_faces 
+//-------------------------------
+//
+// Delete faces only works for PolyData. 
+//
+PyDoc_STRVAR(ModelingPolyData_delete_faces_doc,
+" delete_faces(face_ids)  \n\ 
+  \n\
+  Delete faces using a list of face IDs. \n\
+  \n\
+  Args: \n\
+    name (str): Name in the repository to store the unstructured grid. \n\
+");
+
+static PyObject * 
+ModelingPolyData_delete_faces(PyModelingModel* self, PyObject* args, PyObject* kwargs)
+{
+  auto api = PyUtilApiFunction("O!", PyRunTimeErr, __func__);
+  static char *keywords[] = {"face_ids", NULL};
+  PyObject* faceListArg;
+
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &PyList_Type, &faceListArg)) {
+      return api.argsError();
+  }
+
+  if (PyList_Size(faceListArg) == 0) {
+      api.error("The 'face_ids' list is empty.");
+      return nullptr;
+  }
+
+  // Get the face IDs.
+  auto faceIDs = ModelingModelGetFaceIDs(api, self);
+  if (faceIDs.size() == 0) {
+      return nullptr;
+  }
+
+  // Create list of faces to delete.
+  std::vector<int> faceList;
+  for (int i = 0; i < PyList_Size(faceListArg); i++) {
+      auto faceID = PyLong_AsLong(PyList_GetItem(faceListArg,i));
+      bool faceFound = false;
+      if (faceIDs.count(faceID) == 0) {
+          api.error("The face ID " + std::to_string(faceID) + " is not a valid face ID for the model.");
+          return nullptr;
+      }
+      faceList.push_back(faceID);
+  }
+
+  // [TODO:DaveP] The DeleteFaces() function deletes cells, not faces.
+  //
+  // Implement this copying sv4guiModelUtils::DeleteRegions().
+  /*
+  auto model = self->solidModel;
+  if (model->DeleteFaces(faceList.size(), faceList.data()) != SV_OK) {
+      api.error("Error deleting faces for the solid model."); 
+  }
+  */
+
+  Py_RETURN_NONE;
+}
 
 ////////////////////////////////////////////////////////
 //          C l a s s    D e f i n i t i o n          //
@@ -60,13 +122,26 @@ cvPolyDataSolid* pyCreatePolyDataSolid()
 static char* MODELING_POLYDATA_CLASS = "PolyData";
 static char* MODELING_POLYDATA_MODULE_CLASS = "modeling.PolyData";
 
-PyDoc_STRVAR(PyPolyDataSolidClass_doc, "polydata solid model functions");
+PyDoc_STRVAR(PyPolyDataSolidClass_doc, 
+  "SV PolyData class. \n\
+   \n\
+   ----------------------------------------------------------------------   \n\
+   The PolyData class provides an interface to SV PolyData modeler          \n\
+   functionality. \n\
+");
 
 //------------------------
 // PyPolyDataSolidMethods
 //------------------------
 //
 PyMethodDef PyPolyDataSolidMethods[] = {
+
+  // [TODO:DaveP] The DeleteFaces() function deletes cells, not faces.
+  // { "delete_faces", (PyCFunction)ModelingPolyData_delete_faces, METH_NOARGS|METH_KEYWORDS, ModelingPolyData_delete_faces_doc},
+
+  // [TODO:DaveP] This should be implemented. 
+  // { "remesh_faces", (PyCFunction)ModelingPolyData_remesh_faces, METH_NOARGS|METH_KEYWORDS, ModelingPolyData_remesh_faces_doc},
+
   {NULL, NULL}
 };
 

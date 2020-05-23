@@ -365,162 +365,175 @@ mitk::IFileIO::ConfidenceLevel sv4guiModelIO::GetReaderConfidenceLevel() const
     return Supported;
 }
 
+//------------------
+// WriteGroupToFile
+//------------------
+// Write a model group to a .mdl file.
+//
+// This method can be called from the Python API. 
+//
+void sv4guiModelIO::WriteGroupToFile(sv4guiModel* model, std::string& fileName)
+{
+  TiXmlDocument document;
+  auto decl = new TiXmlDeclaration( "1.0", "UTF-8", "" );
+  document.LinkEndChild( decl );
+
+  auto version = new TiXmlElement("format");
+  version->SetAttribute("version",  "1.0" );
+  document.LinkEndChild(version);
+
+  auto modelElement = new TiXmlElement("model");
+  modelElement->SetAttribute("type", model->GetType());
+  document.LinkEndChild(modelElement);
+
+  for (int t = 0; t < model->GetTimeSize(); t++) {
+      auto timestepElement = new TiXmlElement("timestep");
+      timestepElement->SetAttribute("id",t);
+      modelElement->LinkEndChild(timestepElement);
+
+      sv4guiModelElement* me=model->GetModelElement(t);
+
+      if (!me) {
+          continue;
+      }
+
+      auto meElement = new TiXmlElement("model_element");
+      timestepElement->LinkEndChild(meElement);
+      meElement->SetAttribute("type",me->GetType());
+      meElement->SetAttribute("num_sampling", me->GetNumSampling());
+      meElement->SetAttribute("use_uniform", me->IfUseUniform());
+
+      if(me->IfUseUniform()) {
+          svLoftingParam* param=me->GetLoftingParam();
+          if(param) {
+              meElement->SetAttribute("method",param->method);
+              meElement->SetAttribute("sampling",param->numOutPtsInSegs);
+              meElement->SetAttribute("sample_per_seg",param->samplePerSegment);
+              meElement->SetAttribute("use_linear_sample",param->useLinearSampleAlongLength);
+              meElement->SetAttribute("linear_multiplier",param->linearMuliplier);
+              meElement->SetAttribute("use_fft",param->useFFT);
+              meElement->SetAttribute("num_modes",param->numModes);
+
+              meElement->SetAttribute("u_degree",param->uDegree);
+              meElement->SetAttribute("v_degree",param->vDegree);
+              meElement->SetAttribute("u_knot_type",param->uKnotSpanType);
+              meElement->SetAttribute("v_knot_type",param->vKnotSpanType);
+              meElement->SetAttribute("u_parametric_type",param->uParametricSpanType);
+              meElement->SetAttribute("v_parametric_type",param->vParametricSpanType);
+          }
+      }
+
+      auto segsElement = new TiXmlElement("segmentations");
+      meElement->LinkEndChild(segsElement);
+      std::vector<std::string> segNames = me->GetSegNames();
+
+      for(int i=0;i<segNames.size();i++) {
+          auto segElement=new TiXmlElement("seg");
+          segsElement->LinkEndChild(segElement);
+          segElement->SetAttribute("name", segNames[i]);
+      }
+
+      auto facesElement= new TiXmlElement("faces");
+      meElement->LinkEndChild(facesElement);
+
+      std::vector<sv4guiModelElement::svFace*> faces=me->GetFaces();
+      for(int i=0;i<faces.size();i++)
+      {
+          if(faces[i])
+          {
+              auto faceElement=new TiXmlElement("face");
+              facesElement->LinkEndChild(faceElement);
+              faceElement->SetAttribute("id", faces[i]->id);
+              faceElement->SetAttribute("name", faces[i]->name);
+              faceElement->SetAttribute("type", faces[i]->type);
+              faceElement->SetAttribute("visible", faces[i]->visible?"true":"false");
+              faceElement->SetDoubleAttribute("opacity", faces[i]->opacity);
+              faceElement->SetDoubleAttribute("color1", faces[i]->color[0]);
+              faceElement->SetDoubleAttribute("color2", faces[i]->color[1]);
+              faceElement->SetDoubleAttribute("color3", faces[i]->color[2]);
+          }
+      }
+
+      //radii for blending
+      auto blendRadiiElement= new TiXmlElement("blend_radii");
+      meElement->LinkEndChild(blendRadiiElement);
+      std::vector<sv4guiModelElement::svBlendParamRadius*> blendRadii=me->GetBlendRadii();
+      for(int i=0;i<blendRadii.size();i++)
+      {
+          if(blendRadii[i])
+          {
+              auto radiusElement=new TiXmlElement("face_pair");
+              blendRadiiElement->LinkEndChild(radiusElement);
+              radiusElement->SetAttribute("face_id1", blendRadii[i]->faceID1);
+              radiusElement->SetAttribute("face_id2", blendRadii[i]->faceID2);
+              radiusElement->SetDoubleAttribute("radius", blendRadii[i]->radius);
+          }
+      }
+
+      if(me->GetType()=="PolyData")
+      {
+          // for PolyData
+          auto blendElement= new TiXmlElement("blend_param");
+          meElement->LinkEndChild(blendElement);
+          sv4guiModelElement::svBlendParam* param=me->GetBlendParam();
+
+          blendElement->SetAttribute("blend_iters", param->numblenditers);
+          blendElement->SetAttribute("sub_blend_iters", param->numsubblenditers);
+          blendElement->SetAttribute("cstr_smooth_iters", param->numcgsmoothiters);
+          blendElement->SetAttribute("lap_smooth_iters", param->numlapsmoothiters);
+          blendElement->SetAttribute("subdivision_iters", param->numsubdivisioniters);
+          blendElement->SetDoubleAttribute("decimation", param->targetdecimation);
+      }
+
+      sv4guiModelElementAnalytic* meAnalytic=dynamic_cast<sv4guiModelElementAnalytic*>(me);
+      if(meAnalytic)
+      {
+          meElement->SetDoubleAttribute("max_dist", meAnalytic->GetMaxDist());
+      }
+
+      //Output actual model data file
+      std::string fileExtension="";
+      auto exts=me->GetFileExtensions();
+      if(exts.size()>0)
+          fileExtension=exts[0];
+
+      if(fileExtension=="")
+      {
+          mitkThrow() << "No file extension available for model type: "<< me->GetType();
+      }
+
+      std::string dataFileName=fileName.substr(0,fileName.find_last_of("."));
+      if(me->GetType()!="Parasolid")
+          dataFileName=dataFileName+"." +fileExtension;
+
+      if(!me->WriteFile(dataFileName))
+          mitkThrow() << "Failed to write model to " << dataFileName;
+  }
+
+  if (document.SaveFile(fileName) == false) {
+      mitkThrow() << "Could not write model to " << fileName;
+  }
+
+}
+
+//-------
+// Write
+//-------
+// Write a group to a file.
+//
+// This method is called from the SV Gui.
+//
 void sv4guiModelIO::Write()
 {
     ValidateOutputLocation();
-
-    std::string fileName=GetOutputLocation();
-
+    std::string fileName = GetOutputLocation();
     const sv4guiModel* model = dynamic_cast<const sv4guiModel*>(this->GetInput());
-    if(!model) return;
 
-    TiXmlDocument document;
-    auto  decl = new TiXmlDeclaration( "1.0", "UTF-8", "" );
-    document.LinkEndChild( decl );
-
-    auto  version = new TiXmlElement("format");
-    version->SetAttribute("version",  "1.0" );
-    document.LinkEndChild(version);
-
-    auto  modelElement = new TiXmlElement("model");
-    modelElement->SetAttribute("type", model->GetType());
-    document.LinkEndChild(modelElement);
-
-    for(int t=0;t<model->GetTimeSize();t++)
-    {
-        auto  timestepElement = new TiXmlElement("timestep");
-        timestepElement->SetAttribute("id",t);
-        modelElement->LinkEndChild(timestepElement);
-
-        sv4guiModelElement* me=model->GetModelElement(t);
-
-        if(!me) continue;
-
-        auto meElement = new TiXmlElement("model_element");
-        timestepElement->LinkEndChild(meElement);
-        meElement->SetAttribute("type",me->GetType());
-        meElement->SetAttribute("num_sampling", me->GetNumSampling());
-        meElement->SetAttribute("use_uniform", me->IfUseUniform());
-
-        if(me->IfUseUniform())
-        {
-            svLoftingParam* param=me->GetLoftingParam();
-            if(param)
-            {
-                meElement->SetAttribute("method",param->method);
-
-                meElement->SetAttribute("sampling",param->numOutPtsInSegs);
-                meElement->SetAttribute("sample_per_seg",param->samplePerSegment);
-                meElement->SetAttribute("use_linear_sample",param->useLinearSampleAlongLength);
-                meElement->SetAttribute("linear_multiplier",param->linearMuliplier);
-                meElement->SetAttribute("use_fft",param->useFFT);
-                meElement->SetAttribute("num_modes",param->numModes);
-
-                meElement->SetAttribute("u_degree",param->uDegree);
-                meElement->SetAttribute("v_degree",param->vDegree);
-                meElement->SetAttribute("u_knot_type",param->uKnotSpanType);
-                meElement->SetAttribute("v_knot_type",param->vKnotSpanType);
-                meElement->SetAttribute("u_parametric_type",param->uParametricSpanType);
-                meElement->SetAttribute("v_parametric_type",param->vParametricSpanType);
-            }
-        }
-
-
-
-
-        auto segsElement= new TiXmlElement("segmentations");
-        meElement->LinkEndChild(segsElement);
-
-        std::vector<std::string> segNames=me->GetSegNames();
-        for(int i=0;i<segNames.size();i++)
-        {
-            auto segElement=new TiXmlElement("seg");
-            segsElement->LinkEndChild(segElement);
-            segElement->SetAttribute("name", segNames[i]);
-        }
-
-        auto facesElement= new TiXmlElement("faces");
-        meElement->LinkEndChild(facesElement);
-
-        std::vector<sv4guiModelElement::svFace*> faces=me->GetFaces();
-        for(int i=0;i<faces.size();i++)
-        {
-            if(faces[i])
-            {
-                auto faceElement=new TiXmlElement("face");
-                facesElement->LinkEndChild(faceElement);
-                faceElement->SetAttribute("id", faces[i]->id);
-                faceElement->SetAttribute("name", faces[i]->name);
-                faceElement->SetAttribute("type", faces[i]->type);
-                faceElement->SetAttribute("visible", faces[i]->visible?"true":"false");
-                faceElement->SetDoubleAttribute("opacity", faces[i]->opacity);
-                faceElement->SetDoubleAttribute("color1", faces[i]->color[0]);
-                faceElement->SetDoubleAttribute("color2", faces[i]->color[1]);
-                faceElement->SetDoubleAttribute("color3", faces[i]->color[2]);
-            }
-        }
-
-        //radii for blending
-        auto blendRadiiElement= new TiXmlElement("blend_radii");
-        meElement->LinkEndChild(blendRadiiElement);
-        std::vector<sv4guiModelElement::svBlendParamRadius*> blendRadii=me->GetBlendRadii();
-        for(int i=0;i<blendRadii.size();i++)
-        {
-            if(blendRadii[i])
-            {
-                auto radiusElement=new TiXmlElement("face_pair");
-                blendRadiiElement->LinkEndChild(radiusElement);
-                radiusElement->SetAttribute("face_id1", blendRadii[i]->faceID1);
-                radiusElement->SetAttribute("face_id2", blendRadii[i]->faceID2);
-                radiusElement->SetDoubleAttribute("radius", blendRadii[i]->radius);
-            }
-        }
-
-        if(me->GetType()=="PolyData")
-        {
-            // for PolyData
-            auto blendElement= new TiXmlElement("blend_param");
-            meElement->LinkEndChild(blendElement);
-            sv4guiModelElement::svBlendParam* param=me->GetBlendParam();
-
-            blendElement->SetAttribute("blend_iters", param->numblenditers);
-            blendElement->SetAttribute("sub_blend_iters", param->numsubblenditers);
-            blendElement->SetAttribute("cstr_smooth_iters", param->numcgsmoothiters);
-            blendElement->SetAttribute("lap_smooth_iters", param->numlapsmoothiters);
-            blendElement->SetAttribute("subdivision_iters", param->numsubdivisioniters);
-            blendElement->SetDoubleAttribute("decimation", param->targetdecimation);
-        }
-
-        sv4guiModelElementAnalytic* meAnalytic=dynamic_cast<sv4guiModelElementAnalytic*>(me);
-        if(meAnalytic)
-        {
-            meElement->SetDoubleAttribute("max_dist", meAnalytic->GetMaxDist());
-        }
-
-        //Output actual model data file
-        std::string fileExtension="";
-        auto exts=me->GetFileExtensions();
-        if(exts.size()>0)
-            fileExtension=exts[0];
-
-        if(fileExtension=="")
-        {
-            mitkThrow() << "No file extension available for model type: "<< me->GetType();
-        }
-
-        std::string dataFileName=fileName.substr(0,fileName.find_last_of("."));
-        if(me->GetType()!="Parasolid")
-            dataFileName=dataFileName+"." +fileExtension;
-
-        if(!me->WriteFile(dataFileName))
-            mitkThrow() << "Failed to write model to " << dataFileName;
+    if (!model) {
+      return;
     }
 
-    if (document.SaveFile(fileName) == false)
-    {
-        mitkThrow() << "Could not write model to " << fileName;
-
-    }
+    WriteGroupToFile(const_cast<sv4guiModel*>(model), fileName);
 }
 
 mitk::IFileIO::ConfidenceLevel sv4guiModelIO::GetWriterConfidenceLevel() const
