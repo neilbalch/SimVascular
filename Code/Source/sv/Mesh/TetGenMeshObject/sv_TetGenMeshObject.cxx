@@ -79,7 +79,7 @@
 
 // Define debug_cvTetGenMeshObject to print debugging information.
 //
-#define debug_cvTetGenMeshObject
+#define ndebug_cvTetGenMeshObject
 
 // -----------
 // cvTetGenMeshObject

@@ -75,6 +75,21 @@ PyUtilApiFunction::argsError()
   return PyUtilResetException(this->pyError);
 }
 
+//----------------------
+// PyUtilGetPyErrorInfo
+//----------------------
+// Get the error and name of an item that has generated PyError.
+//
+void PyUtilGetPyErrorInfo(PyObject* item, std::string& errorMsg, std::string& itemStr) 
+{
+  PyObject *ptype, *pvalue, *ptraceback;
+  PyErr_Fetch(&ptype, &pvalue, &ptraceback);
+  auto pystr = PyObject_Str(pvalue);
+  errorMsg = std::string(PyString_AsString(pystr));
+  auto itemRep = PyObject_Repr(item);
+  itemStr = std::string(PyString_AsString(itemRep));
+}
+
 //--------------------------
 // SvPyUtilGetFunctionName
 //--------------------------

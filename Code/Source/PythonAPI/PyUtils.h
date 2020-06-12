@@ -72,6 +72,8 @@ std::string PyUtilGetFunctionName(const char* functionName);
 
 std::string PyUtilGetMsgPrefix(const std::string& functionName);
 
+void PyUtilGetPyErrorInfo(PyObject* item, std::string& valMsg, std::string& itemStr);
+
 PyObject * PyUtilResetException(PyObject * PyRunTimeErr);
 
 bool PyUtilCheckPointData(PyObject* pointData, std::string& msg);

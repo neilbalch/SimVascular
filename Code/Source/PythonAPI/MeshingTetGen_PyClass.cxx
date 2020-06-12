@@ -116,22 +116,28 @@ InitMeshSizingArrays(PyUtilApiFunction& api, cvMeshObject* mesher, PyObject* opt
 // Each local edge size value updates the array with the edge size 
 // for each face ID.
 //
+// Throws a std::runtime_error if local size items are not valid.
+//
 void
 GenerateLocalSizeArray(PyUtilApiFunction& api, cvTetGenMeshObject* mesher, PyObject* options)
 {
-  //std::cout << "[GenerateLocalSizeArray] " << std::endl;
-  //std::cout << "[GenerateLocalSizeArray] ========== GenerateLocalSizeArray =========" << std::endl;
+  std::cout << "[GenerateLocalSizeArray] " << std::endl;
+  std::cout << "[GenerateLocalSizeArray] ========== GenerateLocalSizeArray =========" << std::endl;
+  static std::string errorMsg = TetGenOption::LocalEdgeSize_ErrorMsg;
   auto optionName = TetGenOption::LocalEdgeSize;
   auto listObj = PyObject_GetAttrString(options, optionName);
 
+  // The option is not set up correctly, maybe its object has not been defined.
+  if (listObj == nullptr) {
+      throw std::runtime_error("[PyTetGenOptionsGetValues] ERROR: Internal error: name: " + std::string(optionName));
+  }
+
   if (listObj == Py_None) {
-      std::cout << "[GenerateLocalSizeArray] Could not find the option named '" << optionName << "'." << std::endl;
       return;
   }
 
   if (!PyList_Check(listObj)) {
-      std::cout << "[GenerateLocalSizeArray] The option named '" << optionName << "' is not a list." << std::endl;
-      return;
+      throw std::runtime_error("The option named '" + std::string(optionName) + "' is not a list.");
   }
 
   // Add local edge size values to the mesh size array.
@@ -141,7 +147,18 @@ GenerateLocalSizeArray(PyUtilApiFunction& api, cvTetGenMeshObject* mesher, PyObj
       auto item = PyList_GetItem(listObj, i);
       int faceID;
       double edgeSize;
-      GetLocalEdgeSizeValues(item, faceID, edgeSize);
+      if (!GetLocalEdgeSizeValues(item, faceID, edgeSize)) { 
+          std::string valErrorMsg; 
+          std::string itemStr;
+          PyUtilGetPyErrorInfo(item, valErrorMsg, itemStr);
+          std::string msg = itemStr + ": " + valErrorMsg;
+          // Don't duplicate errorMsg, may be set in GetLocalEdgeSizeValues().
+          if (valErrorMsg != errorMsg) {
+              msg += ". " + errorMsg;
+          }
+          throw std::runtime_error(msg);
+      }
+
       if (mesher->GenerateLocalSizeSizingArray(faceID, edgeSize) != SV_OK) {
           std::cout << "[GenerateLocalSizeArray] ERROR generating local edge size array." << std::endl;
       }
@@ -221,21 +238,26 @@ GenerateRadiusMeshingArray(PyUtilApiFunction& api, cvTetGenMeshObject* mesher, P
 // edge size locally for solid model surface nodes inside the sphere. 
 // Any number of spheres may be defined.
 //
+// Throws a std::runtime_error if sphere refinement items are not valid.
+//
 void
 GenerateSphereRefinementArray(PyUtilApiFunction& api, cvTetGenMeshObject* mesher, PyObject* options)
 {
+  static std::string errorMsg = TetGenOption::SphereRefinement_ErrorMsg;
   auto optionName = TetGenOption::SphereRefinement;
   auto listObj = PyObject_GetAttrString(options, optionName);
 
-  // Check for internal errors. 
-  //
+  // The option is not set up correctly, maybe its object has not been defined.
+  if (listObj == nullptr) {
+      throw std::runtime_error("[GenerateSphereRefinementArray] ERROR: Internal error: name: " + std::string(optionName));
+  }
+
   if (listObj == Py_None) {
-      std::cout << "[GenerateSphereRefinementArray] ERROR: Could not find the option named '" << optionName << "'." << std::endl;
       return;
   }
 
   if (!PyList_Check(listObj)) {
-      std::cout << "[GenerateSphereRefinementArray] ERROR: The option named '" << optionName << "' is not a list." << std::endl;
+      throw std::runtime_error("The option named '" + std::string(optionName) + "' is not a list.");
       return;
   }
 
@@ -247,7 +269,18 @@ GenerateSphereRefinementArray(PyUtilApiFunction& api, cvTetGenMeshObject* mesher
       double edgeSize;
       double radius;
       std::vector<double> center;
-      GetSphereRefinementValues(item, edgeSize, radius, center);
+      if (!GetSphereRefinementValues(item, edgeSize, radius, center)) {
+          std::string valErrorMsg;
+          std::string itemStr;
+          PyUtilGetPyErrorInfo(item, valErrorMsg, itemStr);
+          std::string msg = itemStr + ": " + valErrorMsg;
+          // Don't duplicate errorMsg, may be set in GetSphereRefinementValues().
+          if (valErrorMsg != errorMsg) {
+              msg += ". " + errorMsg;
+          }
+          throw std::runtime_error(msg);
+      }
+
       if (mesher->SetSphereRefinement(edgeSize, radius, center.data()) != SV_OK) {
           api.error("Error generating sphere refinement array.");
           return;
@@ -268,7 +301,7 @@ GenerateSphereRefinementArray(PyUtilApiFunction& api, cvTetGenMeshObject* mesher
 // Radius-based meshing arrays are computed first if that option is enabled because edge sizes
 // are set for all surface elements. 
 //
-bool 
+void 
 GenerateMeshSizingArrays(PyUtilApiFunction& api, cvTetGenMeshObject* mesher, PyObject* options)
 {
   using namespace TetGenOption;
@@ -285,8 +318,6 @@ GenerateMeshSizingArrays(PyUtilApiFunction& api, cvTetGenMeshObject* mesher, PyO
   if (SphereRefinementIsOn(options)) {
       GenerateSphereRefinementArray(api, mesher, options);
   }
-
-  return true;
 }
 
 //------------
@@ -305,7 +336,6 @@ SetOptions(PyUtilApiFunction& api, cvMeshObject* mesher, PyObject* options)
   std::cout << "[SetOptions] Set non-list options ... " << std::endl;
   for (auto const& entry : TetGenOption::pyToSvNameMap) {
       auto pyName = entry.first;
-      //std::cout << "[SetOptions] pyName: " << pyName << std::endl;
       if (TetGenOption::ListOptions.count(std::string(pyName)) != 0) {
           continue;
       }
@@ -329,7 +359,8 @@ SetOptions(PyUtilApiFunction& api, cvMeshObject* mesher, PyObject* options)
           continue;
       }
 
-      //std::cout << "[SetOptions] svName: " << svName << std::endl;
+      std::cout << "[SetOptions] pyName: " << pyName << std::endl;
+      std::cout << "[SetOptions]   svName: " << svName << std::endl;
       //std::cout << "[SetOptions] numValues: " << numValues << std::endl;
       //std::cout << "[SetOptions] Values: ";
       //for (auto value : values) {
@@ -345,15 +376,17 @@ SetOptions(PyUtilApiFunction& api, cvMeshObject* mesher, PyObject* options)
 
   // Set options that are a list.
   //
+  std::cout << " " << std::endl;
   std::cout << "[SetOptions] Set list options ... " << std::endl;
   for (auto const& entry : TetGenOption::pyToSvNameMap) {
       auto pyName = entry.first;
-      std::cout << "[SetOptions] pyName: " << pyName << std::endl;
       if (TetGenOption::ListOptions.count(std::string(pyName)) == 0) {
           continue;
       }
       auto svName = entry.second;
       std::vector<std::vector<double>> valuesList;
+      std::cout << "[SetOptions] pyName: " << pyName << std::endl;
+      std::cout << "[SetOptions]   svName: " << svName << std::endl;
       try {
           valuesList = PyTetGenOptionsGetListValues(options, pyName);
       } catch (const std::exception& exception) {
@@ -362,6 +395,7 @@ SetOptions(PyUtilApiFunction& api, cvMeshObject* mesher, PyObject* options)
       }
 
       int numListValues = valuesList.size();
+      std::cout << "[SetOptions]   numListValues: " << numListValues << std::endl;
       if (numListValues == 0) { 
           continue;
       }
@@ -431,8 +465,12 @@ MesherTetGen_generate_mesh(PyMeshingMesher* self, PyObject* args, PyObject* kwar
   }
 
   // Generate mesh sizing function arrays, local edge size, radius meshing, etc.
+  //
   auto tetGenMesher = dynamic_cast<cvTetGenMeshObject*>(mesher);
-  if (!GenerateMeshSizingArrays(api, tetGenMesher, options)) {
+  try {
+      GenerateMeshSizingArrays(api, tetGenMesher, options);
+  } catch (const std::exception& exception) {
+      api.error(exception.what());
       return nullptr;
   }
 
