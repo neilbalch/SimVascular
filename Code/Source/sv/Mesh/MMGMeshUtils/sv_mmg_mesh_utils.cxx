@@ -46,32 +46,34 @@
 
 #include "mmg/mmgs/libmmgs.h"
 
+//-----------------------
+// MMGUtils_ConvertToMMG
+//-----------------------
+//
 int MMGUtils_ConvertToMMG(MMG5_pMesh mesh, MMG5_pSol sol, vtkPolyData *polydatasolid,
     double hmin, double hmax, double hausd, double angle, double hgrad,
     int useSizingFunction, vtkDoubleArray *meshSizingFunction, int numAddedRefines)
 {
-  vtkSmartPointer<vtkIntArray> boundaryScalars =
-    vtkSmartPointer<vtkIntArray>::New();
-  vtkSmartPointer<vtkIntArray> refineIDs =
-    vtkSmartPointer<vtkIntArray>::New();
-  if (VtkUtils_PDCheckArrayName(polydatasolid,1,"ModelFaceID") != SV_OK)
-  {
+  auto boundaryScalars = vtkSmartPointer<vtkIntArray>::New();
+  auto refineIDs = vtkSmartPointer<vtkIntArray>::New();
+
+  if (VtkUtils_PDCheckArrayName(polydatasolid,1,"ModelFaceID") != SV_OK) {
     fprintf(stderr,"Array name 'ModelFaceID' does not exist. Regions must be identified");
     fprintf(stderr," and named 'ModelFaceID' prior to this function call\n");
     return SV_OK;
   }
+
   boundaryScalars = vtkIntArray::SafeDownCast(polydatasolid->GetCellData()->GetArray("ModelFaceID"));
   double minmax[2];
   boundaryScalars->GetRange(minmax, 0);
   int range = minmax[1] - minmax[0];
 
-  if (useSizingFunction && meshSizingFunction == NULL)
-  {
+  if (useSizingFunction && meshSizingFunction == NULL) {
     fprintf(stderr,"Cannot use sizing function without a function!");
     return SV_ERROR;
   }
-  vtkSmartPointer<vtkSVFindSeparateRegions> separator =
-    vtkSmartPointer<vtkSVFindSeparateRegions>::New();
+
+  auto separator = vtkSmartPointer<vtkSVFindSeparateRegions>::New();
   separator->SetInputData(polydatasolid);
   separator->SetCellArrayName("ModelFaceID");
   separator->SetOutPointArrayName("ModelFaceBoundaryPts");
@@ -90,24 +92,29 @@ int MMGUtils_ConvertToMMG(MMG5_pMesh mesh, MMG5_pSol sol, vtkPolyData *polydatas
   int numEdges = ridges->GetNumberOfEdges();
   int *faces;
   int numFaces = 0;
-  if (PlyDtaUtils_GetFaceIds(polydatasolid,&numFaces,&faces) != SV_OK)
-  {
+
+  if (PlyDtaUtils_GetFaceIds(polydatasolid,&numFaces,&faces) != SV_OK) {
     fprintf(stderr,"Could not get face ids\n");
     return SV_ERROR;
   }
-  if (numAddedRefines != 0)
-  {
-    if (VtkUtils_PDCheckArrayName(polydatasolid,0,"RefineID") != SV_OK)
-    {
+
+  if (numAddedRefines != 0) {
+    if (VtkUtils_PDCheckArrayName(polydatasolid,0,"RefineID") != SV_OK) {
       fprintf(stderr,"Array %s does not exist on mesh\n","RefineID");
       return SV_ERROR;
     }
     refineIDs = vtkIntArray::SafeDownCast(polydatasolid->GetPointData()->GetArray("RefineID"));
   }
+
+  std::cout << std::endl;
+  std::cout << "######### MMGUtils_ConvertToMMG #########" << std::endl;
+  std::cout << "[MMGUtils_ConvertToMMG] numFaces: " << numFaces << std::endl;
+  std::cout << "[MMGUtils_ConvertToMMG] numAddedRefines: " << numAddedRefines << std::endl;
+
   int numSizes = numFaces + numAddedRefines;
   delete [] faces;
-  if (!MMGS_Set_iparameter(mesh, sol, MMGS_IPARAM_numberOfLocalParam, numSizes))
-  {
+
+  if (!MMGS_Set_iparameter(mesh, sol, MMGS_IPARAM_numberOfLocalParam, numSizes)) {
     fprintf(stderr,"Error in mmgs\n");
     return SV_ERROR;
   }
@@ -307,117 +314,103 @@ int MMGUtils_ConvertToVTK(MMG5_pMesh mesh, MMG5_pSol sol, vtkPolyData *polydatas
   return SV_OK;
 }
 
-int MMGUtils_SurfaceRemeshing(vtkPolyData *surface, double hmin, double hmax, double hausd, double angle, double hgrad, int useSizingFunction, vtkDoubleArray *meshSizingFunction, int numAddedRefines)
+//---------------------------
+// MMGUtils_SurfaceRemeshing
+//---------------------------
+// Remesh a PolyData surface.
+//
+// Arguments:
+//
+//   surface: The PolyData surface to remesh. Modified.
+//   hmin: Minimum element edge size.
+//   hmax: Maximum element edge size.
+//
+// Returns:
+//
+//   surface: The remeshed surface.
+//
+int MMGUtils_SurfaceRemeshing(vtkPolyData *surface, double hmin, double hmax, double hausd, double angle, 
+    double hgrad, int useSizingFunction, vtkDoubleArray *meshSizingFunction, int numAddedRefines)
 {
-  vtkSmartPointer<vtkCleanPolyData> cleaner =
-    vtkSmartPointer<vtkCleanPolyData>::New();
-  cleaner->SetInputData(surface);
-  cleaner->Update();
-
-  surface->DeepCopy(cleaner->GetOutput());
-
-  if (hmax < hmin)
-  {
+  if (hmax < hmin) {
     fprintf(stderr,"Max edge size is smaller than min edge size!\n");
     return SV_ERROR;
   }
-  MMG5_pMesh mesh;
-  MMG5_pSol  sol;
-  mesh = NULL;
-  sol = NULL;
 
-  MMGS_Init_mesh(MMG5_ARG_start,
-        	 MMG5_ARG_ppMesh,&mesh,MMG5_ARG_ppMet,&sol,
-        	 MMG5_ARG_end);
+  // Remove duplicate vertices.
+  //
+  auto cleaner = vtkSmartPointer<vtkCleanPolyData>::New();
+  cleaner->SetInputData(surface);
+  cleaner->Update();
+  surface->DeepCopy(cleaner->GetOutput());
+  surface->BuildCells();
+  surface->BuildLinks();
+
+  // Initialize MMG.
+  //
+  MMG5_pMesh mesh = nullptr;
+  MMG5_pSol  sol = nullptr;
+  MMGS_Init_mesh(MMG5_ARG_start, MMG5_ARG_ppMesh, &mesh, MMG5_ARG_ppMet, &sol, MMG5_ARG_end);
   mesh->ver = 2;
   mesh->dim = 3;
 
-  vtkDoubleArray *dummyArray = NULL;
-  surface->BuildCells();
-  surface->BuildLinks();
-  if (MMGUtils_ConvertToMMG(mesh, sol, surface, hmin, hmax,
-	hausd, angle, hgrad, useSizingFunction, meshSizingFunction, numAddedRefines) != SV_OK)
-  {
+  if (MMGUtils_ConvertToMMG(mesh, sol, surface, hmin, hmax, hausd, angle, hgrad, useSizingFunction, 
+        meshSizingFunction, numAddedRefines) != SV_OK) {
     fprintf(stderr,"Error converting to MMG\n");
-    MMGS_Free_all(MMG5_ARG_start,
-		  MMG5_ARG_ppMesh,&mesh,MMG5_ARG_ppMet,&sol,
-		  MMG5_ARG_end);
+    MMGS_Free_all(MMG5_ARG_start, MMG5_ARG_ppMesh,&mesh,MMG5_ARG_ppMet,&sol, MMG5_ARG_end);
     return SV_ERROR;
   }
 
-  if (MMGS_Chk_meshData(mesh,sol) != 1)
-  {
+  if (MMGS_Chk_meshData(mesh,sol) != 1) {
     fprintf(stderr,"Mesh and sol do not match\n");
-    MMGS_Free_all(MMG5_ARG_start,
-		  MMG5_ARG_ppMesh,&mesh,MMG5_ARG_ppMet,&sol,
-		  MMG5_ARG_end);
+    MMGS_Free_all(MMG5_ARG_start, MMG5_ARG_ppMesh, &mesh, MMG5_ARG_ppMet, &sol, MMG5_ARG_end);
     return SV_ERROR;
   }
 
-  fprintf(stderr,"Remeshing surface with MMG...\n");
-  try
-  {
+  // Remesh the surface.
+  //
+  try {
     MMGS_mmgslib(mesh, sol);
-  }
-  catch (int ier)
-  {
+  } catch (int ier) {
     fprintf(stderr,"Remeshing exited with status ier %d...\n",ier);
     return SV_ERROR;
   }
 
+  // Convert the mmg mesh to vtk polydata.
+  //
   vtkPolyData *pd = vtkPolyData::New();
 
-  if (MMGUtils_ConvertToVTK(mesh, sol, pd) != SV_OK)
-  {
+  if (MMGUtils_ConvertToVTK(mesh, sol, pd) != SV_OK) {
     fprintf(stderr,"Error converting to VTK\n");
-    MMGS_Free_all(MMG5_ARG_start,
-		  MMG5_ARG_ppMesh,&mesh,MMG5_ARG_ppMet,&sol,
-		  MMG5_ARG_end);
+    MMGS_Free_all(MMG5_ARG_start, MMG5_ARG_ppMesh,&mesh,MMG5_ARG_ppMet,&sol, MMG5_ARG_end);
     pd->Delete();
     return SV_ERROR;
   }
-  //if (MMGUtils_PassCellArray(pd, surface, "ModelFaceID", "ModelFaceID") != SV_OK)
-  //{
-  //  fprintf(stderr,"Error resetting regions\n");
-  //  MMGS_Free_all(MMG5_ARG_start,
-	//	  MMG5_ARG_ppMesh,&mesh,MMG5_ARG_ppMet,&sol,
-	//	  MMG5_ARG_end);
-  //  pd->Delete();
-  //  return SV_ERROR;
-  //}
-  if (useSizingFunction)
-  {
-    if (MMGUtils_PassPointArray(pd, surface, "MeshSizingFunction", "MeshSizingFunction") != SV_OK)
-    {
+
+  if (useSizingFunction) {
+    if (MMGUtils_PassPointArray(pd, surface, "MeshSizingFunction", "MeshSizingFunction") != SV_OK) {
       fprintf(stderr,"Error resetting regions\n");
-      MMGS_Free_all(MMG5_ARG_start,
-		    MMG5_ARG_ppMesh,&mesh,MMG5_ARG_ppMet,&sol,
-		    MMG5_ARG_end);
+      MMGS_Free_all(MMG5_ARG_start, MMG5_ARG_ppMesh,&mesh,MMG5_ARG_ppMet,&sol, MMG5_ARG_end);
       pd->Delete();
       return SV_ERROR;
     }
   }
-  if (VtkUtils_PDCheckArrayName(surface,1,"WallID"))
-  {
-    if (MMGUtils_PassCellArray(pd,surface,"WallID","WallID") != SV_OK)
-    {
+
+  if (VtkUtils_PDCheckArrayName(surface,1,"WallID")) {
+    if (MMGUtils_PassCellArray(pd,surface,"WallID","WallID") != SV_OK) {
       fprintf(stderr,"Error passing walls\n");
-      MMGS_Free_all(MMG5_ARG_start,
-		    MMG5_ARG_ppMesh,&mesh,MMG5_ARG_ppMet,&sol,
-		    MMG5_ARG_end);
+      MMGS_Free_all(MMG5_ARG_start, MMG5_ARG_ppMesh,&mesh,MMG5_ARG_ppMet,&sol, MMG5_ARG_end);
       pd->Delete();
       return SV_ERROR;
     }
-    vtkSmartPointer<vtkThreshold> thresholder =
-      vtkSmartPointer<vtkThreshold>::New();
+
+    auto thresholder = vtkSmartPointer<vtkThreshold>::New();
     thresholder->SetInputData(pd);
-     //Set Input Array to 0 port,0 connection,1 for Cell Data, and WallID is the type name
     thresholder->SetInputArrayToProcess(0,0,0,1,"WallID");
     thresholder->ThresholdBetween(1,1);
     thresholder->Update();
 
-    vtkSmartPointer<vtkDataSetSurfaceFilter> surfacer =
-      vtkSmartPointer<vtkDataSetSurfaceFilter>::New();
+    auto surfacer = vtkSmartPointer<vtkDataSetSurfaceFilter>::New();
     surfacer->SetInputData(thresholder->GetOutput());
     surfacer->Update();
 
@@ -427,8 +420,9 @@ int MMGUtils_SurfaceRemeshing(vtkPolyData *surface, double hmin, double hmax, do
   cleaner->SetInputData(pd);
   cleaner->Update();
 
-  vtkSmartPointer<vtkPolyDataNormals> normaler =
-    vtkSmartPointer<vtkPolyDataNormals>::New();
+  // Compute surface normals.
+  //
+  auto normaler = vtkSmartPointer<vtkPolyDataNormals>::New();
   normaler->SetInputData(cleaner->GetOutput());
   normaler->ConsistencyOn();
   normaler->AutoOrientNormalsOn();
@@ -438,12 +432,11 @@ int MMGUtils_SurfaceRemeshing(vtkPolyData *surface, double hmin, double hmax, do
   normaler->SplittingOff();
   normaler->Update();
 
+  // Define final remeshed surface result.
   surface->DeepCopy(normaler->GetOutput());
   pd->Delete();
 
-  MMGS_Free_all(MMG5_ARG_start,
-        	MMG5_ARG_ppMesh,&mesh,MMG5_ARG_ppMet,&sol,
-        	MMG5_ARG_end);
+  MMGS_Free_all(MMG5_ARG_start, MMG5_ARG_ppMesh, &mesh, MMG5_ARG_ppMet, &sol, MMG5_ARG_end);
 
   return SV_OK;
 }

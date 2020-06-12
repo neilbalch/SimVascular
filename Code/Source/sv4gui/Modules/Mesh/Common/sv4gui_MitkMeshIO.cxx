@@ -80,12 +80,11 @@ sv4guiMitkMeshIO::sv4guiMitkMeshIO()
 
 std::vector<mitk::BaseData::Pointer> sv4guiMitkMeshIO::Read()
 {
-    std::string fileName=GetInputLocation();
-    sv4guiMitkMesh::Pointer mitkMesh=ReadFromFile(fileName,false,false);
+    std::string fileName = GetInputLocation();
+    sv4guiMitkMesh::Pointer mitkMesh = ReadFromFile(fileName,false,false);
 
     std::vector<mitk::BaseData::Pointer> result;
-    if (mitkMesh.IsNull())
-    {
+    if (mitkMesh.IsNull()) {
         return result;
     }
 
@@ -105,12 +104,24 @@ mitk::IFileIO::ConfidenceLevel sv4guiMitkMeshIO::GetReaderConfidenceLevel() cons
 void sv4guiMitkMeshIO::Write()
 {
     ValidateOutputLocation();
+    std::string fileName = GetOutputLocation();
+    //const sv4guiMitkMesh* mitkMesh = dynamic_cast<const sv4guiMitkMesh*>(this->GetInput());
+    auto mitkMesh = dynamic_cast<const sv4guiMitkMesh*>(this->GetInput());
 
-    std::string fileName=GetOutputLocation();
+    if (!mitkMesh) {
+       return;
+    }
 
-    const sv4guiMitkMesh* mitkMesh = dynamic_cast<const sv4guiMitkMesh*>(this->GetInput());
-    if(!mitkMesh) return;
+    WriteGroupToFile(const_cast<sv4guiMitkMesh*>(mitkMesh), fileName);
+}
 
+//------------------
+// WriteGroupToFile
+//------------------
+// Write a mesh group to a .msh file.
+//
+void sv4guiMitkMeshIO::WriteGroupToFile(sv4guiMitkMesh* mitkMesh, std::string& fileName)
+{
     TiXmlDocument document;
     auto  decl = new TiXmlDeclaration( "1.0", "UTF-8", "" );
     document.LinkEndChild( decl );
@@ -124,15 +135,15 @@ void sv4guiMitkMeshIO::Write()
     mmElement->SetAttribute("model_name", mitkMesh->GetModelName());
     document.LinkEndChild(mmElement);
 
-    for(int t=0;t<mitkMesh->GetTimeSize();t++)
-    {
-        auto  timestepElement = new TiXmlElement("timestep");
+    for(int t=0;t<mitkMesh->GetTimeSize();t++) {
+        auto timestepElement = new TiXmlElement("timestep");
         timestepElement->SetAttribute("id",t);
         mmElement->LinkEndChild(timestepElement);
+        sv4guiMesh* mesh = mitkMesh->GetMesh(t);
 
-        sv4guiMesh* mesh=mitkMesh->GetMesh(t);
-
-        if(!mesh) continue;
+        if (!mesh) {
+            continue;
+        }
 
         auto meshElement = new TiXmlElement("mesh");
         timestepElement->LinkEndChild(meshElement);
@@ -142,27 +153,25 @@ void sv4guiMitkMeshIO::Write()
         meshElement->LinkEndChild(chElement);
 
         std::vector<std::string> cmdHistory=mesh->GetCommandHistory();
-        for(int i=0;i<cmdHistory.size();i++)
-        {
+        for(int i=0;i<cmdHistory.size();i++) {
             auto cmdElement=new TiXmlElement("command");
             chElement->LinkEndChild(cmdElement);
             cmdElement->SetAttribute("content", cmdHistory[i]);
         }
 
         std::string surfaceFileName=fileName.substr(0,fileName.find_last_of("."))+".vtp";
-        if(!mesh->WriteSurfaceFile(surfaceFileName))
+        if(!mesh->WriteSurfaceFile(surfaceFileName)) {
             mitkThrow() << "Error in writing surface mesh to file: " << surfaceFileName;
+        }
 
         std::string volumeFileName=fileName.substr(0,fileName.find_last_of("."))+".vtu";
-        if(!mesh->WriteVolumeFile(volumeFileName))
+        if(!mesh->WriteVolumeFile(volumeFileName)) {
             mitkThrow() << "Error in writing surface mesh to file: " << surfaceFileName;
-
+        }
     }
 
-    if (document.SaveFile(fileName) == false)
-    {
+    if (document.SaveFile(fileName) == false) {
         mitkThrow() << "Could not write model to " << fileName;
-
     }
 }
 
@@ -183,6 +192,11 @@ sv4guiMitkMeshIO* sv4guiMitkMeshIO::IOClone() const
     return new sv4guiMitkMeshIO(*this);
 }
 
+//--------------
+// ReadFromFile
+//--------------
+// Read a .msh file.
+//
 sv4guiMitkMesh::Pointer sv4guiMitkMeshIO::ReadFromFile(std::string fileName, bool readSurfaceMesh, bool readVolumeMesh)
 {
     TiXmlDocument document;

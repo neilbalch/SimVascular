@@ -233,7 +233,16 @@ static char* MESHING_MESHSIM_CLASS = "MeshSim";
 // the name of the type within the module.
 static char* MESHING_MESHSIM_MODULE_CLASS = "meshing.MeshSim";
 
-PyDoc_STRVAR(PyMeshingMeshSim_doc, "MeshSim mesh generator class methods.");
+PyDoc_STRVAR(PyMeshingMeshSim_doc, 
+   "SV MeshSim mesher class. \n\
+   \n\
+   The MeshSim class provides an interface for creating tetrahedral finite  \n\
+   element meshes from Parasolid solid models using the commercial MeshSim  \n\
+   mesh generator.                                                          \n\
+   \n\
+   The MeshSim class inherits most of its methods from the Mesher base class. \n\
+   \n\
+");
 
 //-------------------------
 // PyMeshingMeshSimMethods
@@ -256,9 +265,11 @@ static PyMethodDef PyMeshingMeshSimMethods[] = {
 static int 
 PyMeshingMeshSimInit(PyMeshingMeshSim* self, PyObject* args, PyObject *kwds)
 {
-  std::cout << "[PyMeshingMeshSimInit] New MeshSim object: " << std::endl;
   auto api = PyUtilApiFunction("", PyRunTimeErr, "MeshGenerator");
-  static int numObjs = 1;
+  if (PyCreateMeshSimObject == nullptr) {
+      api.error("The MeshSim mesh generator interface is not defined. Use the SV MeshSim plugin to define the MeshSim mesh generator interface.");
+      return -1;
+  }
   self->super.mesher = PyCreateMeshSimObject();
   return 0;
 }
@@ -270,11 +281,7 @@ PyMeshingMeshSimInit(PyMeshingMeshSim* self, PyObject* args, PyObject *kwds)
 static PyObject *
 PyMeshingMeshSimNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
-  std::cout << "[PyMeshingMeshSimNew] PyMeshingMeshSimNew " << std::endl;
   auto self = (PyMeshingMesher*)type->tp_alloc(type, 0);
-  if (self != NULL) {
-      //self->super.id = 2;
-  }
   return (PyObject*)self;
 }
 
@@ -285,14 +292,13 @@ PyMeshingMeshSimNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 static void
 PyMeshingMeshSimDealloc(PyMeshingMeshSim* self)
 {
-  std::cout << "[PyMeshingMeshSimDealloc] Free PyMeshingMeshSim" << std::endl;
   delete self->super.mesher;
   Py_TYPE(self)->tp_free(self);
 }
 
-//---------------------------
+//----------------------
 // PyMeshingMeshSimType 
-//---------------------------
+//----------------------
 // Define the Python type object that stores meshsim data. 
 //
 // Can't set all the fields here because g++ does not suppor non-trivial 
@@ -323,7 +329,6 @@ SetMeshingMeshSimTypeFields(PyTypeObject& mesherType)
   // Object creation function, equivalent to the Python __new__() method. 
   // The generic handler creates a new instance using the tp_alloc field.
   mesherType.tp_new = PyMeshingMeshSimNew;
-  //.tp_new = PyType_GenericNew,
 
   // Subclass to PyMeshingMesherType.
   mesherType.tp_base = &PyMeshingMesherType; 

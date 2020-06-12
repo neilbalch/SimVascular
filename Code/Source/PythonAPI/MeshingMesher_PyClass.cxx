@@ -33,6 +33,8 @@
 // 'Mesher' mesh generator class. The class used is a base classs for 
 // mesh generators (e.g. TetGen and MeshSim). 
 //
+// The Mesher class provides an abstract interface for TetGen and MeshSim classed
+// and is not exposed, i.e. can't be used like mesher = Mesher().
 
 #include <functional>
 
@@ -40,14 +42,18 @@
 
 extern void MeshingMesherSetParameter(cvMeshObject* mesher, std::string& name, std::vector<double>& values);
 
-//----------------------
+//-----------------
 // PyMeshingMesher
-//----------------------
+//-----------------
 //
 // Data Members:
 //
 //   CreateOptionsFromList: A pointer to the function that extracts option and parameter
 //       values from strings read from an SV Meshes .msh file.
+//
+// Data members exposed as Python attributes:
+//
+//   kernelName
 //
 typedef struct {
   PyObject_HEAD
@@ -66,18 +72,16 @@ typedef struct {
 
 namespace MeshingMesher {
 
-//-----------------------
-// CheckMesherLoadUpdate
-//-----------------------
+//------------
+// MeshExists
+//------------
 //
 static bool 
-CheckMesherLoadUpdate(cvMeshObject* mesher, std::string& msg) 
+MeshExists(PyUtilApiFunction& api, cvMeshObject* mesher) 
 {
-  if (mesher->GetMeshLoaded() == 0) {
-      if (mesher->Update() == SV_ERROR) {
-          msg = "No mesh has been generated.";
-          return false;
-      }
+  if (!mesher->HasVolumeMesh()) {
+      api.error("No volume mesh has been generated.");
+      return nullptr;
   }
 
   return true;
@@ -95,10 +99,12 @@ CheckMesherLoadUpdate(cvMeshObject* mesher, std::string& msg)
 // Mesher_adapt
 //--------------
 //
+// [TODO:DaveP] this crashes so don't expose.
+//
 PyDoc_STRVAR(Mesher_adapt_doc,
 " adapt()  \n\ 
   \n\
-  ??? Add the unstructured grid mesh to the repository. \n\
+  ??? \n\
   \n\
 ");
 
@@ -123,12 +129,22 @@ Mesher_adapt(PyMeshingMesher* self, PyObject* args)
 //-------------------------------------
 //
 PyDoc_STRVAR(Mesher_compute_model_boundary_faces_doc,
-" compute_model_boundary_faces(angle)  \n\ 
-  \n\
-  Compute the boundary faces for the solid model. \n\
-  \n\
-  Args:                                    \n\
-    angle (double): The angle in degrees used to determine the boundary faces of the solid model. \n\
+  "compute_model_boundary_faces(angle)  \n\ 
+   \n\
+   Compute the boundary faces for the solid model. \n\
+   \n\
+   ----------------------------------------------------------------------   \n\
+   This method needs to be called only for PolyData solid models that do    \n\
+   not have face information already defined (e.g. models from STL files).  \n\
+   It does not need to be called for OpenCascade or Parasolid models.       \n\
+   \n\
+   For PolyData models faces are distinguished using the angle of the       \n\
+   normals between adjacent triangles. If the angle is less than or equal   \n\
+   to the 'angle' argument then the triangles are considered to part of     \n\
+   the same face. \n\
+   \n\
+   Args:                                    \n\
+     angle (double): The angle in degrees used to determine the boundary faces of the solid model. \n\
 ");
 
 static PyObject * 
@@ -157,10 +173,14 @@ Mesher_compute_model_boundary_faces(PyMeshingMesher* self, PyObject* args, PyObj
 //----------------------
 //
 PyDoc_STRVAR(Mesher_generate_mesh_doc,
-" generate_mesh()  \n\ 
-  \n\
-  ??? Add the unstructured grid mesh to the repository. \n\
-  \n\
+  "generate_mesh(options)  \n\ 
+   \n\
+   Generate a mesh using the supplied meshing parameters. \n\
+   \n\
+   ----------------------------------------------------------------------   \n\
+   Args: \n\
+     options (meshing.TetGenOptions): The meshing parameters used to   \n\
+         generate a mesh. \n\
 ");
 
 static PyObject * 
@@ -182,12 +202,15 @@ Mesher_generate_mesh(PyMeshingMesher* self, PyObject* args)
 //--------------------------
 
 PyDoc_STRVAR(Mesher_get_face_polydata_doc,
-" get_face_polydata(face_id)  \n\ 
-  \n\
-  Get the mesh face vtk polydata for the given face ID.  \n\
-  \n\
-  Args:                                    \n\
-    face_id (int): The face ID to get the polydata for. \n\
+  "get_face_polydata(face_id)  \n\ 
+   \n\
+   ----------------------------------------------------------------------   \n\
+   Get the mesh face VTK PolyData for the given face ID.  \n\
+   \n\
+   Args: \n\
+     face_id (int): The face ID to get the PolyData for. \n\
+   \n\
+   Returns (vtkPolyData): The VTK PolyData object for the face.  \n\
 ");
 
 static PyObject * 
@@ -202,10 +225,8 @@ Mesher_get_face_polydata(PyMeshingMesher* self, PyObject* args, PyObject* kwargs
     return api.argsError();
   }
 
-  std::string emsg;
   auto mesher = self->mesher;
-  if (!CheckMesherLoadUpdate(mesher, emsg)) {
-      api.error(emsg);
+  if (!MeshExists(api, mesher)) {
       return nullptr;
   }
 
@@ -219,6 +240,25 @@ Mesher_get_face_polydata(PyMeshingMesher* self, PyObject* args, PyObject* kwargs
   vtkSmartPointer<vtkPolyData> polydata = vtkSmartPointer<vtkPolyData>::New();
   polydata = cvPolydata->GetVtkPolyData();
   return PyUtilGetVtkObject(api, polydata); 
+}
+
+//-------------------
+// Mesher_get_kernel 
+//-------------------
+//
+PyDoc_STRVAR(Mesher_get_kernel_doc,
+  "get_kernel()  \n\ 
+   \n\
+   Get the mesher kernel. \n\
+   \n\
+   Returns (str): The name of the mesher kernel. \n\
+");
+
+static PyObject *
+Mesher_get_kernel(PyMeshingMesher* self, PyObject* args)
+{ 
+  auto kernelName = MeshingKernel_get_name(self->mesherKernel);
+  return Py_BuildValue("s", kernelName.c_str());
 }
 
 //-----------------
@@ -239,10 +279,8 @@ Mesher_get_mesh(PyMeshingMesher* self, PyObject* args)
   using namespace MeshingMesher;
   auto api = PyUtilApiFunction("", PyRunTimeErr, __func__); 
 
-  std::string emsg;
   auto mesher = self->mesher;
-  if (!CheckMesherLoadUpdate(mesher, emsg)) {
-      api.error(emsg);
+  if (!MeshExists(api, mesher)) {
       return nullptr;
   }
 
@@ -257,26 +295,39 @@ Mesher_get_mesh(PyMeshingMesher* self, PyObject* args)
   return vtkPythonUtil::GetObjectFromPointer(vtkUnstructuredGrid);
 }
 
-//----------------------------
-// Mesher_get_model_face_info 
-//----------------------------
+//---------------------------
+// Mesher_get_model_face_ids
+//---------------------------
 //
-PyDoc_STRVAR(Mesher_get_model_face_info_doc,
-" get_model_face_info()  \n\ 
+PyDoc_STRVAR(Mesher_get_model_face_ids_doc,
+  "get_model_face_ids()  \n\ 
   \n\
-  ??? Add the unstructured grid mesh to the repository. \n\
+  Get the mesh solid model face IDs. \n\
+  \n\
+  Returns list([int]): The list of integer face IDs. \n\
   \n\
 ");
 
 static PyObject * 
-Mesher_get_model_face_info(PyMeshingMesher* self, PyObject* args)
+Mesher_get_model_face_ids(PyMeshingMesher* self, PyObject* args)
 {
   auto api = PyUtilApiFunction("", PyRunTimeErr, __func__); 
+  std::vector<int> faceIDs;
   auto mesher = self->mesher; 
-  // [TODO:DaveP] Yuk!
-  char info[99999];
-  mesher->GetModelFaceInfo(info);
-  return Py_BuildValue("s",info);
+  if (mesher->GetModelFaceInfo(faceIDs) != SV_OK) { 
+      api.error("Could not get face IDs for the mesh solid model.");
+      return nullptr;
+  }
+
+  // Build return list of IDs.
+  //
+  PyObject* pyList = PyList_New(faceIDs.size());
+  for (int i = 0; i < faceIDs.size(); i++) {
+      PyObject* value = Py_BuildValue("i", faceIDs[i]);
+      PyList_SetItem(pyList, i, value);
+  }
+
+  return pyList;
 }
 
 //---------------------------
@@ -284,10 +335,13 @@ Mesher_get_model_face_info(PyMeshingMesher* self, PyObject* args)
 //---------------------------
 //
 PyDoc_STRVAR(Mesher_get_model_polydata_doc,
-" get_model_polydata  \n\ 
-  \n\
-  Get the vtk polydata for the mesh solid model. \n\
-  \n\
+  "get_model_polydata  \n\ 
+   \n\
+   ----------------------------------------------------------------------   \n\
+   Get the VTK PolyData for the mesh solid model. \n\
+   \n\
+   Returns (vtkPolyData): The VTK PolyData object for the mesh solid model.  \n\
+   \n\
 ");
 
 static PyObject * 
@@ -296,10 +350,8 @@ Mesher_get_model_polydata(PyMeshingMesher* self, PyObject* args)
   using namespace MeshingMesher;
   auto api = PyUtilApiFunction("", PyRunTimeErr, __func__); 
 
-  std::string emsg;
   auto mesher = self->mesher;
-  if (!CheckMesherLoadUpdate(mesher, emsg)) {
-      api.error(emsg);
+  if (!MeshExists(api, mesher)) {
       return nullptr;
   }
 
@@ -320,30 +372,34 @@ Mesher_get_model_polydata(PyMeshingMesher* self, PyObject* args)
 //------------------
 //
 PyDoc_STRVAR(Mesher_load_mesh_doc,
-" load_mesh(file_name)  \n\ 
-  \n\
-  Add the unstructured grid mesh to the repository. \n\
-  \n\
-  Args:                                    \n\
-    name (str): Name in the repository to store the unstructured grid. \n\
+  "load_mesh(volume_file, surface_file)  \n\ 
+   \n\
+   ----------------------------------------------------------------------   \n\
+   Load a mesh from a VTK .vtu file.                                        \n\
+   \n\
+   Args: \n\
+     volume_file (str): The name of the VTK .vtu file containing a            \n\
+         volume mesh. \n\
+     surface_file (Optionla[str]): The name of the VTK .vtp file containing a            \n\
+         surface mesh. \n\
 ");
 
 static PyObject * 
-Mesher_load_mesh(PyMeshingMesher* self, PyObject* args)
+Mesher_load_mesh(PyMeshingMesher* self, PyObject* args, PyObject* kwargs)
 {
   auto api = PyUtilApiFunction("s|s", PyRunTimeErr, __func__); 
-  char *fileName;
+  static char *keywords[] = {"volume_file", "surface_file", NULL};
+  char *volumeFileName;
   char *surfFileName = 0;
 
-  if (!PyArg_ParseTuple(args, api.format, &fileName, &surfFileName)) {
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &volumeFileName, &surfFileName)) {
     return api.argsError();
   }
 
-  auto mesher = self->mesher; 
-
   // Read in the mesh file.
-  if (mesher->LoadMesh(fileName, surfFileName) == SV_ERROR) {
-      api.error("Error reading in a mesh from the file '" + std::string(fileName) + "'."); 
+  auto mesher = self->mesher; 
+  if (mesher->LoadMesh(volumeFileName, surfFileName) == SV_ERROR) {
+      api.error("Error reading in a mesh from the file '" + std::string(volumeFileName) + "'."); 
       return nullptr;
   }
 
@@ -389,10 +445,12 @@ Mesher_load_model(PyMeshingMesher* self, PyObject* args, PyObject* kwargs)
 //--------------------
 
 PyDoc_STRVAR(Mesher_get_surface_doc,
-" get_surface()  \n\ 
-  \n\
-  Get the mesh surface as VTK polydata. \n\
-  \n\
+  "get_surface()  \n\ 
+   \n\
+   Get the mesh surface as VTK PolyData. \n\
+   \n\
+   Returns (vtkPolyData): The VTK PolyData object for the mesh surface.  \n\
+   \n\
 ");
 
 static PyObject * 
@@ -401,10 +459,8 @@ Mesher_get_surface(PyMeshingMesher* self, PyObject* args)
   using namespace MeshingMesher;
   auto api = PyUtilApiFunction("", PyRunTimeErr, __func__); 
 
-  std::string emsg;
   auto mesher = self->mesher;
-  if (!CheckMesherLoadUpdate(mesher, emsg)) {
-      api.error(emsg);
+  if (!MeshExists(api, mesher)) {
       return nullptr;
   }
 
@@ -423,34 +479,46 @@ Mesher_get_surface(PyMeshingMesher* self, PyObject* args)
 //---------------------------
 // Mesher_set_boundary_layer
 //---------------------------
-
+//
+// [TODO:DaveP] figure out what these parameters are for.
+//
 PyDoc_STRVAR(Mesher_set_boundary_layer_options_doc,
-" set_boundary_layer(number_of_layers, constant_thickness, thickness_factor, layer_decreasing_ratio)  \n\ 
-  \n\
-  Set the options for boundary layer meshing. \n\
-  \n\
-  Args:                                    \n\
-    number_of_layers (int): The number of boundary layers to create. \n\
-    constant_thickness (bool): If True then the boundary layers will have a constant thickness. \n\
-    thickness_factor (float):  \n\
-    layer_decreasing_ratio (float):  \n\
+  "set_boundary_layer(number_of_layers, edge_size_fraction, layer_decreasing_ratio, \n\
+       constant_thickness)  \n\ 
+   \n\
+   ----------------------------------------------------------------------   \n\
+   Set the options for boundary layer meshing. \n\
+   \n\
+   Args: \n\
+     number_of_layers (int): The number of boundary layers to create. \n\
+     edge_size_fraction (float): The fraction of the edge size meshing \n\
+         option to use as the size for the initial boundary layer. This is \n\
+         typically set to be between 0.0 and 1.0. \n\
+     layer_decreasing_ratio (float): The amount of the size decrease between \n\
+         successive boundary layers. \n\
+     constant_thickness (bool): If True then the boundary layers will have a \n\
+         constant thickness. \n\
+   \n\
 ");
 
 static PyObject * 
 Mesher_set_boundary_layer_options(PyMeshingMesher* self, PyObject* args, PyObject* kwargs)
 {
-  auto api = PyUtilApiFunction("iO!dd", PyRunTimeErr, __func__); 
-  static char *keywords[] = {"number_of_layers", "constant_thickness", "thickness_factor", "layer_decreasing_ratio", NULL};
+  auto api = PyUtilApiFunction("iddO!", PyRunTimeErr, __func__); 
+  static char *keywords[] = {"number_of_layers", "edge_size_fraction", "layer_decreasing_ratio", "constant_thickness", NULL};
   int numLayers;
-  int constant_thickness; 
-  double thickness_factor;
-  double layer_decreasing_ratio;
+  double edgeSizeFraction;
+  double layerDecreasingRatio;
+  PyObject* constantThicknessArg; 
 
-  PyObject* layerRatioArg;
-
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &numLayers, &PyBool_Type, &constant_thickness, &thickness_factor, 
-        &layer_decreasing_ratio)) { 
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &numLayers, &edgeSizeFraction, &layerDecreasingRatio, 
+       &PyBool_Type, &constantThicknessArg)) {
     return api.argsError();
+  }
+
+  int constantThickness = 1;
+  if (constantThicknessArg == Py_False) {
+      constantThickness = 0;
   }
 
   // Set the options for boundary layer meshing.
@@ -460,7 +528,7 @@ Mesher_set_boundary_layer_options(PyMeshingMesher* self, PyObject* args, PyObjec
   int type = 0;
   int id = 0;
   int side = 0;
-  double paramValues[3] = { thickness_factor, layer_decreasing_ratio, static_cast<double>(constant_thickness) };
+  double paramValues[3] = { edgeSizeFraction, layerDecreasingRatio, static_cast<double>(constantThickness) };
   if (self->mesher->SetBoundaryLayer(type, id, side, numLayers, paramValues) == SV_ERROR) {
       api.error("Error setting boundary layer.");
       return nullptr;
@@ -469,102 +537,25 @@ Mesher_set_boundary_layer_options(PyMeshingMesher* self, PyObject* args, PyObjec
   Py_RETURN_NONE; 
 }
 
-//----------------------------
-// Mesher_set_meshing_options
-//----------------------------
-//
-PyDoc_STRVAR(Mesher_set_meshing_options_doc,
-" set_meshing_options(name)  \n\ 
-  \n\
-  Add the unstructured grid mesh to the repository. \n\
-  \n\
-  Args:                                    \n\
-    name (str): Name in the repository to store the unstructured grid. \n\
-");
-
-static PyObject * 
-Mesher_set_meshing_options(PyMeshingMesher* self, PyObject* args)
-{
-  auto api = PyUtilApiFunction("O!", PyRunTimeErr, __func__); 
-  char *optionName;
-  PyObject* valueList;
-
-  if (!PyArg_ParseTuple(args, api.format, &optionName, &valueList)) {
-    return api.argsError();
-  }
-  auto mesher = self->mesher;
-
-  int numValues = PyList_Size(valueList);
-  std::vector<double> values;
-  for (int j = 0; j < numValues; j++) {
-    values.push_back(PyFloat_AsDouble(PyList_GetItem(valueList,j)));
-  }
-
-  // [TODO:DaveP] The SetMesherOptions() function does not return an error
-  // if the option is not recognized.
-  //
-
-/*
-  if (mesher->SetMesherOptions(optionName, numValues, values.data()) == SV_ERROR) {
-    api.error("Error setting meshing options.");
-    return nullptr;
-  }
-*/
-
-  Py_RETURN_NONE; 
-}
-
-//---------------------------------
-// Mesher_set_solid_modeler_kernel 
-//---------------------------------
-//
-PyDoc_STRVAR(Mesher_set_solid_modeler_kernel_doc,
-  "set_solid_kernel(kernel)  \n\ 
-   \n\
-   Set the solid modeling kernel. \n\
-   \n\
-   Args: \n\
-     kernel (str): The name of the solid modeling kernel to set. Valid kernel names are: ??? \n\
-");
-
-static PyObject * 
-Mesher_set_solid_modeler_kernel(PyMeshingMesher* self, PyObject* args)
-{
-  std::cout << "[Mesher_set_solid_modeler_kernel] ========== Mesher_set_solid_modeler_kernel ==========" << std::endl;
-  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__); 
-  char *kernelName;
-  if (!PyArg_ParseTuple(args, api.format, &kernelName)) {
-      return api.argsError();
-  }
-  auto mesher = self->mesher;
-  std::cout << "[Mesher_set_solid_modeler_kernel] mesher: " << mesher << std::endl;
-
-  // Check for a valid kernel name.
-  //
-  SolidModel_KernelT kernel = ModelingKernelNameToEnum(std::string(kernelName));
-
-  if (kernel == SM_KT_INVALID) {
-      auto msg = "Unknown kernel name '" + std::string(kernelName) + "'." +
-          " Valid names are: " + kernelValidNames + ".";
-      api.error(msg);
-      return nullptr;
-  }
-
-  mesher->SetSolidModelKernel(kernel);
-  Py_RETURN_NONE; 
-}
-
 //------------------
 // Mesher_set_walls 
 //------------------
-
+//
 PyDoc_STRVAR(Mesher_set_walls_doc,
-" set_walls(face_ids)  \n\ 
-  \n\
-  Set the given faces to be of type wall. \n\
-  \n\
-  Args:                                    \n\
-    face_ids (list[int]): The face IDs to set to type wall. \n\
+  "set_walls(face_ids)  \n\ 
+   \n\
+   Set the given faces to be of type wall. \n\
+   \n\
+   This function must be called prior to meshing to identify model wall     \n\
+   and cap faces.                                                           \n\
+   \n\
+   ----------------------------------------------------------------------   \n\
+   A solid model must be loaded before calling this function. The solid     \n\
+   model must have boundary faces defined for it.                           \n\
+   \n\
+   Args: \n\
+     face_ids (list[int]): The face IDs to set to type wall. \n\
+   \n\
 ");
 
 static PyObject * 
@@ -584,16 +575,36 @@ Mesher_set_walls(PyMeshingMesher* self, PyObject* args, PyObject* kwargs)
       return nullptr;
   }
 
+  // Check that a solid model is defined for the mesh.
+  auto mesher = self->mesher;
+  if (!mesher->HasSolid()) {
+      api.error("A solid model has not been loaded for the mesh.");
+      return nullptr;
+  }
+
+  // Get the loaded model face IDs.
+  std::vector<int> faceIDs;
+  if (mesher->GetModelFaceInfo(faceIDs) != SV_OK) {
+      api.error("Could not get face IDs for the mesh solid model.");
+      return nullptr;
+  }
+
   // Set the face IDs. 
   //
-  std::vector<int> faceIDs;
   for (int i = 0; i < numIDs; i++) {
       auto item = PyList_GetItem(faceIDsList, i);
       if (!PyLong_Check(item)) {
           api.error("The 'face_ids' argument is not a list of integers.");
           return nullptr;
       }
-      self->wallFaceIDs.push_back(PyLong_AsLong(item));
+
+      int faceID = PyLong_AsLong(item);
+      if (std::find(faceIDs.begin(), faceIDs.end(), faceID) == faceIDs.end()) {
+          api.error("There is no face ID '" + std::to_string(faceID) + "' defined for the solid model.");
+          return nullptr;
+      }
+
+      self->wallFaceIDs.push_back(faceID);
   } 
 
   Py_RETURN_NONE; 
@@ -604,38 +615,34 @@ Mesher_set_walls(PyMeshingMesher* self, PyObject* args, PyObject* kwargs)
 //-------------------
 //
 PyDoc_STRVAR(Mesher_write_mesh_doc,
-" write_mesh(file_name)  \n\ 
-  \n\
-  ??? Add the unstructured grid mesh to the repository. \n\
-  \n\
-  Args:                                    \n\
-    file_name (str): Name in the repository to store the unstructured grid. \n\
+  "write_mesh(file_name)  \n\ 
+   \n\
+   Write the generated volume mesh to a VTK .vtu format file. \n\
+   \n\
+   Args: \n\
+     file_name (str): The name of the file to write the mesh to. \n\
 ");
 
 static PyObject * 
 Mesher_write_mesh(PyMeshingMesher* self, PyObject* args, PyObject* kwargs)
 {
   using namespace MeshingMesher;
-  std::cout << "[Mesher_write_mesh] ========== Mesher_write_mesh ==========" << std::endl;
-  auto api = PyUtilApiFunction("s|i", PyRunTimeErr, __func__); 
+  auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__); 
   static char *keywords[] = {"file_name", NULL};
   char *fileName;
   int smsver = 0;
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &fileName, &smsver)) {
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &fileName)) {
     return api.argsError();
   }
 
-  std::string emsg;
   auto mesher = self->mesher;
-  if (!CheckMesherLoadUpdate(mesher, emsg)) {
-      api.error(emsg);
+  if (!MeshExists(api, mesher)) {
       return nullptr;
   }
 
-  std::cout << "[Mesher_write_mesh] fileName: " << fileName << std::endl;
   // Write the mesh to a file.
-  if (mesher->WriteMesh(fileName,smsver) == SV_ERROR) {
+  if (mesher->WriteMesh(fileName, smsver) == SV_ERROR) {
       api.error("Error writing the mesh to the file '" + std::string(fileName) + "'."); 
       return nullptr;
   }
@@ -643,8 +650,9 @@ Mesher_write_mesh(PyMeshingMesher* self, PyObject* args, PyObject* kwargs)
   Py_RETURN_NONE; 
 }
 
-
 //================================================  o l d  c l a s s   f u n c t i o n s ================================
+
+// [TODO:DaveP] I'm not sure how these functions are used so don't expose for now.
 
 #ifdef use_old_class_funcs
 
@@ -670,10 +678,8 @@ Mesher_write_metis_adjacency(PyMeshingMesher* self, PyObject* args)
       return api.argsError();
   }
 
-  std::string emsg;
   auto meshObject = self->meshObject;
-  if (!CheckMesherLoadUpdate(meshObject, emsg)) {
-      api.error(emsg); 
+  if (!MeshExists(api, meshObject)) {
       return nullptr;
   }
 
@@ -684,8 +690,6 @@ Mesher_write_metis_adjacency(PyMeshingMesher* self, PyObject* args)
 
   return SV_PYTHON_OK;
 }
-
-
 
 //-----------------------
 // Mesher_set_vtk_polydata
@@ -710,10 +714,8 @@ Mesher_set_vtk_polydata(PyMeshingMesher* self, PyObject* args)
     return api.argsError();
   }
 
-  std::string emsg;
   auto meshObject = self->meshObject;
-  if (!CheckMesherLoadUpdate(meshObject, emsg)) {
-      api.error(emsg);
+  if (!MeshExists(api, meshObject)) {
       return nullptr;
   }
 
@@ -814,10 +816,6 @@ Mesher_logging_off(PyObject* self, PyObject* args)
   return SV_PYTHON_OK;
 }
 
-
-
-
-
 PyDoc_STRVAR(Mesher_write_stats_doc,
 " write_stats(name)  \n\ 
   \n\
@@ -837,10 +835,8 @@ Mesher_write_stats(PyMeshingMesher* self, PyObject* args)
     return api.argsError();
   }
 
-  std::string emsg;
   auto meshObject = self->meshObject;
-  if (!CheckMesherLoadUpdate(meshObject, emsg)) {
-      api.error(emsg);
+  if (!MeshExists(api, meshObject)) {
       return nullptr;
   }
 
@@ -851,8 +847,6 @@ Mesher_write_stats(PyMeshingMesher* self, PyObject* args)
 
   return SV_PYTHON_OK;
 }
-
-
 
 //-------------------
 //cvMesher_NewMesherMtd
@@ -1000,9 +994,10 @@ static char* MESHING_MESHER_CLASS = "Mesher";
 
 // Dotted name that includes both the module name and 
 // the name of the type within the module.
-static char* MESHING_MESHER_MODULE_CLASS = "mesh.Mesher";
+static char* MESHING_MESHER_MODULE_CLASS = "meshing.Mesher";
 
-PyDoc_STRVAR(MesherClass_doc, "mesher class methods.");
+// The Mesher class is not exposed.
+PyDoc_STRVAR(MesherClass_doc, "");
 
 //------------------------
 // PyMeshingMesherMethods
@@ -1015,27 +1010,25 @@ static PyMethodDef PyMeshingMesherMethods[] = {
 
   { "compute_model_boundary_faces", (PyCFunction)Mesher_compute_model_boundary_faces, METH_VARARGS|METH_KEYWORDS, Mesher_compute_model_boundary_faces_doc},
 
-  { "generate_mesh", (PyCFunction)Mesher_generate_mesh, METH_VARARGS|METH_KEYWORDS, Mesher_generate_mesh_doc},
+  //{ "generate_mesh", (PyCFunction)Mesher_generate_mesh, METH_VARARGS|METH_KEYWORDS, Mesher_generate_mesh_doc},
 
   { "get_face_polydata", (PyCFunction)Mesher_get_face_polydata, METH_VARARGS|METH_KEYWORDS, Mesher_get_face_polydata_doc },
 
+  { "get_kernel", (PyCFunction)Mesher_get_kernel, METH_NOARGS, Mesher_get_kernel_doc },
+
   { "get_mesh", (PyCFunction)Mesher_get_mesh, METH_VARARGS|METH_KEYWORDS, Mesher_get_mesh_doc},
 
-  { "get_model_face_info", (PyCFunction)Mesher_get_model_face_info, METH_VARARGS, Mesher_get_model_face_info_doc },
+  { "get_model_face_ids", (PyCFunction)Mesher_get_model_face_ids, METH_VARARGS, Mesher_get_model_face_ids_doc },
 
   { "get_model_polydata", (PyCFunction)Mesher_get_model_polydata, METH_VARARGS, Mesher_get_model_polydata_doc },
 
   { "get_surface", (PyCFunction)Mesher_get_surface, METH_VARARGS, Mesher_get_surface_doc },
 
-  { "load_mesh", (PyCFunction)Mesher_load_mesh, METH_VARARGS, Mesher_load_mesh_doc },
+  { "load_mesh", (PyCFunction)Mesher_load_mesh, METH_VARARGS|METH_KEYWORDS, Mesher_load_mesh_doc },
 
   { "load_model", (PyCFunction)Mesher_load_model, METH_VARARGS|METH_KEYWORDS, Mesher_load_model_doc },
 
   { "set_boundary_layer_options", (PyCFunction)Mesher_set_boundary_layer_options, METH_VARARGS|METH_KEYWORDS, Mesher_set_boundary_layer_options_doc },
-
-  { "set_meshing_options", (PyCFunction)Mesher_set_meshing_options, METH_VARARGS, Mesher_set_meshing_options_doc },
-
-  { "set_solid_modeler_kernel", (PyCFunction)Mesher_set_solid_modeler_kernel, METH_VARARGS, Mesher_set_solid_modeler_kernel_doc},
 
   { "set_walls", (PyCFunction)Mesher_set_walls, METH_VARARGS|METH_KEYWORDS, Mesher_set_walls_doc },
 
@@ -1045,7 +1038,6 @@ static PyMethodDef PyMeshingMesherMethods[] = {
 //================================================  o l d  c l a s s   f u n c t i o n s ================================
 
 #ifdef use_old_class_funcs
-  { "get_kernel", (PyCFunction)Mesher_get_kernel, METH_VARARGS, Mesher_get_kernel_doc },
 
   { "set_cylinder_refinement", (PyCFunction)Mesher_set_cylinder_refinement, METH_VARARGS, Mesher_set_cylinder_refinement_doc },
 
@@ -1063,9 +1055,9 @@ static PyMethodDef PyMeshingMesherMethods[] = {
 };
 
 
-//--------------------------
+//---------------------
 // PyMeshingMesherType 
-//--------------------------
+//---------------------
 // This is the definition of the Mesher class.
 //
 // The type object stores a large number of values, mostly C function pointers, 
@@ -1101,22 +1093,29 @@ PyMesherCtorMapType PyMesherCtorMap = {
 //----------------------
 // Create a Python mesher object for the given kernel.
 //
+// This function is called from
+//
+//   1) PyMeshing_create_mesher 
+//
+//   2) MeshingGroup_get_mesh
+//
 static PyObject *
 PyMesherCreateObject(cvMeshObject::KernelType kernel)
 {
-  std::cout << "[PyCreateMesher] ========== PyCreateMesher ==========" << std::endl;
-  std::cout << "[PyCreateMesher] kernel: " << kernel << std::endl;
-  std::cout << "[PyCreateMesher] PyMesherCtorMap.size(): " << PyMesherCtorMap.size() << std::endl;
+  //std::cout << "[PyCreateMesher] ========== PyCreateMesher ==========" << std::endl;
+  //std::cout << "[PyCreateMesher] kernel: " << kernel << std::endl;
+  //std::cout << "[PyCreateMesher] PyMesherCtorMap.size(): " << PyMesherCtorMap.size() << std::endl;
   PyObject* mesher;
 
+  // This will fail if the contructor for the given kernel is not defined. 
+  // This could happen for the MeshSim kernel if the MeshSim plugin is not loaded.
+  //
   try {
       mesher = PyMesherCtorMap[kernel]();
   } catch (...) {
-      std::cout << "[PyCreateMesher] No mesh class for kernel " << kernel << std::endl;
       return nullptr;
   }
 
-  std::cout << "[PyCreateMesher] mesher: " << mesher << kernel << std::endl;
   return mesher;
 }
 
@@ -1127,6 +1126,8 @@ PyMesherCreateObject(cvMeshObject::KernelType kernel)
 //
 // This function is used to initialize an object after it is created.
 //
+// [TODO:DaveP] This is not called because the Mesher class is not exposed. 
+//
 static int 
 PyMeshingMesherInit(PyMeshingMesher* self, PyObject* args, PyObject *kwds)
 {
@@ -1134,28 +1135,43 @@ PyMeshingMesherInit(PyMeshingMesher* self, PyObject* args, PyObject *kwds)
   std::cout << "[PyMeshingMesherInit] ========== PyMeshingMesherInit ==========" << std::endl;
   auto api = PyUtilApiFunction("", PyRunTimeErr, "Mesher");
   static int numObjs = 1;
+  /*
   char* kernelName = nullptr;
   if (!PyArg_ParseTuple(args, "|s", &kernelName)) {
       return -1;
   }
+  */
 
-/*
-  std::cout << "[PyMeshingMesherInit] Kernel name: " << kernelName << std::endl;
-  auto kernel = kernelNameEnumMap.at(std::string(kernelName));
-  cvMeshObject* mesher;
+  // Create a mesher for the given kernel.
+  //
+  /*
+  if (kernelName != nullptr) {
+      std::cout << "[PyMeshingMesherInit] Kernel name: " << kernelName << std::endl;
+      if (kernelNameEnumMap.count(std::string(kernelName)) == 0) {
+          api.error("The '" + std::string(kernelName) + "' kernel is unknown.");
+          return -1;
+      }
 
-  try {
-      mesher = MesherCtorMap[kernel]();
-  } catch (const std::bad_function_call& except) {
-      api.error("The '" + std::string(kernelName) + "' kernel is not supported.");
-      return -1;
+      auto kernel = kernelNameEnumMap.at(std::string(kernelName));
+      cvMeshObject* mesher;
+
+      try {
+          mesher = CvMesherCtorMap[kernel]();
+      } catch (const std::bad_function_call& except) {
+          api.error("The '" + std::string(kernelName) + "' kernel is not supported.");
+          return -1;
+      }
+
+      self->mesherKernel = kernel;
+      self->mesher = mesher;
+
+  } else {
+      self->mesher = nullptr;
   }
   */
 
-  self->id = numObjs;
-  //self->mesherKernel = kernel;
-  //self->mesher = mesher;
   self->mesher = nullptr;
+  self->id = numObjs;
   return 0;
 }
 
@@ -1163,6 +1179,8 @@ PyMeshingMesherInit(PyMeshingMesher* self, PyObject* args, PyObject *kwds)
 // PyMeshingMesherNew
 //--------------------
 // Object creation function, equivalent to the Python __new__() method. 
+//
+// [TODO:DaveP] This is not called because the Mesher class is not exposed. 
 //
 static PyObject *
 PyMeshingMesherNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
@@ -1199,6 +1217,8 @@ PyMeshingMesherNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 // PyMeshingMesherDealloc 
 //------------------------
 //
+// [TODO:DaveP] This is not called because the Mesher class is not exposed. 
+//
 static void
 PyMeshingMesherDealloc(PyMeshingMesher* self)
 {
@@ -1222,20 +1242,14 @@ SetMesherTypeFields(PyTypeObject& meshType)
   meshType.tp_doc = MesherClass_doc;
   // Object creation function, equivalent to the Python __new__() method. 
   // The generic handler creates a new instance using the tp_alloc field.
-  meshType.tp_new = PyMeshingMesherNew;
-  //meshType.tp_new = PyType_GenericNew,
   meshType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
+
+  // [TODO:DaveP] These are not used because the Mesher class is not exposed. 
+  /*
+  meshType.tp_new = PyMeshingMesherNew;
   meshType.tp_init = (initproc)PyMeshingMesherInit;
   meshType.tp_dealloc = (destructor)PyMeshingMesherDealloc;
+  */
   meshType.tp_methods = PyMeshingMesherMethods;
 };
-
-//------------------
-// CreateMesherType 
-//------------------
-static PyMeshingMesher *
-CreateMesherType()
-{
-  return PyObject_New(PyMeshingMesher, &PyMeshingMesherType);
-}
 

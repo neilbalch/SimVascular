@@ -53,9 +53,9 @@ static std::map<std::string,cvMeshObject::KernelType> kernelNameEnumMap =
 // The list of valid kernel names, used in error messages.
 static std::string kernelValidNames = "GMSH, MESHSIM, or TETGEN"; 
 
-//--------------------
+//-----------------
 // PyMeshingKernel
-//--------------------
+//-----------------
 // Define the PyMeshingKernel.
 //
 typedef struct {
@@ -106,11 +106,27 @@ static PyMethodDef MeshingKernelMethods[] = {
 ////////////////////////////////////////////////////////
 
 static char* MESHING_KERNEL_CLASS = "Kernel";
-static char* MESHING_KERNEL_MODULE_CLASS = "mesh.Kernel";
+static char* MESHING_KERNEL_MODULE_CLASS = "meshing.Kernel";
 // The name of the Kernel class veriable that contains all of the kernel types.
 static char* MESHING_KERNEL_CLASS_VARIBLE_NAMES = "names";
 
-PyDoc_STRVAR(PyMeshingKernel_doc, "mesh kernel class functions");
+PyDoc_STRVAR(PyMeshingKernel_doc, 
+   "SV meshing Kernel class. \n\
+   \n\
+   ----------------------------------------------------------------------   \n\
+   The Kernel class provides the kernel names used to generate finite       \n\
+   element meshes. The kernel names are stored as class attributes and are  \n\
+   referenced using the class name.                                         \n\
+   \n\
+   A meshing kernel names are                                               \n\
+       (1) Kernel.TETGEN                                                    \n\
+       (2) Kernel.MESHSIM                                                   \n\
+   \n\
+   Example: Using the Kernel.TETGEN kernel name to create a TetGen mesher   \n\
+   \n\
+       mesher = sv.meshing.create_mesher(sv.meshing.Kernel.TETGEN)          \n\
+   \n\
+");
 
 //------------------------------------
 // Define the MeshingType type object

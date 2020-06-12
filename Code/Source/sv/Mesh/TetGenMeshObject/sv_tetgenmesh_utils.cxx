@@ -91,33 +91,30 @@ int TGenUtils_Init()
   return SV_OK;
 }
 
-// -----------------------------
-// cvTGenUtils_ConvertToTetGen()
-// -----------------------------
-/**
- * @brief Takes vtkPolyData and turns it into TetGen data structures
- * @param *inmesh tetgenio structure in which to hold the input surface
- * @param *polydatasolid the solid in which to take the discrete points
- * from in order to form the mesh to put into TetGen
- * @return SV_OK if function completes properly
- */
-
+//-----------------------------
+// cvTGenUtils_ConvertToTetGen
+//-----------------------------
+// Create TetGen polygonal data from a vtkPolyData surface. 
+//
+// Modifies:
+//   inmesh
+//
 int TGenUtils_ConvertSurfaceToTetGen(tetgenio *inmesh,vtkPolyData *polydatasolid)
 {
   tetgenio::facet *f;
   tetgenio::polygon *p;
 
-  //All input numbers start from zero, all outmesh_put number start from zero
+  // All input numbers start from zero, all outmesh_put number start from zero.
   inmesh->firstnumber = 0;
   inmesh->numberofpoints = polydatasolid->GetNumberOfPoints();
   inmesh->pointlist = new REAL[inmesh->numberofpoints*3];
 
-  //Do Point transition from polydatasolid into pointlist
-  fprintf(stderr,"Converting Points...\n");
+  // Add surface points. 
+  //
   vtkSmartPointer<vtkPoints> inPts = vtkSmartPointer<vtkPoints>::New();
   inPts = polydatasolid->GetPoints();
-  for (int i=0; i<inmesh->numberofpoints;i++)
-  {
+
+  for (int i = 0; i < inmesh->numberofpoints; i++) {
     double polyPt[3];
     inPts->GetPoint(i,polyPt);
     inmesh->pointlist[i*3] = polyPt[0];
@@ -125,33 +122,30 @@ int TGenUtils_ConvertSurfaceToTetGen(tetgenio *inmesh,vtkPolyData *polydatasolid
     inmesh->pointlist[i*3+2] = polyPt[2];
   }
 
-  // Convert faces
+  // Add surface polygons. 
+  //
   inmesh->numberoffacets = (int) polydatasolid->GetNumberOfPolys();
   inmesh->facetlist = new tetgenio::facet[inmesh->numberoffacets];
   inmesh->facetmarkerlist = new int[inmesh->numberoffacets];
 
-  fprintf(stderr,"Converting Faces...\n");
   vtkSmartPointer<vtkIdList> ptIds = vtkSmartPointer<vtkIdList>::New();
   ptIds->SetNumberOfIds(3);
-  for (int i=0;i<inmesh->numberoffacets;i++)
-  {
+
+  for (int i = 0; i < inmesh->numberoffacets; i++) {
     polydatasolid->GetCellPoints(i,ptIds);
 
     f = &inmesh->facetlist[i];
     f->numberofpolygons=1;
-
     f->polygonlist = new tetgenio::polygon[f->numberofpolygons];
-
     f->numberofholes = 0;
     f->holelist = NULL;
 
     p = &f->polygonlist[0];
     p->numberofvertices=3;
     p->vertexlist = new int[p->numberofvertices];
-    p->vertexlist[0] =  (int) ptIds->GetId(0);
-    p->vertexlist[1] =  (int) ptIds->GetId(1);
-    p->vertexlist[2] =  (int) ptIds->GetId(2);
-
+    p->vertexlist[0] = (int)ptIds->GetId(0);
+    p->vertexlist[1] = (int)ptIds->GetId(1);
+    p->vertexlist[2] = (int)ptIds->GetId(2);
   }
 
   return SV_OK;
@@ -198,33 +192,31 @@ int TGenUtils_AddPointSizingFunction(tetgenio *inmesh,vtkPolyData *polydatasolid
   return SV_OK;
 }
 
-// -----------------------------
+//-----------------------------
 // cvTGenUtils_AddFacetMarkers
-// -----------------------------
-/**
- */
-int TGenUtils_AddFacetMarkers(tetgenio *inmesh,vtkPolyData *polydatasolid,
-    std::string markerListArrayName)
+//-----------------------------
+// Add the surface polygon data array to tetgen.  
+//
+// Modifies: inmesh
+//
+int TGenUtils_AddFacetMarkers(tetgenio *inmesh, vtkPolyData *polydatasolid, std::string markerListArrayName)
 {
-  // Check to make sure number of facets matches
-  if (polydatasolid->GetNumberOfPolys() != inmesh->numberoffacets)
-  {
+  // Check the tetgen and solid surfaces.
+  if (polydatasolid->GetNumberOfPolys() != inmesh->numberoffacets) {
     fprintf(stderr,"surface and tetgen object must match and must have already been converted to add facet markers\n");
     return SV_ERROR;
   }
 
-  //Do Poly transition from polydatasolid into facetlist
-  if (VtkUtils_PDCheckArrayName(polydatasolid,1,markerListArrayName) != SV_OK)
-  {
+  // Check that 'polydatasolid' has the data array. 
+  if (VtkUtils_PDCheckArrayName(polydatasolid,1,markerListArrayName) != SV_OK) {
     fprintf(stderr,"Array name does not exist in polydata. Regions must be identified \
       and named prior to this function call\n");
     return SV_ERROR;
   }
+
   vtkIntArray *boundaryScalars = static_cast<vtkIntArray*>(polydatasolid->GetCellData()->GetScalars(markerListArrayName.c_str()));
 
-  fprintf(stderr,"Adding Facet Markers...\n");
-  for (int i=0;i<inmesh->numberoffacets;i++)
-  {
+  for (int i=0;i<inmesh->numberoffacets;i++) {
     double boundarymarker = (int) boundaryScalars->GetValue(i);
     inmesh->facetmarkerlist[i]=boundarymarker;
   }

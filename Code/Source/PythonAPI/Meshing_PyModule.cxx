@@ -165,10 +165,17 @@ PyMeshing_create_adaptive_mesher(PyTypeObject *type, PyObject* args)
 PyDoc_STRVAR(PyMeshing_create_mesher_doc,
   "create_mesher(kernel)  \n\ 
    \n\
-   Set the control points for the contour. \n\
+   Create a mesher object for the given kernel. \n\
    \n\
-   Args:                                    \n\
-     None \n\
+   Meshing kernels are identified using the meshing.Kernel class.           \n\
+   \n\
+   Exmaple: Create a TetGen mesher                                          \n\
+   \n\
+       mesher = sv.meshing.create_mesher(sv.meshing.Kernel.TETGEN)          \n\
+   \n\
+   Args: \n\
+     kernel (str): The name of the meshing kernel.  \n\
+   \n\
 ");
 
 static PyObject*
@@ -196,7 +203,7 @@ PyMeshing_create_mesher(PyTypeObject *type, PyObject* args)
   // Create a mesher for the given kernel.
   auto mesher = PyMesherCreateObject(kernel);
   if (mesher == nullptr) { 
-      api.error("Unable to create a mesher for kernel '" + std::string(kernelName) + "'." );
+      api.error("Unable to create a mesher for the '" + std::string(kernelName) + "' kernel." );
       return nullptr;
   }
   Py_INCREF(mesher);
@@ -217,13 +224,6 @@ static PyMethodDef PyMeshingModuleMethods[] =
   {"create_adaptive_mesher", (PyCFunction)PyMeshing_create_adaptive_mesher, METH_VARARGS, PyMeshing_create_adaptive_mesher_doc},
 
   {"create_mesher", (PyCFunction)PyMeshing_create_mesher, METH_VARARGS, PyMeshing_create_mesher_doc},
-/*
-  {"logging_off", (PyCFunction)Mesh_logging_off, METH_NOARGS, Mesh_logging_off_doc },
-
-  {"logging_on", (PyCFunction)Mesh_logging_on, METH_VARARGS, Mesh_logging_on_doc },
-
-  {"set_kernel", (PyCFunction)Mesh_set_kernel, METH_VARARGS, Mesh_set_kernel_doc },
-*/
 
   {NULL, NULL}
 };
@@ -238,7 +238,33 @@ static char* MESHING_MODULE = "meshing";
 static char* MESHING_MODULE_EXCEPTION = "meshing.MeshingError";
 static char* MESHING_MODULE_EXCEPTION_OBJECT = "MeshingError";
 
-PyDoc_STRVAR(Meshing_module_doc, "meshing module functions");
+PyDoc_STRVAR(Meshing_module_doc, 
+  "SV meshing module. \n\
+   \n\
+   ----------------------------------------------------------------------   \n\
+   The meshing module provides an interface to SV meshing functionality     \n\
+   used to generate a finite element tetrahedral mesh from a solid model.   \n\
+   \n\
+   Methods are provided for setting meshing parameters, generating meshes   \n\
+   and extracting mesh results as VTK unstructured mesh objects.            \n\
+   \n\
+   Two mesh generation software components are supported:                   \n\
+       (1) TetGen  \n\
+       (2) MeshSim \n\
+   \n\
+   TetGen is an open source software package used to generate meshes from   \n\
+   PolyData solid models.                                                   \n\
+   \n\
+   MeshSim is a commercial software package used to generate meshes from    \n\
+   Parasolid solid models. Using MeshSim requires purchasing a license      \n\
+   from Simmetrix, a Parasolid license from Siemens and SV plugins providing \n\
+   an interface to the software.                                             \n\
+   \n\
+   Meshing kernels are identified using the meshing.Kernel class:           \n\
+       (1) Kernel.TETGEN                                                    \n\
+       (2) Kernel.MESHSIM                                                   \n\
+   \n\
+");
 
 // Include meshing.Group definition.
 #include "MeshingGroup_PyClass.cxx"

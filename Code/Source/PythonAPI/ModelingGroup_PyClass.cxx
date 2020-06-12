@@ -101,7 +101,7 @@ ModelingGroup_get_num_models(PyModelingGroup* self, PyObject* args)
 PyDoc_STRVAR(ModelingGroup_get_model_doc,
   "get_model(time) \n\ 
    \n\
-   Get the solid model for a given time. \n\
+   Get the solid model object for a given time. \n\
    \n\
    Args: \n\
      time (int): The time step to get the solid model for. 0 <= time < number of models in the group. \n\
@@ -207,18 +207,21 @@ static char* MODELING_GROUP_CLASS = "Group";
 // type within the module.
 static char* MODELING_GROUP_MODULE_CLASS = "modeling.Group";
 
+// Doc width extent.
+//   ----------------------------------------------------------------------   \n\
+
 PyDoc_STRVAR(ModelingGroup_doc, 
   "SV modeling Group class. \n\
    \n\
    Group(file_name) \n\
    \n\
-   ----------------------------------------------------------------------   \n\
    The modeling Group class provides an interface to SV modeling group      \n\
-   functionality.                                                           \n\
+   functionality. Models created from time-varying image data are stored    \n\
+   in a modeling group.                                                     \n\
    \n\
-   A Group object can be created with the name of SV .mdl model group file. \n\
-   The file is read and Model objects are created for each model defined    \n\
-   in it.                                                                   \n\
+   A Group object can be created with the name of an SV .mdl model group    \n\
+   file. The file is read and Model objects are created for each model      \n\
+   defined in it.                                                           \n\
    \n\
    Example: Creating a modeling group object from a .mdl file               \n\
    \n\

@@ -30,19 +30,20 @@
  */
 
 // The functions defined here implement the SV Python API meshing module group class. 
-// It provides an interface to the SV meshing group class.
+// It provides an interface to the SV meshing group functionality.
 //
-// The class name is 'Group'. It is referenced from the solid model module as 'solid.Group'.
+// The class name is 'Group'. It is referenced from the meshing module as 'meshing.Group'.
 //
 //     mesh_group = meshing.Group()
+//
+// The SV meshing group code resides in sv4gui/Modules/Mesh/Common which uses MITK
+// manage time-varying meshes.
 //
 #include "sv4gui_MitkMeshIO.h"
 #include "sv4gui_Model.h"
 
-//static PyObject * CreatePyMeshingGroup(sv4guiMesh::Pointer meshingGroup);
-
 extern PyObject* PyTetGenOptionsCreateFromList(std::vector<std::string>& optionList);
-extern  sv4guiModel::Pointer ModelingGroup_read(char* fileName);
+extern sv4guiModel::Pointer ModelingGroup_read(char* fileName);
 
 //////////////////////////////////////////////////////
 //          U t i l i t y  F u n c t i o n s        //
@@ -57,9 +58,7 @@ extern  sv4guiModel::Pointer ModelingGroup_read(char* fileName);
 static sv4guiMitkMesh::Pointer 
 MeshingGroupRead(char* fileName)
 {
-  //std::cout << "========== MeshingGroupRead ==========" << std::endl;
   auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
-  //std::cout << "[MeshingGroupRead] fileName: " << fileName << std::endl;
   sv4guiMitkMesh::Pointer group;
   bool readSurfaceMesh = false; 
   bool readVolumeMesh = false;
@@ -69,7 +68,6 @@ MeshingGroupRead(char* fileName)
       group = sv4guiMitkMeshIO::ReadFromFile(std::string(fileName), readSurfaceMesh, readVolumeMesh);
   } catch (...) {
       api.error("Error reading the mesh group file '" + std::string(fileName) + "'.");
-      //std::cout << "[MeshingGroupRead] ERROR: can't read fileName: " << fileName << std::endl;
       return nullptr;
   }
 
@@ -78,11 +76,6 @@ MeshingGroupRead(char* fileName)
       api.error("Error reading the mesh group file '" + std::string(fileName) + "'.");
       return nullptr;
   }
-
-  //std::cout << "[MeshingGroupRead] File read and group returned." << std::endl;
-  auto meshingGroup = dynamic_cast<sv4guiMitkMesh*>(group.GetPointer());
-  int numMeshes = meshingGroup->GetTimeSize();
-  //std::cout << "[MeshingGroupRead] Number of meshes: " << numMeshes << std::endl;
 
   return group;
 }
@@ -99,22 +92,22 @@ bool
 MeshingGroupSetModel(PyUtilApiFunction& api, cvMeshObject* mesher, sv4guiMitkMesh* meshingGroup, 
     int index, std::string fileName, std::map<std::string,int>& faceIDMap)
 {
-  //std::cout << "[MeshingGroupSetModel] ========== MeshingGroupSetModel ========== " << std::endl;
-  // Get the file name of the solid model used by the mesher.
+
+  // Look for the .mdl file in the project's Models directory.
+  //
   auto modelName = meshingGroup->GetModelName();
-  //std::cout << "[MeshingGroupSetModel] Model name: " << modelName << std::endl;
   size_t strIndex = 0;
   strIndex = fileName.find("Meshes", strIndex);
   if (strIndex == std::string::npos) {
       api.error("No 'Models' directory found. The .msh file is not part of a SimVascular project.");
       return false;
   }
+
+  // Read the model .mdl file.
+  //
   fileName.erase(strIndex);
   auto modelDirName = fileName + "Models/";
   fileName = modelDirName + modelName + ".mdl";
-  //std::cout << "[MeshingGroupSetModel] fileName: " << fileName << std::endl;
-
-  // Read the model .mdl file.
   sv4guiModel::Pointer solidGroupPtr = ModelingGroup_read(const_cast<char*>(fileName.c_str()));
   if (solidGroupPtr == nullptr) {
       api.error("Unable to read the model file '" + fileName + "' used by the mesher.");
@@ -134,7 +127,6 @@ MeshingGroupSetModel(PyUtilApiFunction& api, cvMeshObject* mesher, sv4guiMitkMes
   auto solidType = solidGroup->GetType();
   std::transform(solidType.begin(), solidType.end(), solidType.begin(), ::toupper);
   auto solidKernel = ModelingKernelNameToEnum(solidType);
-  //std::cout << "[MeshingGroupSetModel] Solid type: " << solidType << std::endl;
   mesher->SetSolidModelKernel(solidKernel);
 
   // Load the solid model.
@@ -151,7 +143,6 @@ MeshingGroupSetModel(PyUtilApiFunction& api, cvMeshObject* mesher, sv4guiMitkMes
       ext = ".xmt_txt";
   }
 
-  //std::cout << "[MeshingGroupSetModel] Load solid model " << std::endl;
   fileName = modelDirName + modelName + ext;
   if (mesher->LoadModel(const_cast<char*>(fileName.c_str())) == SV_ERROR) {
       api.error("Error loading a solid model from the file '" + std::string(fileName) + "'.");
@@ -159,17 +150,15 @@ MeshingGroupSetModel(PyUtilApiFunction& api, cvMeshObject* mesher, sv4guiMitkMes
   }
 
   // Set wall face IDs.
-  //std::cout << "[MeshingGroupSetModel] Set wall face IDs " << std::endl;
-  //std::cout << "[MeshingGroupSetModel] wall face IDs: " << wallFaceIDs.size() << std::endl;
   std::vector<int> wallFaceIDs = solidModelElement->GetWallFaceIDs();
   if (mesher->SetWalls(wallFaceIDs.size(), &wallFaceIDs[0]) != SV_OK) {
       api.error("Error setting wall IDs."); 
       return false;
   }
 
-  //std::cout << "[MeshingGroupSetModel] GetFaceNameIDMap " << std::endl;
+  // Get the mapping between face names and face int IDs.
   faceIDMap = solidModelElement->GetFaceNameIDMap();
-  //std::cout << "[MeshingGroupSetModel] Done. " << std::endl;
+
   return true;
 }
 
@@ -179,105 +168,87 @@ MeshingGroupSetModel(PyUtilApiFunction& api, cvMeshObject* mesher, sv4guiMitkMes
 //
 // SV Python solid.Group methods. 
 
-//-------------------------
-// MeshingGroup_get_time_size 
-//-------------------------
+//----------------------------
+// MeshingGroup_get_num_meshes 
+//----------------------------
 //
-// [TODO:DaveP] bad method name: get_number_time_steps() ?
-//
-PyDoc_STRVAR(MeshingGroup_get_time_size_doc,
-  "get_time_size_doc,(name) \n\ 
+PyDoc_STRVAR(MeshingGroup_get_num_meshes_doc,
+  "get_num_meshes() \n\ 
    \n\
-   Store the polydata for the named contour into the repository. \n\
+   Get the number of meshes in the group. \n\
    \n\
-   Args: \n\
-     name (str): \n\
+   Returns (int): The number of meshes in the group.\n\
 ");
 
 static PyObject * 
-MeshingGroup_get_time_size(PyMeshingGroup* self, PyObject* args)
+MeshingGroup_get_num_meshes(PyMeshingGroup* self, PyObject* args)
 {
-/*
-  int timestepSize = self->contourGroup->GetTimeSize();
-  return Py_BuildValue("i", timestepSize); 
-*/
-}
-
-//-----------------------
-// MeshingGroup_get_size 
-//-----------------------
-//
-PyDoc_STRVAR(MeshingGroup_number_of_models_doc,
-  "get_size() \n\ 
-   \n\
-   Get the number of solid models in the group. \n\
-   \n\
-   Args: \n\
-     None \n\
-   Returns (int): The number of solid models in the group.\n\
-");
-
-static PyObject * 
-MeshingGroup_number_of_models(PyMeshingGroup* self, PyObject* args)
-{
-  auto meshingGroup = self->meshingGroup;
-  int numSolidModels = meshingGroup->GetTimeSize();
-  //std::cout << "[MeshingGroup_number_of_models] Number of solid models: " << numSolidModels << std::endl;
-  return Py_BuildValue("i", numSolidModels); 
+  int numMeshes = self->meshingGroup->GetTimeSize();
+  return Py_BuildValue("i", numMeshes); 
 }
 
 //-----------------------
 // MeshingGroup_get_mesh 
 //-----------------------
+//
 PyDoc_STRVAR(MeshingGroup_get_mesh_doc,
   "get_mesh(time) \n\ 
    \n\
-   Get the mesh for the given time. The meshing options are also returned. \n\
+   Get the mesh object for the given time. The meshing options read from    \n\
+   the mesh group .msh file are also returned.                              \n\
+   \n\
+   Example: Getting the mesh and options for time 0                         \n\
+   \n\
+       mesh, options = mesh_group(time=0)                                   \n\
    \n\
    Args: \n\
-     time (int): The time to get the mesh for. \n\
+     time (int): The time step to get the mesh for. 0 <= time < number of   \n\
+         meshes in the group.                                               \n\
    \n\
-   Returns meshing.Mesher and meshing.Options objects. \n\
+   Returns mesher and options objects for the meshing kernel defined for    \n\
+       the group. \n\
+   \n\
 ");
 
 static PyObject * 
-MeshingGroup_get_mesh(PyMeshingGroup* self, PyObject* args)
+MeshingGroup_get_mesh(PyMeshingGroup* self, PyObject* args, PyObject* kwargs)
 {
-  //std::cout << "================ MeshingGroup_get_mesh ================" << std::endl;
   auto api = PyUtilApiFunction("i", PyRunTimeErr, __func__);
-  int index;
+  static char *keywords[] = {"time", NULL};
+  int time;
 
-  if (!PyArg_ParseTuple(args, api.format, &index)) {
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &time)) {
      return api.argsError();
   }
 
   auto meshingGroup = self->meshingGroup;
   int numMeshes = meshingGroup->GetTimeSize();
-  //std::cout << "[MeshingGroup_get_mesh] Number of meshes: " << numMeshes << std::endl;
 
-  // Check for valid index.
-  if ((index < 0) || (index > numMeshes-1)) {
-      api.error("The index argument '" + std::to_string(index) + "' is must be between 0 and " +
+  // Check for a valid time.
+  if ((time < 0) || (time > numMeshes-1)) {
+      api.error("The 'time' argument '" + std::to_string(time) + "' is must be between 0 and " +
         std::to_string(numMeshes-1));
       return nullptr;
   }
 
   // Get the mesh for the given time index.
-  sv4guiMesh* guiMesh = meshingGroup->GetMesh(index);
+  sv4guiMesh* guiMesh = meshingGroup->GetMesh(time);
   if (guiMesh == nullptr) {
-      api.error("ERROR getting the mesh for the index argument '" + std::to_string(index) + "'.");
+      api.error("ERROR getting the mesh for the 'time' argument '" + std::to_string(time) + "'.");
       return nullptr;
   }
 
   // Get the mesh from the type read from a .msh file.
+  //
+  // The mesh type is really the meshing kernel.
+  //
   auto meshType = guiMesh->GetType();
-  //std::cout << "[MeshingGroup_get_mesh] Mesh type: " <<  meshingGroup->GetType() << std::endl;
   std::transform(meshType.begin(), meshType.end(), meshType.begin(), ::toupper);
   cvMeshObject::KernelType meshKernel;
   try {
       meshKernel = kernelNameEnumMap.at(meshType);
   } catch (const std::out_of_range& except) {
-      auto msg = "Unknown meshing type '" + std::string(meshType) + "'." +
+      auto msg = "Unknown meshing kernel '" + std::string(meshType) + "'." +
           " Valid names are: " + kernelValidNames + ".";
       api.error(msg);
       return nullptr;
@@ -290,12 +261,12 @@ MeshingGroup_get_mesh(PyMeshingGroup* self, PyObject* args)
   // Set the solid model associated with the mesher.
   std::map<std::string,int> faceIDMap;
   auto fileName = self->fileName;
-  if (!MeshingGroupSetModel(api, mesher, meshingGroup, index, fileName, faceIDMap)) { 
+  if (!MeshingGroupSetModel(api, mesher, meshingGroup, time, fileName, faceIDMap)) { 
       return nullptr;
   }
-  //std::cout << "[MeshingGroup_get_mesh] faceIDMap: " << faceIDMap.size() <<  std::endl;
 
   // Load the volume and surface meshes.
+  //
   size_t strIndex = 0;
   strIndex = fileName.find(".msh", strIndex);
   fileName.erase(strIndex);
@@ -308,7 +279,6 @@ MeshingGroup_get_mesh(PyMeshingGroup* self, PyObject* args)
   //
   // Options must be processed after the solid model is loaded.
   //
-  //std::cout << "[MeshingGroup_get_mesh] Create an options object. " <<  std::endl;
   auto commands = guiMesh->GetCommandHistory();
   PyObject *options;
   try {
@@ -331,38 +301,35 @@ MeshingGroup_get_mesh(PyMeshingGroup* self, PyObject* args)
 PyDoc_STRVAR(MeshingGroup_write_doc,
   "write(file_name) \n\ 
    \n\
-   Write the contour group to an SV .pth file.\n\
+   Write the mesh group to an SV .msh file.\n\
    \n\
    Args: \n\
-     file_name (str): The name of the file to write the contour group to.\n\
+     file_name (str): The name of the file to write the mesh group to. \n\
 ");
 
 static PyObject *
-MeshingGroup_write(PyMeshingGroup* self, PyObject* args)
+MeshingGroup_write(PyMeshingGroup* self, PyObject* args, PyObject* kwargs)
 {
   auto api = PyUtilApiFunction("s", PyRunTimeErr, __func__);
-  char* fileName = NULL;
+  static char *keywords[] = {"file_name", NULL};
+  char* fileNameArg = NULL;
 
-  if (!PyArg_ParseTuple(args, api.format, &fileName)) {
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &fileNameArg)) {
       return api.argsError();
   }
 
-/*
+  auto meshGroup = self->meshingGroup;
+  std::string fileName(fileNameArg);
 
-  try {
-      if (sv3::ContourIO().Write(fileName, self->contourGroup) != SV_OK) {
-          api.error("Error writing contour group to the file '" + std::string(fileName) + "'.");
-          return nullptr;
-      }
+ try {
+      sv4guiMitkMeshIO().WriteGroupToFile(meshGroup, fileName);
   } catch (const std::exception& readException) {
-      api.error("Error writing contour group to the file '" + std::string(fileName) + "': " + readException.what());
+      api.error("Error writing meshing group to the file '" + std::string(fileName) + "': " + readException.what());
       return nullptr;
   }
-*/
 
-  return SV_PYTHON_OK;
+  Py_RETURN_NONE; 
 }
-
 
 ////////////////////////////////////////////////////////
 //          C l a s s    D e f i n i t i o n          //
@@ -373,7 +340,30 @@ static char* MESHING_GROUP_CLASS = "Group";
 // type within the module.
 static char* MESHING_GROUP_MODULE_CLASS = "meshing.Group";
 
-PyDoc_STRVAR(MeshingGroup_doc, "meshing.Group functions");
+// Doc width extent.
+//   \n\----------------------------------------------------------------------  \n\
+
+PyDoc_STRVAR(MeshingGroup_doc,
+  "SV meshing Group class. \n\
+   \n\
+   Group(file_name) \n\
+   \n\
+   The meshing Group class provides an interface to SV meshing groups.        \n\
+   Meshes created from time-varying model data are stored in a meshing        \n\
+   group for a given meshing kernel.                                          \n\
+   \n\
+   A Group object can be created with the name of an SV .msh meshing group    \n\
+   file. The file is read and Mesh objects are created for each mesh          \n\
+   defined in it.                                                             \n\
+   \n\
+   Example: Creating a meshing group object from a .msh file                  \n\
+   \n\
+       group = sv.meshingGroup(\"demo.msh\")                                  \n\
+   \n\
+   Args:\n\
+     file_name (Optional[str]): The name of an SV .msh meshing group file.    \n\
+   \n\
+");
 
 //-----------------------
 // PyMeshingGroupMethods 
@@ -382,20 +372,18 @@ PyDoc_STRVAR(MeshingGroup_doc, "meshing.Group functions");
 //
 static PyMethodDef PyMeshingGroupMethods[] = {
 
-  {"get_mesh", (PyCFunction)MeshingGroup_get_mesh, METH_VARARGS, MeshingGroup_get_mesh_doc},
+  {"get_mesh", (PyCFunction)MeshingGroup_get_mesh, METH_VARARGS|METH_KEYWORDS, MeshingGroup_get_mesh_doc},
 
-  // {"number_of_models", (PyCFunction)MeshingGroup_number_of_models, METH_VARARGS, MeshingGroup_number_of_models_doc},
+  {"get_num_meshes", (PyCFunction)MeshingGroup_get_num_meshes, METH_NOARGS, MeshingGroup_get_num_meshes_doc},
 
-  //{"get_time_size", (PyCFunction)MeshingGroup_get_time_size, METH_NOARGS, MeshingGroup_get_time_size_doc},
-
-  //{"write", (PyCFunction)MeshingGroup_write, METH_VARARGS, MeshingGroup_write_doc},
+  {"write", (PyCFunction)MeshingGroup_write, METH_VARARGS|METH_KEYWORDS, MeshingGroup_write_doc},
 
   {NULL, NULL}
 };
 
-//-------------------------
+//--------------------
 // PyMeshingGroupType 
-//-------------------------
+//--------------------
 // Define the Python type that stores MeshingGroup data. 
 //
 // Can't set all the fields here because g++ does not suppor non-trivial 
@@ -415,23 +403,22 @@ PyTypeObject PyMeshingGroupType = {
 // This function is used to initialize an object after it is created.
 //
 // Arguments:
-//
-//   fileName - An SV .msh file. A new MeshingGroup object is created from 
-//     the contents of the file. (optional)
+//   fileName (optional): An SV .msh file. A new MeshingGroup object is created from 
+//     the contents of the file. 
 //
 static int 
 PyMeshingGroupInit(PyMeshingGroup* self, PyObject* args)
 {
-  static int numObjs = 1;
-  std::cout << "[PyMeshingGroupInit] New MeshingGroup object: " << numObjs << std::endl;
+  //std::cout << "[PyMeshingGroupInit] New MeshingGroup object: " << numObjs << std::endl;
   auto api = PyUtilApiFunction("|s", PyRunTimeErr, __func__);
   char* fileName = nullptr;
+
   if (!PyArg_ParseTuple(args, api.format, &fileName)) {
       api.argsError();
       return 1;
   }
+
   if (fileName != nullptr) {
-      //std::cout << "[PyMeshingGroupInit] File name: " << fileName << std::endl;
       self->meshingGroupPointer = MeshingGroupRead(fileName);
       self->meshingGroup = dynamic_cast<sv4guiMitkMesh*>(self->meshingGroupPointer.GetPointer());
       self->fileName = std::string(fileName);
@@ -444,7 +431,6 @@ PyMeshingGroupInit(PyMeshingGroup* self, PyObject* args)
       return -1;
   }
 
-  numObjs += 1;
   return 0;
 }
 
@@ -457,7 +443,7 @@ PyMeshingGroupInit(PyMeshingGroup* self, PyObject* args)
 static PyObject *
 PyMeshingGroupNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
-  std::cout << "[PyMeshingGroupNew] PyMeshingGroupNew " << std::endl;
+  //std::cout << "[PyMeshingGroupNew] PyMeshingGroupNew " << std::endl;
   auto self = (PyMeshingGroup*)type->tp_alloc(type, 0);
   if (self == NULL) {
       std::cout << "[PyMeshingGroupNew] ERROR: Can't allocate type." << std::endl;
@@ -473,7 +459,7 @@ PyMeshingGroupNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 static void
 PyMeshingGroupDealloc(PyMeshingGroup* self)
 {
-  std::cout << "[PyMeshingGroupDealloc] Free PyMeshingGroup" << std::endl;
+  //std::cout << "[PyMeshingGroupDealloc] Free PyMeshingGroup" << std::endl;
   // Can't delete meshingGroup because it has a protected detructor.
   //delete self->meshingGroup;
   Py_TYPE(self)->tp_free(self);
@@ -491,7 +477,7 @@ static void
 SetMeshingGroupTypeFields(PyTypeObject& solidType)
 {
   // Doc string for this type.
-  solidType.tp_doc = "MeshingGroup  objects";
+  solidType.tp_doc = MeshingGroup_doc; 
   // Object creation function, equivalent to the Python __new__() method. 
   // The generic handler creates a new instance using the tp_alloc field.
   solidType.tp_new = PyMeshingGroupNew;
@@ -514,7 +500,7 @@ CreatePyMeshingGroup(sv4guiMitkMesh::Pointer meshingGroup)
 {
   //std::cout << std::endl;
   //std::cout << "========== CreatePyMeshingGroup ==========" << std::endl;
-  std::cout << "[CreatePyMeshingGroup] Create MeshingGroup object ... " << std::endl;
+  //std::cout << "[CreatePyMeshingGroup] Create MeshingGroup object ... " << std::endl;
   auto meshingGroupObj = PyObject_CallObject((PyObject*)&PyMeshingGroupType, NULL);
   auto pyMeshingGroup = (PyMeshingGroup*)meshingGroupObj;
 
@@ -522,7 +508,7 @@ CreatePyMeshingGroup(sv4guiMitkMesh::Pointer meshingGroup)
       //delete pyMeshingGroup->meshingGroup;
       pyMeshingGroup->meshingGroup = meshingGroup;
   }
- // std::cout << "[CreatePyContour] pyMeshingGroup id: " << pyMeshingGroup->id << std::endl;
+
   return meshingGroupObj;
 }
 
