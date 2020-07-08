@@ -690,11 +690,10 @@ static char* MODELING_MODELER_MODULE_CLASS = "modeling.Modeler";
 static char* MODELING_MODELER_CLASS_VARIBLE_NAMES = "names";
 
 PyDoc_STRVAR(ModelingModelerClass_doc, 
-   "SV Modeler class. \n\
+   "SimVascular Modeler class. \n\
    \n\
    Modeler(kernel) \n\
    \n\
-   ----------------------------------------------------------------------   \n\
    The Modeler class provides an interface for creating solid models and    \n\
    performing intersect, subtract and union Boolean operations them.        \n\
    \n\

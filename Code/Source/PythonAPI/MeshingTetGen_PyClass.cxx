@@ -494,7 +494,7 @@ static char* MESHING_TETGEN_CLASS = "TetGen";
 static char* MESHING_TETGEN_MODULE_CLASS = "meshing.TetGen";
 
 PyDoc_STRVAR(PyMeshingTetGen_doc, 
-   "SV TetGen mesher class. \n\
+   "SimVascular TetGen mesher class. \n\
    \n\
    The TetGen class provides an interface for creating tetrahedral finite  \n\
    element meshes from PolyData solid models using the TetGen open source  \n\

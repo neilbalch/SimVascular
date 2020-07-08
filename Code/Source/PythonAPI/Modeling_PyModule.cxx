@@ -234,18 +234,14 @@ static char* MODELING_MODULE_EXCEPTION = "modeling.ModelingError";
 static char* MODELING_MODULE_EXCEPTION_OBJECT = "ModelingError";
 
 PyDoc_STRVAR(Solid_module_doc, 
-  "SV modeling module. \n\
+  "SimVascular modeling module. \n\
    \n\
-            1         2         3         4         5         6         7   \n\
-   1234567890123456789012345678901234567890123456789012345678901234567890   \n\
-   ----------------------------------------------------------------------   \n\
    The modeling module provides an interface to SV modeling functionality   \n\
    used to generate geometric models from medical imaging data. Sold models \n\
    of vessel geometry are created by lofting and capping 2D segmentations.  \n\
    Separate solid models are then unioned together to create a model        \n\
    representing a region of the vascular anatomy.                           \n\
                                                                             \n\
-   ----------------------------------------------------------------------   \n\
    Methods are provided for querying, creating, and modifying models. This  \n\
    includes Boolean operations, operations on model faces, local operations \n\
    acting on user-defined regions globel operations acting on the entire    \n\

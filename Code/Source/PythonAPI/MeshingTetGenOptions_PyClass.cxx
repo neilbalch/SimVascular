@@ -1002,7 +1002,6 @@ PyDoc_STRVAR(PyTetGenOptions_get_values_doc,
   \n\
   Get the names and values of TetGen mesh generation options. \n\
   \n\
-  Args:  \n\
 ");
 
 static PyObject *
@@ -1764,7 +1763,7 @@ static char* MESHING_TETGEN_OPTIONS_MODULE_CLASS = "meshing.TetGenOptions";
 // [TODO:DaveP] Check defaults.
 //
 PyDoc_STRVAR(TetGenOptionsClass_doc, 
-   "SV TetGen options class. \n\
+   "SimVascular TetGen options class. \n\
    \n\
    TetGenOptions(global_edge_size=None, surface_mesh_flag=None,               \n\
                  volume_mesh_flag=None)                                       \n\

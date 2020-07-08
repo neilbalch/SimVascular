@@ -82,7 +82,7 @@ static char* PATHPLANNING_MODULE_EXCEPTION_OBJECT = "PathPlanningError";
 // Define the path module documentation.
 //
 PyDoc_STRVAR(PathPlanningModule_doc,
-   "SV pathplanning module. \n\
+   "SimVascular pathplanning module. \n\
    \n\
    The pathplanning module provides an interface for SV path planning. Paths model vessel centerlines using a small number of manually selected \n\
    control points. Path geometry is represented by a set of curve points sampled from a spline passing through the control points. \n\

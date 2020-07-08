@@ -211,7 +211,7 @@ static char* MODELING_GROUP_MODULE_CLASS = "modeling.Group";
 //   ----------------------------------------------------------------------   \n\
 
 PyDoc_STRVAR(ModelingGroup_doc, 
-  "SV modeling Group class. \n\
+  "SimVascular modeling Group class. \n\
    \n\
    Group(file_name) \n\
    \n\

@@ -328,216 +328,234 @@ int vtkSVLoftSplineSurface::FillInputPortInformation(
   return SV_OK;
 }
 
-// ----------------------
+//-----------
 // LoftSolid
-// ----------------------
-int vtkSVLoftSplineSurface::LoftSolid(vtkPolyData *inputs[], int numInputs,
-    vtkPolyData *outputPD)
+//-----------
+// Create a lofted surface from a list of input profile curves.
+//
+// Curves are created interpolating profile points along the surface length 
+// using splines. The splines are implemented using a Kochanek basis that 
+// provides more control over the curve shape using local tension, continuity 
+// and bias control (see https://dl.acm.org/doi/10.1145/800031.808575).
+//
+// The interpolating splines are then sampled to create a polygonal surface.
+//
+// Note that the surface is defined length-wise by a smooth curve and linearly
+// around its profiles.
+//
+// Arguments:
+//   inputs: The list of cvPolyData objects representing curve profiles.
+//   numInputs: The number of cvPolyData objects.
+//
+// Returns:
+//   outputPD: The PolyData lofted surface is copied into this object.
+//
+int vtkSVLoftSplineSurface::LoftSolid(vtkPolyData *inputs[], int numInputs, vtkPolyData *outputPD)
 {
-  vtkKochanekSpline *splineX;
-  vtkKochanekSpline *splineY;
-  vtkKochanekSpline *splineZ;
-  //if (this->SplineType == 0)
-  //{
-  //  //vtkSmartPointer<vtkCardinalSpline> splineX =
-  //  //  vtkSmartPointer<vtkCardinalSpline>::New();
-  //  //vtkSmartPointer<vtkCardinalSpline> splineY =
-  //  //  vtkSmartPointer<vtkCardinalSpline>::New();
-  //  //vtkSmartPointer<vtkCardinalSpline> splineZ =
-  //  //  vtkSmartPointer<vtkCardinalSpline>::New();
-  //  splineX = vtkCardinalSpline::New();
-  //  splineY = vtkCardinalSpline::New();
-  //  splineZ = vtkCardinalSpline::New();
-  //}
-  //else if (this->SplineType == 1)
-  //{
-    //vtkSmartPointer<vtkKochanekSpline> splineX =
-    //  vtkSmartPointer<vtkKochanekSpline>::New();
-    //vtkSmartPointer<vtkKochanekSpline> splineY =
-    //  vtkSmartPointer<vtkKochanekSpline>::New();
-    //vtkSmartPointer<vtkKochanekSpline> splineZ =
-    //  vtkSmartPointer<vtkKochanekSpline>::New();
-    splineX = vtkKochanekSpline::New();
-    splineX->SetDefaultBias(this->Bias);
-    splineX->SetDefaultTension(this->Tension);
-    splineX->SetDefaultContinuity(this->Continuity);
-    splineY = vtkKochanekSpline::New();
-    splineY->SetDefaultBias(this->Bias);
-    splineY->SetDefaultTension(this->Tension);
-    splineY->SetDefaultContinuity(this->Continuity);
-    splineZ = vtkKochanekSpline::New();
-    splineZ->SetDefaultBias(this->Bias);
-    splineZ->SetDefaultTension(this->Tension);
-    splineZ->SetDefaultContinuity(this->Continuity);
-  //}
+  #define dbg_LoftSolid
+  #ifdef dbg_LoftSolid
+  std::cout << "################## vtkSVLoftSplineSurface::LoftSolid ############### " << std::endl;
+  std::cout << "[LoftSolid] numInputs: " << numInputs << std::endl;
+  #endif
 
-  double t;
-  double tmpPt[3];
-  int lenpts=0;
-  double **outPts = NULL;
+  // Create interpolating spline objects.
+  //
+  auto splineX = vtkKochanekSpline::New();
+  splineX->SetDefaultBias(this->Bias);
+  splineX->SetDefaultTension(this->Tension);
+  splineX->SetDefaultContinuity(this->Continuity);
+
+  auto splineY = vtkKochanekSpline::New();
+  splineY->SetDefaultBias(this->Bias);
+  splineY->SetDefaultTension(this->Tension);
+  splineY->SetDefaultContinuity(this->Continuity);
+
+  auto splineZ = vtkKochanekSpline::New();
+  splineZ->SetDefaultBias(this->Bias);
+  splineZ->SetDefaultTension(this->Tension);
+  splineZ->SetDefaultContinuity(this->Continuity);
+
+  #ifdef dbg_LoftSolid
+  std::cout << "[LoftSolid] numInputs: " << numInputs << std::endl;
+  std::cout << "[LoftSolid] NumLinearPtsAlongLength: " << this->NumLinearPtsAlongLength << std::endl;
+  std::cout << "[LoftSolid] NumOutPtsAlongLength: " << this->NumOutPtsAlongLength << std::endl;
+  std::cout << "[LoftSolid] NumOutPtsInSegs: " << this->NumOutPtsInSegs << std::endl;
+  std::cout << "[LoftSolid] UseFFT: " << this->UseFFT << std::endl;
+  std::cout << "[LoftSolid] UseLinearSampleAlongLength: " << this->UseLinearSampleAlongLength<< std::endl;
+  #endif
+
   vtkPoints **sampledPts = new vtkPoints*[this->NumOutPtsAlongLength];
-  for (int j=0;j<this->NumOutPtsAlongLength;j++)
-  {
+  for (int j = 0; j < this->NumOutPtsAlongLength; j++) {
     sampledPts[j] = vtkPoints::New();
   }
 
-  for (int i=0; i < this->NumOutPtsInSegs; i++)
-  {
+  // [TODO:DaveP] The 'outPts' array does not change size so just 
+  // allocate it once and reuse. Be carefull not to delete it 
+  // when useFFT is true.
+  //
+  double **outPts = NULL;
+
+  // Generate interpolating splines for each point in a profile curve.
+  //
+  for (int i = 0; i < this->NumOutPtsInSegs; i++) {
     splineX->RemoveAllPoints();
     splineY->RemoveAllPoints();
     splineZ->RemoveAllPoints();
 
-    int numPts = this->NumOutPtsAlongLength;
-    for (int n=0; n < numInputs;n++)
-    {
+    for (int n = 0; n < numInputs; n++) {
+      double tmpPt[3];
       inputs[n]->GetPoint(i,tmpPt);
       splineX->AddPoint(n,tmpPt[0]);
       splineY->AddPoint(n,tmpPt[1]);
       splineZ->AddPoint(n,tmpPt[2]);
     }
 
-    if (this->UseLinearSampleAlongLength == 0)
-    {
+    // Sample spline at NumOutPtsAlongLength points.
+    //
+    if (this->UseLinearSampleAlongLength == 0) {
       outPts = this->createArray(this->NumOutPtsAlongLength,3);
-      for (int n=0;n < this->NumOutPtsAlongLength;n++)
-      {
-	t = (1.0*splineX->GetNumberOfPoints())/
-	  (1.0*(this->NumOutPtsAlongLength-1))*n;
-
+      double dt = double(splineX->GetNumberOfPoints()) / (this->NumOutPtsAlongLength-1);
+      double t = 0.0;
+      for (int n = 0; n < this->NumOutPtsAlongLength; n++) {
 	outPts[n][0] = splineX->Evaluate(t);
 	outPts[n][1] = splineY->Evaluate(t);
 	outPts[n][2] = splineZ->Evaluate(t);
+        t += dt; 
       }
-    }
-    else
-    {
-      double **pts = this->createArray(this->NumLinearPtsAlongLength,3);
-      for (int n=0; n < this->NumLinearPtsAlongLength;n++)
-      {
-	t = (1.0*splineX->GetNumberOfPoints())/(1.0*(this->NumLinearPtsAlongLength-1))*n;
 
+    // Sample a spline at NumLinearPtsAlongLength points and
+    // linear interpolate those points to NumOutPtsAlongLength points.
+    //
+    // This creates an 'outPts' of size NumOutPtsAlongLength.
+    //
+    } else {
+      double **pts = this->createArray(this->NumLinearPtsAlongLength,3);
+      double dt = double(splineX->GetNumberOfPoints()) / (this->NumLinearPtsAlongLength-1);
+      double t = 0.0;
+
+      // Sample spline.
+      for (int n = 0; n < this->NumLinearPtsAlongLength; n++) {
 	pts[n][0] = splineX->Evaluate(t);
 	pts[n][1] = splineY->Evaluate(t);
 	pts[n][2] = splineZ->Evaluate(t);
+        t += dt; 
       }
 
-    if ((this->linearInterpolateCurve(pts,this->NumLinearPtsAlongLength,
-              0,this->NumOutPtsAlongLength,&outPts)) != 1)
-      {
-      vtkDebugMacro("error in linear interpolation");
-      this->deleteArray(pts,this->NumLinearPtsAlongLength,3);
-      return SV_ERROR;
+      // Linear interpolate spline sample points to 
+      // NumOutPtsAlongLength points.. 
+      //
+      int closed = 0;
+      if ((this->linearInterpolateCurve(pts, this->NumLinearPtsAlongLength, closed, 
+          this->NumOutPtsAlongLength, &outPts)) != 1) {
+        vtkDebugMacro("error in linear interpolation");
+        this->deleteArray(pts,this->NumLinearPtsAlongLength,3);
+        return SV_ERROR;
       }
-    this->deleteArray(pts,this->NumLinearPtsAlongLength,3);
+
+      this->deleteArray(pts, this->NumLinearPtsAlongLength, 3);
     }
 
-    if (this->UseFFT)
-    {
+    // Smooth points using an FFT.
+    //
+    if (this->UseFFT) {
+      int numPts = this->NumOutPtsAlongLength;
       double firstPt[3];
       double lastPt[3];
-      for (int r=0;r<3;r++)
-      {
+      for (int r = 0; r < 3; r++) {
 	firstPt[r] = outPts[0][r];
 	lastPt[r] = outPts[numPts-1][r];
       }
+
       int numSmoothPts = 2*this->NumOutPtsAlongLength;
       double **smoothOutPts = NULL;
       double **bigPts = this->createArray(numSmoothPts*2,3);
-      for (int r = 0; r < numPts; r++)
-      {
-	for (int w=0;w<3;w++)
+      for (int r = 0; r < numPts; r++) {
+	for (int w = 0; w < 3; w++) {
 	  bigPts[r][w] = outPts[r][w];
+        }
       }
+
       int count = numPts;
-      for (int r = numPts-1; r >= 0; r--)
-      {
-	for (int w=0;w<3;w++)
+      for (int r = numPts-1; r >= 0; r--) {
+	for (int w = 0; w < 3; w++) {
 	  bigPts[count][w] = outPts[r][w];
+        }
 	count++;
       }
-      if ((this->smoothCurve(bigPts,numSmoothPts,0,this->NumModes,
-	  numSmoothPts,&smoothOutPts)) != 1)
-      {
+
+      if ((this->smoothCurve(bigPts, numSmoothPts, 0, this->NumModes, numSmoothPts, &smoothOutPts)) != 1) {
 	vtkDebugMacro("error in smoothing");
 	this->deleteArray(outPts,numPts,3);
 	this->deleteArray(bigPts,numSmoothPts,3);
 	return SV_ERROR;
       }
 
-      for (int r=0;r<3;r++)
-      {
+      for (int r = 0; r < 3; r++) {
         smoothOutPts[0][r] = firstPt[r];
         smoothOutPts[numPts-1][r] = lastPt[r];
       }
 
-      this->deleteArray(outPts,numPts,3);
-      this->deleteArray(bigPts,numSmoothPts,3);
+      this->deleteArray(outPts, numPts, 3);
+      this->deleteArray(bigPts, numSmoothPts, 3);
       outPts = NULL;
-      if ((this->linearInterpolateCurve(smoothOutPts,numPts,
-              0,this->NumOutPtsAlongLength,&outPts)) != 1)
-      {
+
+      if ((this->linearInterpolateCurve(smoothOutPts, numPts, 0, this->NumOutPtsAlongLength, &outPts)) != 1) {
 	vtkDebugMacro("error in linear interpolation");
         this->deleteArray(smoothOutPts,numSmoothPts,3);
         return SV_ERROR;
       }
-      this->deleteArray(smoothOutPts,numSmoothPts,3);
+      this->deleteArray(smoothOutPts, numSmoothPts, 3);
     }
 
-    for (int j=0;j<this->NumOutPtsAlongLength;j++)
-    {
+    // Copy outPts[] to sampledPts.
+    for (int j = 0; j < this->NumOutPtsAlongLength; j++) {
       sampledPts[j]->InsertNextPoint(outPts[j]);
     }
-  } //NumOutPtsInSegs
+  } 
 
-  vtkSmartPointer<vtkPoints> vPts =
-    vtkSmartPointer<vtkPoints>::New();
-  vtkSmartPointer<vtkIdList> vconnA =
-    vtkSmartPointer<vtkIdList>::New();
-  vtkSmartPointer<vtkIdList> vconnB =
-    vtkSmartPointer<vtkIdList>::New();
-  vtkSmartPointer<vtkPolyData> vPD =
-    vtkSmartPointer<vtkPolyData>::New();
-
+  // Create PolyData surface.
+  //
+  auto vPts = vtkSmartPointer<vtkPoints>::New();
   vPts->Allocate(200,400);
+
+  auto vconnA = vtkSmartPointer<vtkIdList>::New();
   vconnA->Initialize();
   vconnA->Allocate(200,400);
+
+  auto vconnB = vtkSmartPointer<vtkIdList>::New();
   vconnB->Initialize();
   vconnB->Allocate(200,400);
+
+  auto vPD = vtkSmartPointer<vtkPolyData>::New();
   vPD->Initialize();
   vPD->Allocate(200,400);
 
-  for (int i=0;i < this->NumOutPtsAlongLength;i++)
-  {
+  for (int i = 0; i < this->NumOutPtsAlongLength; i++) {
     int numCurvePts = sampledPts[i]->GetNumberOfPoints();
-    for (int j=0;j < numCurvePts;j++)
-    {
+    for (int j = 0; j < numCurvePts; j++) {
       vPts->InsertNextPoint(sampledPts[i]->GetPoint(j));
-      double mypt[3];
-      sampledPts[i]->GetPoint(j,mypt);
     }
   }
 
   vPD->SetPoints(vPts);
 
-  for (int i=0;i < this->NumOutPtsAlongLength-1;i++)
-  {
+  for (int i = 0; i < this->NumOutPtsAlongLength-1; i++) {
     int numCurvePts = sampledPts[i]->GetNumberOfPoints();
     int offset = i*numCurvePts;
-    for (int j=0;j < numCurvePts;j++)
-    {
+
+    for (int j=0;j < numCurvePts;j++) {
       vconnA->InsertNextId(j + offset);
-      if (j == (numCurvePts - 1))
-      {
+
+      if (j == (numCurvePts - 1)) {
 	vconnA->InsertNextId(0 + offset);
 	vconnA->InsertNextId(numCurvePts + offset);
 	vconnB->InsertNextId(numCurvePts + offset);
-      }
-      else
-      {
+      } else {
 	vconnA->InsertNextId(j + 1 + offset);
 	vconnA->InsertNextId(numCurvePts + j + 1 + offset);
 	vconnB->InsertNextId(numCurvePts + j + 1 + offset);
       }
+
       vconnB->InsertNextId(numCurvePts + j + offset);
       vconnB->InsertNextId(j + offset);
       vPD->InsertNextCell(VTK_TRIANGLE,vconnA);
@@ -547,14 +565,19 @@ int vtkSVLoftSplineSurface::LoftSolid(vtkPolyData *inputs[], int numInputs,
     }
   }
 
+  // [TODO:DaveP] Why copy into an existing PolyData object 
+  // rather than just returning a new object?
+  //
   outputPD->DeepCopy(vPD);
   outputPD->BuildLinks();
 
-  for (int j=0;j<this->NumOutPtsAlongLength;j++)
-  {
+  // Clean up.
+  //
+  for (int j = 0; j < this->NumOutPtsAlongLength; j++) {
     sampledPts[j]->Delete();
   }
   delete [] sampledPts;
+
   splineX->Delete();
   splineY->Delete();
   splineZ->Delete();
@@ -562,16 +585,21 @@ int vtkSVLoftSplineSurface::LoftSolid(vtkPolyData *inputs[], int numInputs,
   return SV_OK;
 }
 
-// ----------------------
+//-------------
 // createArray
-// ----------------------
-/// \details dynamically allocate a 2-dimensional array
-double **vtkSVLoftSplineSurface::createArray(int a, int b) {
+//-------------
+// Allocate an NxM array of pointers to double.
+//
+double **
+vtkSVLoftSplineSurface::createArray(int a, int b) 
+{
     double ** rtn = new double*[a+1];
+
     if (rtn == NULL) {
         printf("ERROR: Memory allocation error.\n");
         return NULL;
     }
+
     for (int i = 0; i < a+1; i++) {
         rtn[i] = new double[b+1];
         if (rtn[i] == NULL) {
@@ -596,18 +624,18 @@ void vtkSVLoftSplineSurface::deleteArray(double **ptr, int a, int b) {
     delete ptr;
 }
 
-// ----------------------
+//-------------------
 // LinearInterpolate
-// ----------------------
+//-------------------
+// This method takes an original set of points and returns a
+// newly allocated set of interpolated points (where the requested
+// number of points is numOutPts).  Linear interpolation is used, and
+// the values outside of the range of orgPts are fixed to the values
+// at t_0 and t_n.
+//
 int vtkSVLoftSplineSurface::linearInterpolate(double **orgPts, int numOrgPts, double t0,
-                            double dt, int numOutPts, double ***rtnOutPts) {
-
-    // This method takes an original set of points and returns a
-    // newly allocated set of interpolated points (where the requested
-    // number of points is numOutPts).  Linear interpolation is used, and
-    // the values outside of the range of orgPts are fixed to the values
-    // at t_0 and t_n.
-
+       double dt, int numOutPts, double ***rtnOutPts) 
+{
     int i,j;
 
     if (numOrgPts <= 0 || numOutPts <= 0) {
@@ -622,9 +650,7 @@ int vtkSVLoftSplineSurface::linearInterpolate(double **orgPts, int numOrgPts, do
     double t;
 
     for (i=0; i < numOutPts; i++) {
-
         t = t0 + dt*i;
-
         outPts[i][0] = t;
 
         // if time is outside of data range, fix to values at beginning
@@ -659,20 +685,100 @@ int vtkSVLoftSplineSurface::linearInterpolate(double **orgPts, int numOrgPts, do
 
 }
 
-// ----------------------
+//--------------------------
+// MyLinearInterpolateCurve
+//--------------------------
+// Test a much simpler interpolation scheme.
+//
+int MyLinearInterpolateCurve(double **orgPts, int numOrgPts, int closed, 
+       int numOutPts, double ***rtnOutPts) 
+{
+  std::cout << "################## vtkSVLoftSplineSurface::MyLinearInterpolateCurve ############### " << std::endl;
+  std::cout << "[MyLinearInterpolateCurve] numOrgPts: " << numOrgPts << std::endl;
+  std::cout << "[MyLinearInterpolateCurve] numOutPts: " << numOutPts << std::endl;
+
+  // Compute the length of the curve.
+  //
+  double curveLength = 0.0;
+  for (int i = 0; i < numOrgPts-1; i++) {
+      double dx = orgPts[i+1][0] - orgPts[i][0];
+      double dy = orgPts[i+1][1] - orgPts[i][1];
+      double dz = orgPts[i+1][2] - orgPts[i][2];
+      curveLength += sqrt(dx*dx + dy*dy + dz*dz);
+  }
+
+  double ds = double(curveLength) / (numOutPts - 1);
+  std::cout << "[MyLinearInterpolateCurve] curveLength: " << curveLength << std::endl;
+  std::cout << "[MyLinearInterpolateCurve] ds: " << ds << std::endl;
+  double s = 0.0; 
+  double s1 = 0.0; 
+  double s2 = -1.0; 
+  bool start = true;
+  int n = 0;
+  int numPts = 0;
+  int precision = std::numeric_limits<double>::max_digits10;
+  std::setprecision(precision);
+
+  while (numPts < numOutPts) {
+      std::cout << std::setprecision(precision) << "[MyLinearInterpolateCurve] s: " << s << std::endl;
+      double p[3];
+      double* p1;
+      double* p2;
+      double dx, dy, dz;
+      double intLen; 
+
+      // Move to the next point interval.
+      //
+      if (s > s2) {
+          std::cout << "[MyLinearInterpolateCurve]   n: " << n << std::endl;
+          p1 = orgPts[n];
+          p2 = orgPts[n+1];
+          std::cout << "[MyLinearInterpolateCurve]   p1: " << p1[0] << " " << p1[1] << " " << p1[2] << std::endl;
+          std::cout << "[MyLinearInterpolateCurve]   p2: " << p2[0] << " " << p2[1] << " " << p2[2] << std::endl;
+          dx = p2[0] - p1[0];
+          dy = p2[1] - p1[1];
+          dz = p2[2] - p1[2];
+          intLen = sqrt(dx*dx + dy*dy + dz*dz);
+          s1 = (s2 == -1 ? 0.0 : s2);
+          s2 = s1 + intLen / curveLength;
+          std::cout << "[MyLinearInterpolateCurve]   s1: " << s1 << "  s2: " << s2 << std::endl;
+          std::cout << "[MyLinearInterpolateCurve]   intLen: " << intLen << std::endl;
+          n += 1;
+          if (n == numOrgPts) {
+              break;
+          }
+
+      // Add an interpolated point.
+      //
+      } else {
+          double f = (s - s1) / (s2 - s1);
+          p[0] = p1[0] + f*dx;
+          p[1] = p1[1] + f*dy;
+          p[2] = p1[2] + f*dz;
+          std::cout << "[MyLinearInterpolateCurve] Add p: " << p[0] << " " << p[1] << " " << p[2] << std::endl;
+          s += ds;
+          numPts += 1;
+      }
+  }
+
+}
+
+//------------------------
 // LinearInterpolateCurve
-// ----------------------
-int vtkSVLoftSplineSurface::linearInterpolateCurve(double **orgPts, int numOrgPts, int closed,
-                                     int numOutPts, double ***rtnOutPts) {
-
-    // This method takes an original set of points and returns a
-    // newly allocated set of interpolated points (where the requested
-    // number of points is numOutPts).  Linear interpolation between the points
-    // of the 3D curve is used.
-
+//------------------------
+// This method takes an original set of points and returns a newly allocated set of 
+// interpolated points (where the requested number of points is numOutPts).  
+//
+// Linear interpolation between the points of the 3D curve is used.
+//
+int vtkSVLoftSplineSurface::linearInterpolateCurve(double **orgPts, int numOrgPts, int closed, 
+       int numOutPts, double ***rtnOutPts) 
+{
     if (numOrgPts <= 1 || numOutPts <= 2) {
         return SV_ERROR;
     }
+
+    // MyLinearInterpolateCurve(orgPts, numOrgPts, closed, numOutPts, rtnOutPts);
 
     // find the length of the curve
     double length = 0;
@@ -686,9 +792,12 @@ int vtkSVLoftSplineSurface::linearInterpolateCurve(double **orgPts, int numOrgPt
     int i;
     double t = 0;
     for (i=0;i < numOrgPts;i++) {
-        xin[i][0]=t;xin[i][1]=orgPts[i][0];
-        yin[i][0]=t;yin[i][1]=orgPts[i][1];
-        zin[i][0]=t;zin[i][1]=orgPts[i][2];
+        xin[i][0]=t;
+        xin[i][1]=orgPts[i][0];
+        yin[i][0]=t;
+        yin[i][1]=orgPts[i][1];
+        zin[i][0]=t;
+        zin[i][1]=orgPts[i][2];
         int j = i+1;
         if (j == numOrgPts) {
             j = 0;
@@ -701,9 +810,12 @@ int vtkSVLoftSplineSurface::linearInterpolateCurve(double **orgPts, int numOrgPt
     int numPts = numOrgPts;
     double dt = length / (numOutPts-1);
     if (closed != 0) {
-        xin[numOrgPts][0]=length;xin[numOrgPts][1]=orgPts[0][0];
-        yin[numOrgPts][0]=length;yin[numOrgPts][1]=orgPts[0][1];
-        zin[numOrgPts][0]=length;zin[numOrgPts][1]=orgPts[0][2];
+        xin[numOrgPts][0]=length;
+        xin[numOrgPts][1]=orgPts[0][0];
+        yin[numOrgPts][0]=length;
+        yin[numOrgPts][1]=orgPts[0][1];
+        zin[numOrgPts][0]=length;
+        zin[numOrgPts][1]=orgPts[0][2];
         numPts++;
         dt = length / numOutPts;
     }
@@ -714,36 +826,51 @@ int vtkSVLoftSplineSurface::linearInterpolateCurve(double **orgPts, int numOrgPt
     double **zout = this->createArray(numOutPts,2);
 
     if (linearInterpolate(xin, numPts, 0, dt, numOutPts, &xout) == 0) {
-        this->deleteArray(xin,numOrgPts+1,2); this->deleteArray(xout,numOutPts,2);
-        this->deleteArray(yin,numOrgPts+1,2); this->deleteArray(yout,numOutPts,2);
-        this->deleteArray(zin,numOrgPts+1,2); this->deleteArray(zout,numOutPts,2);
+        this->deleteArray(xin,numOrgPts+1,2); 
+        this->deleteArray(xout,numOutPts,2);
+        this->deleteArray(yin,numOrgPts+1,2); 
+        this->deleteArray(yout,numOutPts,2);
+        this->deleteArray(zin,numOrgPts+1,2); 
+        this->deleteArray(zout,numOutPts,2);
         return SV_ERROR;
     }
+
     if (linearInterpolate(yin, numPts, 0, dt, numOutPts, &yout) == 0) {
-        this->deleteArray(xin,numOrgPts+1,2); this->deleteArray(xout,numOutPts,2);
-        this->deleteArray(yin,numOrgPts+1,2); this->deleteArray(yout,numOutPts,2);
-        this->deleteArray(zin,numOrgPts+1,2); this->deleteArray(zout,numOutPts,2);
+        this->deleteArray(xin,numOrgPts+1,2); 
+        this->deleteArray(xout,numOutPts,2);
+        this->deleteArray(yin,numOrgPts+1,2); 
+        this->deleteArray(yout,numOutPts,2);
+        this->deleteArray(zin,numOrgPts+1,2); 
+        this->deleteArray(zout,numOutPts,2);
         return SV_ERROR;
     }
+
     if (linearInterpolate(zin, numPts, 0, dt, numOutPts, &zout) == 0) {
-        this->deleteArray(xin,numOrgPts+1,2); this->deleteArray(xout,numOutPts,2);
-        this->deleteArray(yin,numOrgPts+1,2); this->deleteArray(yout,numOutPts,2);
-        this->deleteArray(zin,numOrgPts+1,2); this->deleteArray(zout,numOutPts,2);
+        this->deleteArray(xin,numOrgPts+1,2); 
+        this->deleteArray(xout,numOutPts,2);
+        this->deleteArray(yin,numOrgPts+1,2); 
+        this->deleteArray(yout,numOutPts,2);
+        this->deleteArray(zin,numOrgPts+1,2); 
+        this->deleteArray(zout,numOutPts,2);
         return SV_ERROR;
     }
 
     // put it all back together
     double **outPts = this->createArray(numOutPts,3);
     if (*outPts == NULL) {
-        this->deleteArray(xin,numOrgPts+1,2); this->deleteArray(xout,numOutPts,2);
-        this->deleteArray(yin,numOrgPts+1,2); this->deleteArray(yout,numOutPts,2);
-        this->deleteArray(zin,numOrgPts+1,2); this->deleteArray(zout,numOutPts,2);
+        this->deleteArray(xin,numOrgPts+1,2); 
+        this->deleteArray(xout,numOutPts,2);
+        this->deleteArray(yin,numOrgPts+1,2); 
+        this->deleteArray(yout,numOutPts,2);
+        this->deleteArray(zin,numOrgPts+1,2); 
+        this->deleteArray(zout,numOutPts,2);
         return SV_ERROR;
     }
+
     for (i = 0; i < numOutPts;i++) {
-        outPts[i][0]=xout[i][1];
-        outPts[i][1]=yout[i][1];
-        outPts[i][2]=zout[i][1];
+        outPts[i][0] = xout[i][1];
+        outPts[i][1] = yout[i][1];
+        outPts[i][2] = zout[i][1];
     }
 
     // clean up

@@ -123,9 +123,8 @@ static char* MODELING_POLYDATA_CLASS = "PolyData";
 static char* MODELING_POLYDATA_MODULE_CLASS = "modeling.PolyData";
 
 PyDoc_STRVAR(PyPolyDataSolidClass_doc, 
-  "SV PolyData class. \n\
+  "SimVascular PolyData class. \n\
    \n\
-   ----------------------------------------------------------------------   \n\
    The PolyData class provides an interface to SV PolyData modeler          \n\
    functionality. \n\
 ");

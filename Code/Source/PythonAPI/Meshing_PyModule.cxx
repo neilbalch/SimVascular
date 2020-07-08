@@ -239,9 +239,8 @@ static char* MESHING_MODULE_EXCEPTION = "meshing.MeshingError";
 static char* MESHING_MODULE_EXCEPTION_OBJECT = "MeshingError";
 
 PyDoc_STRVAR(Meshing_module_doc, 
-  "SV meshing module. \n\
+  "SimVascular meshing module. \n\
    \n\
-   ----------------------------------------------------------------------   \n\
    The meshing module provides an interface to SV meshing functionality     \n\
    used to generate a finite element tetrahedral mesh from a solid model.   \n\
    \n\

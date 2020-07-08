@@ -118,22 +118,22 @@ cvPolyData *sys_geom_DeepCopy( cvPolyData *src )
 }
 
 
-/* ----------------- */
-/* sys_geom_MergePts */
-/* ----------------- */
-
+//------------------- 
+// sys_geom_MergePts 
+//------------------- 
+//
 cvPolyData *sys_geom_MergePts( cvPolyData *src )
 {
   double tol = 1e10 * FindMachineEpsilon();
   return sys_geom_MergePts_tol( src, tol );
 }
 
-
-/* --------------------- */
-/* sys_geom_MergePts_tol */
-/* --------------------- */
-
-cvPolyData *sys_geom_MergePts_tol( cvPolyData *src, double tol )
+//----------------------- 
+// sys_geom_MergePts_tol 
+//----------------------- 
+// Merge duplicate points and remove unused points.
+//
+cvPolyData *sys_geom_MergePts_tol(cvPolyData *src, double tol)
 {
   cvPolyData *dst;
 
@@ -756,18 +756,14 @@ int sys_geom_ReverseAllCells( cvPolyData *src, cvPolyData **dst )
 }
 
 
-/* ---------------------- */
-/* sys_geom_GetOrderedPts */
-/* ---------------------- */
-
-int sys_geom_GetOrderedPts( cvPolyData *src, double **ord_pts, int *num )
+//------------------------ 
+// sys_geom_GetOrderedPts 
+//------------------------
+//
+// [TODO:DaveP] this leaks memory.
+//
+int sys_geom_GetOrderedPts(cvPolyData *src, double **ord_pts, int *num)
 {
-  cvPolyData *merged_pd;
-  vtkPolyData *pd;
-  double *pts;
-  int numPts;
-  vtkIdType *lines;
-  int numLines;
   int *linkedLineIxs;
   int numLinkedLineIxs;
   int *lineVisited;
@@ -777,35 +773,41 @@ int sys_geom_GetOrderedPts( cvPolyData *src, double **ord_pts, int *num )
   double x, y, z;
   int startIx;
 
-  merged_pd = sys_geom_MergePts( src );
-  if ( merged_pd == NULL ) {
+  // Merge duplicate points and remove unused points.
+  auto merged_pd = sys_geom_MergePts(src);
+  if (merged_pd == NULL) {
     return SV_ERROR;
   }
-  pd = merged_pd->GetVtkPolyData();
+  auto pd = merged_pd->GetVtkPolyData();
 
-  if ( VtkUtils_GetPoints( pd, &pts, &numPts ) != SV_OK ) {
+  // Get a copy of the polydata points.
+  double *pts;
+  int numPts;
+  if (VtkUtils_GetPoints(pd, &pts, &numPts) != SV_OK) {
     return SV_ERROR;
   }
 
-  if ( VtkUtils_GetLines( pd, &lines, &numLines ) != SV_OK ) {
+  if (numPts == 0) {
+    fprintf(stderr,"ERROR: No points polydata object.\n");
+    return SV_ERROR;
+  }
+
+  // Get a copy of the polydata connectivity.
+  vtkIdType *lines;
+  int numLines;
+  if (VtkUtils_GetLines(pd, &lines, &numLines) != SV_OK ) {
     delete [] pts;
     return SV_ERROR;
   }
 
-  /*
-  printf("\n--- sys_geom_GetOrderedPts ---\n\n");
-  printf("    num pts   [%d]\n", numPts);
-  printf("    num lines [%d]\n\n", numLines);
-  */
-
-  if (numPts == 0 || numLines == 0) {
-    fprintf(stderr,"ERROR:  no points or lines in polydata object!\n");
-    // don't know if I should free pts & lines here or not, but to be
-    // safe I wont
+  if (numLines == 0) {
+    fprintf(stderr,"ERROR: No lines in polydata object.\n");
+    delete [] pts;
     return SV_ERROR;
   } else if (numPts < 3 || numLines < 3) {
-    // assume we need at least 3 pts and 3 lines to define a contour.
-    fprintf(stderr,"ERROR:  not enough pts (%i) or lines (%i)\n", numPts, numLines);
+    fprintf(stderr,"ERROR: Not enough pts (%i) or lines (%i). \n", numPts, numLines);
+    delete [] pts;
+    delete [] lines;
     return SV_ERROR;
   }
 
@@ -1940,13 +1942,18 @@ cvPolyData *sys_geom_ReorderPolygon( cvPolyData *src, int startIx )
   return dst;
 }
 
-
-// --------------------
+//----------------------
 // sys_geom_AlignByDist
-// --------------------
-
-cvPolyData *sys_geom_AlignByDist( cvPolyData *ref, cvPolyData *src )
+//----------------------
+//
+cvPolyData *sys_geom_AlignByDist(cvPolyData *ref, cvPolyData *src)
 {
+  #ifdef dbg_sys_geom_AlignByDist
+  std::cout << "########## sys_geom_AlignByDist ##########" << std::endl;
+  std::cout << "[sys_geom_AlignByDist] ref->GetVtkPolyData()->GetNumberOfPoints(): " << 
+     ref->GetVtkPolyData()->GetNumberOfPoints() << std::endl;
+  #endif
+
   double refNrm[3], srcNrm[3];
   double *refPts;
   int numRefPts;
@@ -1955,24 +1962,26 @@ cvPolyData *sys_geom_AlignByDist( cvPolyData *ref, cvPolyData *src )
   int ix;
   cvPolyData *dst;
 
+  if (ref->GetVtkPolyData()->GetNumberOfPoints() != src->GetVtkPolyData()->GetNumberOfPoints()) {
+      fprintf(stderr,"ERROR:  must have equal number of pts to align curves by distance~\n");
+      fprintf(stderr,"ERROR:  must have equal number of pts to align curves by distance~\n");
+  } 
+
   // not sure this normal stuff makes sense? nw.
-  if ( sys_geom_PolygonNormal( ref, refNrm ) != SV_OK ) {
+  if (sys_geom_PolygonNormal(ref, refNrm) != SV_OK) {
     printf( "ERR: normal calculation for reference polygon failed\n" );
     return NULL;
   }
-  if ( sys_geom_PolygonNormal( src, srcNrm ) != SV_OK ) {
+  if (sys_geom_PolygonNormal(src, srcNrm) != SV_OK) {
     printf( "ERR: normal calculation for source polygon failed\n" );
     return NULL;
   }
 
-  printf( "Aligning profile [%s]\n", src->GetName() );
-
   // If src normal opposes ref normal, then invert src.  This is
   // reasonable because this alignment function is only meant for use
   // with neighboring curves which are changing direction gradually.
-  if ( Dot( refNrm[0], refNrm[1], refNrm[2], srcNrm[0], srcNrm[1],
-	    srcNrm[2] ) < 0.0 ) {
-      fprintf(stdout,"  Reversing src.\n");
+  //
+  if (Dot(refNrm[0], refNrm[1], refNrm[2], srcNrm[0], srcNrm[1], srcNrm[2]) < 0.0) {
       VtkUtils_ReverseAllCells( src->GetVtkPolyData() );
   }
 
@@ -1981,10 +1990,22 @@ cvPolyData *sys_geom_AlignByDist( cvPolyData *ref, cvPolyData *src )
     printf( "ERR: get ref ordered points failed\n" );
     return NULL;
   }
+
   if ( sys_geom_GetOrderedPts( src, &srcPts, &numSrcPts ) != SV_OK ) {
     delete [] refPts;
     printf( "ERR: get src ordered points failed\n" );
     return NULL;
+  }
+
+
+  // [TODO:DaveP] now we check if we can even perform the computation?
+  // Can we move this to the top?
+  //
+  if (numRefPts != numSrcPts) {
+      fprintf(stderr,"ERROR:  must have equal number of pts to align curves by distance~\n");
+      delete [] srcPts;
+      delete [] refPts;
+      return SV_ERROR;
   }
 
   // find the closest two points in 3-space between the two
@@ -1992,13 +2013,6 @@ cvPolyData *sys_geom_AlignByDist( cvPolyData *ref, cvPolyData *src )
   // distance from a corresponding pt on another curve and the
   // one picked by this code is nearly random.  But this should
   // be okay.
-
-  if (numRefPts != numSrcPts) {
-      fprintf(stderr,"ERROR:  must have equal number of pts to align curves by distance~\n");
-      delete [] srcPts;
-      delete [] refPts;
-      return SV_ERROR;
-  }
 
   double d2 = 0;
   double d2min = 9999999999.99;
@@ -2027,8 +2041,6 @@ cvPolyData *sys_geom_AlignByDist( cvPolyData *ref, cvPolyData *src )
     }
   }
 
-  fprintf(stdout,"  refPtId: %i  dstPtId: %i  d2min: %lf\n",refPtId,dstPtId,d2min);
-
   delete [] srcPts;
   delete [] refPts;
 
@@ -2039,8 +2051,7 @@ cvPolyData *sys_geom_AlignByDist( cvPolyData *ref, cvPolyData *src )
   }
 
   // No re-alignment:
-  if ( refPtId == dstPtId ) {
-    printf( "  NOTE: no adjustment to alignment [%s]\n", src->GetName() );
+  if (refPtId == dstPtId) {
     dst = new cvPolyData( src );
     return dst;
   }
@@ -2051,24 +2062,20 @@ cvPolyData *sys_geom_AlignByDist( cvPolyData *ref, cvPolyData *src )
       ix = dstPtId + (numRefPts -refPtId);
   }
 
-  fprintf(stdout,"  ix: %i\n",ix);
-
   dst = sys_geom_ReorderPolygon(src, ix);
 
   return dst;
-
 }
 
-
-/* ----------------- */
-/* sys_geom_Classify */
-/* ----------------- */
-/* Note that there is no deep copy of data here like there is
- * sys_geom_PtInPoly.  So hopefully we can get away without adding the
- * static object pointers we used in sys_geom_PtInPoly.
- */
-
-int sys_geom_Classify( cvPolyData *obj, double pt[], int *result )
+//-------------------
+// sys_geom_Classify
+//-------------------
+// Determine if a point is inside or outside of a solid.
+//
+// [TODO:DaveP] This does not completely classify a point 
+// as in, out or on the boundary of a solid.
+//
+int sys_geom_Classify(cvPolyData *obj, double pt[], int *result)
 {
   vtkPolyData *pd;
   vtkCellArray *polys;
@@ -2340,23 +2347,52 @@ cvPolyData *sys_geom_sampleLoop( cvPolyData *src, int targetNumPts )
   return result;
 }
 
-/* -------------- */
-/* sys_geom_loft_solid */
-/* -------------- */
-
-int sys_geom_loft_solid( cvPolyData **srcs,int numSrcs,int useLinearSampleAlongLength,
-		int useFFT,int numOutPtsAlongLength, int numOutPtsInSegs,
-		int numLinearPtsAlongLength,int numModes,int splineType,double bias, double tension,double continuity, cvPolyData **dst )
+//---------------------
+// sys_geom_loft_solid
+//---------------------
+// Create a lofted surface from a list of polydata profile curves. 
+//
+// Arguments:
+//   srcs: The list of cvPolyData objects representing curve profiles.
+//   numSrcs: The number of cvPolyData objects.
+//   useLinearSampleAlongLength: If true (1) then linear interpolate between sample points. 
+//   useFFT: If non-zero then smooth use a FFT.
+//   numOutPtsAlongLength: 
+//   NumOutPtsInSegs: The number of points in a curve profile.
+//   numLinearPtsAlongLength: The total number of points used to represent interpolate splines.
+//   splineType: This is not used in vtkSVLoftSplineSurface.
+//
+// Match up arguments passed from calling function to figure out what args are:
+//
+// sys_geom_loft_solid(
+//   sampledContours,                           srcs
+//   contourNumber,                             numSrcs
+//   param->useLinearSampleAlongLength,         useLinearSampleAlongLength
+//   param->useFFT,                             useFFT
+//   param->numOutPtsAlongLength,               numOutPtsAlongLength
+//   newNumSamplingPts,                         numOutPtsInSegs
+//   param->numPtsInLinearSampleAlongLength,    numLinearPtsAlongLength
+//   param->numModes,
+//   param->splineType, 
+//   param->bias, 
+//   param->tension, 
+//   param->continuity, 
+//   &dst) 
+//
+int sys_geom_loft_solid(cvPolyData **srcs, int numSrcs, int useLinearSampleAlongLength, int useFFT, 
+    int numOutPtsAlongLength, int numOutPtsInSegs, int numLinearPtsAlongLength, int numModes, 
+    int splineType, double bias, double tension, double continuity, cvPolyData **dst)
 {
   cvPolyData *result = NULL;
   *dst = NULL;
 
   vtkNew(vtkSVLoftSplineSurface,lofter);
-  for (int i=0;i<numSrcs;i++)
-  {
+
+  for (int i=0;i<numSrcs;i++) {
     vtkPolyData *newPd = srcs[i]->GetVtkPolyData();
     lofter->AddInputData(newPd);
   }
+
   lofter->SetUseLinearSampleAlongLength(useLinearSampleAlongLength);
   lofter->SetUseFFT(useFFT);
   lofter->SetNumOutPtsAlongLength(numOutPtsAlongLength);
@@ -2367,13 +2403,12 @@ int sys_geom_loft_solid( cvPolyData **srcs,int numSrcs,int useLinearSampleAlongL
   lofter->SetBias(bias);
   lofter->SetTension(tension);
   lofter->SetContinuity(continuity);
+
   try {
     lofter->Update();
-
     result = new cvPolyData(lofter->GetOutput());
     *dst = result;
-  }
-  catch (...) {
+  } catch (...) {
     fprintf(stderr,"ERROR in boolean operation.\n");
     fflush(stderr);
     return SV_ERROR;
@@ -2382,16 +2417,21 @@ int sys_geom_loft_solid( cvPolyData **srcs,int numSrcs,int useLinearSampleAlongL
   return SV_OK;
 }
 
-/* -------------- */
-/* sys_geom_loft_solid_with_nurbs */
-/* -------------- */
-
-int sys_geom_loft_solid_with_nurbs(cvPolyData **srcs, int numSrcs, int uDegree,
-                                   int vDegree, double uSpacing, double vSpacing,
-                                   const char *uKnotSpanType, const char *vKnotSpanType,
-                                   const char *uParametricSpanType, const char *vParametricSpanType,
-                                   vtkSVNURBSSurface *surface,
-                                   cvPolyData **dst )
+//--------------------------------
+// sys_geom_loft_solid_with_nurbs
+//--------------------------------
+// Create a lofted surface from a list of polydata profile curves. 
+//
+// Arguments:
+//   srcs: The list of cvPolyData objects representing curve profiles.
+//   numSrcs: The number of cvPolyData objects.
+//   uDegree: Controls the surface curvature in the logitudinal direction. 1=linear, 2=quadratic, etc.
+//   vDegree: Controls the surface curvature in the circumferential direction. 
+//
+int sys_geom_loft_solid_with_nurbs(cvPolyData **srcs, int numSrcs, int uDegree, int vDegree, 
+     double uSpacing, double vSpacing, const char *uKnotSpanType, const char *vKnotSpanType,
+     const char *uParametricSpanType, const char *vParametricSpanType, vtkSVNURBSSurface *surface,
+     cvPolyData **dst )
 {
   cvPolyData *result = NULL;
   *dst = NULL;
@@ -2552,11 +2592,11 @@ int sys_geom_2DWindingNum( cvPolyData *pgn )
 }
 
 
-// ----------------------
+//------------------------
 // sys_geom_PolygonNormal
-// ----------------------
-
-int sys_geom_PolygonNormal( cvPolyData *pgn, double n[] )
+//------------------------
+//
+int sys_geom_PolygonNormal(cvPolyData *pgn, double n[])
 {
   double *pts;
   int numPts;

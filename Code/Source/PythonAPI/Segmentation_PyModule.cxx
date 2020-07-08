@@ -145,7 +145,7 @@ static char* SEGMENTATION_MODULE_EXCEPTION_OBJECT = "SegmentationError";
 //------------------------
 //
 PyDoc_STRVAR(SegmentationModule_doc,
-   "SV segmentation module. \n\
+   "SimVascular segmentation module. \n\
    \n\
    The segmentation module provides an interface for SV segmentation methods. A segmentation defines the contour geometry of a \n\
    region of interest using various 2D image segmentation methods. The segmentation module provides several classes used to create \n\

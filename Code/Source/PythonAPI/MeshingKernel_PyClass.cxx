@@ -111,7 +111,7 @@ static char* MESHING_KERNEL_MODULE_CLASS = "meshing.Kernel";
 static char* MESHING_KERNEL_CLASS_VARIBLE_NAMES = "names";
 
 PyDoc_STRVAR(PyMeshingKernel_doc, 
-   "SV meshing Kernel class. \n\
+   "SimVascular meshing Kernel class. \n\
    \n\
    ----------------------------------------------------------------------   \n\
    The Kernel class provides the kernel names used to generate finite       \n\

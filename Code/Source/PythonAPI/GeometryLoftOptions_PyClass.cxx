@@ -30,7 +30,24 @@
  */
 
 // Define the Python 'geometry.LoftOptions' class that encapsulates the paramters
-// used for creating a lofted solid.
+// used for creating a lofted surface.
+//
+// A lofted suface is created from a list of profile curves that define the shape
+// of the surface. Profile points are used to create interpolating spline curves 
+// along the length of the surface. 
+//
+// [DaveP] I'm not exposing some of these parameters becuase they don't make
+// sense or don't work correctly.
+//
+//   use_fft: does not make sense, changes geometry? 
+//
+// The SV GUI only exposes 
+//
+//   Sampling ( numOutPtsInSegs ) = 60
+//   Number of Points per Segment ( samplePerSegment ) = 12
+//   Linear Sample along Length Factor ( linearMuliplier ) = 10
+//   Use FFT: no
+//   Num Modes: 20
 //
 #ifndef PYAPI_GEOMETRY_LOFT_OPTIONS_H
 #define PYAPI_GEOMETRY_LOFT_OPTIONS_H 
@@ -46,29 +63,37 @@
 //------------------
 // Define the LoftOptionsClass. 
 //
+// num_spline_points: The number of points to sample a spline if using linear 
+//    interpolation between sample points.
+//
+// num_long_points: The number of longitudinal points used to sample splines.
+//
+// interpolate_spline_points: Use linear interpolation between spline sample points.
+//
 typedef struct {
 PyObject_HEAD
-  int num_out_pts_in_segs;
-  int num_out_pts_along_length;
-  int num_linear_pts_along_length;
-  int num_modes;
-  int use_fft;
-  int use_linear_sample_along_length;
-  int spline_type;
   double bias;
-  double tension;
   double continuity;
+  int num_long_points;
+  int num_modes;
+  int num_spline_points;   
+  int spline_type;
+  double tension;
+  int use_fft;
+  int interpolate_spline_points;
 } PyLoftOptions;
 
 // PyLoftOptions attribute names.
 //
+// The varible name is the name used in SV, 
+// lower case string is the Python option name.
+// 
 namespace LoftOptions {
-  char* NUM_OUT_PTS_IN_SEGS = "num_out_pts_in_segs";
-  char* NUM_OUT_PTS_ALONG_LENGTH = "num_out_pts_along_length";
-  char* NUM_LINEAR_PTS_ALONG_LENGTH = "num_linear_pts_along_length";
+  char* NUM_OUT_PTS_ALONG_LENGTH = "num_spline_points";
+  char* NUM_LINEAR_PTS_ALONG_LENGTH = "num_long_points";
   char* NUM_MODES = "num_modes"; 
   char* USE_FFT = "use_fft"; 
-  char* USE_LINEAR_SAMPLE_ALONG_LENGTH = "use_linear_sample_along_length";
+  char* USE_LINEAR_SAMPLE_ALONG_LENGTH = "interpolate_spline_points";
   char* SPLINE_TYPE = "spline_type"; 
   char* BIAS = "bias"; 
   char* TENSION = "tension"; 
@@ -84,6 +109,10 @@ static int
 LoftOptionsGetInt(PyObject* loftOptions, std::string name)
 {
   auto obj = PyObject_GetAttrString(loftOptions, name.c_str());
+  if (obj == nullptr) { 
+      std::cout << "Internal error: The '" + name + "' LoftOptions paramater is not correctly setup." << std::endl;
+      return 0;
+  }
   auto value = PyInt_AsLong(obj);
   Py_DECREF(obj);
   return value;
@@ -98,22 +127,47 @@ static double
 LoftOptionsGetDouble(PyObject* loftOptions, std::string name)
 {
   auto obj = PyObject_GetAttrString(loftOptions, name.c_str());
+  if (obj == nullptr) { 
+      std::cout << "Internal error: The '" + name + "' LoftOptions paramater is not correctly setup." << std::endl;
+      return 0;
+  }
   auto value = PyFloat_AsDouble(obj);
   Py_DECREF(obj);
   return value;
 }
-
 
 ////////////////////////////////////////////////////////
 //          C l a s s    M e t h o d s                //
 ////////////////////////////////////////////////////////
 //
 
+PyDoc_STRVAR(PyLoftOptions_get_values_doc,
+  "get_values()  \n\ 
+  \n\
+  Get the names and values of loft options. \n\
+  \n\
+");
+
+static PyObject *
+PyLoftOptions_get_values(PyLoftOptions* self, PyObject* args)
+{
+  PyObject* values = PyDict_New();
+
+  PyDict_SetItemString(values, LoftOptions::NUM_LINEAR_PTS_ALONG_LENGTH, Py_BuildValue("i", self->num_long_points));
+
+  PyDict_SetItemString(values, LoftOptions::NUM_OUT_PTS_ALONG_LENGTH, Py_BuildValue("i", self->num_spline_points));
+
+  PyDict_SetItemString(values, LoftOptions::USE_LINEAR_SAMPLE_ALONG_LENGTH, PyBool_FromLong(self->interpolate_spline_points));
+
+  return values;
+}
+
 //--------------------
 // LoftOptionsMethods
 //--------------------
 //
 static PyMethodDef PyLoftOptionsMethods[] = {
+  {"get_values", (PyCFunction)PyLoftOptions_get_values, METH_NOARGS, PyLoftOptions_get_values_doc},
   {NULL, NULL}
 };
 
@@ -125,17 +179,42 @@ static PyMethodDef PyLoftOptionsMethods[] = {
 //
 // The attributes can be set/get directly in from the LoftOptions object.
 //
+// [TODO:Dave] I'm only exposing some of the options for now.
+
+PyDoc_STRVAR(interpolate_spline_points_doc,
+  "Type: bool                                                              \n\
+   Default: True                                                           \n\ 
+   \n\
+   If True then Use linear interpolation between spline sample points.     \n\
+   \n\
+");
+
+PyDoc_STRVAR(num_long_points_doc,
+  "Type: int                                                               \n\
+   Default: 100                                                            \n\ 
+   \n\
+   The number of longitudinal points created for the lofted surface.       \n\
+   \n\
+");
+
+PyDoc_STRVAR(num_spline_points_doc,
+  "Type: int                                                               \n\
+   Default: 20                                                             \n\ 
+   \n\
+   The number of spline sample points used with linear interpolation.      \n\
+   \n\
+");
+
 static PyMemberDef PyLoftOptionsMembers[] = {
-    {LoftOptions::BIAS, T_DOUBLE, offsetof(PyLoftOptions, bias), 0, "first name"},
-    {LoftOptions::CONTINUITY, T_DOUBLE, offsetof(PyLoftOptions, continuity), 0, "first name"},
-    {LoftOptions::NUM_LINEAR_PTS_ALONG_LENGTH, T_INT, offsetof(PyLoftOptions, num_linear_pts_along_length), 0, "first name"},
-    {LoftOptions::NUM_MODES, T_INT, offsetof(PyLoftOptions, num_modes), 0, "first name"},
-    {LoftOptions::NUM_OUT_PTS_IN_SEGS, T_INT, offsetof(PyLoftOptions, num_out_pts_in_segs), 0, "first name"},
-    {LoftOptions::NUM_OUT_PTS_ALONG_LENGTH, T_INT, offsetof(PyLoftOptions, num_out_pts_along_length), 0, "first name"},
-    {LoftOptions::SPLINE_TYPE, T_INT, offsetof(PyLoftOptions, spline_type), 0, "first name"},
-    {LoftOptions::TENSION, T_DOUBLE, offsetof(PyLoftOptions, tension), 0, "first name"},
-    {LoftOptions::USE_FFT, T_BOOL, offsetof(PyLoftOptions, use_fft), 0, "first name"},
-    {LoftOptions::USE_LINEAR_SAMPLE_ALONG_LENGTH, T_BOOL, offsetof(PyLoftOptions, use_linear_sample_along_length), 0, "first name"},
+    //{LoftOptions::BIAS, T_DOUBLE, offsetof(PyLoftOptions, bias), 0, "first name"},
+    //{LoftOptions::CONTINUITY, T_DOUBLE, offsetof(PyLoftOptions, continuity), 0, "first name"},
+    {LoftOptions::NUM_LINEAR_PTS_ALONG_LENGTH, T_INT, offsetof(PyLoftOptions, num_long_points), 0, num_long_points_doc},
+    //{LoftOptions::NUM_MODES, T_INT, offsetof(PyLoftOptions, num_modes), 0, "first name"},
+    {LoftOptions::NUM_OUT_PTS_ALONG_LENGTH, T_INT, offsetof(PyLoftOptions, num_spline_points), 0, num_spline_points_doc},
+    //{LoftOptions::SPLINE_TYPE, T_INT, offsetof(PyLoftOptions, spline_type), 0, "first name"},
+    //{LoftOptions::TENSION, T_DOUBLE, offsetof(PyLoftOptions, tension), 0, "first name"},
+    //{LoftOptions::USE_FFT, T_BOOL, offsetof(PyLoftOptions, use_fft), 0, "first name"},
+    {LoftOptions::USE_LINEAR_SAMPLE_ALONG_LENGTH, T_BOOL, offsetof(PyLoftOptions, interpolate_spline_points), 0, interpolate_spline_points_doc},
     {NULL}  
 };
 
@@ -146,7 +225,17 @@ static PyMemberDef PyLoftOptionsMembers[] = {
 static char* GEOMETRY_LOFT_OPTIONS_CLASS = "LoftOptions";
 static char* GEOMETRY_LOFT_OPTIONS_MODULE_CLASS = "geometry.LoftOptions";
 
-PyDoc_STRVAR(LoftOptionsClass_doc, "solid modeling kernel class functions");
+PyDoc_STRVAR(LoftOptionsClass_doc, 
+   "SimVascular loft options class. \n\
+   \n\
+   The LoftOptions class stores parameter values used to control how          \n\
+   lofted surfaces are generated.                                             \n\
+   \n\
+   Example: Create a loft options object                                      \n\
+   \n\
+       options = sv.geometry.LoftOptions()                                    \n\
+   \n\
+");
 
 //-------------------
 // PyLoftOptionsType 
@@ -174,24 +263,25 @@ static PyTypeObject PyLoftOptionsType = {
 static int 
 PyLoftOptionsInit(PyLoftOptions* self, PyObject* args, PyObject* kwargs)
 {
-  static int numObjs = 1;
-  std::cout << "[PyLoftOptionsInit] New LoftOptions object: " << numObjs << std::endl;
-  auto api = PyUtilApiFunction("|i", PyRunTimeErr, __func__);
-  static char *keywords[] = {"num_out_pts_in_segs", NULL};
-  int num_out_pts_in_segs = 30;
-
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &num_out_pts_in_segs)) {
+  //std::cout << "[PyLoftOptionsInit] New LoftOptions object: " << std::endl;
+  auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
+  /*
+  static char *keywords[] = { NULL};
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, api.format, keywords, &num_profile_points)) {
       api.argsError();
       return -1;
   }
-  std::cout << "[PyLoftOptionsInit] num_out_pts_in_segs: " << num_out_pts_in_segs << std::endl;
+  std::cout << "[PyLoftOptionsInit] num_profile_points: " << num_profile_points << std::endl;
+  */
+  self->num_spline_points = 20;
+  self->num_long_points = 100;
+  self->interpolate_spline_points = 1;
 
-  self->num_out_pts_in_segs = num_out_pts_in_segs;
-  self->num_out_pts_along_length = 60;
-  self->num_linear_pts_along_length = 600;
+  // These are not exposed but they are still used for setting
+  // parameters when calling the SV lofting method.
+  //
   self->num_modes = 20;
   self->use_fft = 0;
-  self->use_linear_sample_along_length = 1;
   self->spline_type = 0;
   self->bias = 0.0;
   self->tension = 0.0;

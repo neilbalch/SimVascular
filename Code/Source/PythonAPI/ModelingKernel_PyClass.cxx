@@ -148,9 +148,8 @@ static char* MODELING_KERNEL_MODULE_CLASS = "modeling.Kernel";
 static char* MODELING_KERNEL_CLASS_VARIBLE_NAMES = "names";
 
 PyDoc_STRVAR(ModelingKernelClass_doc, 
-   "SV modeling Kernel class. \n\
+   "SimVascular modeling Kernel class. \n\
    \n\
-   ----------------------------------------------------------------------   \n\
    The Kernel class provides the kernel names used to create Modeling       \n\
    objects. The kernel names are stored as class attributes and are         \n\
    referenced using the class name.                                         \n\

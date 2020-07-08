@@ -245,40 +245,45 @@ sv4guiModelElementPolyData* sv4guiModelUtils::CreateModelElementPolyData(std::ve
     return modelElement;
 }
 
-vtkPolyData* sv4guiModelUtils::CreatePolyDataByBlend(vtkPolyData* vpdsrc, int faceID1, int faceID2, double radius, sv4guiModelElement::svBlendParam* param)
+//-----------------------
+// CreatePolyDataByBlend
+//-----------------------
+//
+// [TODO:DaveP] This appears to leak memory; 'src' is not destroyed.
+//
+vtkPolyData* 
+sv4guiModelUtils::CreatePolyDataByBlend(vtkPolyData* vpdsrc, int faceID1, int faceID2, double radius, 
+      sv4guiModelElement::svBlendParam* param)
 {
-    if(vpdsrc==NULL)
+    if (vpdsrc == NULL) {
         return NULL;
+    }
 
-    cvPolyData *src=new cvPolyData(vpdsrc);
+    cvPolyData *src = new cvPolyData(vpdsrc);
     cvPolyData *dst = NULL;
 
     int vals[2];
-    vals[0]=faceID1;
-    vals[1]=faceID2;
+    vals[0] = faceID1;
+    vals[1] = faceID2;
 
-    if ( sys_geom_set_array_for_local_op_face_blend(src,&dst, "ModelFaceID", vals, 2, radius, "ActiveCells", 1)
-         != SV_OK )
-    {
+    // Data located at cell.
+    int dataLoc = 1;
+
+    if (sys_geom_set_array_for_local_op_face_blend(src, &dst, "ModelFaceID", vals, 2, radius, 
+          "ActiveCells", dataLoc) != SV_OK) {
         MITK_ERROR << "poly blend (using radius) error ";
         return NULL;
     }
 
     cvPolyData *dst2 = NULL;
 
-    if ( sys_geom_local_blend( dst, &dst2, param->numblenditers,
-                               param->numsubblenditers, param->numsubdivisioniters,
-                               param->numcgsmoothiters, param->numlapsmoothiters,
-                               param->targetdecimation,
-                               NULL, "ActiveCells")
-
-         != SV_OK )
-    {
+    if (sys_geom_local_blend(dst, &dst2, param->numblenditers, param->numsubblenditers, param->numsubdivisioniters,
+          param->numcgsmoothiters, param->numlapsmoothiters, param->targetdecimation, NULL, "ActiveCells") != SV_OK ) {
         MITK_ERROR << "poly blend error ";
         return NULL;
     }
 
-    vtkPolyData* vpd=dst2->GetVtkPolyData();
+    vtkPolyData* vpd = dst2->GetVtkPolyData();
     vpd->GetCellData()->RemoveArray("ActiveCells");
 
     return vpd;
@@ -340,70 +345,90 @@ vtkPolyData* sv4guiModelUtils::CreateLoftSurface(sv4guiContourGroup* contourGrou
 
 vtkPolyData* sv4guiModelUtils::CreateLoftSurface(std::vector<sv4guiContour*> contourSet, int numSamplingPts, svLoftingParam* param, int addCaps)
 {
-    int contourNumber=contourSet.size();
-    if (contourNumber < 2)
+    #define dbg_CreateLoftSurface
+    #ifdef dbg_CreateLoftSurface
+    std::cout << "########## sv4guiModelUtils::CreateLoftSurface ##########" << std::endl;
+    #endif
+
+    int contourNumber = contourSet.size();
+    if (contourNumber < 2) {
       return NULL;
+    }
 
-    if(param==NULL)
+    if (param == NULL) {
         return NULL;
-
-    param->numOutPtsAlongLength=param->samplePerSegment*contourNumber;
-    param->numPtsInLinearSampleAlongLength=param->linearMuliplier*param->numOutPtsAlongLength;
-
-    param->numSuperPts=0;
-    for(int i=0;i<contourNumber;i++)
-    {
-        int pointNunumber=contourSet[i]->GetContourPointNumber();
-        if(pointNunumber>param->numSuperPts)
-            param->numSuperPts=pointNunumber;
     }
 
-    if(param->numOutPtsInSegs>param->numSuperPts)
-        param->numSuperPts=param->numOutPtsInSegs;
+    #ifdef dbg_CreateLoftSurface
+    std::cout << "[CreateLoftSurface] contourNumber: " << contourNumber << std::endl;
+    std::cout << "[CreateLoftSurface] linearMuliplier: " << param->linearMuliplier << std::endl;
+    std::cout << "[CreateLoftSurface] numSamplingPts: " << numSamplingPts << std::endl;
+    std::cout << "[CreateLoftSurface] samplePerSegment: " << param->samplePerSegment << std::endl;
+    #endif
 
-    int newNumSamplingPts=param->numOutPtsInSegs;
+    param->numOutPtsAlongLength = param->samplePerSegment * contourNumber;
+    param->numPtsInLinearSampleAlongLength = param->linearMuliplier * param->numOutPtsAlongLength;
+    param->numSuperPts = 0;
 
-    if(numSamplingPts>3)
-    {
-        newNumSamplingPts=numSamplingPts;
-        if(numSamplingPts>param->numSuperPts)
-            param->numSuperPts=numSamplingPts;
+    // Determine the number of points to sample contours.
+    // 
+    for (int i = 0; i < contourNumber; i++) {
+        int pointNunumber = contourSet[i]->GetContourPointNumber();
+        if (pointNunumber > param->numSuperPts) {
+            param->numSuperPts = pointNunumber;
+        }
     }
 
+    if (param->numOutPtsInSegs > param->numSuperPts) {
+        param->numSuperPts = param->numOutPtsInSegs;
+    }
+
+    #ifdef dbg_CreateLoftSurface
+    std::cout << "[CreateLoftSurface] numSuperPts: " << param->numSuperPts << std::endl;
+    #endif
+
+    int newNumSamplingPts = param->numOutPtsInSegs;
+
+    if (numSamplingPts > 3) {
+        newNumSamplingPts = numSamplingPts;
+        if (numSamplingPts > param->numSuperPts) {
+            param->numSuperPts = numSamplingPts;
+        }
+    }
+
+    // Resample contour points.
+    //
     std::vector<cvPolyData*> superSampledContours;
-    for(int i=0;i<contourNumber;i++)
-    {
-        vtkPolyData* vtkpd=vtkPolyData::New();
 
+    for (int i = 0; i < contourNumber; i++) {
+        vtkPolyData* vtkpd = vtkPolyData::New();
         vtkpd->DeepCopy(contourSet[i]->CreateVtkPolyDataFromContour(false));
-        cvPolyData* cvpd=new cvPolyData(vtkpd);
+        cvPolyData* cvpd = new cvPolyData(vtkpd);
         vtkpd->Delete();
-        cvPolyData* cvpd2=sys_geom_sampleLoop(cvpd,param->numSuperPts);
-        if(cvpd2==NULL)
-        {
+        cvPolyData* cvpd2 = sys_geom_sampleLoop(cvpd, param->numSuperPts);
+
+        if (cvpd2 == NULL) {
             MITK_ERROR << "Supersampling error ";
             return NULL;
         }
         superSampledContours.push_back(cvpd2);
     }
 
+    // Align contours.
+    //
     std::vector<cvPolyData*> alignedContours;
-    for(int i=0;i<contourNumber;i++)
-    {
-        if(i==0)
-        {
+    for(int i=0;i<contourNumber;i++) {
+        if(i==0) {
             alignedContours.push_back(superSampledContours[0]);
-        }
-        else
-        {
+        } else {
             cvPolyData* cvpd3;
-            if(param->vecFlag==1)
+            if(param->vecFlag==1) {
                 cvpd3=sys_geom_Align(alignedContours[i-1],superSampledContours[i]);
-            else
+            } else {
                 cvpd3=sys_geom_AlignByDist(alignedContours[i-1],superSampledContours[i]);
+            }
 
-            if(cvpd3==NULL)
-            {
+            if (cvpd3==NULL) {
                 MITK_ERROR << "aligning error ";
                 // Clean up
                 for (int i=0; i<contourNumber; i++)
@@ -434,37 +459,47 @@ vtkPolyData* sv4guiModelUtils::CreateLoftSurface(std::vector<sv4guiContour*> con
     cvPolyData *dst;
     vtkPolyData* outpd=NULL;
 
-    if (param->method=="spline")
-    {
-      if ( sys_geom_loft_solid(sampledContours, contourNumber,param->useLinearSampleAlongLength,param->useFFT,
-                               param->numOutPtsAlongLength,newNumSamplingPts,
-                               param->numPtsInLinearSampleAlongLength,param->numModes,param->splineType,param->bias,param->tension,param->continuity,
-                               &dst )
-           != SV_OK )
-      {
-          MITK_ERROR << "poly manipulation error ";
-          outpd=NULL;
+    if (param->method=="spline") {
+      #ifdef dbg_CreateLoftSurface
+      std::cout << "[CreateLoftSurface] Loft with spline " << std::endl;
+      std::cout << "[CreateLoftSurface]   useLinearSampleAlongLength: " << param->useLinearSampleAlongLength << std::endl;
+      std::cout << "[CreateLoftSurface]   useFFT: " << param->useFFT << std::endl;
+      std::cout << "[CreateLoftSurface]   numOutPtsAlongLength: " << param->numOutPtsAlongLength << std::endl;
+      std::cout << "[CreateLoftSurface]   newNumSamplingPts: " << newNumSamplingPts << std::endl;
+      std::cout << "[CreateLoftSurface]   numPtsInLinearSampleAlongLength: " << param->numPtsInLinearSampleAlongLength<< std::endl;
+      std::cout << "[CreateLoftSurface]   splineType: " << param->splineType << std::endl;
+      std::cout << "[CreateLoftSurface]   bias: " << param->bias << std::endl;
+      std::cout << "[CreateLoftSurface]   tension: " << param->tension << std::endl;
+      std::cout << "[CreateLoftSurface]   continuity: " << param->continuity << std::endl;
+      #endif
+    
+      if (sys_geom_loft_solid(sampledContours, contourNumber, param->useLinearSampleAlongLength, param->useFFT,
+             param->numOutPtsAlongLength, newNumSamplingPts, param->numPtsInLinearSampleAlongLength, 
+             param->numModes, param->splineType, param->bias, param->tension, param->continuity, &dst) != SV_OK) {
+          outpd = NULL;
+      } else {
+          if (addCaps == 1) {
+              outpd = CreateOrientClosedPolySolidVessel(dst->GetVtkPolyData());
+          } else {
+              outpd = CreateOrientOpenPolySolidVessel(dst->GetVtkPolyData());
+          }
       }
-      else
-      {
 
-          if(addCaps==1)
-              outpd=CreateOrientClosedPolySolidVessel(dst->GetVtkPolyData());
-          else
-              outpd=CreateOrientOpenPolySolidVessel(dst->GetVtkPolyData());
-      }
-    }
-    else if (param->method=="nurbs")
-    {
+    // Loft using NURBS.
+    //
+    } else if (param->method=="nurbs") {
       // Degrees of surface
       int uDegree = param->uDegree;
       int vDegree = param->vDegree;
 
       // Override to maximum possible degree if too large a degree for given number of inputs!
-      if (uDegree >= contourNumber)
+      if (uDegree >= contourNumber) {
         uDegree = contourNumber-1;
-      if (vDegree >= newNumSamplingPts)
+      }
+
+      if (vDegree >= newNumSamplingPts) {
         vDegree = newNumSamplingPts-1;
+      }
 
       // Set to average knot span and chord length if just two inputs
       if (contourNumber == 2)
@@ -489,34 +524,35 @@ vtkPolyData* sv4guiModelUtils::CreateLoftSurface(std::vector<sv4guiContour*> con
       const char *vParametricSpanType = param->vParametricSpanType.c_str();
       vtkNew(vtkSVNURBSSurface, NURBSSurface);
 
-      if ( sys_geom_loft_solid_with_nurbs(sampledContours, contourNumber,
-                                          uDegree, vDegree, uSpacing,
-                                          vSpacing, uKnotSpanType,
-                                          vKnotSpanType,
-                                          uParametricSpanType,
-                                          vParametricSpanType,
-                                          NURBSSurface,
-                                          &dst )
-           != SV_OK )
-      {
+      #ifdef dbg_CreateLoftSurface
+      std::cout << "[CreateLoftSurface] Loft with nurbs " << std::endl;
+      std::cout << "[CreateLoftSurface]   uDegree: " << uDegree << std::endl;
+      std::cout << "[CreateLoftSurface]   vDegree: " << vDegree << std::endl;
+      std::cout << "[CreateLoftSurface]   uSpacing: " << uSpacing << std::endl;
+      std::cout << "[CreateLoftSurface]   vSpacing: " << vSpacing << std::endl;
+      std::cout << "[CreateLoftSurface]   uKnotSpanType: " << uKnotSpanType << std::endl;
+      std::cout << "[CreateLoftSurface]   vKnotSpanType: " << vKnotSpanType << std::endl;
+      std::cout << "[CreateLoftSurface]   uParametricSpanType: " << uParametricSpanType << std::endl;
+      std::cout << "[CreateLoftSurface]   vParametricSpanType: " << vParametricSpanType << std::endl;
+      #endif
+
+      if ( sys_geom_loft_solid_with_nurbs(sampledContours, contourNumber, uDegree, vDegree, uSpacing,
+         vSpacing, uKnotSpanType, vKnotSpanType, uParametricSpanType, vParametricSpanType,
+         NURBSSurface, &dst ) != SV_OK ) {
           MITK_ERROR << "poly manipulation error ";
           outpd=NULL;
-      }
-      else
-      {
-          if (PlyDtaUtils_CheckLoftSurface(dst->GetVtkPolyData()) != SV_OK)
-          {
+
+      } else {
+          if (PlyDtaUtils_CheckLoftSurface(dst->GetVtkPolyData()) != SV_OK) {
             MITK_ERROR << "Error lofting surface";
             outpd=NULL;
-          }
-          else
-          {
-            if(addCaps==1)
+          } else {
+            if(addCaps==1) {
                 outpd=CreateOrientClosedPolySolidVessel(dst->GetVtkPolyData());
-            else
+            } else {
                 outpd=CreateOrientOpenPolySolidVessel(dst->GetVtkPolyData());
+            }
           }
-
       }
     }
 

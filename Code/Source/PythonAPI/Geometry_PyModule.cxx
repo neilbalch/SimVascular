@@ -31,8 +31,6 @@
 
 // The functions defined here implement the SV Python API 'geometry' module. 
 //
-// The module name is 'geometry'. 
-//
 // There are no classes defined for this module. All module methods take  
 // vtkPolyData Python objects as arguments.
 //
@@ -151,12 +149,22 @@ GetGeometryObjects(PyUtilApiFunction& api, PyObject* objList)
 //--------------------
 //
 PyDoc_STRVAR(Geom_align_profile_doc,
-  "align_profile(kernel) \n\ 
+  "align_profile(reference, align, use_distance=True) \n\ 
    \n\
-   ??? Set the computational kernel used to segment image data.       \n\
+   ----------------------------------------------------------------------   \n\
+   Align a profile represented as a closed curve with a given reference     \n\
+   profile also represented as a closed curve.                              \n\
    \n\
-   Args:                                                          \n\
-     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+   The profile is aligned by reordering its points.                         \n\
+   \n\
+   Args: \n\
+     reference (vtkPolyData): The profile to align to.                      \n\
+     align (vtkPolyData): The profile to align to the reference.            \n\
+     use_distance (Optional[bool]): If True then align profile initial      \n\
+       points using the minium distance between points. If False then align \n\
+       profile initial points using the angle beteenn points.               \n\
+   \n\
+   Rerutns (vtkPolyData): The aligned profile.                              \n\
 ");
 
 static PyObject * 
@@ -173,7 +181,6 @@ Geom_align_profile(PyObject* self, PyObject* args, PyObject* kwargs)
       return api.argsError();
   }
   auto use_distance = PyObject_IsTrue(distArg);
-  //std::cout << "[Geom_align_profile] use_distance: " << use_distance << std::endl;
 
   // Get the vtkPolyData objects from the Python objects.
   //
@@ -199,7 +206,7 @@ Geom_align_profile(PyObject* self, PyObject* args, PyObject* kwargs)
   }
 
   if (result == nullptr) {
-      api.error("Error aligning profile operation.");
+      api.error("The aligning profile operation failed.");
       return nullptr;
   }
 
@@ -213,12 +220,14 @@ Geom_align_profile(PyObject* self, PyObject* args, PyObject* kwargs)
 PyDoc_STRVAR(Geom_average_point_doc,
   "average_point(polydata) \n\ 
    \n\
-   Calculate the average point for the points of a polydata object. \n\
+   ----------------------------------------------------------------------   \n\
+   Calculate the average point for the points of a VTK PolyData object.     \n\
    \n\
-   Arguments:                                                          \n\
-     polydata (vtkPolyData): A vtkPolyData object. \n\
+   Args: \n\
+     polydata (vtkPolyData): The vtkPolyData object to compute the average  \n\
+       point for.                                                           \n\
    \n\
-   Returns: [float, float, float]: The average point. \n\
+   Returns list([float, float, float]): The average point. \n\
 ");
 
 static PyObject * 
@@ -251,22 +260,23 @@ Geom_average_point(PyObject* self, PyObject* args)
 // Geom_classify_point 
 //---------------------
 //
-PyDoc_STRVAR(Geom_classify_point_doc,
-  "classify_point(polydata, point) \n\ 
+PyDoc_STRVAR(Geom_point_inside_doc,
+  "point_inside(polydata, point) \n\ 
    \n\
-   Classify a 3D point as being inside or outside of a solid. \n\
+   Determine if a 3D point is inside or outside of a solid.                 \n\
    \n\
-   Arguments:                                                          \n\
-     polydata (vtkPolyData): A vtkPolyData object. \n\
-     point ([float, float, float]): The 3D point to classify. \n\
+   Args: \n\
+     polydata (vtkPolyData): The vtkPolyData object representing a solid    \n\
+        as a closed surface \n\
+     point ([float, float, float]): The 3D point to classify.               \n\
    \n\
-   Returns: True if the point is inside the solid, False if it is outside. \n\
+   Returns True if the point is inside the solid, False if it is outside.  \n\
 ");
 
 static PyObject * 
-Geom_classify_point(PyObject* self, PyObject* args, PyObject* kwargs)
+Geom_point_inside(PyObject* self, PyObject* args, PyObject* kwargs)
 {
-  //std::cout << "========== Geom_classify_point ==========" << std::endl;
+  //std::cout << "========== Geom_point_inside ==========" << std::endl;
   auto api = PyUtilApiFunction("OO!", PyRunTimeErr, __func__);
   static char *keywords[] = {"polydata", "point", NULL};
   PyObject* pdObj;
@@ -306,15 +316,17 @@ Geom_classify_point(PyObject* self, PyObject* args, PyObject* kwargs)
 //-------------------------------
 //
 PyDoc_STRVAR(Geom_interpolate_closed_curve_doc,
-  "interpolate_closed_curve(polydata, number_of_samples) \n\ 
+  "interpolate_closed_curve(polydata, number_of_points) \n\ 
    \n\
-   Generate a list of 3D points linearly interpolated between the points of a closed 3D curve. \n\
+   Generate a list of 3D points linearly interpolated between the points    \n\
+   of a closed 3D curve.                                                    \n\
    \n\
-   Arguments:                                                          \n\
-     polydata (vtkPolyData): A vtkPolyData object. \n\
-     number_of_points (int): The number of points to generate. \n\
+   Args: \n\
+     polydata (vtkPolyData): The vtkPolyData object representing a closed   \n\
+        curve.                                                              \n\
+     number_of_points (int): The number of points to generate.              \n\
    \n\
-   Returns: list([float, float, float]): The list of interpolated points. \n\
+   Returns list([float, float, float]): The list of interpolated points.    \n\
 ");
 
 static PyObject * 
@@ -351,27 +363,102 @@ Geom_interpolate_closed_curve(PyObject* self, PyObject* args, PyObject* kwargs)
   return vtkPythonUtil::GetObjectFromPointer(result->GetVtkPolyData());
 }
 
-//-----------------
-// Geom_loft_solid 
-//-----------------
+//------------------
+// Geom_local_blend 
+//------------------
 //
-// [TODO:DaveP] We may need to add input curve resampling and alignment here
-// in order to get lofting to work.
+// [TODO:DaveP] I need to finish implementing this. 
 //
-PyDoc_STRVAR(Geom_loft_solid_doc,
-  "loft_solid(polydata_list, loft_options) \n\ 
+PyDoc_STRVAR(Geom_local_blend_doc,
+  "local_blend(kernel)                                    \n\ 
    \n\
-   Create a lofted surface from a list of polydata curves. \n\
+   ??? Set the computational kernel used to segment image data.       \n\
    \n\
    Args:                                                          \n\
      kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
 ");
 
 static PyObject * 
-Geom_loft_solid(PyObject* self, PyObject* args, PyObject* kwargs)
+Geom_local_blend(PyObject* self, PyObject* args)
 {
-  //std::cout << " " << std::endl;
-  //std::cout << "========== Geom_loft_solid ==========" << std::endl;
+  auto api = PyUtilApiFunction("ss|iiiiidss", PyRunTimeErr, __func__);
+  char *srcName;
+  char *dstName;
+  char *pointArrayName = 0;
+  char *cellArrayName = 0;
+  int numblenditers = 2;
+  int numsubblenditers = 2;
+  int numsubdivisioniters = 1;
+  int numcgsmoothiters = 3;
+  int numlapsmoothiters = 50;
+  double targetdecimation = 0.01;
+
+  if (!PyArg_ParseTuple(args, api.format, &srcName, &dstName, &numblenditers, &numsubdivisioniters, &numcgsmoothiters, 
+    &numlapsmoothiters, &targetdecimation, &pointArrayName, &cellArrayName)) {
+      return api.argsError();
+  }
+
+/*
+  auto src = GetRepositoryGeometry(api, srcName);
+  if (src == NULL) {
+      return nullptr;
+  }
+
+  if (RepositoryGeometryExists(api, dstName)) {
+      return nullptr;
+  }
+
+  cvPolyData *dst;
+  if (sys_geom_local_blend(src, &dst, numblenditers,numsubblenditers, numsubdivisioniters, numcgsmoothiters, numlapsmoothiters, targetdecimation,
+     pointArrayName,cellArrayName) != SV_OK ) {
+      api.error("Error in the local blend operation on geometry '" + std::string(srcName) + ".");
+      return nullptr;
+  }
+
+  if (!AddGeometryToRepository(api, dstName, dst)) {
+      return nullptr;
+  }
+
+  return Py_BuildValue("s",dst->GetName());
+*/
+}
+
+//-----------
+// Geom_loft 
+//-----------
+//
+// [TODO:DaveP] We may need to add input curve resampling and alignment here
+// in order to get lofting to work.
+//
+PyDoc_STRVAR(Geom_loft_doc,
+  "loft(polydata_list, loft_options) \n\ 
+   \n\
+   ----------------------------------------------------------------------   \n\
+   Create a lofted surface from a list of polydata curves.                  \n\
+   \n\
+   The loft method fits a surface through two or more profile curves that   \n\
+   define the surface shape. This is typically used to create a surface of  \n\ 
+   a vessel from a group of contours segmenting the vessel's lumen.         \n\
+   \n\
+   The surface is created using splines interpolating profile points along  \n\
+   the its length and linearly interpolation around its profile.            \n\
+   \n\
+   Args: \n\
+     polydata_list (list[vtkPolyData]): The list of vtkPolyData objects     \n\
+        representing the profile curves defining a surface.                 \n\
+     loft_options (sv.geometry.LoftOptions): The LoftOptions object         \n\
+        containing lofting parameter values.                                \n\
+   \n\
+   Returns (vtkPolyData): The vtkPolyData object of the lofted surface.     \n\
+");
+
+static PyObject * 
+Geom_loft(PyObject* self, PyObject* args, PyObject* kwargs)
+{
+  #ifdef dbg_Geom_loft
+  std::cout << " " << std::endl;
+  std::cout << "========== Geom_loft ==========" << std::endl;
+  #endif
 
   auto api = PyUtilApiFunction("O!O!", PyRunTimeErr, __func__);
   static char *keywords[] = {"polydata_list", "loft_options", NULL};
@@ -383,35 +470,58 @@ Geom_loft_solid(PyObject* self, PyObject* args, PyObject* kwargs)
       return api.argsError();
   }
 
-  // Extract loft option values from the loftOptions object.
-  //
-  int numOutPtsInSegs = LoftOptionsGetInt(loftOptsArg, LoftOptions::NUM_OUT_PTS_IN_SEGS);
-  int numOutPtsAlongLength = LoftOptionsGetInt(loftOptsArg, LoftOptions::NUM_OUT_PTS_ALONG_LENGTH);
-  int numLinearPtsAlongLength = LoftOptionsGetInt(loftOptsArg, LoftOptions::NUM_LINEAR_PTS_ALONG_LENGTH);
-  int numModes = LoftOptionsGetInt(loftOptsArg, LoftOptions::NUM_MODES);
-  int splineType = LoftOptionsGetInt(loftOptsArg, LoftOptions::SPLINE_TYPE);
-  int useFFT = LoftOptionsGetInt(loftOptsArg, LoftOptions::USE_FFT);
-  int useLinearSampleAlongLength = LoftOptionsGetInt(loftOptsArg, LoftOptions::USE_LINEAR_SAMPLE_ALONG_LENGTH);
-  double bias = LoftOptionsGetDouble(loftOptsArg, LoftOptions::BIAS);
-  double tension = LoftOptionsGetDouble(loftOptsArg, LoftOptions::TENSION);
-  double continuity = LoftOptionsGetDouble(loftOptsArg, LoftOptions::CONTINUITY);
-
-  std::cout << "[Geom_loft_solid] numOutPtsInSegs: " << numOutPtsInSegs << std::endl;
-  std::cout << "[Geom_loft_solid] numOutPtsAlongLength : " << numOutPtsAlongLength << std::endl;
-  std::cout << "[Geom_loft_solid] numModes: " << numModes << std::endl;
-  std::cout << "[Geom_loft_solid] splineType: " << splineType << std::endl;
-
-  std::cout << "[Geom_loft_solid] useLinearSampleAlongLength: " << useLinearSampleAlongLength << std::endl;
-  std::cout << "[Geom_loft_solid] useFFT: " << useFFT << std::endl;
-  std::cout << "[Geom_loft_solid] bias: " << bias << std::endl;
-  std::cout << "[Geom_loft_solid] tension: " << tension << std::endl;
-  std::cout << "[Geom_loft_solid] continuity: " << continuity << std::endl;
-
-  // Check the list of source polydata.
+  // Check the list of polydata curve profiles.
   auto cvPolyDataList = GetGeometryObjects(api, objListArg);
   if (cvPolyDataList.size() == 0) {
       return nullptr;
   }
+
+  if (cvPolyDataList.size() < 2) {
+      api.error("At least two profiles are needed for lofing.");
+      return nullptr;
+  }
+
+  // Check that the profiles have the same number of points.
+  int numProfilePoints = 0;
+  for (auto const& profile : cvPolyDataList) {
+      int numPoints = profile->GetVtkPolyData()->GetNumberOfPoints();
+      if (numProfilePoints == 0) { 
+          numProfilePoints = numPoints;
+      } else if (numPoints != numProfilePoints) { 
+          api.error("Profiles do not have the same number of points.");
+          return nullptr;
+      }
+  }
+
+  // Extract loft option values from the loftOptions object.
+  //
+  // Most of these are not used for now.
+  //
+  int numOutPtsInSegs = numProfilePoints; 
+  int numOutPtsAlongLength = LoftOptionsGetInt(loftOptsArg, LoftOptions::NUM_OUT_PTS_ALONG_LENGTH);
+  int numLinearPtsAlongLength = LoftOptionsGetInt(loftOptsArg, LoftOptions::NUM_LINEAR_PTS_ALONG_LENGTH);
+  int numModes = 0; /*LoftOptionsGetInt(loftOptsArg, LoftOptions::NUM_MODES); */
+  int splineType = 0; /*LoftOptionsGetInt(loftOptsArg, LoftOptions::SPLINE_TYPE); */
+  int useFFT = 0; /*LoftOptionsGetInt(loftOptsArg, LoftOptions::USE_FFT); */
+  int useLinearSampleAlongLength = LoftOptionsGetInt(loftOptsArg, LoftOptions::USE_LINEAR_SAMPLE_ALONG_LENGTH);
+  double bias = 0.0; /*LoftOptionsGetDouble(loftOptsArg, LoftOptions::BIAS); */
+  double tension = 0.0; /*LoftOptionsGetDouble(loftOptsArg, LoftOptions::TENSION); */
+  double continuity = 0.0; /*LoftOptionsGetDouble(loftOptsArg, LoftOptions::CONTINUITY); */
+
+  #ifdef dbg_Geom_loft
+  std::cout << "[Geom_loft] numProfilePoints:" << numProfilePoints << std::endl;
+  std::cout << "[Geom_loft] loftOptsArg: " << loftOptsArg << std::endl;
+  std::cout << "[Geom_loft] numOutPtsInSegs: " << numOutPtsInSegs << std::endl;
+  std::cout << "[Geom_loft] numOutPtsAlongLength : " << numOutPtsAlongLength << std::endl;
+  std::cout << "[Geom_loft] numModes: " << numModes << std::endl;
+  std::cout << "[Geom_loft] splineType: " << splineType << std::endl;
+
+  std::cout << "[Geom_loft] useLinearSampleAlongLength: " << useLinearSampleAlongLength << std::endl;
+  std::cout << "[Geom_loft] useFFT: " << useFFT << std::endl;
+  std::cout << "[Geom_loft] bias: " << bias << std::endl;
+  std::cout << "[Geom_loft] tension: " << tension << std::endl;
+  std::cout << "[Geom_loft] continuity: " << continuity << std::endl;
+  #endif
 
   // Create the lofted surface.
   //
@@ -422,10 +532,6 @@ Geom_loft_solid(PyObject* self, PyObject* args, PyObject* kwargs)
                                     numOutPtsInSegs, numLinearPtsAlongLength, numModes, splineType, bias, tension, continuity, 
                                     &result);
 
-  for (auto cvPolyData : cvPolyDataList) { 
-      delete cvPolyData;
-  }
-
   if (status != SV_OK) {
       delete result;
       api.error("Error performing the loft operation.");
@@ -435,26 +541,38 @@ Geom_loft_solid(PyObject* self, PyObject* args, PyObject* kwargs)
   return vtkPythonUtil::GetObjectFromPointer(result->GetVtkPolyData());
 }
 
-//-----------------------------
-// Geom_loft_solid_using_nurbs 
-//-----------------------------
+//-----------------
+// Geom_loft_nurbs
+//-----------------
 //
-PyDoc_STRVAR(Geom_loft_solid_using_nurbs_doc,
-  "loft_solid_using_nurbs(kernel) \n\ 
+PyDoc_STRVAR(Geom_loft_nurbs_doc,
+  "loft_nurbs(polydata_list, loft_options) \n\ 
    \n\
-   ??? Set the computational kernel used to segment image data.       \n\
+   Create a lofted NURBS surface from a list of polydata curves.            \n\
    \n\
-   Args:                                                          \n\
-     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
+   The loft method fits a surface through two or more profile curves that   \n\
+   define the surface shape. This is typically used to create a surface of  \n\ 
+   a vessel from a group of contours segmenting the vessel's lumen.         \n\
+   \n\
+   Args: \n\
+     polydata_list (list[vtkPolyData]): The list of vtkPolyData objects     \n\
+        representing the profile curves defining a surface.                 \n\
+     loft_options (sv.geometry.LoftNurbsOptions): The LoftNurbsOptions object \n\
+        containing lofting parameter values.                                \n\
+   \n\
+   Returns (vtkPolyData): The vtkPolyData object of the lofted surface.     \n\
 ");
 
 static PyObject *
-Geom_loft_solid_using_nurbs(PyObject* self, PyObject* args, PyObject* kwargs)
+Geom_loft_nurbs(PyObject* self, PyObject* args, PyObject* kwargs)
 {
-  //std::cout << " " << std::endl;
-  //std::cout << "========== Geom_loft_solid_using_nurbs ==========" << std::endl;
+  #define ndbg_Geom_loft_nurbs
+  #ifdef dbg_Geom_loft_nurbs
+  std::cout << " " << std::endl;
+  std::cout << "========== Geom_loft_nurbs ==========" << std::endl;
+  #endif
   auto api = PyUtilApiFunction("O!O!", PyRunTimeErr, __func__);
-  static char *keywords[] = {"polydata_list", "loft_nurbs_options", NULL};
+  static char *keywords[] = {"polydata_list", "loft_options", NULL};
   PyObject* objListArg;
   PyObject* loftOptsArg;
 
@@ -463,42 +581,76 @@ Geom_loft_solid_using_nurbs(PyObject* self, PyObject* args, PyObject* kwargs)
       return api.argsError();
   }
 
+  // Check the list of polydata curve profiles.
+  auto cvPolyDataList = GetGeometryObjects(api, objListArg);
+  int numProfiles = cvPolyDataList.size();
+  if (numProfiles == 0) {
+      return nullptr;
+  }
+
+  if (numProfiles < 2) {
+      api.error("At least two profiles are needed for lofing.");
+      return nullptr;
+  }
+
+  // Check that the profiles have the same number of points.
+  int numProfilePoints = 0;
+  for (auto const& profile : cvPolyDataList) {
+      int numPoints = profile->GetVtkPolyData()->GetNumberOfPoints();
+      if (numProfilePoints == 0) {
+          numProfilePoints = numPoints;
+      } else if (numPoints != numProfilePoints) {
+          api.error("Profiles do not have the same number of points.");
+          return nullptr;
+      }
+  }
+
   // Extract loft option values from the loftOptions object.
   //
   int uDegree = LoftNurbsOptionsGetInt(loftOptsArg, LoftNurbsOptions::U_DEGREE);
   int vDegree = LoftNurbsOptionsGetInt(loftOptsArg, LoftNurbsOptions::V_DEGREE);
-  double uSpacing = LoftNurbsOptionsGetDouble(loftOptsArg, LoftNurbsOptions::U_SPACING);
-  double vSpacing = LoftNurbsOptionsGetDouble(loftOptsArg, LoftNurbsOptions::V_SPACING);
+  double uSpacing = 1.0 / numProfiles;
+  double vSpacing = 1.0 / numProfilePoints;
   char* uKnotSpanType = LoftNurbsOptionsGetString(loftOptsArg, LoftNurbsOptions::U_KNOT_SPAN_TYPE);
   char* vKnotSpanType = LoftNurbsOptionsGetString(loftOptsArg, LoftNurbsOptions::V_KNOT_SPAN_TYPE);
   char* uParametricSpanType = LoftNurbsOptionsGetString(loftOptsArg, LoftNurbsOptions::U_PARAMETRIC_SPAN_TYPE);
   char* vParametricSpanType = LoftNurbsOptionsGetString(loftOptsArg, LoftNurbsOptions::V_PARAMETRIC_SPAN_TYPE);
 
-  std::cout << "[Geom_loft_solid_using_nurbs] uDegree: " << uDegree << std::endl;
-  std::cout << "[Geom_loft_solid_using_nurbs] vDegree: " << vDegree << std::endl;
-  std::cout << "[Geom_loft_solid_using_nurbs] uSpacing: " << uSpacing << std::endl;
-  std::cout << "[Geom_loft_solid_using_nurbs] vSpacing: " << vSpacing << std::endl;
-  std::cout << "[Geom_loft_solid_using_nurbs] uKnotSpanType: " << uKnotSpanType << std::endl;
-  std::cout << "[Geom_loft_solid_using_nurbs] vKnotSpanType: " << vKnotSpanType << std::endl;
-  std::cout << "[Geom_loft_solid_using_nurbs] uParametricSpanType: " << uParametricSpanType << std::endl;
-  std::cout << "[Geom_loft_solid_using_nurbs] vParametricSpanType: " << vParametricSpanType << std::endl;
+  #ifdef dbg_Geom_loft_nurbs
+  std::cout << "[Geom_loft_nurbs] uDegree: " << uDegree << std::endl;
+  std::cout << "[Geom_loft_nurbs] vDegree: " << vDegree << std::endl;
+  std::cout << "[Geom_loft_nurbs] uSpacing: " << uSpacing << std::endl;
+  std::cout << "[Geom_loft_nurbs] vSpacing: " << vSpacing << std::endl;
+  std::cout << "[Geom_loft_nurbs] uKnotSpanType: " << uKnotSpanType << std::endl;
+  std::cout << "[Geom_loft_nurbs] vKnotSpanType: " << vKnotSpanType << std::endl;
+  std::cout << "[Geom_loft_nurbs] uParametricSpanType: " << uParametricSpanType << std::endl;
+  std::cout << "[Geom_loft_nurbs] vParametricSpanType: " << vParametricSpanType << std::endl;
+  #endif
 
-  // Check the list of source polydata.
-  auto cvPolyDataList = GetGeometryObjects(api, objListArg);
-  if (cvPolyDataList.size() == 0) {
-      return nullptr;
+  // Reset uDegree and vDegree if they are larger 
+  // than the number of profile curves. 
+  //
+  if (uDegree >= numProfiles) {
+      uDegree = numProfiles - 1;
   }
-  auto numSrcs = cvPolyDataList.size();
+ 
+  if (vDegree >= numProfilePoints) {
+      vDegree = numProfilePoints - 1;
+  }
 
+  // Create the lofted surface.
+  //
   cvPolyData *result;
   vtkSmartPointer<vtkSVNURBSSurface> NURBSSurface = vtkSmartPointer<vtkSVNURBSSurface>::New();
-
-  auto status = sys_geom_loft_solid_with_nurbs(cvPolyDataList.data(), numSrcs, uDegree, vDegree, uSpacing, vSpacing, 
+  auto status = sys_geom_loft_solid_with_nurbs(cvPolyDataList.data(), numProfiles, uDegree, vDegree, uSpacing, vSpacing, 
           uKnotSpanType, vKnotSpanType, uParametricSpanType, vParametricSpanType, NURBSSurface, &result);
 
+  // [TODO:DaveP] Is this correct?
+  /*
   for (auto cvPolyData : cvPolyDataList) { 
       delete cvPolyData;
   }
+  */
 
   if (status != SV_OK) {
       delete result;
@@ -509,10 +661,14 @@ Geom_loft_solid_using_nurbs(PyObject* self, PyObject* args, PyObject* kwargs)
   return vtkPythonUtil::GetObjectFromPointer(result->GetVtkPolyData());
 }
 
-// ===================================================================================
-//                          O l d    M e t h o d s 
-// ===================================================================================
-
+//===================================================================================
+//                                  O l d    M e t h o d s 
+//===================================================================================
+//
+// [TODO:DaveP] There were a lot of methods originally defined for this module.
+// However, it is not clear how useful these methods might be. It is also not
+// clear what they even do.
+//
 #ifdef python_geom_module_use_old_methods
 
 //-------------
@@ -1432,63 +1588,6 @@ Geom_local_loop_subdivision(PyObject* self, PyObject* args)
   return Py_BuildValue("s",dst->GetName());
 }
 
-//------------------
-// Geom_local_blend 
-//------------------
-//
-// [TODO:DaveP] this could use named arguments.
-//
-PyDoc_STRVAR(Geom_local_blend_doc,
-  "local_blend(kernel)                                    \n\ 
-   \n\
-   ??? Set the computational kernel used to segment image data.       \n\
-   \n\
-   Args:                                                          \n\
-     kernel (str): Name of the contouring kernel. Valid names are: Circle, Ellipse, LevelSet, Polygon, SplinePolygon or Threshold. \n\
-");
-
-static PyObject * 
-Geom_local_blend(PyObject* self, PyObject* args)
-{
-  auto api = PyUtilApiFunction("ss|iiiiidss", PyRunTimeErr, __func__);
-  char *srcName;
-  char *dstName;
-  char *pointArrayName = 0;
-  char *cellArrayName = 0;
-  int numblenditers = 2;
-  int numsubblenditers = 2;
-  int numsubdivisioniters = 1;
-  int numcgsmoothiters = 3;
-  int numlapsmoothiters = 50;
-  double targetdecimation = 0.01;
-
-  if (!PyArg_ParseTuple(args, api.format, &srcName, &dstName, &numblenditers, &numsubdivisioniters, &numcgsmoothiters, 
-    &numlapsmoothiters, &targetdecimation, &pointArrayName, &cellArrayName)) {
-      return api.argsError();
-  }
-
-  auto src = GetRepositoryGeometry(api, srcName);
-  if (src == NULL) {
-      return nullptr;
-  }
-
-  if (RepositoryGeometryExists(api, dstName)) {
-      return nullptr;
-  }
-
-  cvPolyData *dst;
-  if (sys_geom_local_blend(src, &dst, numblenditers,numsubblenditers, numsubdivisioniters, numcgsmoothiters, numlapsmoothiters, targetdecimation,
-     pointArrayName,cellArrayName) != SV_OK ) {
-      api.error("Error in the local blend operation on geometry '" + std::string(srcName) + ".");
-      return nullptr;
-  }
-
-  if (!AddGeometryToRepository(api, dstName, dst)) {
-      return nullptr;
-  }
-
-  return Py_BuildValue("s",dst->GetName());
-}
 
 //-----------------
 // Geom_all_union 
@@ -3726,10 +3825,11 @@ static char* GEOMETRY_EXCEPTION = "geometry.GeometryError";
 static char* GEOMETRY_EXCEPTION_OBJECT = "GeometryError";
 
 PyDoc_STRVAR(GeometryModule_doc, 
-  "SimVascular geometry module functions. \n\
+  "SimVascular geometry module. \n\
    \n\
-   All functions use vtkPolyData object as arguments. vtkPolyData objects is a dataset that \n\
-   represents vertices, lines, polygons, and triangle strips. \n\
+   ----------------------------------------------------------------------     \n\
+   The geometry module provides functions for performing geometric operations \n\ 
+   on vtkPolyData objects used to represents vertices, lines and polygons.   \n\
 ");
 
 //---------------
@@ -3743,13 +3843,17 @@ PyMethodDef PyGeomMethods[] =
 
   {"average_point", (PyCFunction)Geom_average_point, METH_VARARGS, Geom_average_point_doc},
 
-  {"classify_point", (PyCFunction)Geom_classify_point, METH_VARARGS|METH_KEYWORDS, Geom_classify_point_doc},
+  {"point_inside", (PyCFunction)Geom_point_inside, METH_VARARGS|METH_KEYWORDS, Geom_point_inside_doc},
 
   {"interpolate_closed_curve", (PyCFunction)Geom_interpolate_closed_curve, METH_VARARGS|METH_KEYWORDS, Geom_interpolate_closed_curve_doc},
 
-  {"loft_solid", (PyCFunction)Geom_loft_solid, METH_VARARGS|METH_KEYWORDS, Geom_loft_solid_doc},
 
-  {"loft_solid_using_nurbs", (PyCFunction)Geom_loft_solid_using_nurbs, METH_VARARGS|METH_KEYWORDS, Geom_loft_solid_using_nurbs_doc},
+  // [TODO:DaveP] I need to finish implementing this. 
+  // {"local_blend", Geom_local_blend, METH_VARARGS, Geom_local_blend_doc},
+
+  {"loft", (PyCFunction)Geom_loft, METH_VARARGS|METH_KEYWORDS, Geom_loft_doc},
+
+  {"loft_nurbs", (PyCFunction)Geom_loft_nurbs, METH_VARARGS|METH_KEYWORDS, Geom_loft_nurbs_doc},
 
 
 #ifdef python_geom_module_use_old_methods
@@ -3798,8 +3902,6 @@ PyMethodDef PyGeomMethods[] =
   {"intersect", Geom_intersect, METH_VARARGS, Geom_intersect_doc},
 
   {"intersect_with_line", Geom_intersect_with_line, METH_VARARGS, Geom_intersect_with_line_doc},
-
-  {"local_blend", Geom_local_blend, METH_VARARGS, Geom_local_blend_doc},
 
   {"local_butterfly_subdivision", Geom_local_butterfly_subdivision, METH_VARARGS, Geom_local_butterfly_subdivision_doc},
 

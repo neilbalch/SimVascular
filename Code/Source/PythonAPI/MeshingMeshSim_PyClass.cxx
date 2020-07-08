@@ -234,7 +234,7 @@ static char* MESHING_MESHSIM_CLASS = "MeshSim";
 static char* MESHING_MESHSIM_MODULE_CLASS = "meshing.MeshSim";
 
 PyDoc_STRVAR(PyMeshingMeshSim_doc, 
-   "SV MeshSim mesher class. \n\
+   "SimVascular MeshSim mesher class. \n\
    \n\
    The MeshSim class provides an interface for creating tetrahedral finite  \n\
    element meshes from Parasolid solid models using the commercial MeshSim  \n\

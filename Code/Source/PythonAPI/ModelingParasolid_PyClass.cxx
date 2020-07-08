@@ -108,7 +108,7 @@ static char* MODELING_PARAMODELING_CLASS = "Parasolid";
 static char* MODELING_PARAMODELING_MODULE_CLASS = "modeling.Parasolid";
 
 PyDoc_STRVAR(PyParasolidSolidClass_doc, 
-  "SV Parasolid class. \n\
+  "SimVascular Parasolid class. \n\
    \n\
    The Parasolid class provides an interface to SV Parasolid modeler        \n\
    functionality. \n\

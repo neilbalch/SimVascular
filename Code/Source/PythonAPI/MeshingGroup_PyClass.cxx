@@ -344,7 +344,7 @@ static char* MESHING_GROUP_MODULE_CLASS = "meshing.Group";
 //   \n\----------------------------------------------------------------------  \n\
 
 PyDoc_STRVAR(MeshingGroup_doc,
-  "SV meshing Group class. \n\
+  "SimVascular meshing Group class. \n\
    \n\
    Group(file_name) \n\
    \n\
