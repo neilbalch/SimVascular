@@ -66,8 +66,13 @@ std::string ContourPolygon::GetClassName()
     return "ContourPolygon";
 }
 
-
-std::vector<std::array<double,3> > CreateInterpolationPoints(std::array<double,3>  pt1, std::array<double,3>  pt2, int interNumber)
+//---------------------------
+// CreateInterpolationPoints
+//---------------------------
+// Linear interpolate between two points.
+//
+std::vector<std::array<double,3> > 
+CreateInterpolationPoints(std::array<double,3>  pt1, std::array<double,3>  pt2, int interNumber)
 {
     std::vector<std::array<double,3> > points;
 
@@ -89,54 +94,89 @@ std::vector<std::array<double,3> > CreateInterpolationPoints(std::array<double,3
     return points;
 }
 
+//-----------------
+// SetControlPoint
+//-----------------
+// This method is used to 
+//
+//   1) Set a control point at the given location in the list of control points.
+//
+//   2) For index=0 (the poylgon center) then translate all control points.
+//
+//   3) For index=1 then scale all control points about its center.
+//
 void ContourPolygon::SetControlPoint(int index, std::array<double,3>  point)
 {
-    double tmp[3], projPt[3];
-    for (int i = 0; i<3; i++)
-        tmp[i] = point[i];
-    m_vtkPlaneGeometry->ProjectPoint(tmp, projPt);
-    if (index>=m_ControlPoints.size())
-    {
+    // Check index.
+    //
+    if (index >= m_ControlPoints.size()) {
         fprintf(stderr, "Unable to set control point\n");
         return;
     }
-    if(index==-1) index=m_ControlPoints.size()-1;
 
-    if(index<0||index>m_ControlPoints.size()-1) return;
+    if (index == -1) {
+        index = m_ControlPoints.size() - 1;
+    }
 
-    if(index==0)
-    {
+    // [TODO:DaveP] Great, let's just return without an error condition or message.
+    //
+    if ((index < 0) || (index > m_ControlPoints.size() - 1)) {
+         return;
+    }
+
+    // Project the point onto the path plane.
+    //
+    double tmp[3]; 
+    for (int i = 0; i < 3; i++) {
+        tmp[i] = point[i];
+    }
+
+    double  projPt[3];
+    m_vtkPlaneGeometry->ProjectPoint(tmp, projPt);
+
+    // Modify the polygon center and translate all control points.
+    //
+    if (index == 0) {
         std::array<double,3> dirVec;
-        for (int i = 0; i<3; i++)
-            dirVec[i]=projPt[i]-m_ControlPoints[index][i];
+        for (int i = 0; i < 3; i++) {
+            dirVec[i] = projPt[i] - m_ControlPoints[0][i];
+        }
+        // Translate all control points.
         Shift(dirVec);
-    }
-    else if(index==1)
-    {
+
+    // Scale the polygon control points about its center.
+    //
+    } else if (index == 1) {
         Scale(m_ControlPoints[0], m_ControlPoints[index], std::array<double,3>{projPt[0],projPt[1],projPt[2]});
-    }
-    else if(index<m_ControlPoints.size())
-    {
-        m_ControlPoints[index]=std::array<double,3>{projPt[0],projPt[1],projPt[2]};
+
+    // Replace the control point.
+    //
+    } else if (index < m_ControlPoints.size()) {
+        m_ControlPoints[index] = std::array<double,3>{projPt[0],projPt[1],projPt[2]};
         ControlPointsChanged();
     }
 }
 
+//---------------------
+// CreateContourPoints
+//---------------------
+// Create contour points by linearly interpolating betweent 
+// control points.
+//
+// Modified: m_ContourPoints
+//
 void ContourPolygon::CreateContourPoints()
 {
-    //exclude the first two points
-    
-    if (m_ContourPoints.size()!=0)
-        m_ContourPoints.clear();
-
-    int controlNumber=GetControlPointNumber();
-
-    if(controlNumber<=2)
-    {
+    int controlNumber = GetControlPointNumber();
+    if (controlNumber <= 2) {
         return;
     }
-    else if(controlNumber==3)
-    {
+    
+    if (m_ContourPoints.size() != 0) {
+        m_ContourPoints.clear();
+    }
+
+    if (controlNumber == 3) {
         m_ContourPoints.push_back(GetControlPoint(2));
         return;
     }
@@ -144,63 +184,80 @@ void ContourPolygon::CreateContourPoints()
     std::vector<std::array<double,3> > tempControlPoints=m_ControlPoints;
     tempControlPoints.push_back(m_ControlPoints[2]);
 
+    // Determine the number of interpolation points.
+    //
     int interNumber;
 
-    switch(m_SubdivisionType)
-    {
-    case CONSTANT_TOTAL_NUMBER:
-        if(m_Closed)
-            interNumber=std::ceil(m_SubdivisionNumber*1.0/(controlNumber-2));
-        else
-            interNumber=std::ceil((m_SubdivisionNumber-1.0)/(controlNumber-3));
+    switch (m_SubdivisionType) {
+        case CONSTANT_TOTAL_NUMBER:
+            if (m_Closed) {
+                interNumber=std::ceil(m_SubdivisionNumber*1.0/(controlNumber-2));
+            } else {
+                interNumber=std::ceil((m_SubdivisionNumber-1.0)/(controlNumber-3));
+            }
         break;
-    case CONSTANT_SUBDIVISION_NUMBER:
+
+        case CONSTANT_SUBDIVISION_NUMBER:
             interNumber=m_SubdivisionNumber;
         break;
-    default:
+
+        default:
         break;
     }
 
-    int controlBeginIndex=2;
-    for(int i=controlBeginIndex;i<controlNumber;i++)
-    {
-        std::array<double,3>  pt1,pt2;
+    // Interpolate the control points.
+    //
+    int controlBeginIndex = 2;
+
+    for (int i = controlBeginIndex; i < controlNumber; i++) {
+        std::array<double,3> pt1, pt2;
         pt1=tempControlPoints[i];
         pt2=tempControlPoints[i+1];
-
         m_ContourPoints.push_back(pt1);
 
-        if(i==controlNumber-1 &&!m_Closed) break;
+        if ((i == controlNumber-1) && !m_Closed) {
+            break;
+        }
 
-        if(m_SubdivisionType==CONSTANT_SPACING)
-        {
+        if (m_SubdivisionType == CONSTANT_SPACING) {
             double dist = sqrt(pow(pt2[0]-pt1[0],2)+pow(pt2[1]-pt1[1],2)+pow(pt2[2]-pt1[2],2));
             interNumber=std::ceil(dist/m_SubdivisionSpacing);
         }
 
         std::vector<std::array<double,3> > interPoints=CreateInterpolationPoints(pt1,pt2,interNumber);
-
-         m_ContourPoints.insert(m_ContourPoints.end(),interPoints.begin(),interPoints.end());
+        m_ContourPoints.insert(m_ContourPoints.end(),interPoints.begin(),interPoints.end());
     }
-
 }
 
-int ContourPolygon::SearchControlPointByContourPoint( int contourPointIndex )
+//----------------------------------
+// SearchControlPointByContourPoint
+//----------------------------------
+// Find the control point that equals a contour point given
+// as a starting location into the list of contour points.
+//
+// [TODO:DaveP] This function is totally ridiculous.
+//
+int ContourPolygon::SearchControlPointByContourPoint(int contourPointIndex)
 {
-    if(contourPointIndex<-1 || contourPointIndex>=m_ContourPoints.size()) return -2;
+    // [TODO:DaveP] What could -2 possibly mean? 
+    //
+    if ((contourPointIndex < -1) || (contourPointIndex >= m_ContourPoints.size())) {
+        return -2;
+    }
 
-    if(contourPointIndex==-1) return m_ControlPoints.size();
+    if (contourPointIndex == -1) {
+        return m_ControlPoints.size();
+    }
 
-    int controlBeginIndex=2;//exclude the first two points
+    int controlBeginIndex = 2;
 
-    for(int i=contourPointIndex;i<m_ContourPoints.size();i++)
-    {
-        for(int j=controlBeginIndex;j<m_ControlPoints.size();j++)
-        {
-            if(m_ContourPoints[i][0]==m_ControlPoints[j][0]
-                    &&m_ContourPoints[i][1]==m_ControlPoints[j][1]
-                    &&m_ContourPoints[i][2]==m_ControlPoints[j][2])
-            {
+    for (int i = contourPointIndex; i < m_ContourPoints.size(); i++) {
+        auto x =  m_ContourPoints[i][0];
+        auto y =  m_ContourPoints[i][1];
+        auto z =  m_ContourPoints[i][2];
+
+        for (int j = controlBeginIndex; j < m_ControlPoints.size(); j++) {
+            if ((x == m_ControlPoints[j][0]) && (y == m_ControlPoints[j][1]) && (z == m_ControlPoints[j][2])) {
                 return j;
             }
         }

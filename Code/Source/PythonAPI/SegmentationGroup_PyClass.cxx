@@ -52,19 +52,19 @@ static PyObject * CreatePySegmentationGroup(sv4guiContourGroup::Pointer contourG
 //          U t i l i t y  F u n c t i o n s        //
 //////////////////////////////////////////////////////
 
-//-------------------
+//------------------------
 // SegmentationGroup_read
-//-------------------
-// Read in an SV .pth file and create a ContourGroup object
+//------------------------
+// Read in an SV .ctgr file and create a ContourGroup object
 // from its contents.
 //
 static sv4guiContourGroup::Pointer 
 SegmentationGroup_read(char* fileName)
 {
 
-  //std::cout << "========== SegmentationGroup_read ==========" << std::endl;
+  std::cout << "========== SegmentationGroup_read ==========" << std::endl;
   auto api = PyUtilApiFunction("", PyRunTimeErr, __func__);
-  //std::cout << "[SegmentationGroup_read] fileName: " << fileName << std::endl;
+  std::cout << "[SegmentationGroup_read] fileName: " << fileName << std::endl;
   sv4guiContourGroup::Pointer group;
 
   try {
@@ -74,10 +74,10 @@ SegmentationGroup_read(char* fileName)
       return nullptr;
   }
 
-  //std::cout << "[SegmentationGroup_read] File read and group returned." << std::endl;
+  std::cout << "[SegmentationGroup_read] File read and group returned." << std::endl;
   auto contourGroup = dynamic_cast<sv4guiContourGroup*>(group.GetPointer());
   int numContours = contourGroup->GetSize();
-  //std::cout << "[SegmentationGroup_read] Number of contours: " << numContours << std::endl;
+  std::cout << "[SegmentationGroup_read] Number of contours: " << numContours << std::endl;
 
   return group;
 }
@@ -135,16 +135,19 @@ SegmentationGroup_number_of_segmentations(PySegmentationGroup* self, PyObject* a
   return Py_BuildValue("i", numContours); 
 }
 
-//--------------------------
+//------------------------------------
 // SegmentationGroup_get_segmentation 
-//--------------------------
+//------------------------------------
+//
 PyDoc_STRVAR(SegmentationGroup_get_segmentation_doc,
-  "get_segmentation(name) \n\ 
+  "get_segmentation(time) \n\ 
    \n\
-   Store the polydata for the named contour into the repository. \n\
+   Get the segmentation for a given time. \n\
    \n\
    Args: \n\
-     name (str): \n\
+     time (int): The time to get the segmentation for. \n\
+   \n\
+   Returns (sv.segmentation.Segmentation object): The segmentation object for the given time.\n\
 ");
 
 static PyObject * 
@@ -192,9 +195,9 @@ SegmentationGroup_get_segmentation(PySegmentationGroup* self, PyObject* args)
   return PyCreateSegmentation(contour);
 }
 
-//-----------------
+//-------------------------
 // SegmentationGroup_write
-//-----------------
+//-------------------------
 //
 PyDoc_STRVAR(SegmentationGroup_write_doc,
   "write(file_name) \n\ 
@@ -275,9 +278,9 @@ static PyTypeObject PySegmentationGroupType = {
   sizeof(PySegmentationGroup)
 };
 
-//------------------
+//--------------------------
 // PySegmentationGroup_init
-//------------------
+//--------------------------
 // This is the __init__() method for the contour.Group class. 
 //
 // This function is used to initialize an object after it is created.

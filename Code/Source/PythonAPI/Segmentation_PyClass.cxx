@@ -787,7 +787,9 @@ PySegmentationNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
 static void
 PySegmentationDealloc(PySegmentation* self)
 {
-  //std::cout << "[PySegmentationDealloc] **** Free PySegmentation ****  " << self->id << std::endl;
+  std::cout << "[PySegmentationDealloc] " << std::endl;
+  std::cout << "[PySegmentationDealloc] *********  F r e e   P y S e g m e n t a t i o n  *********  " << self->id << std::endl;
+  std::cout << "[PySegmentationDealloc] " << std::endl;
   //delete self->contour;
   Py_TYPE(self)->tp_free(self);
 }

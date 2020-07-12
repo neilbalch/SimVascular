@@ -34,6 +34,33 @@
 // A Python exception sv.segmentation.SegmentationError is defined for this module. 
 // The exception can be used in a Python 'try' statement with an 'except' clause.
 //
+// SV uses sv4guiContour and sv3::Contour classes to represent segmentation
+// data. sv4guiContour objects are created when reading in segmentation
+// groups from a .ctgr file. 
+//
+// The sv4guiContour inheritance looks like 
+//
+//   sv4guiContour : public sv3::Contour
+//     sv4guiContourCircle : public sv4guiContour
+//     sv4guiContourEllipse : public sv4guiContour
+//     sv4guiContourPolygon : public sv4guiContour
+//       sv4guiContourSplinePolygon : public sv4guiContourPolygon
+//       sv4guiContourTensionPolygon : public sv4guiContourPolygon
+//
+// The sv3::Contour inheritance looks like
+//
+//   sv3::Contour : public cvRepositoryData
+//     sv3::circleContour : public sv3::Contour
+//     sv3::thresholdContour : public sv3::Contour
+//     sv3::levelSetContour : public sv3::Contour
+//     sv3::ContourPolygon : public sv3::Contour
+//       sv3::ContourSplinePolygon : public sv3::ContourPolygon
+//
+// Thus sv4guiContourCircle does not inherit from sv3::circleContour. 
+//
+// The Python API uses only the sv3::Contour class because it is closer
+// to the segmentation parameters and geometry.
+//
 #include "SimVascular.h"
 #include "SimVascular_python.h"
 
@@ -77,11 +104,30 @@ static PyObject * PyRunTimeErr;
 // Prototypes for creating Python segmentation objects. 
 static PySegmentation* PyCreateSegmentationType();
 static PyObject * PyCreateSegmentation(cKernelType contourType); 
-static PyObject * PyCreateSegmentation(sv3::Contour* contour);
+static PyObject * PyCreateSegmentation(sv4guiContour* contour);
+//static PyObject * PyCreateSegmentation(sv3::Contour* contour);
 
 // Include implementations for the 'SegmentationMethod' and 'Segmentation' classes.
 #include "SegmentationMethod_PyClass.cxx"
 #include "Segmentation_PyClass.cxx"
+
+//////////////////////////////////////////////////////
+//        U t i l i t y     F u n c t i o n s       //
+//////////////////////////////////////////////////////
+
+//----------------------------------
+// PySegmentationCopySv4ContourData
+//----------------------------------
+// Copy data from a sv4guiContour object to a sv3::Contour
+// object.
+//
+// This is needed when reading in a contour group which creates
+// sv4guiContour objects not sv3::Contour objects.
+//
+void PySegmentationCopySv4ContourData(sv4guiContour* sv4Contour, sv3::Contour* contour)
+{
+  sv4Contour->CopyContourData(contour);
+}
 
 //////////////////////////////////////////////////////
 //          M o d u l e  M e t h o d s              //
@@ -171,6 +217,7 @@ static PyMethodDef PySegmentationModuleMethods[] =
 
 // Include derived Segmentation classes.
 #include "SegmentationCircle_PyClass.cxx"
+#include "SegmentationContour_PyClass.cxx"
 #include "SegmentationLevelSet_PyClass.cxx"
 #include "SegmentationPolygon_PyClass.cxx"
 #include "SegmentationSplinePolygon_PyClass.cxx"
@@ -187,6 +234,7 @@ static PyMethodDef PySegmentationModuleMethods[] =
 using PySegmentationCtorMapType = std::map<cKernelType, std::function<PyObject*()>>;
 PySegmentationCtorMapType PySegmentationCtorMap = {
   {cKernelType::cKERNEL_CIRCLE,        []()->PyObject* {return PyObject_CallObject((PyObject*)&PyCircleSegmentationType, NULL);}},
+  {cKernelType::cKERNEL_CONTOUR,       []()->PyObject* {return PyObject_CallObject((PyObject*)&PyContourSegmentationType, NULL);}},
   {cKernelType::cKERNEL_ELLIPSE,       []()->PyObject* {return PyObject_CallObject((PyObject*)&PyCircleSegmentationType, NULL);}},
   {cKernelType::cKERNEL_LEVELSET,      []()->PyObject* {return PyObject_CallObject((PyObject*)&PyLevelSetSegmentationType, NULL);}},
   {cKernelType::cKERNEL_POLYGON,       []()->PyObject* {return PyObject_CallObject((PyObject*)&PyPolygonSegmentationType, NULL);}},
@@ -214,13 +262,18 @@ PyCreateSegmentation(cKernelType contourType)
       return nullptr; 
   }
 
+  std::cout << "[PyCreateSegmentation(cKernelType)] Done. " << std::endl;
   return contourObj;
 }
 
 //----------------------
 // PyCreateSegmentation
 //----------------------
-// Create a Python Segmentation object for the given sv3::Contour object.
+// Create a Python Segmentation object for the given sv4guiContour object.
+//
+// sv4guiContour objects are created when a segmentation group is read 
+// in from an SV .ctgr file. However, the API uses only sv3::Contour
+// objects so we need to create sv3::Contour objects from sv4guiContour objects.
 //
 // [TODO:DaveP] The concept of contour type and kernel type is
 // a bit muddled. Contour type is stored as a string in sv3::Contour.
@@ -228,7 +281,7 @@ PyCreateSegmentation(cKernelType contourType)
 //   Contour types: Circle, Ellipse, Polygon, SplinePolygon, TensionPolygon and Contour
 //
 static PyObject *
-PyCreateSegmentation(sv3::Contour* contour)
+PyCreateSegmentation(sv4guiContour* contour)
 {
   std::cout << std::endl;
   std::cout << "[PyCreateSegmentation(contour)] ========== PyCreateSegmentation (contour) ==========" << std::endl;
@@ -238,24 +291,16 @@ PyCreateSegmentation(sv3::Contour* contour)
   std::cout << "[PyCreateSegmentation(contour)] type: " << ctype << std::endl;
   std::cout << "[PyCreateSegmentation(contour)] kernel: " << kernel << std::endl;
   std::cout << "[PyCreateSegmentation(contour)] contour: " << contour << std::endl;
-  std::cout << "[PyCreateSegmentation(contour)] cast contour to circleContour: " << dynamic_cast<sv3::circleContour*>(contour) << std::endl;
-  std::cout << "[PyCreateSegmentation(contour)] cast contour to Contour: " << dynamic_cast<sv3::Contour*>(contour) << std::endl;
-  std::cout << "[PyCreateSegmentation(contour)] cast contour to sv4guiContourCircle: " << dynamic_cast<sv4guiContourCircle*>(contour) << std::endl;
 
-  if (ctype == "Contour") { 
-      contourObj = PyObject_CallObject((PyObject*)&PySegmentationType, NULL);
-  } else {
-      contourObj = PyCreateSegmentation(kernel);
-  }
+  // Create a sv.segmentation.Segmentation object.
+  //
+  contourObj = PyCreateSegmentation(kernel);
+  std::cout << "[PyCreateSegmentation(contour)] contourObj: " << contourObj << std::endl;
 
-  // Replace the PySegmentation->contour with 'contour'.
+  // Add data from the sv4guiContour to the sv3::contour object.
   //
   auto pyContour = (PySegmentation*)contourObj;
-  std::cout << "[PyCreateSegmentation(contour)] pyContour->contour: " << pyContour->contour << std::endl;
-  std::cout << "[PyCreateSegmentation(contour)] cast pyContour->contour: " << dynamic_cast<sv3::circleContour*>(pyContour->contour) << std::endl;
-
-  delete pyContour->contour;
-  pyContour->contour = contour;
+  pyContour->CopySv4ContourData(pyContour->contour, contour);
   std::cout << "[PyCreateSegmentation(contour)] Done. " << std::endl;
 
   return contourObj;
@@ -322,6 +367,13 @@ PyInit_PySegmentation()
       return nullptr;
   }
 
+  // Initialize the contour class type.
+  SetContourSegmentationTypeFields(PyContourSegmentationType);
+  if (PyType_Ready(&PyContourSegmentationType) < 0) {
+      std::cout << "Error creating ContourSegmentation type" << std::endl;
+      return nullptr;
+  }
+
   // Initialize the level set class type.
   SetLevelSetSegmentationTypeFields(PyLevelSetSegmentationType);
   if (PyType_Ready(&PyLevelSetSegmentationType) < 0) {
@@ -379,6 +431,10 @@ PyInit_PySegmentation()
   // Add the 'Circle' class.
   Py_INCREF(&PyCircleSegmentationType);
   PyModule_AddObject(module, SEGMENTATION_CIRCLE_CLASS, (PyObject*)&PyCircleSegmentationType);
+
+  // Add the 'Contour' class.
+  Py_INCREF(&PyContourSegmentationType);
+  PyModule_AddObject(module, SEGMENTATION_CONTOUR_CLASS, (PyObject*)&PyContourSegmentationType);
 
   // Add the 'LevelSet' class.
   Py_INCREF(&PyLevelSetSegmentationType);

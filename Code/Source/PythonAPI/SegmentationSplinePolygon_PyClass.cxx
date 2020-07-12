@@ -64,6 +64,18 @@ typedef struct {
   PySegmentation super;
 } PySplinePolygonSegmentation;
 
+//////////////////////////////////////////////////////
+//        U t i l i t y     F u n c t i o n s       //
+//////////////////////////////////////////////////////
+
+//-------------------------------------
+// PySplinePolygonCopySegmentationData 
+//-------------------------------------
+//
+void PySplinePolygonCopySegmentationData(sv3::Contour* contour, sv4guiContour* sv4Contour)
+{
+  PySegmentationCopySv4ContourData(sv4Contour, contour);
+}
 
 //////////////////////////////////////////////////////
 //          C l a s s    M e t h o d s              //
@@ -101,6 +113,8 @@ PySplinePolygonSegmentationInit(PySplinePolygonSegmentation* self, PyObject* arg
   //std::cout << "[PySplinePolygonSegmentationInit] New SplinePolygon Segmentation object: " << numObjs << std::endl;
   //self->super.count = numObjs;
   self->super.contour = new sv3::ContourSplinePolygon();
+  self->super.CopySv4ContourData = PySplinePolygonCopySegmentationData;
+
   numObjs += 1;
   return 0;
 }

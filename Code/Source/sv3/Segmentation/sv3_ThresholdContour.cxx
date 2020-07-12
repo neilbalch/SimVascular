@@ -91,40 +91,49 @@ double thresholdContour::GetThresholdValue()
 }
 
 
+//---------------------
+// CreateContourPoints
+//---------------------
+// Create a threshold contour.
+//
+// Modifies: m_ContourPoints
+//
 void thresholdContour::CreateContourPoints()
 {
-    if(m_ContourPoints.size()>0)
-        m_ContourPoints.clear();
-    
-    if(m_VtkImageSlice==NULL)
-    {
+    if (m_VtkImageSlice == NULL) {
         printf("Image slice is empty.\n");
         return;
     }
 
-    cvStrPts*  strPts=SegmentationUtils::vtkImageData2cvStrPts(m_VtkImageSlice);
+    m_ContourPoints.clear();
     
-    vtkSmartPointer<vtkContourFilter> contourFilter=vtkSmartPointer<vtkContourFilter>::New();
+    // Convert the source image to structured points.
+    auto strPts = SegmentationUtils::vtkImageData2cvStrPts(m_VtkImageSlice);
+    
+    // Extract a contour from the image using thresholding.
+    //
+    auto contourFilter = vtkSmartPointer<vtkContourFilter>::New();
     contourFilter->SetInputDataObject(strPts->GetVtkStructuredPoints());
     contourFilter->SetValue(0,m_thresholdValue);
     contourFilter->Update();
     
-    vtkSmartPointer<vtkPolyData> uncleanContour=contourFilter->GetOutput();
-    cvPolyData* cvUncleanContour=new cvPolyData(uncleanContour);
+    auto uncleanContour = contourFilter->GetOutput();
+    auto cvUncleanContour = new cvPolyData(uncleanContour);
 
-    vtkSmartPointer<vtkPolyDataConnectivityFilter> connectFilter=vtkSmartPointer<vtkPolyDataConnectivityFilter>::New();
+    // Extract cells that share common points and/or satisfy a scalar threshold criterion.
+    //
+    auto connectFilter = vtkSmartPointer<vtkPolyDataConnectivityFilter>::New();
     connectFilter->SetInputData(uncleanContour);
     connectFilter->SetExtractionModeToClosestPointRegion();
     double seedPt[3] = {m_PathPoint.pos[0],m_PathPoint.pos[1],m_PathPoint.pos[2]};
     connectFilter->SetClosestPoint(seedPt);
     connectFilter->Update();
     
-    vtkSmartPointer<vtkPolyData> selectedContour=connectFilter->GetOutput();
+    vtkSmartPointer<vtkPolyData> selectedContour = connectFilter->GetOutput();
+    cvPolyData *cvSelectedContour = new cvPolyData(selectedContour);
 
-    cvPolyData *cvSelectedContour=new cvPolyData(selectedContour);
-
-    cvPolyData *dst;
-    
+    // Rotate the contour to the path plane.
+    //
     double pos[3],nrm[3],xhat[3];
 
     pos[0]=m_PathPoint.pos[0];
@@ -139,17 +148,18 @@ void thresholdContour::CreateContourPoints()
     xhat[1]=m_PathPoint.rotation[1];
     xhat[2]=m_PathPoint.rotation[2];
 
+    cvPolyData *dst;
+    
     sys_geom_OrientProfile(cvSelectedContour, pos, nrm, xhat, &dst);
     
-    std::vector<std::array<double,3> > contourPoints;
-    
-    vtkPolyData* pd=dst->GetVtkPolyData();
+    vtkPolyData* pd = dst->GetVtkPolyData();
     bool ifClosed;
-    std::deque<int> IDList=SegmentationUtils::GetOrderedPtIDs(pd->GetLines(),ifClosed);
+    std::deque<int> IDList = SegmentationUtils::GetOrderedPtIDs(pd->GetLines(),ifClosed);
     double point[3];
     std::array<double,3> pt;
-    for(int i=0;i<IDList.size();i++)
-    {
+    std::vector<std::array<double,3> > contourPoints;
+    
+    for(int i=0;i<IDList.size();i++) {
         pd->GetPoint(IDList[i],point);
         pt[0]=point[0];
         pt[1]=point[1];

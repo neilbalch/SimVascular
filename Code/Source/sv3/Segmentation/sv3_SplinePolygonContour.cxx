@@ -120,36 +120,55 @@ void ContourSplinePolygon::CreateContourPoints()
     m_ContourPoints=spline->GetSplinePosPoints();
 }
 
-Contour* ContourSplinePolygon::CreateByFitting(Contour* contour, int divisionNumber)
+//-----------------
+// CreateByFitting
+//-----------------
+// Create a new ContourSplinePolygon object by fitting a spline
+// to the input Contour object's contour points.
+//
+// The new ContourSplinePolygon object's control points are 
+// created by sample the spline at 'divisionNumber' points.
+//
+// [TODO:DaveP] Should this be a constructor?
+//
+Contour * 
+ContourSplinePolygon::CreateByFitting(Contour* contour, int divisionNumber)
 {
-    int inputPointNumber=contour->GetContourPointNumber();
+    // Get the number of contour points.
+    int inputPointNumber = contour->GetContourPointNumber();
 
-    if(inputPointNumber<3)
+    if (inputPointNumber < 3) {
         return contour->Clone();
+    }
 
-    sv3::VtkParametricSpline* svpp= new sv3::VtkParametricSpline();
+    auto svpp = new sv3::VtkParametricSpline();
     svpp->ParameterizeByLengthOn();
 
-    if(contour->IsClosed())
+    if (contour->IsClosed()) {
         svpp->ClosedOn();
-    else
+    } else {
         svpp->ClosedOff();
+    }
 
+    // Add the contour points.
+    //
     svpp->SetNumberOfPoints(inputPointNumber);
 
-    for(int i=0;i<inputPointNumber;i++)
-    {
+    for (int i=0;i<inputPointNumber;i++) {
         std::array<double,3> point=contour->GetContourPoint(i);
         svpp->SetPoint(i,point[0],point[1],point[2]);
     }
 
+    // Sample the spline at 'divisionNumber' points.
+    //
     double pt[3];
     std::array<double,3> point;
     std::vector<std::array<double,3> > controlPoints;
-    for(int i=0;i<=divisionNumber;i++)
-    {
-        if(i==divisionNumber&&contour->IsClosed())
+
+    for (int i = 0; i <= divisionNumber; i++) {
+        if (i == divisionNumber&&contour->IsClosed()) {
             break;
+        }
 
         svpp->EvaluateByLengthFactor(i*1.0/divisionNumber, pt);
         point[0]=pt[0];

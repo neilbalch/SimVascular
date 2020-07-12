@@ -57,36 +57,33 @@ using sv3::SegmentationUtils;
 cKernelType Contour::gCurrentKernel;
 //cvFactoryRegistrar Contour::gRegistrar;
 
-Contour::Contour()
-    : cvRepositoryData( CONTOUR_T ),
-      m_Type("Contour"),
-      m_Method(""),
-      //m_Placed( false ),
-      m_Closed( true ),
-      m_Finished( true ),
-      m_ControlPointSelectedIndex( -2 ),
-      m_vtkPlaneGeometry( nullptr ),
-      //m_PreviewControlPointVisible( false ),
-      //m_Extendable( false ),
-      //m_Selected(false),
-      m_MinControlPointNumber(2),
-      m_MaxControlPointNumber(2),
-      m_TagIndex(0),
-      m_CenterPoint{0.0,0.0,0.0}
+//---------
+// Contour
+//---------
+//
+Contour::Contour() : cvRepositoryData( CONTOUR_T ), m_Type("Contour"), m_Method(""), m_Closed(true), 
+  m_Finished(true), m_ControlPointSelectedIndex(-2), m_vtkPlaneGeometry(nullptr), m_MinControlPointNumber(2),
+  m_MaxControlPointNumber(2), m_TagIndex(0), m_CenterPoint{0.0,0.0,0.0}
  {
-    for (int i=0;i<5;i++)
-    {
-        m_ControlPointNonRemovableIndices[i]=-2;
-    }
-    m_ControlPointNonRemovableIndices[0]=0;
-    m_ControlPointNonRemovableIndices[1]=1;
+  std::cout << "######## C o n t o u r   c t o r  ######## " << std::endl;
+  m_ContourID = 0;
 
-    m_SubdivisionType=CONSTANT_TOTAL_NUMBER;
-    m_SubdivisionNumber=0;
-    m_SubdivisionSpacing=0.0;
+  for (int i=0;i<5;i++) {
+      m_ControlPointNonRemovableIndices[i]=-2;
+  }
 
+  m_ControlPointNonRemovableIndices[0]=0;
+  m_ControlPointNonRemovableIndices[1]=1;
+
+  m_SubdivisionType=CONSTANT_TOTAL_NUMBER;
+  m_SubdivisionNumber=0;
+  m_SubdivisionSpacing=0.0;
 }
 
+//----------------
+// Contour (copy)
+//----------------
+//
 Contour::Contour(const Contour &other) 
     : cvRepositoryData( CONTOUR_T )
     , m_Type(other.m_Type)
@@ -115,6 +112,10 @@ Contour::Contour(const Contour &other)
 
 }
 
+//----------
+// ~Contour
+//----------
+//
 Contour::~Contour()
 {
   std::cout << "######## ~ C o n t o u r   d t o r  ######## " << std::endl;
@@ -127,13 +128,11 @@ std::string Contour::GetClassName()
 
 std::string Contour::GetType()
 {
-
     return m_Type;
 }
 
 void Contour::SetType(std::string type)
 {
-
     m_Type=type;
 }
 
@@ -160,19 +159,17 @@ void Contour::SetContourID(int contourID)
 
 void Contour::SetPlaneGeometry(vtkPlane * planeGeometry)
 {
-
-    if(planeGeometry!=NULL)
-    {
+    if(planeGeometry!=NULL) {
         m_vtkPlaneGeometry = vtkPlane::New();
         m_vtkPlaneGeometry->SetOrigin(planeGeometry->GetOrigin());
         m_vtkPlaneGeometry->SetNormal(planeGeometry->GetNormal());
-    }else{
+    } else {
         m_vtkPlaneGeometry = NULL;
     }
 
 }
 
-vtkPlane * Contour::GetPlaneGeometry()
+vtkPlane* Contour::GetPlaneGeometry()
 {
     return m_vtkPlaneGeometry;
 }

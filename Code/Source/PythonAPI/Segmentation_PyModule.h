@@ -45,24 +45,28 @@
 // Need to define US_MODULE_NAME because we are including sv4gui_ContourGroupIO.h.
 #define US_MODULE_NAME 
 
+PyObject* CreatePySegmentationGroup(sv4guiContourGroup* contourGroup);
+
+// Define the signature for the function used to copy sv4guiContour 
+// object data to sv3::Contour objects.
+typedef void (*CopySegmentationDataFunc)(sv3::Contour* contour, sv4guiContour* sv4Contour);
+
 //----------------
 // PySegmentation
 //----------------
+// Segmentation base class.
+//
+// CopySv4ContourData: A function pointer for copying sv4guiContour object 
+//    data to sv3::Contour objects. This is set in each derived class's 
+//    object initialization function (e.g. PyCircleSegmentationInit).
 //
 extern "C" SV_EXPORT_PYTHON_API typedef struct
 {
   PyObject_HEAD
   sv3::Contour* contour;
+  CopySegmentationDataFunc CopySv4ContourData;
   int id;
 } PySegmentation;
-
-extern "C" SV_EXPORT_SEGMENTATION typedef struct
-{
-  PyObject_HEAD
-  cvFactoryRegistrar* registrar;
-} pyContourFactoryRegistrar;
-
-PyObject* CreatePySegmentationGroup(sv4guiContourGroup* contourGroup);
 
 #if PYTHON_MAJOR_VERSION == 2
 PyMODINIT_FUNC  initpyContour();

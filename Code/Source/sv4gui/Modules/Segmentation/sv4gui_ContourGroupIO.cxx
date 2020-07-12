@@ -144,8 +144,9 @@ sv4guiContourGroupIO::CreateGroupFromFile(std::string fileName)
              contourElement != nullptr;
              contourElement = contourElement->NextSiblingElement("contour") )
         {
-            if (contourElement == nullptr)
+            if (contourElement == nullptr) {
                 continue;
+            }
 
             std::string type;
             contourElement->QueryStringAttribute("type", &type);
@@ -195,6 +196,10 @@ sv4guiContourGroupIO::CreateGroupFromFile(std::string fileName)
                 ct->SetSubdivisionRounds(subdivisionRounds);
                 ct->SetTensionParameter(tensionParam);
             }
+
+            int contourID;
+            contourElement->QueryIntAttribute("id", &contourID);
+            contour->SetContourID(contourID);
 
             std::string method;
             contourElement->QueryStringAttribute("method", &method);

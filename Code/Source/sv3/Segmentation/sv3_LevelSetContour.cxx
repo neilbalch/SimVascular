@@ -150,6 +150,9 @@ void levelSetContour::CreateContourPoints()
     cvPolyData *front1;
     front1=ls->GetFront();
 
+    cvITKLevelSet levelSet2;
+    levelSet2.SetDebug(false);
+
     //stage 2
     //**********************************************
     cvITKLevelSet *ls2;

@@ -64,6 +64,20 @@ typedef struct {
 } PyLevelSetSegmentation;
 
 //////////////////////////////////////////////////////
+//        U t i l i t y     F u n c t i o n s       //
+//////////////////////////////////////////////////////
+
+//--------------------------------
+// PyLevelSetCopySegmentationData
+//--------------------------------
+//
+void PyLevelSetCopySegmentationData(sv3::Contour* contour, sv4guiContour* sv4Contour)
+{
+  PySegmentationCopySv4ContourData(sv4Contour, contour);
+}
+
+
+//////////////////////////////////////////////////////
 //          C l a s s    M e t h o d s              //
 //////////////////////////////////////////////////////
 //
@@ -79,17 +93,17 @@ static char* SEGMENTATION_LEVELSET_MODULE_CLASS = "segmentation.LevelSet";
 
 PyDoc_STRVAR(PyLevelSetSegmentationClass_doc, "level set segmentation functions");
 
-//--------------------------
+//-------------------------------
 // PyLevelSetSegmentationMethods
-//--------------------------
+//-------------------------------
 //  
 PyMethodDef PyLevelSetSegmentationMethods[] = {
   {NULL, NULL}
 };
 
-//-----------------------
+//----------------------------
 // PyLevelSetSegmentationInit 
-//-----------------------
+//----------------------------
 // This is the __init__() method for the LevelSet class. 
 //
 // This function is used to initialize an object after it is created.
@@ -100,13 +114,14 @@ PyLevelSetSegmentationInit(PyLevelSetSegmentation* self, PyObject* args, PyObjec
   static int numObjs = 1;
   std::cout << "[PyLevelSetSegmentationInit] New LevelSet Segmentation object: " << numObjs << std::endl;
   self->super.contour = new sv3::levelSetContour();
+  self->super.CopySv4ContourData = PyLevelSetCopySegmentationData;
   numObjs += 1;
   return 0;
 }
 
-//----------------------
+//---------------------------
 // PyLevelSetSegmentationNew 
-//----------------------
+//---------------------------
 //
 static PyObject *
 PyLevelSetSegmentationNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
@@ -119,9 +134,9 @@ PyLevelSetSegmentationNew(PyTypeObject *type, PyObject *args, PyObject *kwds)
   return (PyObject *) self;
 }
 
-//--------------------------
+//-------------------------------
 // PyLevelSetSegmentationDealloc 
-//--------------------------
+//-------------------------------
 //
 static void
 PyLevelSetSegmentationDealloc(PyLevelSetSegmentation* self)

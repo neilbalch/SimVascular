@@ -73,17 +73,26 @@ double math_angleBtw3DVectors(double vecA[3], double vecB[3])
     }
     return acos(cosTheta);
 }
-cvStrPts* SegmentationUtils::vtkImageData2cvStrPts(vtkImageData* vtkImg)
+
+//-----------------------
+// vtkImageData2cvStrPts
+//-----------------------
+// Convert a VTK image into a VTK structured grid.
+//
+// [TODO:DaveP] This leaks memory by not deleting 'mysp'.
+// The original code has mysp->Delete() commented out,
+// maybe because its data pointers are being copied to 'sp'.
+//
+cvStrPts* 
+SegmentationUtils::vtkImageData2cvStrPts(vtkImageData* vtkImg)
 {
     vtkStructuredPoints *mysp = vtkStructuredPoints::New();
     mysp->ShallowCopy(vtkImg);
 
     int whole[6];
-    //    int extent[6];
-    double *spacing, origin[3];
-
     vtkImg->GetExtent(whole);
 
+    double *spacing, origin[3];
     spacing = vtkImg->GetSpacing();
     vtkImg->GetOrigin(origin);
 

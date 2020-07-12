@@ -64,6 +64,20 @@ typedef struct {
   PySegmentation super;
 } PyThresholdSegmentation;
 
+//////////////////////////////////////////////////////
+//        U t i l i t y     F u n c t i o n s       //
+//////////////////////////////////////////////////////
+
+//---------------------------------
+// PyThresholdCopySegmentationData
+//---------------------------------
+//
+void PyThresholdCopySegmentationData(sv3::Contour* contour, sv4guiContour* sv4Contour)
+{
+  PySegmentationCopySv4ContourData(sv4Contour, contour);
+}
+
+
 thresholdContour* CreateThresholdContour()
 {
   return new thresholdContour();
@@ -104,9 +118,8 @@ PyThresholdSegmentationInit(PyThresholdSegmentation* self, PyObject* args, PyObj
 {
   static int numObjs = 1;
   std::cout << "[PyThresholdSegmentationInit] New Threshold Segmentation object: " << numObjs << std::endl;
-  //self->super.count = numObjs;
-  //self->super.contour = new ThresholdContour();
-  self->super.contour = new sv3::circleContour();
+  self->super.contour = new thresholdContour();
+  self->super.CopySv4ContourData = PyThresholdCopySegmentationData; 
   numObjs += 1;
   return 0;
 }

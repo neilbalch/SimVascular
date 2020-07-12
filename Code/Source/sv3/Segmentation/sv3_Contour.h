@@ -51,13 +51,14 @@
 #endif
 
 enum cKernelType {
-    cKERNEL_INVALID,
-    cKERNEL_LEVELSET,
-    cKERNEL_THRESHOLD,
     cKERNEL_CIRCLE,
+    cKERNEL_CONTOUR,
+    cKERNEL_ELLIPSE,
+    cKERNEL_LEVELSET,
     cKERNEL_POLYGON,
     cKERNEL_SPLINEPOLYGON,
-    cKERNEL_ELLIPSE
+    cKERNEL_THRESHOLD,
+    cKERNEL_INVALID
 };
 
 namespace sv3{
@@ -129,7 +130,8 @@ public:
 
     static const int INVALID_INDEX=-2;
 
-    enum ShapeType {ONLY_CONTOUR, CIRCLE, ELLIPSE,POLYGON,CURVE_POLYGON};
+    // [DaveP] this does not appear to be used.
+    // enum ShapeType {ONLY_CONTOUR, CIRCLE, ELLIPSE,POLYGON,CURVE_POLYGON};
 
     Contour();
 
@@ -169,7 +171,7 @@ public:
 
     void SetFinished(bool finished=true);
 
-    ShapeType GetShape();
+    // ShapeType GetShape();
 
     int GetSubdivisionNumber();
 
@@ -302,7 +304,7 @@ public:
 
     PathElement::PathPoint m_PathPoint;
 
-    ShapeType m_Shape;
+    // ShapeType m_Shape;
 
     std::string m_Method;
 

@@ -45,6 +45,7 @@
 static std::map<std::string,cKernelType> kernelNameEnumMap =
 {
     {"CIRCLE", cKERNEL_CIRCLE},
+    {"CONTOUR", cKERNEL_CONTOUR},
     {"ELLIPSE", cKERNEL_ELLIPSE},
     {"LEVEL_SET", cKERNEL_LEVELSET},
     {"POLYGON", cKERNEL_POLYGON},
@@ -53,11 +54,11 @@ static std::map<std::string,cKernelType> kernelNameEnumMap =
 };
 
 // The list of valid kernel names, used in error messages.
-static std::string kernelValidNames = "CIRCLE, ELLIPSE, LEVEL_SET, POLYGON, SPLINE_POLYGON or THRESHOLD";
+static std::string kernelValidNames = "CIRCLE, CONTOUR, LEVEL_SET, POLYGON, SPLINE_POLYGON or THRESHOLD";
 
-//---------------------
+//--------------------------
 // SegmentationMethodObject
-//---------------------
+//--------------------------
 // Define the SegmentationMethodObject class (type).
 //
 typedef struct {

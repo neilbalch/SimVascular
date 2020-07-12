@@ -37,12 +37,26 @@
 //----------------------
 // PyCircleSegmentation 
 //----------------------
-// Define the Circle class (type).
+// Define the Circle class.
 //
 typedef struct {
   PySegmentation super;
   double radius;
 } PyCircleSegmentation;
+
+//////////////////////////////////////////////////////
+//        U t i l i t y     F u n c t i o n s       //
+//////////////////////////////////////////////////////
+
+//------------------------------
+// PyCircleCopySegmentationData
+//------------------------------
+//
+void PyCircleCopySegmentationData(sv3::Contour* contour, sv4guiContour* sv4Contour)
+{
+  std::cout << "[PyCircleCopySegmentationData] ========== PyCircleCopySegmentationData ========== " << std::endl;
+  PySegmentationCopySv4ContourData(sv4Contour, contour);
+}
 
 //////////////////////////////////////////////////////
 //          C l a s s    M e t h o d s              //
@@ -81,6 +95,7 @@ CircleSegmentation_get_center(PyCircleSegmentation* self, PyObject* args)
   }
 
   auto center = circleContour->GetControlPoint(0);
+  std::cout << "[CircleSegmentation_get_center] center: " << center[0] << ", " << center[1] << ", " << center[2] << std::endl;
   return Py_BuildValue("[d, d, d]", center[0], center[1], center[2]);
 }
 
@@ -402,7 +417,9 @@ PyCircleSegmentationInit(PyCircleSegmentation* self, PyObject* args, PyObject *k
 
   // Create the circle contour.
   self->super.contour = new sv3::circleContour();
-  //auto circleContour = dynamic_cast<sv3::circleContour*>(self->super.contour);
+  self->super.CopySv4ContourData = PyCircleCopySegmentationData; 
+  auto circleContour = dynamic_cast<sv3::circleContour*>(self->super.contour);
+  std::cout << "[PyCircleSegmentationInit] circleContour: " << circleContour << std::endl;
 
 /*
   auto circleContour = (sv3::circleContour*)(self->super.contour);

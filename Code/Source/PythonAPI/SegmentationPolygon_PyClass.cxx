@@ -64,6 +64,19 @@ typedef struct {
 } PyPolygonSegmentation;
 
 //////////////////////////////////////////////////////
+//        U t i l i t y     F u n c t i o n s       //
+//////////////////////////////////////////////////////
+
+//-------------------------------
+// PyPolygonCopySegmentationData 
+//-------------------------------
+//
+void PyPolygonCopySegmentationData(sv3::Contour* contour, sv4guiContour* sv4Contour)
+{
+  PySegmentationCopySv4ContourData(sv4Contour, contour);
+}
+
+//////////////////////////////////////////////////////
 //          C l a s s    M e t h o d s              //
 //////////////////////////////////////////////////////
 //
@@ -177,7 +190,9 @@ PyPolygonSegmentationInit(PyPolygonSegmentation* self, PyObject* args, PyObject 
       }
   }
 
+  // Create the ContourPolygon object.
   self->super.contour = new sv3::ContourPolygon();
+  self->super.CopySv4ContourData = PyPolygonCopySegmentationData;
 
   return 0;
 }
